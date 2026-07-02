@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { House, SquaresFour, ImagesSquare, UsersThree, UserCircle, Plus } from "@phosphor-icons/react";
+import { House, ImagesSquare, UsersThree, UserCircle, Plus } from "@phosphor-icons/react";
 import { faNum } from "../lib/format";
 
 /** Metaball "blob" brand mark. Gooey filter fuses the three circles. */
@@ -61,32 +61,35 @@ export function Ambient() {
   );
 }
 
-export type NavKey = "home" | "models" | "community" | "gallery" | "profile";
+export type NavKey = "home" | "community" | "gallery" | "profile";
 
-export function BottomNav({ active, onNav }: { active: NavKey; onNav: (k: NavKey) => void }) {
-  const items: { key: NavKey; label: string; Icon: typeof House }[] = [
-    { key: "home", label: "خانه", Icon: House },
-    { key: "models", label: "مدل‌ها", Icon: SquaresFour },
-    { key: "community", label: "کامیونیتی", Icon: UsersThree },
-    { key: "gallery", label: "گالری", Icon: ImagesSquare },
-    { key: "profile", label: "پروفایل", Icon: UserCircle },
-  ];
+function NavTab({ label, Icon, on, onClick }: { label: string; Icon: typeof House; on: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex flex-1 flex-col items-center gap-1 py-1 transition-transform active:scale-95">
+      <Icon size={23} weight={on ? "fill" : "regular"} className={on ? "text-accent" : "text-ink3"} />
+      <span className={`text-[10px] ${on ? "text-accent" : "text-ink3"}`}>{label}</span>
+    </button>
+  );
+}
+
+export function BottomNav({ active, onNav, onCreate }: { active: NavKey; onNav: (k: NavKey) => void; onCreate: () => void }) {
   return (
     <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 border-t border-line bg-surface/85 backdrop-blur-xl">
-      <div className="flex items-stretch justify-around px-2 pt-2 pb-[max(14px,env(safe-area-inset-bottom))]">
-        {items.map(({ key, label, Icon }) => {
-          const on = key === active;
-          return (
-            <button
-              key={key}
-              onClick={() => onNav(key)}
-              className="flex flex-1 flex-col items-center gap-1 py-1 active:scale-95 transition-transform"
-            >
-              <Icon size={23} weight={on ? "fill" : "regular"} className={on ? "text-ink" : "text-ink3"} />
-              <span className={`text-[10px] ${on ? "text-ink" : "text-ink3"}`}>{label}</span>
-            </button>
-          );
-        })}
+      <div className="flex items-end justify-around px-1.5 pt-2 pb-[max(14px,env(safe-area-inset-bottom))]">
+        <NavTab label="خانه" Icon={House} on={active === "home"} onClick={() => onNav("home")} />
+        <NavTab label="کامیونیتی" Icon={UsersThree} on={active === "community"} onClick={() => onNav("community")} />
+        <div className="flex flex-1 justify-center">
+          <button
+            onClick={onCreate}
+            aria-label="بساز"
+            className="grid h-14 w-14 -translate-y-3.5 place-items-center rounded-full text-white transition-transform active:scale-95"
+            style={{ background: "var(--color-accent2)", boxShadow: "var(--shadow-accent)" }}
+          >
+            <Plus size={26} weight="bold" />
+          </button>
+        </div>
+        <NavTab label="گالری" Icon={ImagesSquare} on={active === "gallery"} onClick={() => onNav("gallery")} />
+        <NavTab label="پروفایل" Icon={UserCircle} on={active === "profile"} onClick={() => onNav("profile")} />
       </div>
     </div>
   );

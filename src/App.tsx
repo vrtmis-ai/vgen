@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { getFamily, variantControls, type Variant } from "./data/models";
+import { getFamily, variantControls, type Variant, type ModelKind } from "./data/models";
 import type { InputMap } from "./components/controls";
 import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/gallery";
+import { pageFade } from "./lib/motion";
+import { FEATURED } from "./data/featured";
 import { Ambient, BottomNav, Logo, type NavKey } from "./components/chrome";
+import { CreateSheet } from "./components/CreateSheet";
 import Home from "./screens/Home";
 import Models from "./screens/Models";
 import Community from "./screens/Community";
@@ -13,19 +16,14 @@ import Generate, { currentAspect } from "./screens/Generate";
 import Result from "./screens/Result";
 
 const DEMO_COINS = 1250;
+const TEMPLATE = FEATURED.find((f) => f.kind === "template");
 
 type Flow =
   | { s: "none" }
   | { s: "wallet" }
+  | { s: "models"; kind: ModelKind }
   | { s: "generate"; familyId: string; prompt?: string }
   | { s: "result"; gen: Generation; instant: boolean };
-
-const fade = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -8 },
-  transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const },
-};
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -33,8 +31,8 @@ function Placeholder({ title }: { title: string }) {
       <div className="text-ink3 opacity-50">
         <Logo size={44} />
       </div>
-      <div className="text-[15px] font-medium">{title}</div>
-      <div className="text-[12.5px] text-ink3">این بخش به‌زودی فعال می‌شود</div>
+      <div className="t-title">{title}</div>
+      <div className="t-caption text-ink3">این بخش به‌زودی فعال می‌شود</div>
     </div>
   );
 }
@@ -42,13 +40,16 @@ function Placeholder({ title }: { title: string }) {
 export default function App() {
   const [tab, setTab] = useState<NavKey>("home");
   const [flow, setFlow] = useState<Flow>({ s: "none" });
+  const [createOpen, setCreateOpen] = useState(false);
   const [gens, setGens] = useState<Generation[]>(loadGenerations);
 
   useEffect(() => saveGenerations(gens), [gens]);
 
   const openModel = (familyId: string, prompt?: string) => setFlow({ s: "generate", familyId, prompt });
+  const openModels = (kind: ModelKind = "image") => setFlow({ s: "models", kind });
   const openWallet = () => setFlow({ s: "wallet" });
   const goHome = () => setFlow({ s: "none" });
+  const openTemplate = () => (TEMPLATE?.familyId ? openModel(TEMPLATE.familyId, TEMPLATE.prompt) : openModels());
   const markDone = (id: string) => setGens((p) => p.map((g) => (g.id === id ? { ...g, status: "done" } : g)));
 
   function startGeneration(familyId: string, prompt: string, input: InputMap, variant: Variant) {
@@ -79,6 +80,7 @@ export default function App() {
     setFlow({ s: "result", gen, instant: false });
   }
 
+  // ---- full-screen flows (no bottom nav) ----
   if (flow.s === "wallet") {
     return (
       <Shell>
@@ -86,7 +88,13 @@ export default function App() {
       </Shell>
     );
   }
-
+  if (flow.s === "models") {
+    return (
+      <Shell>
+        <Models coins={DEMO_COINS} initialKind={flow.kind} onOpen={openModel} onWallet={openWallet} onBack={goHome} />
+      </Shell>
+    );
+  }
   if (flow.s === "generate") {
     const family = getFamily(flow.familyId);
     if (!family) return null;
@@ -101,7 +109,6 @@ export default function App() {
       </Shell>
     );
   }
-
   if (flow.s === "result") {
     const gen = flow.gen;
     return (
@@ -119,20 +126,22 @@ export default function App() {
     );
   }
 
+  // ---- tabbed area ----
   return (
     <Shell>
       <div className="pb-28">
         <AnimatePresence mode="wait">
-          <motion.div key={tab} {...fade}>
-            {tab === "home" && <Home coins={DEMO_COINS} onOpen={openModel} onAllModels={() => setTab("models")} onWallet={openWallet} />}
-            {tab === "models" && <Models coins={DEMO_COINS} onOpen={openModel} onWallet={openWallet} />}
+          <motion.div key={tab} {...pageFade}>
+            {tab === "home" && (
+              <Home coins={DEMO_COINS} onOpen={openModel} onModels={openModels} onCommunity={() => setTab("community")} onWallet={openWallet} />
+            )}
             {tab === "community" && <Community coins={DEMO_COINS} onOpen={openModel} onWallet={openWallet} />}
             {tab === "gallery" && (
               <Gallery
                 gens={gens}
                 coins={DEMO_COINS}
                 onOpen={(g) => setFlow({ s: "result", gen: { ...g, status: "done" }, instant: true })}
-                onBrowse={() => setTab("models")}
+                onBrowse={() => openModels()}
                 onWallet={openWallet}
               />
             )}
@@ -140,7 +149,16 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </div>
-      <BottomNav active={tab} onNav={setTab} />
+
+      <BottomNav active={tab} onNav={setTab} onCreate={() => setCreateOpen(true)} />
+      <CreateSheet
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onImage={() => openModels("image")}
+        onVideo={() => openModels("video")}
+        onTemplate={openTemplate}
+        onAll={() => openModels()}
+      />
     </Shell>
   );
 }

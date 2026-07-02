@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Star } from "@phosphor-icons/react";
+import { Star, ArrowRight } from "@phosphor-icons/react";
 import { IMAGE_FAMILIES, VIDEO_FAMILIES, type Family, type ModelKind } from "../data/models";
 import { useFavorites } from "../lib/favorites";
 import { CreditPill } from "../components/chrome";
@@ -49,15 +49,32 @@ function GridCard({ f, i, fav, onToggleFav, onOpen }: { f: Family; i: number; fa
   );
 }
 
-export default function Models({ coins, onOpen, onWallet }: { coins: number; onOpen: (familyId: string) => void; onWallet: () => void }) {
-  const [tab, setTab] = useState<ModelKind>("image");
+export default function Models({
+  coins,
+  onOpen,
+  onWallet,
+  onBack,
+  initialKind = "image",
+}: {
+  coins: number;
+  onOpen: (familyId: string) => void;
+  onWallet: () => void;
+  onBack: () => void;
+  initialKind?: ModelKind;
+}) {
+  const [tab, setTab] = useState<ModelKind>(initialKind);
   const { toggle, has } = useFavorites();
   const families = tab === "image" ? IMAGE_FAMILIES : VIDEO_FAMILIES;
 
   return (
-    <div className="relative z-10 px-4 pt-4">
+    <div className="relative z-10 px-4 pt-4 pb-10">
       <div className="mb-5 flex items-center justify-between">
-        <span className="text-[20px] font-semibold tracking-tight">مدل‌ها</span>
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95">
+            <ArrowRight size={18} weight="bold" />
+          </button>
+          <span className="t-h1">مدل‌ها</span>
+        </div>
         <CreditPill coins={coins} onClick={onWallet} />
       </div>
 

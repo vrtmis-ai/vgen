@@ -1,19 +1,46 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Vgen design system — Aurora Violet on layered charcoal
+   ============================================================ */
 @theme {
-  --color-bg: #0a0a0b;
-  --color-surface: #0f0f11;
-  --color-card: #161619;
-  --color-card2: #1d1d21;
+  /* surfaces — layered, tinted slightly toward the accent hue */
+  --color-bg: #09090c; /* deepest */
+  --color-surface: #0d0d11; /* app canvas */
+  --color-card: #141419; /* elevation 1 */
+  --color-card2: #1b1b22; /* elevation 2 */
+  --color-elev3: #24242d; /* popover / sheet */
+
   --color-line: rgba(255, 255, 255, 0.07);
   --color-line2: rgba(255, 255, 255, 0.12);
-  --color-ink: #f4f4f5;
-  --color-ink2: #b4b4bb;
-  --color-ink3: #74747d;
+
+  /* ink */
+  --color-ink: #f5f5f7;
+  --color-ink2: #b6b6c2;
+  --color-ink3: #78788a;
+
+  /* accent — Aurora Violet (solid, disciplined; no glowy gradients) */
+  --color-accent: #8a7cff;
+  --color-accent2: #6e5cf0; /* deeper — filled buttons, white text passes AA */
+  --color-accent-soft: rgba(138, 124, 255, 0.14); /* tinted wash */
+  --color-on-accent: #ffffff;
+
+  /* semantic */
+  --color-success: #2ee6b6;
+  --color-danger: #ff6b6b;
 
   --font-sans: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Vazirmatn", ui-sans-serif, sans-serif;
 
+  --radius-md: 0.875rem;
+  --radius-card: 1.25rem;
   --radius-bezel: 1.75rem;
+
+  --shadow-soft: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 20px 50px -18px rgba(0, 0, 0, 0.6);
+  --shadow-accent: 0 14px 40px -14px rgba(110, 92, 240, 0.55);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root { color-scheme: dark; }
@@ -26,6 +53,7 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   -webkit-tap-highlight-color: transparent;
   overflow-x: hidden;
 }
@@ -34,13 +62,33 @@ button { font-family: inherit; cursor: pointer; }
 img, video { display: block; max-width: 100%; }
 textarea, input { font-family: inherit; }
 
-/* English prompt fields read left-to-right inside the RTL app */
 .ltr { direction: ltr; text-align: left; }
+.font-display { font-family: var(--font-display); }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* skeleton shimmer */
+/* ---- typography system (apply, don't hardcode) --------------- */
+.t-display { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.9rem, 7vw, 2.15rem); line-height: 1.06; letter-spacing: -0.02em; }
+.t-h1 { font-weight: 600; font-size: 1.4rem; line-height: 1.2; letter-spacing: -0.01em; }
+.t-h2 { font-weight: 600; font-size: 1.15rem; line-height: 1.25; letter-spacing: -0.01em; }
+.t-title { font-weight: 600; font-size: 1.02rem; line-height: 1.3; }
+.t-body { font-weight: 400; font-size: 0.9375rem; line-height: 1.6; }
+.t-caption { font-weight: 400; font-size: 0.8125rem; line-height: 1.45; }
+.t-label { font-family: var(--font-display); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.04em; }
+
+/* ---- primitives --------------------------------------------- */
+.hairline-t { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+
+.btn-accent {
+  background: var(--color-accent2);
+  color: var(--color-on-accent);
+  box-shadow: var(--shadow-accent);
+  transition: transform 0.18s var(--ease-out), filter 0.18s var(--ease-out);
+}
+.btn-accent:active { transform: scale(0.97); filter: brightness(1.05); }
+
+/* ---- motion helpers ----------------------------------------- */
 @keyframes vg-shimmer { 100% { transform: translateX(100%); } }
 .shimmer { position: relative; overflow: hidden; }
 .shimmer::after {
@@ -50,7 +98,7 @@ textarea, input { font-family: inherit; }
   animation: vg-shimmer 1.5s infinite;
 }
 
-/* range input, kept LTR for predictable dragging */
+/* range slider — accent thumb, kept LTR for predictable dragging */
 input[type="range"] {
   -webkit-appearance: none; appearance: none; direction: ltr;
   height: 4px; border-radius: 999px; background: var(--color-line2); outline: none;
@@ -59,5 +107,9 @@ input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 20px; height: 20px; border-radius: 999px;
   background: #fff; cursor: pointer;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--color-accent-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
