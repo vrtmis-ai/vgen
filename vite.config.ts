@@ -7,5 +7,6 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "/vgen/" : "/",
   plugins: [react(), tailwindcss()],
-  server: { host: true, port: 5180 },
+  // PORT lets the preview harness assign a free port when 5180 is taken.
+  server: { host: true, port: Number(process.env.PORT) || 5180 },
 }));

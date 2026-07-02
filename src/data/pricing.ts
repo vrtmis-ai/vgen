@@ -1,9 +1,11 @@
 // Live price calculator.
 //
 // KIE has NO pre-generation price/estimate endpoint (every /estimate|/price|/cost
-// path returns 404). The real cost is only knowable from `creditsConsumed` after a
-// task finishes, or from KIE's published per-model rates. So we compute the price
-// locally and instantly from the user's chosen settings — no network round-trip.
+// path returns 404), but it DOES publish its full per-model rate table (see
+// lib/kieRates.ts). Prices are resolved live from that table by matching the
+// user's chosen settings to the right row; the built-in RATES below are only a
+// fallback for offline / first paint / rows KIE renames. The final source of
+// truth stays `creditsConsumed` returned after each task (backend settles it).
 //
 // Economics (locked):
 //   1 KIE credit         = $0.005   (1000 credits = $5)
@@ -13,6 +15,7 @@
 
 import type { Variant } from "./models";
 import type { InputMap } from "../components/controls";
+import { findRate } from "../lib/kieRates";
 
 export const KIE_CREDIT_USD = 0.005;
 export const COIN_USD = 0.05;
@@ -83,8 +86,68 @@ const RATES: Record<string, RateFn> = {
   "veo-lite": (i) => pick(i.resolution, { "720p": 30, "1080p": 35, "4k": 150 }, 30),
 };
 
-/** KIE credits the current settings will cost, or null if this model's rate is not loaded yet. */
+// ---- live lookup ------------------------------------------------------------
+// Per-variant resolvers: settings → tokens that select the right row in KIE's
+// live table (all tokens must appear in the row's description; "!x" = must not).
+// Descriptions are matched normalized (lowercase, single spaces).
+
+type LiveFn = (i: InputMap) => number | null;
+
+const dur = (i: InputMap, fb: number) => num(i.duration, fb);
+/** per-second row × duration (null passes through). */
+const perSec = (cr: number | null, s: number) => (cr == null ? null : cr * s);
+const res = (i: InputMap, fb: string) => String(i.resolution ?? fb).toLowerCase();
+
+/** Exported for tests (scripts/check-live-pricing.ts) — app code goes through kieCreditsFor. */
+export const LIVE: Record<string, LiveFn> = {
+  // ---- image (per image / per generation) ----
+  "nano-banana-pro": (i) => (res(i, "1K") === "4k" ? findRate("nano banana pro", "4k") : findRate("nano banana pro", "1/2k")),
+  "nano-banana-2": (i) => findRate("google nano banana 2", res(i, "1K")),
+  "seedream-4-5": () => findRate("seedream 4.5", "text-to-image"),
+  "seedream-5-lite": () => findRate("seedream 5.0 lite", "text-to-image"),
+  "gpt-image-2": (i) => findRate("gpt image 2", "text-to-image", res(i, "1K")),
+  "gpt-image-1-5": (i) => findRate("gpt image 1.5", "text-to-image", String(i.quality ?? "medium")),
+  "flux-2-pro": (i) => findRate("flux-2 pro", "text-to-image", res(i, "1K")),
+  "flux-2-flex": (i) => findRate("flux 2 flex", "text to image", res(i, "1K")),
+  "imagen-4-ultra": () => findRate("google imagen4", "ultra"),
+  "imagen-4": () => findRate("google imagen4", "default"),
+  "imagen-4-fast": () => findRate("google imagen4", "fast"),
+  "ideogram-v3": (i) => findRate("ideogram v3,", "text-to-image", String(i.rendering_speed ?? "BALANCED")),
+  "qwen-image": () => findRate("qwen image", "text-to-image", "!edit"), // per megapixel; outputs ≈ 1MP
+  "z-image": () => findRate("qwen z-image", "text-to-image"),
+  "grok-image": (i) => (Boolean(i.enable_pro) ? findRate("grok-imagine", "text-to-image(quality)") : findRate("grok-imagine,", "text-to-image", "!quality")),
+
+  // ---- video ----
+  // Seedance rows are per second, split by resolution; "no video input" = the
+  // conservative text-to-video rate (image input is cheaper — settled after).
+  "seedance-2": (i) => perSec(findRate("bytedance/seedance-2,", `${res(i, "720p")} no video`), dur(i, 5)),
+  "seedance-2-fast": (i) => perSec(findRate("seedance-2 fast", `${res(i, "720p")} no video`), dur(i, 5)),
+  "seedance-2-mini": (i) => perSec(findRate("seedance-2-mini", `${res(i, "720p")} no video`), dur(i, 5)),
+  "seedance-1-5-pro": (i) => perSec(findRate("seedance-1.5-pro", `${Boolean(i.generate_audio) ? "with" : "without"} audio-${res(i, "720p")}`), dur(i, 5)),
+  // Kling 3.0 rows are per second by audio+resolution; our mode maps std→720p, pro→1080p.
+  "kling-3": (i) => {
+    const r = i.mode === "4K" ? "4k" : i.mode === "std" ? "720p" : "1080p";
+    return perSec(findRate("kling 3.0, video", `${Boolean(i.sound) ? "with" : "without"} audio-${r}`), dur(i, 5));
+  },
+  "kling-2-6": (i) => findRate("kling 2.6", "text-to-video", `${Boolean(i.sound) ? "with" : "without"} audio-${dur(i, 5)}.0s`),
+  "kling-2-5-turbo": (i) => findRate("kling 2.5 turbo", "text-to-video", `turbo pro-${dur(i, 5)}.0s`),
+  "kling-2-1": (i) => findRate("kling 2.1", "video-generation", `pro-${dur(i, 5)}.0s`),
+  "wan-2-5": (i) => findRate("wan 2.5", "text-to-video", `default-${dur(i, 5)}.0s-${res(i, "720p")}`),
+  "wan-2-6": (i) => findRate("wan 2.6", "text to video", `, ${dur(i, 5)}.0s-${res(i, "1080p")}`), // leading ", " so 5.0s can't match 15.0s
+  "wan-2-7": (i) => perSec(findRate("wan 2.7 video", "text-to-video", res(i, "1080p")), dur(i, 5)),
+  "hailuo-02-pro": () => findRate("hailuo 02", "text-to-video", "pro-6.0s-1080p"),
+  "hailuo-02-standard": (i) => findRate("hailuo 02", "text-to-video", `standard-${dur(i, 6)}.0s-768p`),
+  "hailuo-2-3": (i) => findRate("hailuo 2.3", "image-to-video", `pro-${dur(i, 6)}.0s-${res(i, "768P")}`),
+  "veo-quality": (i) => findRate("google veo 3.1", "text-to-video", `quality-${res(i, "720p")}`),
+  "veo-fast": (i) => findRate("google veo 3.1", "text-to-video", `fast-${res(i, "720p")}`),
+  "veo-lite": (i) => findRate("google veo 3.1", "text-to-video", `lite-${res(i, "720p")}`),
+  "grok-video": (i) => perSec(findRate("grok-imagine,", "text-to-video", res(i, "480p")), dur(i, 6)),
+};
+
+/** KIE credits the current settings will cost: live table first, built-in fallback second. */
 export function kieCreditsFor(variant: Variant, input: InputMap): number | null {
+  const live = LIVE[variant.id]?.(input);
+  if (live != null) return live;
   const fn = RATES[variant.id];
   return fn ? fn(input) : null;
 }
@@ -99,3 +162,6 @@ export function priceCoins(variant: Variant, input: InputMap): number | null {
 export function pick(value: unknown, table: Record<string, number>, fallback: number): number {
   return table[String(value)] ?? fallback;
 }
+
+/** Exported for tests — the built-in fallback table. */
+export { RATES as RATES_FALLBACK };

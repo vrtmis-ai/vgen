@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { getFamily, variantControls, type Variant, type ModelKind } from "./data/models";
 import type { InputMap } from "./components/controls";
 import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/gallery";
+import { startKieRates } from "./lib/kieRates";
 import { pageFade } from "./lib/motion";
 import { FEATURED } from "./data/featured";
 import { Ambient, BottomNav, type NavKey } from "./components/chrome";
@@ -33,6 +34,7 @@ export default function App() {
   const [gens, setGens] = useState<Generation[]>(loadGenerations);
 
   useEffect(() => saveGenerations(gens), [gens]);
+  useEffect(() => startKieRates(), []); // live KIE price table (cached 6h)
 
   const openModel = (familyId: string, prompt?: string) => setFlow({ s: "generate", familyId, prompt });
   const openModels = (kind: ModelKind = "image") => setFlow({ s: "models", kind });

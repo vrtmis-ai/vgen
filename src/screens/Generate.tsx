@@ -10,6 +10,7 @@ import {
   type Variant,
 } from "../data/models";
 import { priceCoins } from "../data/pricing";
+import { useKieRates } from "../lib/kieRates";
 import { ControlField, RefUpload, type InputMap, type InputValue } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
 import { faNum, isVideoUrl } from "../lib/format";
@@ -60,6 +61,7 @@ export default function Generate({
 
   const setValue = (key: string, val: InputValue) => setInput((p) => ({ ...p, [key]: val }));
   const canGenerate = prompt.trim().length > 0;
+  useKieRates(); // re-render when the live KIE price table (re)loads
   const price = priceCoins(variant, input);
 
   return (
