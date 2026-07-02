@@ -73,7 +73,7 @@ export default function Result({
                 <Logo size={48} animate />
                 <div className="text-[12.5px] text-ink2">{stage}</div>
                 <div className="h-1 w-40 overflow-hidden rounded-full bg-line2">
-                  <motion.div className="h-full bg-ink" animate={{ width: `${pct}%` }} transition={{ ease: "easeOut" }} />
+                  <motion.div className="h-full" style={{ background: "var(--color-accent)" }} animate={{ width: `${pct}%` }} transition={{ ease: "easeOut" }} />
                 </div>
                 <div className="text-[11px] tabular-nums text-ink3">{faNum(Math.floor(pct))}٪</div>
               </motion.div>
@@ -133,7 +133,7 @@ function ActionBtn({
       onClick={onClick}
       disabled={disabled}
       className={`flex flex-col items-center gap-1.5 rounded-2xl border py-3 transition-all active:scale-[0.97] disabled:opacity-40 ${
-        highlight ? "border-transparent bg-ink text-bg" : "border-line bg-card2 text-ink"
+        highlight ? "btn-accent border-transparent" : "border-line bg-card2 text-ink"
       }`}
     >
       {icon}

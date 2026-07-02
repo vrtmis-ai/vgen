@@ -6,12 +6,11 @@ function PackCard({ pack }: { pack: CoinPack }) {
   const total = pack.coins + pack.bonus;
   const toman = tomanPrice(pack.coins);
   return (
-    <div className={`relative rounded-bezel border bg-card p-4 ${pack.popular ? "border-ink/40" : "border-line"}`}>
+    <div className="relative rounded-bezel border bg-card p-4" style={{ borderColor: pack.popular ? "var(--color-accent)" : "var(--color-line)" }}>
       {pack.tag && (
         <span
-          className={`absolute -top-2.5 right-4 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${
-            pack.popular ? "bg-ink text-bg" : "bg-card2 text-ink2"
-          }`}
+          className="absolute -top-2.5 right-4 rounded-full px-2.5 py-0.5 text-[10px] font-medium"
+          style={pack.popular ? { background: "var(--color-accent2)", color: "#fff" } : { background: "var(--color-card2)", color: "var(--color-ink2)" }}
         >
           {pack.tag}
         </span>
@@ -29,9 +28,9 @@ function PackCard({ pack }: { pack: CoinPack }) {
             </div>
           )}
         </div>
-        <button className="flex flex-col items-center rounded-2xl bg-ink px-4 py-2.5 text-bg active:scale-95 transition-transform">
+        <button className="btn-accent flex flex-col items-center rounded-2xl px-4 py-2.5">
           <span className="text-[13px] font-semibold tabular-nums">{faNum(toman.toLocaleString("en-US"))}</span>
-          <span className="text-[10px] opacity-70">تومان · خرید</span>
+          <span className="text-[10px] opacity-80">تومان · خرید</span>
         </button>
       </div>
     </div>

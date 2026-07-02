@@ -62,7 +62,7 @@ export default function Gallery({
           </div>
           <div className="text-[14px] font-medium">هنوز چیزی نساختی</div>
           <div className="text-[12.5px] text-ink3">هر چی بسازی این‌جا جمع می‌شه</div>
-          <button onClick={onBrowse} className="mt-1 rounded-full bg-ink px-5 py-2.5 text-[13px] font-semibold text-bg active:scale-[0.98]">
+          <button onClick={onBrowse} className="btn-accent mt-1 rounded-full px-5 py-2.5 text-[13px] font-semibold">
             رفتن به مدل‌ها
           </button>
         </div>

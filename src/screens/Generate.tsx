@@ -11,7 +11,8 @@ import {
 } from "../data/models";
 import { priceCoins } from "../data/pricing";
 import { ControlField, RefUpload, type InputMap, type InputValue } from "../components/controls";
-import { faNum } from "../lib/format";
+import { VendorMark } from "../components/VendorMark";
+import { faNum, isVideoUrl } from "../lib/format";
 
 export function currentAspect(controls: Control[], input: InputMap): { w: number; h: number } {
   const ac = controls.find((c) => c.kind === "aspect");
@@ -68,10 +69,16 @@ export default function Generate({
         <button onClick={onBack} className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95">
           <ArrowRight size={18} weight="bold" />
         </button>
+        <span className="relative h-9 w-9 overflow-hidden rounded-xl" style={{ background: family.grad }}>
+          {family.cover && !isVideoUrl(family.cover) && (
+            <img src={family.cover} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => e.currentTarget.remove()} />
+          )}
+        </span>
         <div className="flex-1">
-          <div className="text-[15px] font-semibold leading-tight">{family.name}</div>
-          <div className="text-[11px] text-ink3">{family.vendor}</div>
+          <div className="t-title leading-tight">{family.name}</div>
+          <div className="t-caption text-ink3">{family.vendor}</div>
         </div>
+        <VendorMark vendor={family.vendor} size={24} />
       </div>
 
       <div className="flex flex-col gap-7 px-4 pt-5">
@@ -90,12 +97,15 @@ export default function Generate({
                   <button
                     key={v.id}
                     onClick={() => selectVariant(v)}
-                    className={`flex shrink-0 flex-col items-center gap-1 rounded-2xl border px-4 py-2.5 transition-colors active:scale-95 ${
-                      on ? "border-transparent bg-ink text-bg" : "border-line bg-card2 text-ink2"
-                    }`}
+                    className="flex shrink-0 flex-col items-center gap-1 rounded-2xl border px-4 py-2.5 transition-colors active:scale-95"
+                    style={
+                      on
+                        ? { borderColor: "transparent", background: "var(--color-accent2)", color: "#fff" }
+                        : { borderColor: "var(--color-line)", background: "var(--color-card2)", color: "var(--color-ink2)" }
+                    }
                   >
                     <span className="text-[13px] font-medium">{v.label}</span>
-                    {v.badge && <span className={`text-[10px] ${on ? "text-bg/70" : "text-ink3"}`}>{v.badge}</span>}
+                    {v.badge && <span className="text-[10px]" style={{ color: on ? "rgba(255,255,255,0.72)" : "var(--color-ink3)" }}>{v.badge}</span>}
                   </button>
                 );
               })}
@@ -169,12 +179,12 @@ export default function Generate({
         <button
           onClick={() => onGenerate(prompt.trim(), input, variant)}
           disabled={!canGenerate}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-ink py-3.5 text-[15px] font-semibold text-bg transition-all active:scale-[0.98] disabled:opacity-40"
+          className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
         >
           <Sparkle size={18} weight="fill" />
           <span>ساخت</span>
           {price != null && (
-            <span className="ms-1 flex items-center gap-1 rounded-full bg-bg/15 px-2.5 py-0.5 text-[12.5px]">
+            <span className="ms-1 flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[12.5px]">
               <span>⬡</span>
               {faNum(price)}
             </span>

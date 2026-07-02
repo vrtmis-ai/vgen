@@ -28,7 +28,7 @@ function PostCard({ p, i, onOpen }: { p: CommunityPost; i: number; onOpen: () =>
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-white/80">@{p.author}</span>
             <span className="flex items-center gap-1 text-[11px] text-white/80">
-              <Heart size={12} weight="fill" className="text-rose-400" />
+              <Heart size={12} weight="fill" className="text-accent" />
               {faNum(p.likes.toLocaleString("en-US"))}
             </span>
           </div>
@@ -37,7 +37,7 @@ function PostCard({ p, i, onOpen }: { p: CommunityPost; i: number; onOpen: () =>
       </div>
       <button
         onClick={onOpen}
-        className="flex w-full items-center justify-center gap-1.5 bg-card py-2.5 text-[12.5px] font-semibold text-ink active:scale-[0.98] transition-transform"
+        className="flex w-full items-center justify-center gap-1.5 bg-card py-2.5 text-[12.5px] font-semibold text-accent active:scale-[0.98] transition-transform"
       >
         <MagicWand size={14} weight="fill" />
         Remix
@@ -72,9 +72,12 @@ export default function Community({
             <button
               key={t}
               onClick={() => setTrend(t)}
-              className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[12.5px] transition-colors active:scale-95 ${
-                on ? "border-transparent bg-ink text-bg" : "border-line bg-card2 text-ink2"
-              }`}
+              className="shrink-0 rounded-full border px-3.5 py-1.5 text-[12.5px] transition-colors active:scale-95"
+              style={
+                on
+                  ? { borderColor: "transparent", background: "var(--color-accent2)", color: "#fff" }
+                  : { borderColor: "var(--color-line)", background: "var(--color-card2)", color: "var(--color-ink2)" }
+              }
             >
               {t === "Trending" ? "🔥 Trending" : t}
             </button>

@@ -5,13 +5,14 @@ import type { InputMap } from "./components/controls";
 import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/gallery";
 import { pageFade } from "./lib/motion";
 import { FEATURED } from "./data/featured";
-import { Ambient, BottomNav, Logo, type NavKey } from "./components/chrome";
+import { Ambient, BottomNav, type NavKey } from "./components/chrome";
 import { CreateSheet } from "./components/CreateSheet";
 import Home from "./screens/Home";
 import Models from "./screens/Models";
 import Community from "./screens/Community";
 import Gallery from "./screens/Gallery";
 import Wallet from "./screens/Wallet";
+import Profile from "./screens/Profile";
 import Generate, { currentAspect } from "./screens/Generate";
 import Result from "./screens/Result";
 
@@ -24,18 +25,6 @@ type Flow =
   | { s: "models"; kind: ModelKind }
   | { s: "generate"; familyId: string; prompt?: string }
   | { s: "result"; gen: Generation; instant: boolean };
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="relative z-10 flex min-h-[70dvh] flex-col items-center justify-center gap-4 px-8 text-center">
-      <div className="text-ink3 opacity-50">
-        <Logo size={44} />
-      </div>
-      <div className="t-title">{title}</div>
-      <div className="t-caption text-ink3">این بخش به‌زودی فعال می‌شود</div>
-    </div>
-  );
-}
 
 export default function App() {
   const [tab, setTab] = useState<NavKey>("home");
@@ -145,7 +134,9 @@ export default function App() {
                 onWallet={openWallet}
               />
             )}
-            {tab === "profile" && <Placeholder title="پروفایل" />}
+            {tab === "profile" && (
+              <Profile coins={DEMO_COINS} gens={gens} onWallet={openWallet} onGallery={() => setTab("gallery")} onOpenModel={openModel} />
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
