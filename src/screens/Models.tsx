@@ -4,6 +4,8 @@ import { Star } from "@phosphor-icons/react";
 import { IMAGE_FAMILIES, VIDEO_FAMILIES, type Family, type ModelKind } from "../data/models";
 import { useFavorites } from "../lib/favorites";
 import { CreditPill } from "../components/chrome";
+import { VendorMark } from "../components/VendorMark";
+import { isVideoUrl } from "../lib/format";
 
 function Badge({ text }: { text: string }) {
   return <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] font-medium text-ink backdrop-blur-sm">{text}</span>;
@@ -19,8 +21,12 @@ function GridCard({ f, i, fav, onToggleFav, onOpen }: { f: Family; i: number; fa
     >
       <button onClick={onOpen} className="block w-full text-right active:scale-[0.97] transition-transform">
         <div className="relative aspect-square overflow-hidden rounded-[1.4rem]" style={{ background: f.grad }}>
+          {f.cover && !isVideoUrl(f.cover) && (
+            <img src={f.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={(e) => e.currentTarget.remove()} />
+          )}
           <div className="absolute inset-0" style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.16)" }} />
           {f.badge && <div className="absolute right-2 top-2"><Badge text={f.badge} /></div>}
+          <div className="absolute bottom-2 left-2"><VendorMark vendor={f.vendor} size={22} /></div>
           {f.variants.length > 1 && (
             <div className="absolute bottom-2 right-2">
               <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{f.variants.length} نسخه</span>
@@ -43,7 +49,7 @@ function GridCard({ f, i, fav, onToggleFav, onOpen }: { f: Family; i: number; fa
   );
 }
 
-export default function Models({ coins, onOpen }: { coins: number; onOpen: (familyId: string) => void }) {
+export default function Models({ coins, onOpen, onWallet }: { coins: number; onOpen: (familyId: string) => void; onWallet: () => void }) {
   const [tab, setTab] = useState<ModelKind>("image");
   const { toggle, has } = useFavorites();
   const families = tab === "image" ? IMAGE_FAMILIES : VIDEO_FAMILIES;
@@ -52,7 +58,7 @@ export default function Models({ coins, onOpen }: { coins: number; onOpen: (fami
     <div className="relative z-10 px-4 pt-4">
       <div className="mb-5 flex items-center justify-between">
         <span className="text-[20px] font-semibold tracking-tight">مدل‌ها</span>
-        <CreditPill coins={coins} />
+        <CreditPill coins={coins} onClick={onWallet} />
       </div>
 
       <div className="mb-4 flex gap-1.5 rounded-2xl bg-card2 p-1">

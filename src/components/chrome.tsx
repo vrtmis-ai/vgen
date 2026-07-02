@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { House, SquaresFour, ImagesSquare, Wallet, UserCircle } from "@phosphor-icons/react";
+import { House, SquaresFour, ImagesSquare, UsersThree, UserCircle, Plus } from "@phosphor-icons/react";
 import { faNum } from "../lib/format";
 
 /** Metaball "blob" brand mark. Gooey filter fuses the three circles. */
@@ -25,12 +25,20 @@ export function Logo({ size = 26, animate = false }: { size?: number; animate?: 
   );
 }
 
-export function CreditPill({ coins }: { coins: number }) {
+export function CreditPill({ coins, onClick }: { coins: number; onClick?: () => void }) {
   return (
-    <div className="flex items-center gap-1.5 rounded-full bg-card2 border border-line px-3 py-1.5">
-      <span className="text-ink2 text-[13px] leading-none">⬡</span>
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1.5 rounded-full border border-line bg-card2 px-3 py-1.5 transition-transform active:scale-95"
+    >
+      <span className="text-[13px] leading-none text-ink2">⬡</span>
       <span className="text-[13px] font-medium tabular-nums tracking-wide">{faNum(coins.toLocaleString("en-US"))}</span>
-    </div>
+      {onClick && (
+        <span className="grid h-4 w-4 place-items-center rounded-full bg-ink/90 text-bg">
+          <Plus size={10} weight="bold" />
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -53,14 +61,14 @@ export function Ambient() {
   );
 }
 
-export type NavKey = "home" | "models" | "gallery" | "wallet" | "profile";
+export type NavKey = "home" | "models" | "community" | "gallery" | "profile";
 
 export function BottomNav({ active, onNav }: { active: NavKey; onNav: (k: NavKey) => void }) {
   const items: { key: NavKey; label: string; Icon: typeof House }[] = [
     { key: "home", label: "خانه", Icon: House },
     { key: "models", label: "مدل‌ها", Icon: SquaresFour },
+    { key: "community", label: "کامیونیتی", Icon: UsersThree },
     { key: "gallery", label: "گالری", Icon: ImagesSquare },
-    { key: "wallet", label: "کیف پول", Icon: Wallet },
     { key: "profile", label: "پروفایل", Icon: UserCircle },
   ];
   return (

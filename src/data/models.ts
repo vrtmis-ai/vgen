@@ -61,6 +61,7 @@ export interface Family {
   blurb: string;
   badge?: string;
   grad: string;
+  cover?: string; // real preview image URL (fills in later; falls back to grad)
   refs?: RefSlot[];
   controls: Control[];
   variants: Variant[];
@@ -129,6 +130,7 @@ export const FAMILIES: Family[] = [
     blurb: "مدل تصویریِ گوگل؛ کیفیت و فهم بالا",
     badge: "محبوب",
     grad: "linear-gradient(135deg,#f6d365,#fda085)",
+    cover: "https://file.aiquickdraw.com/custom-page/akr/section-images/1756223371764w82dsmi4.png",
     refs: [{ key: "image_input", label: "تصاویر ورودی (اختیاری)", max: 8 }],
     controls: [
       {
@@ -180,6 +182,7 @@ export const FAMILIES: Family[] = [
     blurb: "واقع‌گرایی بالا و رنگ‌بندی سینمایی",
     badge: "محبوب",
     grad: "linear-gradient(135deg,#2bd2c0,#1e6cff)",
+    cover: "https://file.aiquickdraw.com/custom-page/akr/section-images/1756804550795qh7gkrc5.PNG",
     controls: [
       {
         kind: "aspect",
@@ -205,6 +208,7 @@ export const FAMILIES: Family[] = [
     blurb: "مدل تصویری OpenAI؛ دقیق در دنبال‌کردن پرامپت",
     badge: "OpenAI",
     grad: "linear-gradient(135deg,#43e97b,#38f9d7)",
+    cover: "https://file.aiquickdraw.com/static/custom/page/1623/1745493643100rk4liou3.png",
     controls: [
       {
         kind: "aspect",
@@ -237,6 +241,7 @@ export const FAMILIES: Family[] = [
     kind: "image",
     blurb: "ترکیب‌بندی و نور درجه‌یک",
     grad: "linear-gradient(135deg,#30cfd0,#330867)",
+    cover: "https://file.aiquickdraw.com/static//kie-maket/17604346335909arn4y6a.webp",
     controls: [
       {
         kind: "aspect",
@@ -311,6 +316,7 @@ export const FAMILIES: Family[] = [
     blurb: "سریع و مقرون‌به‌صرفه",
     badge: "ارزان",
     grad: "linear-gradient(135deg,#a18cd1,#fbc2eb)",
+    cover: "https://file.aiquickdraw.com/custom-page/akr/section-images/17568761228997zjbv53p.png",
     controls: [
       {
         kind: "aspect",
@@ -334,6 +340,7 @@ export const FAMILIES: Family[] = [
     blurb: "اقتصادی برای تست‌های سریع",
     badge: "ارزان‌ترین",
     grad: "linear-gradient(135deg,#89f7fe,#66a6ff)",
+    cover: "https://file.aiquickdraw.com/static//kie-maket/176043358319433328iqf.png",
     controls: [
       {
         kind: "aspect",
@@ -387,6 +394,7 @@ export const FAMILIES: Family[] = [
     blurb: "حرکت سینمایی و چندنما؛ تا ۱۵ ثانیه",
     badge: "سینمایی",
     grad: "linear-gradient(135deg,#f7c948,#f86a3b)",
+    cover: "https://file.aiquickdraw.com/static//kie-maket/17622493381934oqt0mus.mp4",
     refs: [{ key: "image_urls", label: "فریم شروع و پایان (اختیاری)", max: 2 }],
     controls: [
       {
@@ -452,6 +460,7 @@ export const FAMILIES: Family[] = [
     blurb: "ویدیوی روان و اقتصادی",
     badge: "ارزان",
     grad: "linear-gradient(135deg,#ff5db1,#7b4dff)",
+    cover: "https://file.aiquickdraw.com/custom-page/akr/section-images/1758796495606nze1vzkk.mp4",
     controls: [
       {
         kind: "aspect",
@@ -547,6 +556,7 @@ export const FAMILIES: Family[] = [
     blurb: "پرچم‌دارِ ویدیوی گوگل؛ کیفیت سینمایی و صدا",
     badge: "جدید",
     grad: "linear-gradient(135deg,#0ea5e9,#6366f1)",
+    cover: "https://file.aiquickdraw.com/custom-page/akr/section-images/1760692238600spjz047p.mp4",
     refs: [{ key: "imageUrls", label: "تصاویر مرجع / فریم (اختیاری)", max: 2 }],
     controls: [
       { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916] },
@@ -583,6 +593,7 @@ export const FAMILIES: Family[] = [
     blurb: "ویدیوسازِ سریعِ xAI؛ تا ۳۰ ثانیه",
     badge: "xAI",
     grad: "linear-gradient(135deg,#2b2f36,#14171c)",
+    cover: "https://file.aiquickdraw.com/custom-page/akr/section-images/1762247745144houjuebb.mp4",
     controls: [
       { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq, ratios.l32, ratios.p23] },
       { kind: "segment", key: "resolution", label: "کیفیت", def: "480p", options: [

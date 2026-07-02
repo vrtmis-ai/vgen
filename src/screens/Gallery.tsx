@@ -40,17 +40,19 @@ export default function Gallery({
   coins,
   onOpen,
   onBrowse,
+  onWallet,
 }: {
   gens: Generation[];
   coins: number;
   onOpen: (g: Generation) => void;
   onBrowse: () => void;
+  onWallet: () => void;
 }) {
   return (
     <div className="relative z-10 px-4 pt-4">
       <div className="mb-5 flex items-center justify-between">
         <span className="text-[20px] font-semibold tracking-tight">گالری</span>
-        <CreditPill coins={coins} />
+        <CreditPill coins={coins} onClick={onWallet} />
       </div>
 
       {gens.length === 0 ? (

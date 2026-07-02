@@ -6,7 +6,9 @@ import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/ga
 import { Ambient, BottomNav, Logo, type NavKey } from "./components/chrome";
 import Home from "./screens/Home";
 import Models from "./screens/Models";
+import Community from "./screens/Community";
 import Gallery from "./screens/Gallery";
+import Wallet from "./screens/Wallet";
 import Generate, { currentAspect } from "./screens/Generate";
 import Result from "./screens/Result";
 
@@ -14,6 +16,7 @@ const DEMO_COINS = 1250;
 
 type Flow =
   | { s: "none" }
+  | { s: "wallet" }
   | { s: "generate"; familyId: string; prompt?: string }
   | { s: "result"; gen: Generation; instant: boolean };
 
@@ -44,6 +47,7 @@ export default function App() {
   useEffect(() => saveGenerations(gens), [gens]);
 
   const openModel = (familyId: string, prompt?: string) => setFlow({ s: "generate", familyId, prompt });
+  const openWallet = () => setFlow({ s: "wallet" });
   const goHome = () => setFlow({ s: "none" });
   const markDone = (id: string) => setGens((p) => p.map((g) => (g.id === id ? { ...g, status: "done" } : g)));
 
@@ -73,6 +77,14 @@ export default function App() {
     const gen: Generation = { ...prev, id: uid(), status: "running", createdAt: Date.now() };
     setGens((p) => [gen, ...p]);
     setFlow({ s: "result", gen, instant: false });
+  }
+
+  if (flow.s === "wallet") {
+    return (
+      <Shell>
+        <Wallet coins={DEMO_COINS} onBack={goHome} />
+      </Shell>
+    );
   }
 
   if (flow.s === "generate") {
@@ -112,17 +124,18 @@ export default function App() {
       <div className="pb-28">
         <AnimatePresence mode="wait">
           <motion.div key={tab} {...fade}>
-            {tab === "home" && <Home coins={DEMO_COINS} onOpen={openModel} onAllModels={() => setTab("models")} />}
-            {tab === "models" && <Models coins={DEMO_COINS} onOpen={openModel} />}
+            {tab === "home" && <Home coins={DEMO_COINS} onOpen={openModel} onAllModels={() => setTab("models")} onWallet={openWallet} />}
+            {tab === "models" && <Models coins={DEMO_COINS} onOpen={openModel} onWallet={openWallet} />}
+            {tab === "community" && <Community coins={DEMO_COINS} onOpen={openModel} onWallet={openWallet} />}
             {tab === "gallery" && (
               <Gallery
                 gens={gens}
                 coins={DEMO_COINS}
                 onOpen={(g) => setFlow({ s: "result", gen: { ...g, status: "done" }, instant: true })}
                 onBrowse={() => setTab("models")}
+                onWallet={openWallet}
               />
             )}
-            {tab === "wallet" && <Placeholder title="کیف پول و سکه‌ها" />}
             {tab === "profile" && <Placeholder title="پروفایل" />}
           </motion.div>
         </AnimatePresence>
