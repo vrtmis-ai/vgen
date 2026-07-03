@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ImageSquare, VideoCamera, MagicWand, SquaresFour } from "@phosphor-icons/react";
 import { spring } from "../lib/motion";
+import { useI18n } from "../lib/i18n";
 
 type Item = { icon: React.ReactNode; label: string; desc: string; onClick: () => void };
 
@@ -19,15 +20,16 @@ export function CreateSheet({
   onTemplate: () => void;
   onAll: () => void;
 }) {
+  const { t } = useI18n();
   const pick = (fn: () => void) => () => {
     onClose();
     fn();
   };
   const items: Item[] = [
-    { icon: <ImageSquare size={24} weight="fill" />, label: "ساخت عکس", desc: "از متن یا عکس", onClick: pick(onImage) },
-    { icon: <VideoCamera size={24} weight="fill" />, label: "ساخت ویدیو", desc: "متن یا عکس به ویدیو", onClick: pick(onVideo) },
-    { icon: <MagicWand size={24} weight="fill" />, label: "تمپلیت‌ها", desc: "شروعِ آماده", onClick: pick(onTemplate) },
-    { icon: <SquaresFour size={24} weight="fill" />, label: "همه‌ی مدل‌ها", desc: "کاتالوگ کامل", onClick: pick(onAll) },
+    { icon: <ImageSquare size={24} weight="fill" />, label: t("sheet_image"), desc: t("sheet_image_d"), onClick: pick(onImage) },
+    { icon: <VideoCamera size={24} weight="fill" />, label: t("sheet_video"), desc: t("sheet_video_d"), onClick: pick(onVideo) },
+    { icon: <MagicWand size={24} weight="fill" />, label: t("sheet_tpl"), desc: t("sheet_tpl_d"), onClick: pick(onTemplate) },
+    { icon: <SquaresFour size={24} weight="fill" />, label: t("sheet_all"), desc: t("sheet_all_d"), onClick: pick(onAll) },
   ];
 
   return (
@@ -50,7 +52,7 @@ export function CreateSheet({
             transition={spring}
           >
             <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-line2" />
-            <div className="mb-4 t-h2 text-center">چی بسازیم؟</div>
+            <div className="mb-4 t-h2 text-center">{t("sheet_title")}</div>
             <div className="grid grid-cols-2 gap-2.5">
               {items.map((it) => (
                 <button

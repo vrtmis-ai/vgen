@@ -1,29 +1,31 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Vgen design system — Aurora Violet on layered charcoal
+   Vgen design system — Ember: screaming orange on warm near-black
+   Tech-dark futuristic. Flat accent (no glow), layered warm surfaces.
    ============================================================ */
 @theme {
-  /* surfaces — layered, tinted slightly toward the accent hue */
-  --color-bg: #09090c; /* deepest */
-  --color-surface: #0d0d11; /* app canvas */
-  --color-card: #141419; /* elevation 1 */
-  --color-card2: #1b1b22; /* elevation 2 */
-  --color-elev3: #24242d; /* popover / sheet */
+  /* surfaces — near-black, tinted warm toward the ember hue (never flat #000) */
+  --color-bg: #0a0908; /* deepest */
+  --color-surface: #0e0d0b; /* app canvas */
+  --color-card: #16130f; /* elevation 1 */
+  --color-card2: #1e1a14; /* elevation 2 */
+  --color-elev3: #292319; /* popover / sheet */
 
-  --color-line: rgba(255, 255, 255, 0.07);
-  --color-line2: rgba(255, 255, 255, 0.12);
+  --color-line: rgba(255, 244, 230, 0.07);
+  --color-line2: rgba(255, 244, 230, 0.13);
 
-  /* ink */
-  --color-ink: #f5f5f7;
-  --color-ink2: #b6b6c2;
-  --color-ink3: #78788a;
+  /* ink — warm whites, contrast pushed past AA */
+  --color-ink: #f8f5f1;
+  --color-ink2: #c4bcb1;
+  --color-ink3: #8a8175;
 
-  /* accent — Aurora Violet (solid, disciplined; no glowy gradients) */
-  --color-accent: #8a7cff;
-  --color-accent2: #6e5cf0; /* deeper — filled buttons, white text passes AA */
-  --color-accent-soft: rgba(138, 124, 255, 0.14); /* tinted wash */
-  --color-on-accent: #ffffff;
+  /* accent — Ember Orange: flat, loud, spent only on moments that matter.
+     Text ON orange is near-black (white fails AA on this hue). */
+  --color-accent: #ff5c00;
+  --color-accent2: #f05400; /* pressed / filled */
+  --color-accent-soft: rgba(255, 92, 0, 0.14); /* tinted wash */
+  --color-on-accent: #170b02;
 
   /* semantic */
   --color-success: #2ee6b6;
@@ -38,12 +40,15 @@
 
   --shadow-soft: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
   --shadow-pop: 0 20px 50px -18px rgba(0, 0, 0, 0.6);
-  --shadow-accent: 0 14px 40px -14px rgba(110, 92, 240, 0.55);
+  --shadow-accent: 0 14px 36px -16px rgba(255, 92, 0, 0.45);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root { color-scheme: dark; }
+
+/* English mode: Space Grotesk leads, Vazirmatn stays as fallback for any fa text */
+html[lang="en"] { --font-sans: "Space Grotesk", "Vazirmatn", ui-sans-serif, system-ui, sans-serif; }
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
 
@@ -62,6 +67,14 @@ button { font-family: inherit; cursor: pointer; }
 img, video { display: block; max-width: 100%; }
 textarea, input { font-family: inherit; }
 
+/* Keyboard-only focus ring — invisible to pointer/touch, clear for a11y.
+   Applies app-wide so every interactive control is reachable by keyboard. */
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
 .ltr { direction: ltr; text-align: left; }
 .font-display { font-family: var(--font-display); }
 
@@ -79,6 +92,23 @@ textarea, input { font-family: inherit; }
 
 /* ---- primitives --------------------------------------------- */
 .hairline-t { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+
+/* One media scrim for every image/video tile (was three near-identical
+   inline gradients). Darkens the bottom so captions stay legible. */
+.scrim-media {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0) 58%);
+}
+
+/* Top-lit tactile surface for primary tiles — subtle depth without a hard
+   border, so the three create actions read as buttons, not flat cards. */
+.tile-raised {
+  background: linear-gradient(180deg, var(--color-card2), var(--color-card));
+  box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
+}
+.tile-raised:active { transform: scale(0.97); }
 
 .btn-accent {
   background: var(--color-accent2);

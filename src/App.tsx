@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getFamily, variantControls, type Variant, type ModelKind } from "./data/models";
 import type { InputMap } from "./components/controls";
 import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/gallery";
 import { startKieRates } from "./lib/kieRates";
+import { useSwipeBack } from "./lib/useSwipeBack";
 import { pageFade } from "./lib/motion";
 import { FEATURED } from "./data/featured";
 import { Ambient, BottomNav, type NavKey } from "./components/chrome";
@@ -36,10 +37,36 @@ export default function App() {
   useEffect(() => saveGenerations(gens), [gens]);
   useEffect(() => startKieRates(), []); // live KIE price table (cached 6h)
 
-  const openModel = (familyId: string, prompt?: string) => setFlow({ s: "generate", familyId, prompt });
-  const openModels = (kind: ModelKind = "image") => setFlow({ s: "models", kind });
-  const openWallet = () => setFlow({ s: "wallet" });
-  const goHome = () => setFlow({ s: "none" });
+  // ---- navigation: one source of truth for back ------------------------
+  // Every sub-screen push adds a browser-history entry, so the on-screen
+  // back button, the edge-swipe gesture, and the hardware/Telegram back
+  // button all travel the same stack and land in the same place.
+  const flowRef = useRef(flow);
+  flowRef.current = flow;
+  const stackRef = useRef<Flow[]>([]);
+
+  const navigate = useCallback((f: Flow) => {
+    stackRef.current.push(flowRef.current);
+    setFlow(f);
+    window.history.pushState({ vgen: stackRef.current.length }, "");
+  }, []);
+
+  const goBack = useCallback(() => {
+    if (stackRef.current.length > 0) window.history.back();
+    else setFlow({ s: "none" });
+  }, []);
+
+  useEffect(() => {
+    const onPop = () => setFlow(stackRef.current.pop() ?? { s: "none" });
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  useSwipeBack(flow.s !== "none" ? goBack : undefined);
+
+  const openModel = (familyId: string, prompt?: string) => navigate({ s: "generate", familyId, prompt });
+  const openModels = (kind: ModelKind = "image") => navigate({ s: "models", kind });
+  const openWallet = () => navigate({ s: "wallet" });
   const openTemplate = () => (TEMPLATE?.familyId ? openModel(TEMPLATE.familyId, TEMPLATE.prompt) : openModels());
   const markDone = (id: string) => setGens((p) => p.map((g) => (g.id === id ? { ...g, status: "done" } : g)));
 
@@ -62,12 +89,14 @@ export default function App() {
       createdAt: Date.now(),
     };
     setGens((p) => [gen, ...p]);
-    setFlow({ s: "result", gen, instant: false });
+    navigate({ s: "result", gen, instant: false });
   }
 
   function regenerate(prev: Generation) {
     const gen: Generation = { ...prev, id: uid(), status: "running", createdAt: Date.now() };
     setGens((p) => [gen, ...p]);
+    // replace-in-place: back from the new result returns to where the user
+    // was before the previous result, not to a chain of stale results
     setFlow({ s: "result", gen, instant: false });
   }
 
@@ -75,14 +104,14 @@ export default function App() {
   if (flow.s === "wallet") {
     return (
       <Shell>
-        <Wallet coins={DEMO_COINS} onBack={goHome} />
+        <Wallet coins={DEMO_COINS} onBack={goBack} />
       </Shell>
     );
   }
   if (flow.s === "models") {
     return (
       <Shell>
-        <Models coins={DEMO_COINS} initialKind={flow.kind} onOpen={openModel} onWallet={openWallet} onBack={goHome} />
+        <Models coins={DEMO_COINS} initialKind={flow.kind} onOpen={openModel} onWallet={openWallet} onBack={goBack} />
       </Shell>
     );
   }
@@ -94,7 +123,7 @@ export default function App() {
         <Generate
           family={family}
           initialPrompt={flow.prompt}
-          onBack={goHome}
+          onBack={goBack}
           onGenerate={(prompt, input, variant) => startGeneration(family.id, prompt, input, variant)}
         />
       </Shell>
@@ -108,7 +137,7 @@ export default function App() {
           key={gen.id}
           gen={gen}
           instant={flow.instant}
-          onBack={goHome}
+          onBack={goBack}
           onRegenerate={() => regenerate(gen)}
           onToVideo={() => openModel("seedance")}
           onDone={() => markDone(gen.id)}
@@ -124,14 +153,14 @@ export default function App() {
         <AnimatePresence mode="wait">
           <motion.div key={tab} {...pageFade}>
             {tab === "home" && (
-              <Home coins={DEMO_COINS} onOpen={openModel} onModels={openModels} onCommunity={() => setTab("community")} onWallet={openWallet} />
+              <Home coins={DEMO_COINS} onOpen={openModel} onModels={openModels} onCommunity={() => setTab("community")} onWallet={openWallet} onCreate={() => setCreateOpen(true)} />
             )}
             {tab === "community" && <Community coins={DEMO_COINS} onOpen={openModel} onWallet={openWallet} />}
             {tab === "gallery" && (
               <Gallery
                 gens={gens}
                 coins={DEMO_COINS}
-                onOpen={(g) => setFlow({ s: "result", gen: { ...g, status: "done" }, instant: true })}
+                onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
                 onBrowse={() => openModels()}
                 onWallet={openWallet}
               />
