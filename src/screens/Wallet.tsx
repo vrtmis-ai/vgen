@@ -1,10 +1,14 @@
-import { ArrowRight, Gift, Lightning } from "@phosphor-icons/react";
-import { PACKS, tomanPrice, type CoinPack } from "../data/plans";
+import { ArrowRight, CalendarCheck, Gift, Lightning } from "@phosphor-icons/react";
+import { PACKS, toman, firstDiscountPct, type CoinPack } from "../data/plans";
 import { faNum } from "../lib/format";
+
+const t = (usd: number) => faNum(toman(usd).toLocaleString("en-US"));
 
 function PackCard({ pack }: { pack: CoinPack }) {
   const total = pack.coins + pack.bonus;
-  const toman = tomanPrice(pack.coins);
+  const tiered = pack.firstUsd != null;
+  const payUsd = pack.firstUsd ?? pack.priceUsd;
+  const off = firstDiscountPct(pack);
   return (
     <div className="relative rounded-bezel border bg-card p-4" style={{ borderColor: pack.popular ? "var(--color-accent)" : "var(--color-line)" }}>
       {pack.tag && (
@@ -17,7 +21,10 @@ function PackCard({ pack }: { pack: CoinPack }) {
       )}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-baseline gap-1.5">
+          <div className="font-display text-[13px] font-semibold tracking-wide" style={{ color: "var(--color-accent)" }}>
+            {pack.name}
+          </div>
+          <div className="mt-0.5 flex items-baseline gap-1.5">
             <span className="text-[22px] font-semibold tabular-nums">{faNum(total.toLocaleString("en-US"))}</span>
             <span className="text-[13px] text-ink2">سکه</span>
           </div>
@@ -28,11 +35,24 @@ function PackCard({ pack }: { pack: CoinPack }) {
             </div>
           )}
         </div>
-        <button className="btn-accent flex flex-col items-center rounded-2xl px-4 py-2.5">
-          <span className="text-[13px] font-semibold tabular-nums">{faNum(toman.toLocaleString("en-US"))}</span>
-          <span className="text-[10px] opacity-80">تومان · خرید</span>
-        </button>
+        <div className="flex flex-col items-end gap-1">
+          {tiered && (
+            <span className="text-[10.5px] text-ink3">
+              <s>{t(pack.priceUsd)}</s> · ٪{faNum(off)} تخفیف خرید اول
+            </span>
+          )}
+          <button className="btn-accent flex flex-col items-center rounded-2xl px-4 py-2.5">
+            <span className="text-[13px] font-semibold tabular-nums">{t(payUsd)}</span>
+            <span className="text-[10px] opacity-80">تومان · خرید</span>
+          </button>
+        </div>
       </div>
+      {pack.annualUsdPerMonth != null && (
+        <div className="mt-3 flex items-center gap-1.5 border-t border-line pt-2.5 text-[11px] text-ink2">
+          <CalendarCheck size={13} weight="fill" style={{ color: "var(--color-accent)" }} />
+          سالانه: ماهی {t(pack.annualUsdPerMonth)} تومان (پرداخت یکجای ۱۲ ماه) — ٪{faNum(Math.round((1 - pack.annualUsdPerMonth / pack.priceUsd) * 100))} کمتر از قیمت عادی
+        </div>
+      )}
     </div>
   );
 }
