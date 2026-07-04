@@ -24,7 +24,7 @@ function ShapeIcon({ w, h, active }: { w: number; h: number; active: boolean }) 
           width: Math.max(6, w * s),
           height: Math.max(6, h * s),
           borderRadius: 2.5,
-          border: `1.5px solid ${active ? "#0a0a0b" : "currentColor"}`,
+          border: `1.5px solid ${active ? "var(--color-on-accent)" : "currentColor"}`,
         }}
       />
     </span>
@@ -50,7 +50,7 @@ function AspectPicker({
               key={o.value}
               onClick={() => onChange(o.value)}
               className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-[12.5px] transition-colors active:scale-95 ${
-                on ? "border-transparent bg-ink text-bg" : "border-line bg-card2 text-ink2"
+                on ? "border-transparent bg-accent font-medium text-on-accent" : "border-line bg-card2 text-ink2"
               }`}
             >
               <ShapeIcon w={o.w} h={o.h} active={on} />
@@ -82,7 +82,7 @@ function Segmented({
               key={o.value}
               onClick={() => onChange(o.value)}
               className={`flex-1 rounded-[12px] py-2 text-[12.5px] transition-colors active:scale-[0.98] ${
-                on ? "bg-ink font-medium text-bg" : "text-ink3"
+                on ? "bg-accent font-medium text-on-accent" : "text-ink3"
               }`}
             >
               {o.label}
@@ -103,6 +103,8 @@ function SliderControl({
   value: number;
   onChange: (v: number) => void;
 }) {
+  // fill the track up to the thumb (slider is forced LTR, so "to right" is correct)
+  const pct = ((value - control.min) / (control.max - control.min)) * 100;
   return (
     <FieldShell label={control.label}>
       <div className="flex items-center gap-3">
@@ -114,6 +116,7 @@ function SliderControl({
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
           className="flex-1"
+          style={{ background: `linear-gradient(to right, var(--color-accent) ${pct}%, var(--color-line2) ${pct}%)` }}
         />
         <span className="min-w-[58px] rounded-lg bg-card2 px-2.5 py-1 text-center text-[12.5px] tabular-nums">
           {faNum(value)}
@@ -139,10 +142,10 @@ function ToggleRow({
       className="flex w-full items-center justify-between active:scale-[0.99]"
     >
       <span className="text-[13px] text-ink">{control.label}</span>
-      <span className={`relative h-[26px] w-[44px] rounded-full transition-colors ${value ? "bg-ink" : "bg-card2"}`}>
+      <span className={`relative h-[26px] w-[44px] rounded-full transition-colors ${value ? "bg-accent" : "bg-card2"}`}>
         <span
-          className="absolute top-[3px] h-[20px] w-[20px] rounded-full bg-bg transition-all"
-          style={{ insetInlineStart: value ? 21 : 3, background: value ? "#0a0a0b" : "#74747d" }}
+          className="absolute top-[3px] h-[20px] w-[20px] rounded-full transition-all"
+          style={{ insetInlineStart: value ? 21 : 3, background: value ? "var(--color-on-accent)" : "var(--color-ink3)" }}
         />
       </span>
     </button>

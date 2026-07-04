@@ -55,7 +55,7 @@ const RATES: Record<string, RateFn> = {
   "seedance-2-mini": (i) => pick(i.resolution, { "480p": 9.5, "720p": 20.5 }, 20.5) * num(i.duration, 5),
   "kling-3": (i) => {
     const sound = Boolean(i.sound);
-    return pick(i.mode, { std: sound ? 20 : 14, pro: sound ? 27 : 18, "4K": 67 }, 18) * num(i.duration, 5);
+    return pick(i.resolution, { "720p": sound ? 20 : 14, "1080p": sound ? 27 : 18, "4k": 67 }, 18) * num(i.duration, 5);
   },
   "wan-2-5": (i) => pick(`${i.resolution}-${i.duration}`, { "720p-5": 60, "720p-10": 120, "1080p-5": 100, "1080p-10": 200 }, 60),
   "hailuo-02-pro": () => 57, // Pro, fixed 6s @ 1080p
@@ -124,9 +124,9 @@ export const LIVE: Record<string, LiveFn> = {
   "seedance-2-fast": (i) => perSec(findRate("seedance-2 fast", `${res(i, "720p")} no video`), dur(i, 5)),
   "seedance-2-mini": (i) => perSec(findRate("seedance-2-mini", `${res(i, "720p")} no video`), dur(i, 5)),
   "seedance-1-5-pro": (i) => perSec(findRate("seedance-1.5-pro", `${Boolean(i.generate_audio) ? "with" : "without"} audio-${res(i, "720p")}`), dur(i, 5)),
-  // Kling 3.0 rows are per second by audio+resolution; our mode maps std→720p, pro→1080p.
+  // Kling 3.0 rows are per second by audio + resolution.
   "kling-3": (i) => {
-    const r = i.mode === "4K" ? "4k" : i.mode === "std" ? "720p" : "1080p";
+    const r = String(i.resolution ?? "1080p").toLowerCase();
     return perSec(findRate("kling 3.0, video", `${Boolean(i.sound) ? "with" : "without"} audio-${r}`), dur(i, 5));
   },
   "kling-2-6": (i) => findRate("kling 2.6", "text-to-video", `${Boolean(i.sound) ? "with" : "without"} audio-${dur(i, 5)}.0s`),

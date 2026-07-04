@@ -6,12 +6,14 @@ import { useFavorites } from "../lib/favorites";
 import { CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
+import { useI18n } from "../lib/i18n";
 
 function Badge({ text }: { text: string }) {
   return <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] font-medium text-ink backdrop-blur-sm">{text}</span>;
 }
 
 function GridCard({ f, i, fav, onToggleFav, onOpen }: { f: Family; i: number; fav: boolean; onToggleFav: () => void; onOpen: () => void }) {
+  const { t, n } = useI18n();
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
@@ -25,11 +27,11 @@ function GridCard({ f, i, fav, onToggleFav, onOpen }: { f: Family; i: number; fa
             <img src={f.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={(e) => e.currentTarget.remove()} />
           )}
           <div className="absolute inset-0" style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.16)" }} />
-          {f.badge && <div className="absolute right-2 top-2"><Badge text={f.badge} /></div>}
-          <div className="absolute bottom-2 left-2"><VendorMark vendor={f.vendor} size={22} /></div>
+          {f.badge && <div className="absolute end-2 top-2"><Badge text={f.badge} /></div>}
+          <div className="absolute bottom-2 start-2"><VendorMark vendor={f.vendor} size={22} /></div>
           {f.variants.length > 1 && (
-            <div className="absolute bottom-2 right-2">
-              <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{f.variants.length} نسخه</span>
+            <div className="absolute bottom-2 end-2">
+              <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{n(f.variants.length)} {t("g_versions")}</span>
             </div>
           )}
         </div>
@@ -40,10 +42,10 @@ function GridCard({ f, i, fav, onToggleFav, onOpen }: { f: Family; i: number; fa
       </button>
       <button
         onClick={onToggleFav}
-        aria-label={fav ? "حذف از میانبرها" : "افزودن به میانبرها"}
-        className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-bg/55 backdrop-blur-sm active:scale-90"
+        aria-label={fav ? t("fav_remove") : t("fav_add")}
+        className="absolute start-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-bg/55 backdrop-blur-sm active:scale-90"
       >
-        <Star size={16} weight={fav ? "fill" : "regular"} className={fav ? "text-amber-300" : "text-white/80"} />
+        <Star size={16} weight={fav ? "fill" : "regular"} className={fav ? "text-accent" : "text-white/80"} />
       </button>
     </motion.div>
   );
@@ -63,6 +65,7 @@ export default function Models({
   initialKind?: ModelKind;
 }) {
   const [tab, setTab] = useState<ModelKind>(initialKind);
+  const { t } = useI18n();
   const { toggle, has } = useFavorites();
   const families = tab === "image" ? IMAGE_FAMILIES : VIDEO_FAMILIES;
 
@@ -70,10 +73,10 @@ export default function Models({
     <div className="relative z-10 px-4 pt-4 pb-10">
       <div className="mb-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95">
-            <ArrowRight size={18} weight="bold" />
+          <button onClick={onBack} aria-label={t("nav_home")} className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95">
+            <ArrowRight size={18} weight="bold" className="ltr:-scale-x-100" />
           </button>
-          <span className="t-h1">مدل‌ها</span>
+          <span className="t-h1">{t("mdl_title")}</span>
         </div>
         <CreditPill coins={coins} onClick={onWallet} />
       </div>
@@ -86,10 +89,10 @@ export default function Models({
               key={k}
               onClick={() => setTab(k)}
               className={`flex-1 rounded-[12px] py-2.5 text-[13px] transition-colors active:scale-[0.98] ${
-                on ? "bg-ink font-medium text-bg" : "text-ink3"
+                on ? "bg-accent font-medium text-on-accent" : "text-ink3"
               }`}
             >
-              {k === "image" ? "تصویر" : "ویدیو"}
+              {t(k === "image" ? "kind_image" : "kind_video")}
             </button>
           );
         })}

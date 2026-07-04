@@ -11,9 +11,10 @@ import {
 } from "../data/models";
 import { priceCoins } from "../data/pricing";
 import { useKieRates } from "../lib/kieRates";
+import { useI18n } from "../lib/i18n";
 import { ControlField, RefUpload, type InputMap, type InputValue } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
-import { faNum, isVideoUrl } from "../lib/format";
+import { isVideoUrl } from "../lib/format";
 
 export function currentAspect(controls: Control[], input: InputMap): { w: number; h: number } {
   const ac = controls.find((c) => c.kind === "aspect");
@@ -61,6 +62,7 @@ export default function Generate({
 
   const setValue = (key: string, val: InputValue) => setInput((p) => ({ ...p, [key]: val }));
   const canGenerate = prompt.trim().length > 0;
+  const { t, n } = useI18n();
   useKieRates(); // re-render when the live KIE price table (re)loads
   const price = priceCoins(variant, input);
 
@@ -68,8 +70,8 @@ export default function Generate({
     <div className="relative z-10 min-h-[100dvh] pb-32">
       {/* top bar */}
       <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/85 px-4 py-3 backdrop-blur-xl">
-        <button onClick={onBack} className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95">
-          <ArrowRight size={18} weight="bold" />
+        <button onClick={onBack} aria-label={t("nav_home")} className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95">
+          <ArrowRight size={18} weight="bold" className="ltr:-scale-x-100" />
         </button>
         <span className="relative h-9 w-9 overflow-hidden rounded-xl" style={{ background: family.grad }}>
           {family.cover && !isVideoUrl(family.cover) && (
@@ -89,8 +91,8 @@ export default function Generate({
           <div className="rounded-bezel border border-line bg-card p-3.5">
             <div className="mb-3 flex items-center gap-1.5">
               <Stack size={15} weight="fill" className="text-ink2" />
-              <span className="text-[12.5px] font-medium">نسخه‌ی مدل</span>
-              <span className="text-[11px] text-ink3">({faNum(family.variants.length)} نسخه)</span>
+              <span className="text-[12.5px] font-medium">{t("g_version")}</span>
+              <span className="text-[11px] text-ink3">({n(family.variants.length)} {t("g_versions")})</span>
             </div>
             <div className="-mx-1 flex gap-2 overflow-x-auto px-1 no-scrollbar">
               {family.variants.map((v) => {
@@ -102,12 +104,12 @@ export default function Generate({
                     className="flex shrink-0 flex-col items-center gap-1 rounded-2xl border px-4 py-2.5 transition-colors active:scale-95"
                     style={
                       on
-                        ? { borderColor: "transparent", background: "var(--color-accent2)", color: "#fff" }
+                        ? { borderColor: "transparent", background: "var(--color-accent)", color: "var(--color-on-accent)" }
                         : { borderColor: "var(--color-line)", background: "var(--color-card2)", color: "var(--color-ink2)" }
                     }
                   >
                     <span className="text-[13px] font-medium">{v.label}</span>
-                    {v.badge && <span className="text-[10px]" style={{ color: on ? "rgba(255,255,255,0.72)" : "var(--color-ink3)" }}>{v.badge}</span>}
+                    {v.badge && <span className="text-[10px]" style={{ color: on ? "color-mix(in srgb, var(--color-on-accent) 70%, transparent)" : "var(--color-ink3)" }}>{v.badge}</span>}
                   </button>
                 );
               })}
@@ -118,7 +120,7 @@ export default function Generate({
         {/* input images — every slot the model supports */}
         {refs.length > 0 && (
           <div className="flex flex-col gap-4">
-            <SectionLabel>تصاویر ورودی</SectionLabel>
+            <SectionLabel>{t("g_inputs")}</SectionLabel>
             {refs.map((slot) => (
               <RefSlotField key={slot.key} slotKey={slot.key} label={slot.label} max={slot.max} />
             ))}
@@ -128,21 +130,21 @@ export default function Generate({
         {/* prompt */}
         <div className="flex flex-col gap-2.5">
           <div className="flex items-center justify-between">
-            <SectionLabel>پرامپت</SectionLabel>
-            <span className="text-[11px] text-ink3">انگلیسی بنویس برای بهترین نتیجه</span>
+            <SectionLabel>{t("g_prompt")}</SectionLabel>
+            <span className="text-[11px] text-ink3">{t("g_prompt_hint")}</span>
           </div>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Describe what you want to create…"
             rows={4}
-            className="ltr w-full resize-none rounded-bezel border border-line bg-card p-4 text-[14px] leading-relaxed text-ink placeholder:text-ink3 focus:border-line2 focus:outline-none"
+            className="ltr w-full resize-none rounded-bezel border border-line bg-card p-4 text-[14px] leading-relaxed text-ink placeholder:text-ink3 focus:border-accent focus:outline-none"
           />
         </div>
 
         {/* settings */}
         <div className="flex flex-col gap-6">
-          <SectionLabel>تنظیمات</SectionLabel>
+          <SectionLabel>{t("g_settings")}</SectionLabel>
           {basic.map((c) => (
             <ControlField key={c.key} control={c} value={input[c.key]} onChange={setValue} />
           ))}
@@ -153,7 +155,7 @@ export default function Generate({
                 onClick={() => setShowAdvanced((s) => !s)}
                 className="flex items-center justify-between text-[12.5px] text-ink2 active:scale-[0.99]"
               >
-                <span>تنظیمات پیشرفته</span>
+                <span>{t("g_advanced")}</span>
                 <CaretDown size={16} className={`transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
               </button>
               <AnimatePresence initial={false}>
@@ -184,16 +186,16 @@ export default function Generate({
           className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
         >
           <Sparkle size={18} weight="fill" />
-          <span>ساخت</span>
+          <span>{t("g_create")}</span>
           {price != null && (
-            <span className="ms-1 flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[12.5px]">
+            <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
               <span>⬡</span>
-              {faNum(price)}
+              {n(price)}
             </span>
           )}
         </button>
         <div className="pt-1.5 text-center text-[10.5px] text-ink3">
-          {price != null ? `حدود ${faNum(price)} سکه برای این تنظیمات` : "نرخِ این مدل هنوز وارد نشده"}
+          {price != null ? `≈ ${n(price)} ${t("g_est_for")}` : t("g_no_rate")}
         </div>
       </div>
     </div>

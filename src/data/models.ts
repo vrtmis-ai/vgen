@@ -404,8 +404,8 @@ export const FAMILIES: Family[] = [
         def: "16:9",
         options: [ratios.l169, ratios.p916, ratios.sq],
       },
-      { kind: "segment", key: "mode", label: "کیفیت", def: "pro", options: [
-        { value: "std", label: "استاندارد" }, { value: "pro", label: "حرفه‌ای" }, { value: "4K", label: "4K" },
+      { kind: "segment", key: "resolution", label: "کیفیت", def: "1080p", options: [
+        { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" }, { value: "4k", label: "4K" },
       ] },
       { kind: "slider", key: "duration", label: "مدت", min: 3, max: 15, step: 1, def: 5, unit: "ثانیه", asString: true },
       { kind: "toggle", key: "sound", label: "تولید صدا", def: false },

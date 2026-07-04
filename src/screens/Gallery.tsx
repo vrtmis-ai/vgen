@@ -2,8 +2,10 @@ import { motion } from "framer-motion";
 import { ImagesSquare, CircleNotch } from "@phosphor-icons/react";
 import type { Generation } from "../lib/gallery";
 import { CreditPill } from "../components/chrome";
+import { useI18n } from "../lib/i18n";
 
 function GenCard({ g, i, onOpen }: { g: Generation; i: number; onOpen: () => void }) {
+  const { t } = useI18n();
   const running = g.status === "running";
   return (
     <motion.button
@@ -11,19 +13,19 @@ function GenCard({ g, i, onOpen }: { g: Generation; i: number; onOpen: () => voi
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: i * 0.03, ease: [0.16, 1, 0.3, 1] }}
       onClick={onOpen}
-      className="mb-3 block w-full break-inside-avoid overflow-hidden rounded-bezel border border-line text-right active:scale-[0.98] transition-transform"
+      className="mb-3 block w-full break-inside-avoid overflow-hidden rounded-bezel border border-line text-start active:scale-[0.98] transition-transform"
     >
       <div className="relative w-full" style={{ aspectRatio: `${g.w}/${g.h}`, background: g.grad }}>
-        {running && <div className="shimmer absolute inset-0 bg-[#161619]/60" />}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72), transparent 55%)" }} />
-        <div className="absolute left-2 top-2">
+        {running && <div className="shimmer absolute inset-0 bg-card/60" />}
+        <div className="scrim-media" />
+        <div className="absolute start-2 top-2">
           {running ? (
             <span className="flex items-center gap-1 rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
               <CircleNotch size={11} className="animate-spin" />
-              در حال ساخت
+              {t("gal_making")}
             </span>
           ) : (
-            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{g.kind === "video" ? "ویدیو" : "تصویر"}</span>
+            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{t(g.kind === "video" ? "kind_video" : "kind_image")}</span>
           )}
         </div>
         <div className="absolute inset-x-2.5 bottom-2.5">
@@ -48,10 +50,11 @@ export default function Gallery({
   onBrowse: () => void;
   onWallet: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="relative z-10 px-4 pt-4">
       <div className="mb-5 flex items-center justify-between">
-        <span className="text-[20px] font-semibold tracking-tight">گالری</span>
+        <span className="text-[20px] font-semibold tracking-tight">{t("gal_title")}</span>
         <CreditPill coins={coins} onClick={onWallet} />
       </div>
 
@@ -60,10 +63,10 @@ export default function Gallery({
           <div className="text-ink3 opacity-50">
             <ImagesSquare size={44} />
           </div>
-          <div className="text-[14px] font-medium">هنوز چیزی نساختی</div>
-          <div className="text-[12.5px] text-ink3">هر چی بسازی این‌جا جمع می‌شه</div>
+          <div className="text-[14px] font-medium">{t("gal_empty_title")}</div>
+          <div className="text-[12.5px] text-ink3">{t("gal_empty_sub")}</div>
           <button onClick={onBrowse} className="btn-accent mt-1 rounded-full px-5 py-2.5 text-[13px] font-semibold">
-            رفتن به مدل‌ها
+            {t("gal_browse")}
           </button>
         </div>
       ) : (

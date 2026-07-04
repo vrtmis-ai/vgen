@@ -6,6 +6,7 @@ import { COMMUNITY, type CommunityPost } from "../data/community";
 import { CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { faNum, isVideoUrl } from "../lib/format";
+import { useI18n } from "../lib/i18n";
 
 const TRENDS = ["Trending", "Cinematic", "Cyberpunk", "Portraits", "Product", "Anime", "3D"];
 
@@ -22,9 +23,9 @@ function PostCard({ p, i, onOpen }: { p: CommunityPost; i: number; onOpen: () =>
         {f?.cover && !isVideoUrl(f.cover) && (
           <img src={f.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={(e) => e.currentTarget.remove()} />
         )}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8), transparent 55%)" }} />
-        {f && <div className="absolute left-2.5 top-2.5"><VendorMark vendor={f.vendor} size={22} /></div>}
-        <div className="absolute inset-x-2.5 bottom-2.5 text-right">
+        <div className="scrim-media" />
+        {f && <div className="absolute start-2.5 top-2.5"><VendorMark vendor={f.vendor} size={22} /></div>}
+        <div className="absolute inset-x-2.5 bottom-2.5 text-start">
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-white/80">@{p.author}</span>
             <span className="flex items-center gap-1 text-[11px] text-white/80">
@@ -56,30 +57,31 @@ export default function Community({
   onOpen: (familyId: string, prompt?: string) => void;
   onWallet: () => void;
 }) {
+  const { t } = useI18n();
   const [trend, setTrend] = useState("Trending");
   return (
     <div className="relative z-10 px-4 pt-4">
       <div className="mb-4 flex items-center justify-between">
-        <span className="text-[20px] font-semibold tracking-tight">کامیونیتی</span>
+        <span className="text-[20px] font-semibold tracking-tight">{t("com_title")}</span>
         <CreditPill coins={coins} onClick={onWallet} />
       </div>
 
       {/* trend chips */}
       <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 no-scrollbar">
-        {TRENDS.map((t) => {
-          const on = t === trend;
+        {TRENDS.map((tr) => {
+          const on = tr === trend;
           return (
             <button
-              key={t}
-              onClick={() => setTrend(t)}
+              key={tr}
+              onClick={() => setTrend(tr)}
               className="shrink-0 rounded-full border px-3.5 py-1.5 text-[12.5px] transition-colors active:scale-95"
               style={
                 on
-                  ? { borderColor: "transparent", background: "var(--color-accent2)", color: "#fff" }
+                  ? { borderColor: "transparent", background: "var(--color-accent)", color: "var(--color-on-accent)" }
                   : { borderColor: "var(--color-line)", background: "var(--color-card2)", color: "var(--color-ink2)" }
               }
             >
-              {t === "Trending" ? "🔥 Trending" : t}
+              {tr === "Trending" ? "🔥 Trending" : tr}
             </button>
           );
         })}
