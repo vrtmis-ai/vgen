@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, PlayCircle, CaretLeft, ImageSquare, VideoCamera, MagicWand, Heart, Sparkle } from "@phosphor-icons/react";
 import { getFamily, type Family, type ModelKind } from "../data/models";
@@ -9,7 +9,7 @@ import { Logo, CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl, faNum } from "../lib/format";
 import { useI18n } from "../lib/i18n";
-import { riseItem, riseParent } from "../lib/motion";
+import { EASE_OUT, riseItem, riseParent } from "../lib/motion";
 
 const KIND_LABEL: Record<FeaturedItem["kind"], string> = { model: "New model", template: "Template", feature: "New" };
 const TOP = [...COMMUNITY].sort((a, b) => b.likes - a.likes);
@@ -58,29 +58,69 @@ function Still({ family }: { family?: Family }) {
   );
 }
 
-/* ---------- immersive hero (full-bleed, melts into the page) ---------- */
+/* ---------- immersive hero (full-bleed, swipeable, melts into the page) ---------- */
 function Hero({ items, onOpen }: { items: FeaturedItem[]; onOpen: (id: string, prompt?: string) => void }) {
-  const [i, setI] = useState(0);
+  const n = items.length;
+  // [index, direction] — direction drives the slide-in/out x offset.
+  const [[i, dir], setSlide] = useState<[number, number]>([0, 0]);
+  const go = useCallback((idx: number, d: number) => setSlide([((idx % n) + n) % n, d]), [n]);
+  const next = useCallback(() => setSlide(([p]) => [(p + 1) % n, 1]), [n]);
+  const prev = useCallback(() => setSlide(([p]) => [(p - 1 + n) % n, -1]), [n]);
+
+  // auto-advance; re-arms on every change so a manual swipe gets the full dwell
   useEffect(() => {
-    const id = setInterval(() => setI((p) => (p + 1) % items.length), 4600);
-    return () => clearInterval(id);
-  }, [items.length]);
+    const id = setTimeout(next, 4600);
+    return () => clearTimeout(id);
+  }, [i, next]);
+
+  // touch swipe — horizontal-dominant only, so vertical page scroll still works.
+  // `moved` guards the tap-to-open handler from firing at the end of a swipe.
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const moved = useRef(false);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0]!;
+    startX.current = t.clientX;
+    startY.current = t.clientY;
+    moved.current = false;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (Math.abs(e.touches[0]!.clientX - startX.current) > 12) moved.current = true;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const t = e.changedTouches[0]!;
+    const dx = t.clientX - startX.current;
+    const dy = t.clientY - startY.current;
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) (dx < 0 ? next : prev)();
+  };
+
   const item = items[i]!;
   const f = item.familyId ? getFamily(item.familyId) : undefined;
   const isVideo = f?.kind === "video";
 
   return (
-    <div className="relative h-[min(46vh,390px)] w-full overflow-hidden">
-      <AnimatePresence>
-        <motion.div key={item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.9, ease: "easeInOut" }} className="absolute inset-0">
+    <div className="relative h-[min(46vh,390px)] w-full touch-pan-y overflow-hidden" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+      <AnimatePresence custom={dir}>
+        <motion.div
+          key={item.id}
+          custom={dir}
+          initial={{ opacity: 0, x: dir >= 0 ? 34 : -34 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: dir >= 0 ? -34 : 34 }}
+          transition={{ duration: 0.5, ease: EASE_OUT }}
+          className="absolute inset-0"
+        >
           <HeroMedia family={f} />
           {/* bar legibility up top; melt into the page at the bottom */}
           <div className="absolute inset-x-0 top-0 h-24" style={{ background: "linear-gradient(to bottom, rgba(9,9,12,0.72), transparent)" }} />
           <div className="absolute inset-x-0 bottom-0 h-44" style={{ background: "linear-gradient(to top, var(--color-bg), rgba(9,9,12,0.55) 46%, transparent)" }} />
 
-          {/* tap anywhere on the artwork to open the model */}
+          {/* tap (not swipe) anywhere on the artwork to open the model */}
           <button
-            onClick={() => item.familyId && onOpen(item.familyId, item.prompt)}
+            onClick={() => {
+              if (moved.current) return; // was a swipe, not a tap
+              if (item.familyId) onOpen(item.familyId, item.prompt);
+            }}
             aria-label={`${item.title} — بساز`}
             className="absolute inset-0 text-right"
           >
@@ -104,9 +144,17 @@ function Hero({ items, onOpen }: { items: FeaturedItem[]; onOpen: (id: string, p
           </button>
         </motion.div>
       </AnimatePresence>
-      <div className="pointer-events-none absolute bottom-[56px] left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
+      {/* tappable pagination */}
+      <div className="absolute bottom-[52px] left-1/2 z-10 flex -translate-x-1/2 gap-2">
         {items.map((_, idx) => (
-          <span key={idx} className="h-1.5 rounded-full transition-all" style={{ width: idx === i ? 18 : 6, background: idx === i ? "var(--color-accent)" : "rgba(255,255,255,0.4)" }} />
+          <button
+            key={idx}
+            onClick={() => go(idx, idx > i ? 1 : -1)}
+            aria-label={`اسلاید ${idx + 1}`}
+            className="grid h-4 place-items-center"
+          >
+            <span className="h-1.5 rounded-full transition-all" style={{ width: idx === i ? 18 : 6, background: idx === i ? "var(--color-accent)" : "rgba(255,255,255,0.4)" }} />
+          </button>
         ))}
       </div>
     </div>
