@@ -55,7 +55,6 @@ export const MODEL_MIN_TIER: Record<string, Tier> = {
   "z-image": 1,
   qwen: 1,
   "grok-image": 1,
-  "grok-video": 1,
   seedream: 1,
   "gpt-image": 1,
   wan: 1,

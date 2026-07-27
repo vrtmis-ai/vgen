@@ -631,27 +631,14 @@ export const FAMILIES: Family[] = [
   },
   {
     id: "hailuo",
-    name: "Hailuo 02",
+    name: "Hailuo 2.3",
     vendor: "MiniMax",
     kind: "video",
-    blurb: "حرکت طبیعی و چهره‌های واقعی",
+    blurb: "حرکت طبیعی و چهره‌های واقعی؛ عکس به ویدیو",
     badge: "MiniMax",
     grad: "linear-gradient(135deg,#ee9ca7,#ffdde1)",
-    controls: [{ kind: "toggle", key: "prompt_optimizer", label: "بهینه‌سازی پرامپت", def: true }],
+    controls: hailuo23Controls,
     variants: [
-      { id: "hailuo-02-pro", model: "hailuo/02-text-to-video-pro", label: "Pro" },
-      {
-        id: "hailuo-02-standard",
-        model: "hailuo/02-text-to-video-standard",
-        label: "۰۲ استاندارد",
-        badge: "ارزان",
-        controls: [
-          { kind: "segment", key: "duration", label: "مدت", def: "6", options: [
-            { value: "6", label: "۶ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
-          ] },
-          { kind: "toggle", key: "prompt_optimizer", label: "بهینه‌سازی پرامپت", def: true },
-        ],
-      },
       // 2.3 is image-to-video only, and KIE ships Pro and Standard as separate
       // models. Standard was missing entirely — it is a third of the price.
       // Neither offers 10s at 1080P; pricing returns null for that pair.
@@ -747,27 +734,6 @@ export const FAMILIES: Family[] = [
       { kind: "toggle", key: "enable_pro", label: "حالت کیفیت", def: false },
     ],
     variants: [{ id: "grok-image", model: "grok-imagine/text-to-image", label: "Imagine" }],
-  },
-  {
-    id: "grok-video",
-    name: "Grok Imagine",
-    vendor: "xAI",
-    kind: "video",
-    blurb: "ویدیوسازِ سریعِ xAI؛ تا ۳۰ ثانیه",
-    badge: "xAI",
-    grad: "linear-gradient(135deg,#2b2f36,#14171c)",
-    cover: "https://file.aiquickdraw.com/custom-page/akr/section-images/1762247745144houjuebb.mp4",
-    controls: [
-      { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq, ratios.l32, ratios.p23] },
-      { kind: "segment", key: "resolution", label: "کیفیت", def: "480p", options: [
-        { value: "480p", label: "480p" }, { value: "720p", label: "720p" },
-      ] },
-      { kind: "slider", key: "duration", label: "مدت", min: 6, max: 30, step: 1, def: 6, unit: "ثانیه" },
-      { kind: "segment", key: "mode", label: "حالت", def: "normal", advanced: true, options: [
-        { value: "fun", label: "شاد" }, { value: "normal", label: "عادی" }, { value: "spicy", label: "تند" },
-      ] },
-    ],
-    variants: [{ id: "grok-video", model: "grok-imagine/text-to-video", label: "Imagine" }],
   },
 ];
 

@@ -67,14 +67,12 @@ const RATES: Record<string, RateFn> = {
     return pick(i.mode, { std: sound ? 20 : 14, pro: sound ? 27 : 18, "4K": 67 }, 18) * num(i.duration, 5);
   },
   "wan-2-5": (i) => pick(`${i.resolution}-${i.duration}`, { "720p-5": 60, "720p-10": 120, "1080p-5": 100, "1080p-10": 200 }, 60),
-  "hailuo-02-pro": () => 57, // Pro, fixed 6s @ 1080p
 
   // --- added families / variants ---
   "seedream-5-lite": () => 5.5,
   "gpt-image-1-5": (i) => pick(i.quality, { medium: 4, high: 22 }, 4),
   "flux-2-flex": (i) => pick(i.resolution, { "1K": 14, "2K": 24 }, 14),
   "grok-image": (i) => (Boolean(i.enable_pro) ? 5 : 4),
-  "grok-video": (i) => pick(i.resolution, { "480p": 1.6, "720p": 3 }, 3) * num(i.duration, 6),
   "seedance-1-5-pro": (i) => {
     const a = Boolean(i.generate_audio);
     return (
@@ -89,7 +87,6 @@ const RATES: Record<string, RateFn> = {
     pick(`${i.resolution}-${i.duration}`, { "720p-5": 70, "720p-10": 140, "720p-15": 210, "1080p-5": 104.5, "1080p-10": 209.5, "1080p-15": 315 }, 104.5),
   "wan-2-7": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
   "wan-2-7-r2v": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
-  "hailuo-02-standard": (i) => pick(`${i.duration}`, { "6": 30, "10": 50 }, 30),
   // KIE: "10 seconds videos are not supported for 1080p resolution" — the missing
   // key returns null rather than a made-up price for a job that can't be created.
   "hailuo-2-3": (i) => only(`${i.resolution}-${i.duration}`, { "768P-6": 45, "768P-10": 90, "1080P-6": 80 }),
@@ -165,8 +162,6 @@ export const LIVE: Record<string, LiveFn> = {
   "wan-2-6": (i) => findRate("wan 2.6", "text to video", `, ${dur(i, 5)}.0s-${res(i, "1080p")}`), // leading ", " so 5.0s can't match 15.0s
   "wan-2-7": (i) => perSec(findRate("wan 2.7 video", "text-to-video", res(i, "1080p")), dur(i, 5)),
   "wan-2-7-r2v": (i) => perSec(findRate("wan 2.7 video", "r2v", res(i, "1080p")), dur(i, 5)),
-  "hailuo-02-pro": () => findRate("hailuo 02", "text-to-video", "pro-6.0s-1080p"),
-  "hailuo-02-standard": (i) => findRate("hailuo 02", "text-to-video", `standard-${dur(i, 6)}.0s-768p`),
   "hailuo-2-3": (i) => findRate("hailuo 2.3", "image-to-video", `pro-${dur(i, 6)}.0s-${res(i, "768P")}`),
   "hailuo-2-3-standard": (i) => findRate("hailuo 2.3", "image-to-video", `standard-${dur(i, 6)}.0s-${res(i, "768P")}`),
   // Row text is "gemini-omni-video, video, 8s 1080p no video input" — matched as
@@ -175,7 +170,6 @@ export const LIVE: Record<string, LiveFn> = {
   "veo-quality": (i) => findRate("google veo 3.1", "text-to-video", `quality-${res(i, "720p")}`),
   "veo-fast": (i) => findRate("google veo 3.1", "text-to-video", `fast-${res(i, "720p")}`),
   "veo-lite": (i) => findRate("google veo 3.1", "text-to-video", `lite-${res(i, "720p")}`),
-  "grok-video": (i) => perSec(findRate("grok-imagine,", "text-to-video", res(i, "480p")), dur(i, 6)),
 };
 
 // ---- KIE provider adapter ---------------------------------------------------
