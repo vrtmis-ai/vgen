@@ -8,6 +8,7 @@ import { useFavorites } from "../lib/favorites";
 import { Logo, CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl, faNum } from "../lib/format";
+import { useImageFallback } from "../lib/useImageFallback";
 import { useI18n } from "../lib/i18n";
 import { EASE_OUT, riseItem, riseParent } from "../lib/motion";
 
@@ -18,12 +19,13 @@ const TEMPLATE = FEATURED.find((f) => f.kind === "template");
 /* ---------- media ---------- */
 function HeroMedia({ family }: { family?: Family }) {
   const cover = family?.cover;
+  const [imgFailed, onImgError] = useImageFallback();
   return (
     <>
       <div className="absolute inset-0" style={{ background: family?.grad ?? "#1b1b22" }} />
       {cover && isVideoUrl(cover) ? (
         <video src={cover} autoPlay muted loop playsInline preload="metadata" className="absolute inset-0 h-full w-full object-cover" />
-      ) : cover ? (
+      ) : cover && !imgFailed ? (
         <motion.img
           src={cover}
           alt=""
@@ -31,7 +33,7 @@ function HeroMedia({ family }: { family?: Family }) {
           animate={{ scale: 1.16 }}
           transition={{ duration: 6, ease: "linear" }}
           className="absolute inset-0 h-full w-full object-cover"
-          onError={(e) => e.currentTarget.remove()}
+          onError={onImgError}
         />
       ) : (
         <motion.div
@@ -47,12 +49,13 @@ function HeroMedia({ family }: { family?: Family }) {
 }
 
 function Still({ family }: { family?: Family }) {
-  const showImg = family?.cover && !isVideoUrl(family.cover);
+  const [failed, onError] = useImageFallback();
+  const showImg = family?.cover && !isVideoUrl(family.cover) && !failed;
   return (
     <>
       <div className="absolute inset-0" style={{ background: family?.grad ?? "#1b1b22" }} />
       {showImg && (
-        <img src={family!.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={(e) => e.currentTarget.remove()} />
+        <img src={family!.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={onError} />
       )}
     </>
   );

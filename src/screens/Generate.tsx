@@ -5,6 +5,7 @@ import {
   defaultInput,
   variantControls,
   variantRefs,
+  variantMaxPrompt,
   type Control,
   type Family,
   type Variant,
@@ -15,6 +16,7 @@ import { useI18n } from "../lib/i18n";
 import { ControlField, RefUpload, type InputMap, type InputValue, type RefImage, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
+import { useImageFallback } from "../lib/useImageFallback";
 
 export function currentAspect(controls: Control[], input: InputMap): { w: number; h: number } {
   const ac = controls.find((c) => c.kind === "aspect");
@@ -58,6 +60,7 @@ export default function Generate({
 
   const controls = variantControls(family, variant);
   const refs = variantRefs(family, variant);
+  const maxPrompt = variantMaxPrompt(family, variant);
   const basic = useMemo(() => controls.filter((c) => !("advanced" in c && c.advanced)), [controls]);
   const advanced = useMemo(() => controls.filter((c) => "advanced" in c && c.advanced), [controls]);
   const multiVariant = family.variants.length > 1;
@@ -80,12 +83,17 @@ export default function Generate({
   const orphan = refs.find((s) => s.requires && filled(s.key) && !filled(s.requires));
   const orphanNeeds = orphan && refs.find((s) => s.key === orphan.requires);
   const { t, n } = useI18n();
+  const [coverFailed, onCoverError] = useImageFallback();
   useKieRates(); // re-render when the live KIE price table (re)loads
   const price = priceCoins(variant, input);
   // No price means neither the live table nor the fallback has a rate — the
   // provider doesn't offer this combination at all (Hailuo 2.3 has no 1080P
   // at 10s). Selling it would take the user's coins for a job that can't run.
-  const canGenerate = prompt.trim().length > 0 && !needsInput && !orphan && price != null;
+  // maxLength on the textarea only stops typing and pasting, so the length is
+  // checked again here. The backend has to check a third time — nothing the
+  // client says about length can be trusted once money is attached.
+  const promptTooLong = maxPrompt != null && prompt.trim().length > maxPrompt;
+  const canGenerate = prompt.trim().length > 0 && !needsInput && !orphan && !promptTooLong && price != null;
 
   return (
     <div className="relative z-10 min-h-[100dvh] pb-32">
@@ -95,8 +103,8 @@ export default function Generate({
           <ArrowRight size={18} weight="bold" className="ltr:-scale-x-100" />
         </button>
         <span className="relative h-9 w-9 overflow-hidden rounded-xl" style={{ background: family.grad }}>
-          {family.cover && !isVideoUrl(family.cover) && (
-            <img src={family.cover} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => e.currentTarget.remove()} />
+          {family.cover && !isVideoUrl(family.cover) && !coverFailed && (
+            <img src={family.cover} alt="" className="absolute inset-0 h-full w-full object-cover" onError={onCoverError} />
           )}
         </span>
         <div className="flex-1">
@@ -157,13 +165,22 @@ export default function Generate({
         <div className="flex flex-col gap-2.5">
           <div className="flex items-center justify-between">
             <SectionLabel>{t("g_prompt")}</SectionLabel>
-            <span className="text-[11px] text-ink3">{t("g_prompt_hint")}</span>
+            {/* The count only appears near the ceiling — Wan 2.5 stops at 800,
+                so on that model it matters; on a 20000 one it never shows. */}
+            {maxPrompt != null && prompt.length > maxPrompt * 0.8 ? (
+              <span className="text-[11px] tabular-nums text-ink3">
+                {n(prompt.length)} / {n(maxPrompt)}
+              </span>
+            ) : (
+              <span className="text-[11px] text-ink3">{t("g_prompt_hint")}</span>
+            )}
           </div>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Describe what you want to create…"
             rows={4}
+            maxLength={maxPrompt ?? undefined}
             className="ltr w-full resize-none rounded-bezel border border-line bg-card p-4 text-[14px] leading-relaxed text-ink placeholder:text-ink3 focus:border-accent focus:outline-none"
           />
         </div>

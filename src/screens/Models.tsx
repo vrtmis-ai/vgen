@@ -7,6 +7,7 @@ import { CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
 import { useI18n } from "../lib/i18n";
+import { useImageFallback } from "../lib/useImageFallback";
 
 function Badge({ text }: { text: string }) {
   return <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] font-medium text-ink backdrop-blur-sm">{text}</span>;
@@ -14,6 +15,7 @@ function Badge({ text }: { text: string }) {
 
 function GridCard({ f, i, fav, onToggleFav, onOpen }: { f: Family; i: number; fav: boolean; onToggleFav: () => void; onOpen: () => void }) {
   const { t, n } = useI18n();
+  const [coverFailed, onCoverError] = useImageFallback();
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
@@ -23,8 +25,8 @@ function GridCard({ f, i, fav, onToggleFav, onOpen }: { f: Family; i: number; fa
     >
       <button onClick={onOpen} className="block w-full text-right active:scale-[0.97] transition-transform">
         <div className="relative aspect-square overflow-hidden rounded-[1.4rem]" style={{ background: f.grad }}>
-          {f.cover && !isVideoUrl(f.cover) && (
-            <img src={f.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={(e) => e.currentTarget.remove()} />
+          {f.cover && !isVideoUrl(f.cover) && !coverFailed && (
+            <img src={f.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={onCoverError} />
           )}
           <div className="absolute inset-0" style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.16)" }} />
           {f.badge && <div className="absolute end-2 top-2"><Badge text={f.badge} /></div>}

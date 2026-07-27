@@ -7,11 +7,13 @@ import { CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { faNum, isVideoUrl } from "../lib/format";
 import { useI18n } from "../lib/i18n";
+import { useImageFallback } from "../lib/useImageFallback";
 
 const TRENDS = ["Trending", "Cinematic", "Cyberpunk", "Portraits", "Product", "Anime", "3D"];
 
 function PostCard({ p, i, onOpen }: { p: CommunityPost; i: number; onOpen: () => void }) {
   const f = getFamily(p.familyId);
+  const [coverFailed, onCoverError] = useImageFallback();
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -20,8 +22,8 @@ function PostCard({ p, i, onOpen }: { p: CommunityPost; i: number; onOpen: () =>
       className="mb-3 block w-full break-inside-avoid overflow-hidden rounded-bezel border border-line"
     >
       <div className="relative w-full" style={{ aspectRatio: `${p.w}/${p.h}`, background: f?.grad }}>
-        {f?.cover && !isVideoUrl(f.cover) && (
-          <img src={f.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={(e) => e.currentTarget.remove()} />
+        {f?.cover && !isVideoUrl(f.cover) && !coverFailed && (
+          <img src={f.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={onCoverError} />
         )}
         <div className="scrim-media" />
         {f && <div className="absolute start-2.5 top-2.5"><VendorMark vendor={f.vendor} size={22} /></div>}

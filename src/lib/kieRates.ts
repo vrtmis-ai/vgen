@@ -75,6 +75,18 @@ async function refresh(): Promise<void> {
   notify();
 }
 
+const RETRY_MS = [2_000, 8_000, 30_000]; // then give up until the next reload
+
+/** Retry a failed first load a few times: one flaky moment otherwise left the
+ *  whole session on built-in fallback rates, quoting prices that may be stale. */
+function refreshWithRetry(attempt = 0): void {
+  void refresh().catch(() => {
+    const wait = RETRY_MS[attempt];
+    if (wait == null) return;
+    setTimeout(() => refreshWithRetry(attempt + 1), wait);
+  });
+}
+
 /** Load cached rates immediately and refresh from KIE if stale. Safe to call more than once. */
 export function startKieRates(): void {
   if (started) return;
@@ -90,7 +102,7 @@ export function startKieRates(): void {
   } catch {
     // corrupt cache — refetch below
   }
-  if (stale) void refresh().catch(() => undefined); // offline → built-in fallback rates
+  if (stale) refreshWithRetry();
 }
 
 /** Re-render subscribers when the live table (re)loads. Returns a change counter. */

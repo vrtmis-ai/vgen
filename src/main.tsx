@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import { LanguageProvider } from "./lib/i18n";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Telegram Mini App init (no-op when opened in a normal browser during dev)
 const tg = (window as any).Telegram?.WebApp;
@@ -13,8 +14,10 @@ if (tg) {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <LanguageProvider>
-      <App />
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

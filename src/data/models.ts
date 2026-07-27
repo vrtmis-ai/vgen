@@ -67,6 +67,8 @@ export interface Variant {
    * for the two are identical — so this only selects the endpoint.
    */
   modelWithRefs?: string;
+  /** Prompt character limit, when it differs from the family's. */
+  maxPrompt?: number;
   label: string; // short version label for the switcher
   badge?: string;
   refs?: RefSlot[] | null; // null = no input slots; undefined = inherit family.refs
@@ -83,6 +85,12 @@ export interface Family {
   grad: string;
   cover?: string; // real preview image URL (fills in later; falls back to grad)
   refs?: RefSlot[];
+  /**
+   * Prompt character limit the provider enforces. These vary by 25x across the
+   * catalog — 800 on Wan 2.5, 20000 on Seedance — and going over is a 422, so
+   * the user pays for a job that dies on submit.
+   */
+  maxPrompt?: number;
   controls: Control[];
   variants: Variant[];
 }
@@ -389,6 +397,7 @@ export const FAMILIES: Family[] = [
   {
     id: "seedance",
     name: "Seedance",
+    maxPrompt: 20000,
     vendor: "ByteDance",
     kind: "video",
     blurb: "ویدیوی واقع‌گرا با صدا؛ متن یا عکس به ویدیو",
@@ -426,6 +435,10 @@ export const FAMILIES: Family[] = [
   {
     id: "kling",
     name: "Kling",
+    // 2500 on Turbo, 2.6, 2.5 Turbo and both Motion Controls. 3.0 puts its
+    // prompt inside `shots` and states no limit; it inherits this, which can
+    // only be too strict, never too loose.
+    maxPrompt: 2500,
     vendor: "Kuaishou",
     kind: "video",
     blurb: "حرکت سینمایی و چندنما؛ تا ۱۵ ثانیه",
@@ -520,6 +533,7 @@ export const FAMILIES: Family[] = [
   {
     id: "wan",
     name: "Wan",
+    maxPrompt: 5000, // 2.6, 2.7 and R2V — but 2.5 is far tighter, see below
     vendor: "Alibaba",
     kind: "video",
     blurb: "ویدیوی روان و اقتصادی",
@@ -553,6 +567,7 @@ export const FAMILIES: Family[] = [
         id: "wan-2-5",
         model: "wan/2-5-text-to-video",
         modelWithRefs: "wan/2-5-image-to-video",
+        maxPrompt: 800, // tightest in the catalog — a detailed prompt passes it easily
         label: "۲٫۵",
         refs: [{ key: "image_url", label: "تصویر ورودی (اختیاری)", max: 1 }],
       },
@@ -632,6 +647,7 @@ export const FAMILIES: Family[] = [
   {
     id: "hailuo",
     name: "Hailuo 2.3",
+    maxPrompt: 5000,
     vendor: "MiniMax",
     kind: "video",
     blurb: "حرکت طبیعی و چهره‌های واقعی؛ عکس به ویدیو",
@@ -666,6 +682,7 @@ export const FAMILIES: Family[] = [
     // that field is confirmed; the image/text path below is fully documented.
     id: "gemini-omni",
     name: "Gemini Omni",
+    maxPrompt: 20000,
     vendor: "Google",
     kind: "video",
     blurb: "ویدیو و صدای همزمان؛ ورودی عکس اختیاری",
@@ -751,6 +768,11 @@ export function variantControls(family: Family, variant: Variant): Control[] {
 export function variantRefs(family: Family, variant: Variant): RefSlot[] {
   if (variant.refs === null) return [];
   return variant.refs ?? family.refs ?? [];
+}
+
+/** Prompt character limit for this variant, or null where it isn't known yet. */
+export function variantMaxPrompt(family: Family, variant: Variant): number | null {
+  return variant.maxPrompt ?? family.maxPrompt ?? null;
 }
 
 /** Default input object from a control list, ready to send to KIE. */
