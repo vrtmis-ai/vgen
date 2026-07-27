@@ -14,6 +14,7 @@
 
 import { coinsForKieCredits, COIN_USD, RATES_FALLBACK } from "./pricing";
 import { FAMILIES } from "./models";
+import type { InputMap } from "../components/controls";
 
 export { COIN_USD };
 export const TOMAN_PER_USD = 170_000; // set 2026-07 by owner ($50 ≈ 8.5M Toman)
@@ -78,8 +79,16 @@ export function tierUnlockNames(tier: Tier): string[] {
 /* ---- "what can I make with this?" — derived from the real rate table ------
    anchors: a popular image (GPT Image 1K) and a popular video (Kling pro 5s).
    Derived, not hardcoded: repricing models updates every plan card. */
-export const COST_PER_IMAGE = coinsForKieCredits(RATES_FALLBACK["gpt-image-2"]!({ resolution: "1K" }));
-export const COST_PER_VIDEO5S = coinsForKieCredits(RATES_FALLBACK["kling-3"]!({ mode: "pro", duration: 5, sound: false }));
+/** Rates can be null now (combination not offered). An anchor going null is a
+    catalog mistake, so fail loudly instead of rendering NaN on every plan card. */
+function anchor(id: string, input: InputMap): number {
+  const credits = RATES_FALLBACK[id]?.(input);
+  if (credits == null) throw new Error(`pricing anchor "${id}" no longer has a rate`);
+  return coinsForKieCredits(credits);
+}
+
+export const COST_PER_IMAGE = anchor("gpt-image-2", { resolution: "1K" });
+export const COST_PER_VIDEO5S = anchor("kling-3", { mode: "pro", duration: 5, sound: false });
 
 export function estImages(pack: CoinPack): number {
   return Math.floor((pack.coins + pack.bonus) / COST_PER_IMAGE);

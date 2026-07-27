@@ -1,0 +1,117 @@
+// Cross-product audit: every settings combination the UI lets a user build,
+// checked against KIE's real rate table.
+//
+// check-live-pricing.ts varies one control at a time from the defaults, so it
+// only ever sees combinations that differ from default in a single field. That
+// misses interdependent options — Hailuo 2.3 offers 1080p and 10s separately
+// but has no 1080p-10s row, and the fallback table happily invents a price for
+// it. This script walks the full cross product instead.
+//
+// A MISS means the UI allows a combination KIE has no rate row for. That is
+// either a control the model doesn't really support at that setting, or a
+// token-matching bug in LIVE — both worth knowing, and the two are told apart
+// by hand from the row list.
+//
+// Run: npx tsx scripts/check-combos.ts   (node >= 18; uses real network)
+
+import { FAMILIES, variantControls, type Control } from "../src/data/models";
+import { LIVE, RATES_FALLBACK, coinsForKieCredits } from "../src/data/pricing";
+import { startKieRates, findRate } from "../src/lib/kieRates";
+import type { InputMap, InputValue } from "../src/components/controls";
+
+// keys that select a rate row; varying anything else can't change the price
+const PRICE_KEYS = new Set([
+  "resolution", "quality", "mode", "rendering_speed", "duration",
+  "sound", "generate_audio", "enable_pro",
+]);
+
+const MAX_SLIDER_STEPS = 20;
+
+function valuesFor(c: Control): InputValue[] {
+  if (c.kind === "segment" || c.kind === "aspect") return c.options.map((o) => o.value);
+  if (c.kind === "toggle") return [false, true];
+  if (c.kind === "slider") {
+    const steps = Math.floor((c.max - c.min) / c.step) + 1;
+    const raw =
+      steps <= MAX_SLIDER_STEPS
+        ? Array.from({ length: steps }, (_, k) => c.min + k * c.step)
+        : [c.min, c.def, c.max];
+    return raw.map((v) => (c.asString ? String(v) : v));
+  }
+  return [""];
+}
+
+function defaultOf(c: Control): InputValue {
+  if (c.kind === "text") return "";
+  if (c.kind === "toggle") return c.def;
+  if (c.kind === "slider") return c.asString ? String(c.def) : c.def;
+  return c.def;
+}
+
+/** Every combination of the price-relevant controls, with the rest left at default. */
+function combos(controls: Control[]): InputMap[] {
+  const base: InputMap = {};
+  for (const c of controls) base[c.key] = defaultOf(c);
+
+  let out: InputMap[] = [base];
+  for (const c of controls) {
+    if (!PRICE_KEYS.has(c.key)) continue;
+    const vals = valuesFor(c);
+    out = out.flatMap((m) => vals.map((v) => ({ ...m, [c.key]: v })));
+  }
+  return out;
+}
+
+function describe(input: InputMap): string {
+  return Object.entries(input)
+    .filter(([k]) => PRICE_KEYS.has(k))
+    .map(([k, v]) => `${k}=${String(v)}`)
+    .join(" ");
+}
+
+async function main() {
+  startKieRates();
+  for (let i = 0; i < 60 && findRate("gpt image 2", "text-to-image", "1k") == null; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (findRate("gpt image 2", "text-to-image", "1k") == null) {
+    console.error("FATAL: live table did not load");
+    process.exit(1);
+  }
+
+  let checked = 0;
+  const invented: string[] = []; // no live row, but the fallback still quotes a price
+  const blocked: string[] = []; // no live row and no fallback — the UI refuses it
+
+  for (const fam of FAMILIES) {
+    for (const v of fam.variants) {
+      const all = combos(variantControls(fam, v));
+      for (const input of all) {
+        checked++;
+        if (LIVE[v.id]?.(input) != null) continue;
+        const fb = RATES_FALLBACK[v.id]?.(input);
+        const line = `${v.id.padEnd(22)} ${describe(input)}`;
+        if (fb == null) blocked.push(line);
+        else invented.push(`${line}  → quotes ${coinsForKieCredits(fb)} coins (${fb}cr)`);
+      }
+    }
+  }
+
+  console.log(`checked ${checked} combinations across ${FAMILIES.length} families\n`);
+
+  if (blocked.length) {
+    console.log(`${blocked.length} combinations correctly refused (no rate anywhere, create button disabled):`);
+    for (const b of blocked) console.log("  " + b);
+    console.log("");
+  }
+
+  if (invented.length === 0) {
+    console.log("no combination is quoted a price KIE can't honour ✅");
+    process.exit(0);
+  }
+  console.log(`${invented.length} combinations are quoted an INVENTED price — KIE has no such rate:\n`);
+  for (const m of invented) console.log("  " + m);
+  process.exit(2);
+}
+
+void main();

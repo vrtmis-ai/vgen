@@ -133,6 +133,17 @@ function seedanceControls(res: string[]): Control[] {
   ];
 }
 
+// Hailuo 2.3 Pro and Standard take the same input schema — only the model id and
+// the price differ. `duration` is a string on this API, so the values are strings.
+const hailuo23Controls: Control[] = [
+  { kind: "segment", key: "resolution", label: "کیفیت", def: "768P", options: [
+    { value: "768P", label: "768p" }, { value: "1080P", label: "1080p" },
+  ] },
+  { kind: "segment", key: "duration", label: "مدت", def: "6", options: [
+    { value: "6", label: "۶ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
+  ] },
+];
+
 // ---- families ---------------------------------------------------------------
 
 export const FAMILIES: Family[] = [
@@ -552,19 +563,23 @@ export const FAMILIES: Family[] = [
           { kind: "toggle", key: "prompt_optimizer", label: "بهینه‌سازی پرامپت", def: true },
         ],
       },
+      // 2.3 is image-to-video only, and KIE ships Pro and Standard as separate
+      // models. Standard was missing entirely — it is a third of the price.
+      // Neither offers 10s at 1080P; pricing returns null for that pair.
       {
         id: "hailuo-2-3",
         model: "hailuo/2-3-image-to-video-pro",
-        label: "۲٫۳",
+        label: "۲٫۳ Pro",
         refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
-        controls: [
-          { kind: "segment", key: "resolution", label: "کیفیت", def: "768P", options: [
-            { value: "768P", label: "768p" }, { value: "1080P", label: "1080p" },
-          ] },
-          { kind: "segment", key: "duration", label: "مدت", def: "6", options: [
-            { value: "6", label: "۶ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
-          ] },
-        ],
+        controls: hailuo23Controls,
+      },
+      {
+        id: "hailuo-2-3-standard",
+        model: "hailuo/2-3-image-to-video-standard",
+        label: "۲٫۳ استاندارد",
+        badge: "ارزان",
+        refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
+        controls: hailuo23Controls,
       },
     ],
   },

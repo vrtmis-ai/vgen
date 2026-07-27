@@ -34,7 +34,8 @@ export function coinsForKieCredits(credits: number): number {
   return coinsFor(credits * KIE_CREDIT_USD);
 }
 
-type RateFn = (i: InputMap) => number;
+// null = the provider has no such offering, so the combination can't be sold.
+type RateFn = (i: InputMap) => number | null;
 
 function num(v: unknown, fb: number): number {
   const n = Number(v);
@@ -88,7 +89,10 @@ const RATES: Record<string, RateFn> = {
     pick(`${i.resolution}-${i.duration}`, { "720p-5": 70, "720p-10": 140, "720p-15": 210, "1080p-5": 104.5, "1080p-10": 209.5, "1080p-15": 315 }, 104.5),
   "wan-2-7": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
   "hailuo-02-standard": (i) => pick(`${i.duration}`, { "6": 30, "10": 50 }, 30),
-  "hailuo-2-3": (i) => pick(`${i.resolution}-${i.duration}`, { "768P-6": 45, "768P-10": 90, "1080P-6": 80, "1080P-10": 135 }, 45),
+  // KIE: "10 seconds videos are not supported for 1080p resolution" — the missing
+  // key returns null rather than a made-up price for a job that can't be created.
+  "hailuo-2-3": (i) => only(`${i.resolution}-${i.duration}`, { "768P-6": 45, "768P-10": 90, "1080P-6": 80 }),
+  "hailuo-2-3-standard": (i) => only(`${i.resolution}-${i.duration}`, { "768P-6": 30, "768P-10": 50, "1080P-6": 50 }),
   "veo-quality": (i) => pick(i.resolution, { "720p": 250, "1080p": 255, "4k": 380 }, 250),
   "veo-fast": (i) => pick(i.resolution, { "720p": 60, "1080p": 65, "4k": 180 }, 60),
   "veo-lite": (i) => pick(i.resolution, { "720p": 30, "1080p": 35, "4k": 150 }, 30),
@@ -148,6 +152,7 @@ export const LIVE: Record<string, LiveFn> = {
   "hailuo-02-pro": () => findRate("hailuo 02", "text-to-video", "pro-6.0s-1080p"),
   "hailuo-02-standard": (i) => findRate("hailuo 02", "text-to-video", `standard-${dur(i, 6)}.0s-768p`),
   "hailuo-2-3": (i) => findRate("hailuo 2.3", "image-to-video", `pro-${dur(i, 6)}.0s-${res(i, "768P")}`),
+  "hailuo-2-3-standard": (i) => findRate("hailuo 2.3", "image-to-video", `standard-${dur(i, 6)}.0s-${res(i, "768P")}`),
   "veo-quality": (i) => findRate("google veo 3.1", "text-to-video", `quality-${res(i, "720p")}`),
   "veo-fast": (i) => findRate("google veo 3.1", "text-to-video", `fast-${res(i, "720p")}`),
   "veo-lite": (i) => findRate("google veo 3.1", "text-to-video", `lite-${res(i, "720p")}`),
@@ -184,6 +189,11 @@ export function priceCoins(variant: Variant, input: InputMap): number | null {
 /** Small helper for rate tables: look up a setting value in a map with a fallback. */
 export function pick(value: unknown, table: Record<string, number>, fallback: number): number {
   return table[String(value)] ?? fallback;
+}
+
+/** Like `pick`, but a missing key means "not offered" rather than "use the default". */
+function only(value: unknown, table: Record<string, number>): number | null {
+  return table[String(value)] ?? null;
 }
 
 /** Exported for tests — the built-in fallback table. */

@@ -75,10 +75,13 @@ export default function Generate({
   // Some models (image-to-video) are rejected outright without their input image.
   // Blocking here is cheaper than letting the provider 422 a paid job.
   const needsInput = refs.some((s) => s.required && (refImages[s.key]?.length ?? 0) === 0);
-  const canGenerate = prompt.trim().length > 0 && !needsInput;
   const { t, n } = useI18n();
   useKieRates(); // re-render when the live KIE price table (re)loads
   const price = priceCoins(variant, input);
+  // No price means neither the live table nor the fallback has a rate — the
+  // provider doesn't offer this combination at all (Hailuo 2.3 has no 1080P
+  // at 10s). Selling it would take the user's coins for a job that can't run.
+  const canGenerate = prompt.trim().length > 0 && !needsInput && price != null;
 
   return (
     <div className="relative z-10 min-h-[100dvh] pb-32">
