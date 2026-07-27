@@ -544,7 +544,18 @@ export const FAMILIES: Family[] = [
       { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
     ],
     variants: [
-      { id: "wan-2-5", model: "wan/2-5-text-to-video", label: "۲٫۵" },
+      {
+        // The family controls above are 2.5's: aspect_ratio and
+        // enable_prompt_expansion really are its field names, unlike 2.6 (which
+        // has neither) and 2.7 (which calls them ratio and prompt_extend).
+        // Its image model names the slot image_url — singular, one string — and
+        // has no aspect_ratio; the frame follows the image.
+        id: "wan-2-5",
+        model: "wan/2-5-text-to-video",
+        modelWithRefs: "wan/2-5-image-to-video",
+        label: "۲٫۵",
+        refs: [{ key: "image_url", label: "تصویر ورودی (اختیاری)", max: 1 }],
+      },
       {
         id: "wan-2-6",
         model: "wan/2-6-text-to-video",
