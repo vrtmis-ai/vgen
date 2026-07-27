@@ -88,6 +88,7 @@ const RATES: Record<string, RateFn> = {
   "wan-2-6": (i) =>
     pick(`${i.resolution}-${i.duration}`, { "720p-5": 70, "720p-10": 140, "720p-15": 210, "1080p-5": 104.5, "1080p-10": 209.5, "1080p-15": 315 }, 104.5),
   "wan-2-7": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
+  "wan-2-7-r2v": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
   "hailuo-02-standard": (i) => pick(`${i.duration}`, { "6": 30, "10": 50 }, 30),
   // KIE: "10 seconds videos are not supported for 1080p resolution" — the missing
   // key returns null rather than a made-up price for a job that can't be created.
@@ -163,6 +164,7 @@ export const LIVE: Record<string, LiveFn> = {
   "wan-2-5": (i) => findRate("wan 2.5", "text-to-video", `default-${dur(i, 5)}.0s-${res(i, "720p")}`),
   "wan-2-6": (i) => findRate("wan 2.6", "text to video", `, ${dur(i, 5)}.0s-${res(i, "1080p")}`), // leading ", " so 5.0s can't match 15.0s
   "wan-2-7": (i) => perSec(findRate("wan 2.7 video", "text-to-video", res(i, "1080p")), dur(i, 5)),
+  "wan-2-7-r2v": (i) => perSec(findRate("wan 2.7 video", "r2v", res(i, "1080p")), dur(i, 5)),
   "hailuo-02-pro": () => findRate("hailuo 02", "text-to-video", "pro-6.0s-1080p"),
   "hailuo-02-standard": (i) => findRate("hailuo 02", "text-to-video", `standard-${dur(i, 6)}.0s-768p`),
   "hailuo-2-3": (i) => findRate("hailuo 2.3", "image-to-video", `pro-${dur(i, 6)}.0s-${res(i, "768P")}`),

@@ -583,6 +583,33 @@ export const FAMILIES: Family[] = [
           { kind: "toggle", key: "watermark", label: "واترمارک", def: false, advanced: true },
         ],
       },
+      {
+        // Reference-to-video. KIE requires at least one reference image OR video,
+        // capped at five between them; since only images can be uploaded today,
+        // the image slot is marked required and holds all five.
+        // reference_video and reference_voice are left out until media slots exist.
+        // Note this model uses `aspect_ratio` while its text-to-video sibling
+        // uses `ratio` — same family, different field name.
+        id: "wan-2-7-r2v",
+        model: "wan/2-7-r2v",
+        label: "۲٫۷ مرجع",
+        refs: [
+          { key: "reference_image", label: "تصاویر مرجع (الزامی)", max: 5, required: true },
+          { key: "first_frame", label: "فریم شروع (اختیاری)", max: 1 },
+        ],
+        controls: [
+          { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34] },
+          { kind: "segment", key: "resolution", label: "کیفیت", def: "1080p", options: [
+            { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
+          ] },
+          // The doc contradicts itself — prose says the default is 5, the Default
+          // Value field says 9. Taking 5: cheaper, and it matches every other Wan.
+          { kind: "slider", key: "duration", label: "مدت", min: 2, max: 10, step: 1, def: 5, unit: "ثانیه" },
+          { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
+          { kind: "toggle", key: "prompt_extend", label: "گسترش خودکار پرامپت", def: true, advanced: true },
+          { kind: "toggle", key: "watermark", label: "واترمارک", def: false, advanced: true },
+        ],
+      },
     ],
   },
   {
