@@ -13,3 +13,4 @@ vite.config.d.ts
 
 # internal notes — keep private
 KIE_MODELS.md
+HANDOFF.md
