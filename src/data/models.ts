@@ -698,7 +698,19 @@ export const FAMILIES: Family[] = [
     ],
     variants: [{ id: "gemini-omni-video", model: "gemini-omni-video", label: "Omni" }],
   },
-  // Veo uses a dedicated endpoint (POST /api/v1/veo/generate); `model` = veo3_fast|veo3|veo3_lite.
+  // Veo is the one model not on /api/v1/jobs/createTask. Confirmed against its
+  // API page: POST /api/v1/veo/generate, model = veo3 | veo3_fast | veo3_lite.
+  // The backend needs a separate path for it, and must send `generationType`,
+  // which nothing else has:
+  //   TEXT_2_VIDEO                   no images
+  //   FIRST_AND_LAST_FRAMES_2_VIDEO  one image (video unfolds around it) or two
+  //                                  (first and last frame)
+  //   REFERENCE_2_VIDEO              material-to-video — veo3_fast and veo3_lite
+  //                                  only, never veo3
+  // Other fields with no control here: watermark (a brand *string*, not a flag),
+  // enableFallback, enableTranslation.
+  // 4K bills roughly 120 credits above 1080p, and the 4K rate rows already
+  // include it — 35→150, 65→180, 255→380 — so no separate charge to account for.
   {
     id: "veo",
     name: "Veo 3.1",
