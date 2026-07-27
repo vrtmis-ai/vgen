@@ -88,8 +88,11 @@ async function main() {
       const all = combos(variantControls(fam, v));
       for (const input of all) {
         checked++;
-        if (LIVE[v.id]?.(input) != null) continue;
-        const fb = RATES_FALLBACK[v.id]?.(input);
+        // Audio models price per 1000 characters; a representative length lets
+        // them resolve like everything else instead of always reading as unpriced.
+        const chars = 1000;
+        if (LIVE[v.id]?.(input, chars) != null) continue;
+        const fb = RATES_FALLBACK[v.id]?.(input, chars);
         const line = `${v.id.padEnd(22)} ${describe(input)}`;
         if (fb == null) blocked.push(line);
         else invented.push(`${line}  → quotes ${coinsForKieCredits(fb)} coins (${fb}cr)`);

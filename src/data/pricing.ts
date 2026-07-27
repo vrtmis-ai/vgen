@@ -35,7 +35,11 @@ export function coinsForKieCredits(credits: number): number {
 }
 
 // null = the provider has no such offering, so the combination can't be sold.
-type RateFn = (i: InputMap) => number | null;
+//
+// `chars` is the prompt's length. Every model here is priced by its settings
+// except the audio ones, which KIE bills per 1000 characters of input — for those
+// the settings say nothing about cost and only the text length does.
+type RateFn = (i: InputMap, chars: number) => number | null;
 
 function num(v: unknown, fb: number): number {
   const n = Number(v);
@@ -99,6 +103,9 @@ const RATES: Record<string, RateFn> = {
       "720p-8": 105, "1080p-8": 105, "4k-8": 189,
       "720p-10": 126, "1080p-10": 126, "4k-10": 210,
     }),
+  // Text-to-speech: settings don't move the price, the text's length does.
+  "eleven-turbo": (_i, chars) => perKChars(6, chars),
+  "eleven-multilingual": (_i, chars) => perKChars(12, chars),
   "veo-quality": (i) => pick(i.resolution, { "720p": 250, "1080p": 255, "4k": 380 }, 250),
   "veo-fast": (i) => pick(i.resolution, { "720p": 60, "1080p": 65, "4k": 180 }, 60),
   "veo-lite": (i) => pick(i.resolution, { "720p": 30, "1080p": 35, "4k": 150 }, 30),
@@ -109,7 +116,11 @@ const RATES: Record<string, RateFn> = {
 // live table (all tokens must appear in the row's description; "!x" = must not).
 // Descriptions are matched normalized (lowercase, single spaces).
 
-type LiveFn = (i: InputMap) => number | null;
+type LiveFn = (i: InputMap, chars: number) => number | null;
+
+/** KIE bills text-to-speech per 1000 characters, rounded up, minimum one block. */
+const perKChars = (rate: number | null, chars: number) =>
+  rate == null ? null : rate * Math.max(1, Math.ceil(chars / 1000));
 
 const dur = (i: InputMap, fb: number) => num(i.duration, fb);
 /** per-second row × duration (null passes through). */
@@ -167,6 +178,8 @@ export const LIVE: Record<string, LiveFn> = {
   // Row text is "gemini-omni-video, video, 8s 1080p no video input" — matched as
   // one contiguous token so a duration can't pair with the wrong resolution.
   "gemini-omni-video": (i) => findRate("gemini-omni-video", `${dur(i, 8)}s ${res(i, "1080p")} no video input`),
+  "eleven-turbo": (_i, chars) => perKChars(findRate("elevenlabs text to speech", "turbo 2.5"), chars),
+  "eleven-multilingual": (_i, chars) => perKChars(findRate("elevenlabs text to speech", "multilingual v2"), chars),
   "veo-quality": (i) => findRate("google veo 3.1", "text-to-video", `quality-${res(i, "720p")}`),
   "veo-fast": (i) => findRate("google veo 3.1", "text-to-video", `fast-${res(i, "720p")}`),
   "veo-lite": (i) => findRate("google veo 3.1", "text-to-video", `lite-${res(i, "720p")}`),
@@ -175,11 +188,11 @@ export const LIVE: Record<string, LiveFn> = {
 // ---- KIE provider adapter ---------------------------------------------------
 
 /** KIE credits the current settings will cost: live table first, built-in fallback second. */
-export function kieCreditsFor(variant: Variant, input: InputMap): number | null {
-  const live = LIVE[variant.id]?.(input);
+export function kieCreditsFor(variant: Variant, input: InputMap, chars = 0): number | null {
+  const live = LIVE[variant.id]?.(input, chars);
   if (live != null) return live;
   const fn = RATES[variant.id];
-  return fn ? fn(input) : null;
+  return fn ? fn(input, chars) : null;
 }
 
 // ---- provider-neutral -------------------------------------------------------
@@ -188,14 +201,18 @@ export function kieCreditsFor(variant: Variant, input: InputMap): number | null 
  * What these settings cost us at the provider, in USD.
  * KIE is the only provider today; a second one adds a branch here, not a rewrite.
  */
-export function costUsdFor(variant: Variant, input: InputMap): number | null {
-  const credits = kieCreditsFor(variant, input);
+export function costUsdFor(variant: Variant, input: InputMap, chars = 0): number | null {
+  const credits = kieCreditsFor(variant, input, chars);
   return credits == null ? null : credits * KIE_CREDIT_USD;
 }
 
-/** Final coin price for the current settings, or null if the rate is not loaded yet. */
-export function priceCoins(variant: Variant, input: InputMap): number | null {
-  const usd = costUsdFor(variant, input);
+/**
+ * Final coin price for the current settings, or null if this combination isn't
+ * offered. `chars` is the prompt length, which only the per-character audio
+ * models use — everything else ignores it.
+ */
+export function priceCoins(variant: Variant, input: InputMap, chars = 0): number | null {
+  const usd = costUsdFor(variant, input, chars);
   return usd == null ? null : coinsFor(usd);
 }
 

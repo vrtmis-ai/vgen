@@ -53,14 +53,14 @@ async function main() {
     for (const v of fam.variants) {
       const controls = variantControls(fam, v);
       for (const input of variations(controls)) {
-        const live = LIVE[v.id]?.(input);
+        const live = LIVE[v.id]?.(input, 1000); // per-1000-char audio models need a length
         const summary = Object.entries(input)
           .filter(([k]) => PRICE_KEYS.has(k))
           .map(([k, val]) => `${k}=${String(val)}`)
           .join(" ");
         if (live == null) {
           bad++;
-          const fb = RATES_FALLBACK[v.id]?.(input);
+          const fb = RATES_FALLBACK[v.id]?.(input, 1000);
           console.log(`MISS  ${v.id.padEnd(20)} ${summary}  (fallback=${fb ?? "none"})`);
         } else {
           console.log(`ok    ${v.id.padEnd(20)} ${summary}  → ${live}cr = ${coinsForKieCredits(live)} coins`);

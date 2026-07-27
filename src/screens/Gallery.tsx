@@ -25,7 +25,7 @@ function GenCard({ g, i, onOpen }: { g: Generation; i: number; onOpen: () => voi
               {t("gal_making")}
             </span>
           ) : (
-            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{t(g.kind === "video" ? "kind_video" : "kind_image")}</span>
+            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{t(g.kind === "video" ? "kind_video" : g.kind === "audio" ? "kind_audio" : "kind_image")}</span>
           )}
         </div>
         <div className="absolute inset-x-2.5 bottom-2.5">

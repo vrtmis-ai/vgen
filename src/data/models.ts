@@ -3,7 +3,7 @@
 // Every `model` id and every control is grounded in docs.kie.ai + the live pricing table.
 // See web/KIE_MODELS.md.
 
-export type ModelKind = "image" | "video";
+export type ModelKind = "image" | "video" | "audio";
 
 export interface AspectOption {
   value: string;
@@ -156,6 +156,23 @@ const hailuo23Controls: Control[] = [
   { kind: "segment", key: "duration", label: "مدت", def: "6", options: [
     { value: "6", label: "۶ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
   ] },
+];
+
+// ElevenLabs TTS. Shared by both speech models — language_code is deliberately
+// NOT here: it works on turbo-2-5 and is a documented error on multilingual-v2.
+//
+// `voice` is an opaque ElevenLabs id and KIE publishes no endpoint to list them,
+// so this is a hand-kept shortlist. EkK5I93UQWFDigLMpZcX is the API's own default.
+const elevenCommonControls: Control[] = [
+  { kind: "segment", key: "voice", label: "صدا", def: "EkK5I93UQWFDigLMpZcX", options: [
+    { value: "EkK5I93UQWFDigLMpZcX", label: "پیش‌فرض" },
+    { value: "TX3LPaxmHKxFdv7VOQHJ", label: "مردانه" },
+    { value: "NNl6r8mD7vthiJatiJt1", label: "زنانه" },
+  ] },
+  { kind: "slider", key: "speed", label: "سرعت گفتار", min: 0.7, max: 1.2, step: 0.05, def: 1 },
+  { kind: "slider", key: "stability", label: "ثبات صدا", min: 0, max: 1, step: 0.05, def: 0.5, advanced: true },
+  { kind: "slider", key: "similarity_boost", label: "شباهت به صدای اصلی", min: 0, max: 1, step: 0.05, def: 0.75, advanced: true },
+  { kind: "slider", key: "style", label: "اغراق در لحن", min: 0, max: 1, step: 0.05, def: 0, advanced: true },
 ];
 
 // ---- families ---------------------------------------------------------------
@@ -752,10 +769,43 @@ export const FAMILIES: Family[] = [
     ],
     variants: [{ id: "grok-image", model: "grok-imagine/text-to-image", label: "Imagine" }],
   },
+  // ----------------------------- AUDIO ---------------------------------------
+  {
+    // Billed per 1000 characters of input, so unlike everything else here the
+    // price comes from the prompt's length rather than the settings.
+    // The API field is `text`, not `prompt` — the backend has to rename it.
+    id: "elevenlabs",
+    name: "ElevenLabs",
+    vendor: "ElevenLabs",
+    kind: "audio",
+    blurb: "متن به گفتار؛ طبیعی و چندزبانه — فارسی هم پشتیبانی می‌شود",
+    badge: "صدا",
+    grad: "linear-gradient(135deg,#22d3ee,#0f766e)",
+    maxPrompt: 5000,
+    controls: elevenCommonControls,
+    variants: [
+      {
+        // The only one that accepts language_code. Sending that field to
+        // multilingual-v2 is a documented error, so it lives here and nowhere else.
+        id: "eleven-turbo",
+        model: "elevenlabs/text-to-speech-turbo-2-5",
+        label: "Turbo",
+        badge: "ارزان",
+        controls: [
+          ...elevenCommonControls,
+          { kind: "segment", key: "language_code", label: "زبان", def: "", advanced: true, options: [
+            { value: "", label: "خودکار" }, { value: "fa", label: "فارسی" }, { value: "en", label: "انگلیسی" }, { value: "ar", label: "عربی" },
+          ] },
+        ],
+      },
+      { id: "eleven-multilingual", model: "elevenlabs/text-to-speech-multilingual-v2", label: "چندزبانه", badge: "کیفیت" },
+    ],
+  },
 ];
 
 export const IMAGE_FAMILIES = FAMILIES.filter((f) => f.kind === "image");
 export const VIDEO_FAMILIES = FAMILIES.filter((f) => f.kind === "video");
+export const AUDIO_FAMILIES = FAMILIES.filter((f) => f.kind === "audio");
 
 export function getFamily(id: string): Family | undefined {
   return FAMILIES.find((f) => f.id === id);

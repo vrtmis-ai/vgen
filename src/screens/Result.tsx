@@ -65,7 +65,13 @@ export default function Result({
       <div className="rounded-bezel border border-line bg-card p-1.5">
         <div
           className="relative w-full overflow-hidden rounded-[1.4rem]"
-          style={{ aspectRatio: `${ratio}`, background: done ? gen.grad : "#161619" }}
+          // Audio has no frame to fill, so it gets a short fixed band instead of
+          // an aspect box that would otherwise render as a tall empty rectangle.
+          style={
+            gen.kind === "audio"
+              ? { height: 168, background: done ? gen.grad : "#161619" }
+              : { aspectRatio: `${ratio}`, background: done ? gen.grad : "#161619" }
+          }
         >
           {!done && <div className="shimmer absolute inset-0" />}
           <AnimatePresence>
@@ -88,6 +94,19 @@ export default function Result({
               className="absolute inset-0"
             >
               <div className="absolute inset-0" style={{ background: gen.grad }} />
+              {gen.kind === "audio" && (
+                // Placeholder bars until a real file exists to play — the mock has
+                // no audio to feed an <audio> element.
+                <div className="absolute inset-0 flex items-center justify-center gap-[3px] px-8">
+                  {Array.from({ length: 32 }, (_, k) => (
+                    <span
+                      key={k}
+                      className="w-[3px] rounded-full bg-bg/45"
+                      style={{ height: `${18 + Math.abs(Math.sin(k * 0.9)) * 54}%` }}
+                    />
+                  ))}
+                </div>
+              )}
               <div className="absolute start-2 top-2 rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
                 {t("r_sample")}
               </div>

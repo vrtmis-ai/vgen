@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Star, ArrowRight } from "@phosphor-icons/react";
-import { IMAGE_FAMILIES, VIDEO_FAMILIES, type Family, type ModelKind } from "../data/models";
+import { IMAGE_FAMILIES, VIDEO_FAMILIES, AUDIO_FAMILIES, type Family, type ModelKind } from "../data/models";
 import { useFavorites } from "../lib/favorites";
 import { CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
@@ -69,7 +69,7 @@ export default function Models({
   const [tab, setTab] = useState<ModelKind>(initialKind);
   const { t } = useI18n();
   const { toggle, has } = useFavorites();
-  const families = tab === "image" ? IMAGE_FAMILIES : VIDEO_FAMILIES;
+  const families = tab === "image" ? IMAGE_FAMILIES : tab === "video" ? VIDEO_FAMILIES : AUDIO_FAMILIES;
 
   return (
     <div className="relative z-10 px-4 pt-4 pb-10">
@@ -84,7 +84,7 @@ export default function Models({
       </div>
 
       <div className="mb-4 flex gap-1.5 rounded-2xl bg-card2 p-1">
-        {(["image", "video"] as ModelKind[]).map((k) => {
+        {(["image", "video", "audio"] as ModelKind[]).map((k) => {
           const on = tab === k;
           return (
             <button
@@ -94,7 +94,7 @@ export default function Models({
                 on ? "bg-accent font-medium text-on-accent" : "text-ink3"
               }`}
             >
-              {t(k === "image" ? "kind_image" : "kind_video")}
+              {t(k === "image" ? "kind_image" : k === "video" ? "kind_video" : "kind_audio")}
             </button>
           );
         })}

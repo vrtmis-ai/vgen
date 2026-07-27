@@ -7,7 +7,7 @@ export interface Generation {
   name: string;
   vendor: string;
   grad: string;
-  kind: "image" | "video";
+  kind: "image" | "video" | "audio";
   prompt: string;
   w: number;
   h: number;

@@ -85,7 +85,9 @@ export default function Generate({
   const { t, n } = useI18n();
   const [coverFailed, onCoverError] = useImageFallback();
   useKieRates(); // re-render when the live KIE price table (re)loads
-  const price = priceCoins(variant, input);
+  // Audio models bill per 1000 characters, so their price tracks the prompt as
+  // the user types rather than sitting still until a setting changes.
+  const price = priceCoins(variant, input, prompt.trim().length);
   // No price means neither the live table nor the fallback has a rate — the
   // provider doesn't offer this combination at all (Hailuo 2.3 has no 1080P
   // at 10s). Selling it would take the user's coins for a job that can't run.

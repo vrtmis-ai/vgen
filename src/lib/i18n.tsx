@@ -106,6 +106,7 @@ const dict = {
     // shared kinds
     kind_image: "تصویر",
     kind_video: "ویدیو",
+    kind_audio: "صدا",
     // models
     mdl_title: "مدل‌ها",
     fav_add: "افزودن به میانبرها",
@@ -208,6 +209,7 @@ const dict = {
     r_stage4: "Almost ready…",
     kind_image: "Image",
     kind_video: "Video",
+    kind_audio: "Audio",
     mdl_title: "Models",
     fav_add: "Add to shortcuts",
     fav_remove: "Remove from shortcuts",

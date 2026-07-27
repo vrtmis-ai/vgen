@@ -81,7 +81,7 @@ export function tierUnlockNames(tier: Tier): string[] {
 /** Rates can be null now (combination not offered). An anchor going null is a
     catalog mistake, so fail loudly instead of rendering NaN on every plan card. */
 function anchor(id: string, input: InputMap): number {
-  const credits = RATES_FALLBACK[id]?.(input);
+  const credits = RATES_FALLBACK[id]?.(input, 0);
   if (credits == null) throw new Error(`pricing anchor "${id}" no longer has a rate`);
   return coinsForKieCredits(credits);
 }
