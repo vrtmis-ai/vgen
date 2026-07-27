@@ -583,6 +583,32 @@ export const FAMILIES: Family[] = [
       },
     ],
   },
+  {
+    // KIE also prices a "with video input" path, and the duration docs mention
+    // video input deciding the length — but no video parameter is documented,
+    // only image_urls, and it accepts image types only. Not implemented until
+    // that field is confirmed; the image/text path below is fully documented.
+    id: "gemini-omni",
+    name: "Gemini Omni",
+    vendor: "Google",
+    kind: "video",
+    blurb: "ویدیو و صدای همزمان؛ ورودی عکس اختیاری",
+    badge: "جدید",
+    grad: "linear-gradient(135deg,#34d399,#3b82f6)",
+    // The API documents no cap on the number of images; this is a UI limit.
+    refs: [{ key: "image_urls", label: "تصاویر ورودی (اختیاری)", max: 4 }],
+    controls: [
+      { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916] },
+      // 720p and 1080p cost exactly the same at every duration, so 720p is
+      // strictly worse for the user. Defaulting to 1080p; KIE's own default is 720p.
+      QUALITY("1080p", ["720p", "1080p", "4k"]),
+      { kind: "segment", key: "duration", label: "مدت", def: "8", options: [
+        { value: "4", label: "۴ ثانیه" }, { value: "6", label: "۶ ثانیه" },
+        { value: "8", label: "۸ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
+      ] },
+    ],
+    variants: [{ id: "gemini-omni-video", model: "gemini-omni-video", label: "Omni" }],
+  },
   // Veo uses a dedicated endpoint (POST /api/v1/veo/generate); `model` = veo3_fast|veo3|veo3_lite.
   {
     id: "veo",

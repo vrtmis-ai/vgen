@@ -93,6 +93,14 @@ const RATES: Record<string, RateFn> = {
   // key returns null rather than a made-up price for a job that can't be created.
   "hailuo-2-3": (i) => only(`${i.resolution}-${i.duration}`, { "768P-6": 45, "768P-10": 90, "1080P-6": 80 }),
   "hailuo-2-3-standard": (i) => only(`${i.resolution}-${i.duration}`, { "768P-6": 30, "768P-10": 50, "1080P-6": 50 }),
+  // Flat per-video by duration; 720p and 1080p are billed identically.
+  "gemini-omni-video": (i) =>
+    only(`${i.resolution}-${i.duration}`, {
+      "720p-4": 63, "1080p-4": 63, "4k-4": 147,
+      "720p-6": 84, "1080p-6": 84, "4k-6": 168,
+      "720p-8": 105, "1080p-8": 105, "4k-8": 189,
+      "720p-10": 126, "1080p-10": 126, "4k-10": 210,
+    }),
   "veo-quality": (i) => pick(i.resolution, { "720p": 250, "1080p": 255, "4k": 380 }, 250),
   "veo-fast": (i) => pick(i.resolution, { "720p": 60, "1080p": 65, "4k": 180 }, 60),
   "veo-lite": (i) => pick(i.resolution, { "720p": 30, "1080p": 35, "4k": 150 }, 30),
@@ -153,6 +161,9 @@ export const LIVE: Record<string, LiveFn> = {
   "hailuo-02-standard": (i) => findRate("hailuo 02", "text-to-video", `standard-${dur(i, 6)}.0s-768p`),
   "hailuo-2-3": (i) => findRate("hailuo 2.3", "image-to-video", `pro-${dur(i, 6)}.0s-${res(i, "768P")}`),
   "hailuo-2-3-standard": (i) => findRate("hailuo 2.3", "image-to-video", `standard-${dur(i, 6)}.0s-${res(i, "768P")}`),
+  // Row text is "gemini-omni-video, video, 8s 1080p no video input" — matched as
+  // one contiguous token so a duration can't pair with the wrong resolution.
+  "gemini-omni-video": (i) => findRate("gemini-omni-video", `${dur(i, 8)}s ${res(i, "1080p")} no video input`),
   "veo-quality": (i) => findRate("google veo 3.1", "text-to-video", `quality-${res(i, "720p")}`),
   "veo-fast": (i) => findRate("google veo 3.1", "text-to-video", `fast-${res(i, "720p")}`),
   "veo-lite": (i) => findRate("google veo 3.1", "text-to-video", `lite-${res(i, "720p")}`),
