@@ -83,7 +83,6 @@ const RATES: Record<string, RateFn> = {
   },
   "kling-2-6": (i) => pick(`${i.duration}`, Boolean(i.sound) ? { "5": 110, "10": 220 } : { "5": 55, "10": 110 }, 55),
   "kling-2-5-turbo": (i) => pick(`${i.duration}`, { "5": 42, "10": 84 }, 42),
-  "kling-2-1": (i) => pick(`${i.duration}`, { "5": 50, "10": 100 }, 50),
   "wan-2-6": (i) =>
     pick(`${i.resolution}-${i.duration}`, { "720p-5": 70, "720p-10": 140, "720p-15": 210, "1080p-5": 104.5, "1080p-10": 209.5, "1080p-15": 315 }, 104.5),
   "wan-2-7": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
@@ -139,7 +138,6 @@ export const LIVE: Record<string, LiveFn> = {
   },
   "kling-2-6": (i) => findRate("kling 2.6", "text-to-video", `${Boolean(i.sound) ? "with" : "without"} audio-${dur(i, 5)}.0s`),
   "kling-2-5-turbo": (i) => findRate("kling 2.5 turbo", "text-to-video", `turbo pro-${dur(i, 5)}.0s`),
-  "kling-2-1": (i) => findRate("kling 2.1", "video-generation", `pro-${dur(i, 5)}.0s`),
   "wan-2-5": (i) => findRate("wan 2.5", "text-to-video", `default-${dur(i, 5)}.0s-${res(i, "720p")}`),
   "wan-2-6": (i) => findRate("wan 2.6", "text to video", `, ${dur(i, 5)}.0s-${res(i, "1080p")}`), // leading ", " so 5.0s can't match 15.0s
   "wan-2-7": (i) => perSec(findRate("wan 2.7 video", "text-to-video", res(i, "1080p")), dur(i, 5)),

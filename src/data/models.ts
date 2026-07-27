@@ -47,6 +47,14 @@ export interface RefSlot {
 export interface Variant {
   id: string; // our id (also the pricing key)
   model: string; // KIE createTask `model` field
+  /**
+   * KIE splits some models into separate text-to-video and image-to-video entry
+   * points (`kling-2.6/text-to-video` vs `kling-2.6/image-to-video`). Where that
+   * is the case, `model` is the text-only one and this is used instead as soon as
+   * the user supplies a reference image. Same price either way — the rate rows
+   * for the two are identical — so this only selects the endpoint.
+   */
+  modelWithRefs?: string;
   label: string; // short version label for the switcher
   badge?: string;
   refs?: RefSlot[] | null; // null = no input slots; undefined = inherit family.refs
@@ -416,6 +424,7 @@ export const FAMILIES: Family[] = [
       {
         id: "kling-2-6",
         model: "kling-2.6/text-to-video",
+        modelWithRefs: "kling-2.6/image-to-video",
         label: "۲٫۶",
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
@@ -431,20 +440,6 @@ export const FAMILIES: Family[] = [
         label: "۲٫۵ Turbo",
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
-          { kind: "segment", key: "duration", label: "مدت", def: "5", options: [
-            { value: "5", label: "۵ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
-          ] },
-        ],
-      },
-      {
-        id: "kling-2-1",
-        model: "kling/v2-1-pro",
-        label: "۲٫۱",
-        refs: [
-          { key: "image_url", label: "فریم شروع (الزامی)", max: 1 },
-          { key: "tail_image_url", label: "فریم پایان (اختیاری)", max: 1 },
-        ],
-        controls: [
           { kind: "segment", key: "duration", label: "مدت", def: "5", options: [
             { value: "5", label: "۵ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
           ] },
