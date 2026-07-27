@@ -3,7 +3,7 @@
 // Run: npx tsx scripts/check-live-pricing.ts   (node ≥18; uses real network)
 
 import { FAMILIES, variantControls, type Control } from "../src/data/models";
-import { LIVE, RATES_FALLBACK, coinsFor } from "../src/data/pricing";
+import { LIVE, RATES_FALLBACK, coinsForKieCredits } from "../src/data/pricing";
 import { startKieRates, findRate } from "../src/lib/kieRates";
 import type { InputMap } from "../src/components/controls";
 
@@ -63,7 +63,7 @@ async function main() {
           const fb = RATES_FALLBACK[v.id]?.(input);
           console.log(`MISS  ${v.id.padEnd(20)} ${summary}  (fallback=${fb ?? "none"})`);
         } else {
-          console.log(`ok    ${v.id.padEnd(20)} ${summary}  → ${live}cr = ${coinsFor(live)} coins`);
+          console.log(`ok    ${v.id.padEnd(20)} ${summary}  → ${live}cr = ${coinsForKieCredits(live)} coins`);
         }
       }
     }

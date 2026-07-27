@@ -12,10 +12,10 @@
 // NOTE: enforcing "first purchase" needs the backend (per-user history);
 // until then the UI shows the offer and the backend phase wires it up.
 
-import { coinsFor, RATES_FALLBACK } from "./pricing";
+import { coinsForKieCredits, COIN_USD, RATES_FALLBACK } from "./pricing";
 import { FAMILIES } from "./models";
 
-export const COIN_USD = 0.05;
+export { COIN_USD };
 export const TOMAN_PER_USD = 170_000; // set 2026-07 by owner ($50 ≈ 8.5M Toman)
 
 /** Access tier a pack grants. Models declare the minimum tier that unlocks them. */
@@ -78,8 +78,8 @@ export function tierUnlockNames(tier: Tier): string[] {
 /* ---- "what can I make with this?" — derived from the real rate table ------
    anchors: a popular image (GPT Image 1K) and a popular video (Kling pro 5s).
    Derived, not hardcoded: repricing models updates every plan card. */
-export const COST_PER_IMAGE = coinsFor(RATES_FALLBACK["gpt-image-2"]!({ resolution: "1K" }));
-export const COST_PER_VIDEO5S = coinsFor(RATES_FALLBACK["kling-3"]!({ mode: "pro", duration: 5, sound: false }));
+export const COST_PER_IMAGE = coinsForKieCredits(RATES_FALLBACK["gpt-image-2"]!({ resolution: "1K" }));
+export const COST_PER_VIDEO5S = coinsForKieCredits(RATES_FALLBACK["kling-3"]!({ mode: "pro", duration: 5, sound: false }));
 
 export function estImages(pack: CoinPack): number {
   return Math.floor((pack.coins + pack.bonus) / COST_PER_IMAGE);

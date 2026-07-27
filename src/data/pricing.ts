@@ -8,10 +8,13 @@
 // truth stays `creditsConsumed` returned after each task (backend settles it).
 //
 // Economics (locked):
-//   1 KIE credit         = $0.005   (1000 credits = $5)
 //   1 Vgen coin (سکه)    = $0.05    (what the user pays per coin)
 //   margin               = 2x
-//   => coins = ceil(kieCredits * 0.005 * 2 / 0.05) = ceil(kieCredits * 0.2)
+//   => coins = ceil(costUsd * 2 / 0.05)
+//
+// The pivot is USD, not provider credits. Each provider prices in its own unit
+// (KIE bills credits at $0.005 each) and converts to USD before the coin formula
+// sees it, so adding a second provider doesn't touch the coin economy.
 
 import type { Variant } from "./models";
 import type { InputMap } from "../components/controls";
@@ -21,9 +24,14 @@ export const KIE_CREDIT_USD = 0.005;
 export const COIN_USD = 0.05;
 export const MARGIN = 2;
 
-/** Our coin price for a generation that costs `kieCredits` on KIE. */
-export function coinsFor(kieCredits: number): number {
-  return Math.ceil((kieCredits * KIE_CREDIT_USD * MARGIN) / COIN_USD);
+/** Coins we charge for a generation that costs us `costUsd` at the provider. */
+export function coinsFor(costUsd: number): number {
+  return Math.ceil((costUsd * MARGIN) / COIN_USD);
+}
+
+/** Same, for a provider that quotes in KIE credits. */
+export function coinsForKieCredits(credits: number): number {
+  return coinsFor(credits * KIE_CREDIT_USD);
 }
 
 type RateFn = (i: InputMap) => number;
@@ -144,6 +152,8 @@ export const LIVE: Record<string, LiveFn> = {
   "grok-video": (i) => perSec(findRate("grok-imagine,", "text-to-video", res(i, "480p")), dur(i, 6)),
 };
 
+// ---- KIE provider adapter ---------------------------------------------------
+
 /** KIE credits the current settings will cost: live table first, built-in fallback second. */
 export function kieCreditsFor(variant: Variant, input: InputMap): number | null {
   const live = LIVE[variant.id]?.(input);
@@ -152,10 +162,21 @@ export function kieCreditsFor(variant: Variant, input: InputMap): number | null 
   return fn ? fn(input) : null;
 }
 
+// ---- provider-neutral -------------------------------------------------------
+
+/**
+ * What these settings cost us at the provider, in USD.
+ * KIE is the only provider today; a second one adds a branch here, not a rewrite.
+ */
+export function costUsdFor(variant: Variant, input: InputMap): number | null {
+  const credits = kieCreditsFor(variant, input);
+  return credits == null ? null : credits * KIE_CREDIT_USD;
+}
+
 /** Final coin price for the current settings, or null if the rate is not loaded yet. */
 export function priceCoins(variant: Variant, input: InputMap): number | null {
-  const c = kieCreditsFor(variant, input);
-  return c == null ? null : coinsFor(c);
+  const usd = costUsdFor(variant, input);
+  return usd == null ? null : coinsFor(usd);
 }
 
 /** Small helper for rate tables: look up a setting value in a map with a fallback. */
