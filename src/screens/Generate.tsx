@@ -72,7 +72,10 @@ export default function Generate({
   }
 
   const setValue = (key: string, val: InputValue) => setInput((p) => ({ ...p, [key]: val }));
-  const canGenerate = prompt.trim().length > 0;
+  // Some models (image-to-video) are rejected outright without their input image.
+  // Blocking here is cheaper than letting the provider 422 a paid job.
+  const needsInput = refs.some((s) => s.required && (refImages[s.key]?.length ?? 0) === 0);
+  const canGenerate = prompt.trim().length > 0 && !needsInput;
   const { t, n } = useI18n();
   useKieRates(); // re-render when the live KIE price table (re)loads
   const price = priceCoins(variant, input);
@@ -211,7 +214,7 @@ export default function Generate({
           )}
         </button>
         <div className="pt-1.5 text-center text-[10.5px] text-ink3">
-          {price != null ? `≈ ${n(price)} ${t("g_est_for")}` : t("g_no_rate")}
+          {needsInput ? t("g_need_input") : price != null ? `≈ ${n(price)} ${t("g_est_for")}` : t("g_no_rate")}
         </div>
       </div>
     </div>

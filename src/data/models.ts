@@ -41,6 +41,13 @@ export interface RefSlot {
   key: string;
   label: string;
   max: number;
+  /**
+   * The provider rejects the job without this input (KIE marks the field
+   * Required). Gates the create button — otherwise the user pays for a task
+   * that fails validation. Note this is per-slot; slots that are only required
+   * *because another slot is filled* are not expressible yet.
+   */
+  required?: boolean;
 }
 
 /** One concrete KIE model inside a family. */
@@ -422,6 +429,25 @@ export const FAMILIES: Family[] = [
     variants: [
       { id: "kling-3", model: "kling-3.0/video", label: "۳٫۰" },
       {
+        // Turbo exposes neither sound nor multi_shots, and tops out at 1080p, so
+        // it can't inherit the family controls. aspect_ratio exists on the
+        // text-to-video model only — with an input image the frame comes from the
+        // image, so the backend must drop aspect_ratio when it calls image-to-video.
+        id: "kling-3-turbo",
+        model: "kling/v3-turbo-text-to-video",
+        modelWithRefs: "kling/v3-turbo-image-to-video",
+        label: "۳٫۰ Turbo",
+        badge: "سریع",
+        refs: [{ key: "image_urls", label: "تصویر ورودی (اختیاری)", max: 1 }],
+        controls: [
+          { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
+          { kind: "segment", key: "resolution", label: "کیفیت", def: "720p", options: [
+            { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
+          ] },
+          { kind: "slider", key: "duration", label: "مدت", min: 3, max: 15, step: 1, def: 5, unit: "ثانیه" },
+        ],
+      },
+      {
         id: "kling-2-6",
         model: "kling-2.6/text-to-video",
         modelWithRefs: "kling-2.6/image-to-video",
@@ -530,7 +556,7 @@ export const FAMILIES: Family[] = [
         id: "hailuo-2-3",
         model: "hailuo/2-3-image-to-video-pro",
         label: "۲٫۳",
-        refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1 }],
+        refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
         controls: [
           { kind: "segment", key: "resolution", label: "کیفیت", def: "768P", options: [
             { value: "768P", label: "768p" }, { value: "1080P", label: "1080p" },

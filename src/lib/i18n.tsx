@@ -89,6 +89,7 @@ const dict = {
     g_create: "ساخت",
     g_est_for: "سکه برای این تنظیمات",
     g_no_rate: "نرخِ این مدل هنوز وارد نشده",
+    g_need_input: "این مدل بدون تصویر ورودی کار نمی‌کند",
     // result
     r_result: "نتیجه",
     r_making: "در حال ساخت",
@@ -191,6 +192,7 @@ const dict = {
     g_create: "Create",
     g_est_for: "coins for these settings",
     g_no_rate: "This model's rate isn't loaded yet",
+    g_need_input: "This model can't run without an input image",
     r_result: "Result",
     r_making: "Generating",
     r_download: "Download",

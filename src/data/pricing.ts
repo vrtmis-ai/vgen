@@ -81,6 +81,7 @@ const RATES: Record<string, RateFn> = {
       num(i.duration, 5)
     );
   },
+  "kling-3-turbo": (i) => pick(i.resolution, { "720p": 18, "1080p": 22.5 }, 18) * num(i.duration, 5),
   "kling-2-6": (i) => pick(`${i.duration}`, Boolean(i.sound) ? { "5": 110, "10": 220 } : { "5": 55, "10": 110 }, 55),
   "kling-2-5-turbo": (i) => pick(`${i.duration}`, { "5": 42, "10": 84 }, 42),
   "wan-2-6": (i) =>
@@ -136,6 +137,9 @@ export const LIVE: Record<string, LiveFn> = {
     const r = String(i.resolution ?? "1080p").toLowerCase();
     return perSec(findRate("kling 3.0, video", `${Boolean(i.sound) ? "with" : "without"} audio-${r}`), dur(i, 5));
   },
+  // Per second by resolution, no audio tier. The text-to-video and image-to-video
+  // rows carry the same rate, so matching either one prices both entry points.
+  "kling-3-turbo": (i) => perSec(findRate("kling 3.0 turbo", "text-to-video", res(i, "720p")), dur(i, 5)),
   "kling-2-6": (i) => findRate("kling 2.6", "text-to-video", `${Boolean(i.sound) ? "with" : "without"} audio-${dur(i, 5)}.0s`),
   "kling-2-5-turbo": (i) => findRate("kling 2.5 turbo", "text-to-video", `turbo pro-${dur(i, 5)}.0s`),
   "wan-2-5": (i) => findRate("wan 2.5", "text-to-video", `default-${dur(i, 5)}.0s-${res(i, "720p")}`),
