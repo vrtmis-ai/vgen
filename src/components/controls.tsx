@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Plus, X } from "@phosphor-icons/react";
 import type { Control, RefSlot } from "../data/models";
 import { faNum } from "../lib/format";
@@ -203,34 +203,50 @@ export function ControlField({
   }
 }
 
-/** Reference / input image slot. Local preview only for now (KIE upload wired later). */
-export function RefUpload({ slot, urls, onChange }: { slot: RefSlot; urls: string[]; onChange: (u: string[]) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [previews, setPreviews] = useState<string[]>(urls);
+/** One picked reference image. */
+export interface RefImage {
+  /** the real file — this is what gets uploaded once a backend exists */
+  file: File;
+  /** object URL for the thumbnail only; revoked as soon as the image is dropped */
+  url: string;
+}
 
-  function pick(files: FileList | null) {
-    if (!files) return;
-    const next = [...previews];
-    for (const f of Array.from(files)) {
-      if (next.length >= slot.max) break;
-      next.push(URL.createObjectURL(f));
+/** Picked reference images, keyed by RefSlot.key (the field name KIE expects). */
+export type RefMap = Record<string, RefImage[]>;
+
+/**
+ * Reference / input image slot. Fully controlled — the owner holds the images so
+ * they can actually reach the generation request (they used to die in local state).
+ */
+export function RefUpload({ slot, images, onChange }: { slot: RefSlot; images: RefImage[]; onChange: (i: RefImage[]) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function pick(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (files) {
+      const next = [...images];
+      for (const f of Array.from(files)) {
+        if (next.length >= slot.max) break;
+        next.push({ file: f, url: URL.createObjectURL(f) });
+      }
+      onChange(next);
     }
-    setPreviews(next);
-    onChange(next);
+    // clear the input so removing a file and re-picking it still fires onChange
+    e.target.value = "";
   }
   function remove(i: number) {
-    const next = previews.filter((_, idx) => idx !== i);
-    setPreviews(next);
-    onChange(next);
+    const img = images[i];
+    if (img) URL.revokeObjectURL(img.url);
+    onChange(images.filter((_, idx) => idx !== i));
   }
 
   return (
     <div className="flex flex-col gap-2.5">
       <span className="text-[12.5px] text-ink2">{slot.label}</span>
       <div className="flex flex-wrap gap-2.5">
-        {previews.map((u, i) => (
-          <div key={u} className="relative h-[84px] w-[84px] overflow-hidden rounded-2xl border border-line">
-            <img src={u} alt="" className="h-full w-full object-cover" />
+        {images.map((img, i) => (
+          <div key={img.url} className="relative h-[84px] w-[84px] overflow-hidden rounded-2xl border border-line">
+            <img src={img.url} alt="" className="h-full w-full object-cover" />
             <button
               onClick={() => remove(i)}
               className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-bg/70 backdrop-blur-sm"
@@ -239,7 +255,7 @@ export function RefUpload({ slot, urls, onChange }: { slot: RefSlot; urls: strin
             </button>
           </div>
         ))}
-        {previews.length < slot.max && (
+        {images.length < slot.max && (
           <button
             onClick={() => inputRef.current?.click()}
             className="grid h-[84px] w-[84px] place-items-center rounded-2xl border border-dashed border-line2 bg-card2 text-ink3 active:scale-95"
@@ -248,7 +264,7 @@ export function RefUpload({ slot, urls, onChange }: { slot: RefSlot; urls: strin
           </button>
         )}
       </div>
-      <input ref={inputRef} type="file" accept="image/*" multiple={slot.max > 1} hidden onChange={(e) => pick(e.target.files)} />
+      <input ref={inputRef} type="file" accept="image/*" multiple={slot.max > 1} hidden onChange={pick} />
     </div>
   );
 }

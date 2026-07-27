@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, CaretDown, Sparkle, Stack } from "@phosphor-icons/react";
 import {
@@ -12,7 +12,7 @@ import {
 import { priceCoins } from "../data/pricing";
 import { useKieRates } from "../lib/kieRates";
 import { useI18n } from "../lib/i18n";
-import { ControlField, RefUpload, type InputMap, type InputValue } from "../components/controls";
+import { ControlField, RefUpload, type InputMap, type InputValue, type RefImage, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
 
@@ -40,13 +40,21 @@ export default function Generate({
   initialVariantId?: string;
   initialPrompt?: string;
   onBack: () => void;
-  onGenerate: (prompt: string, input: InputMap, variant: Variant) => void;
+  onGenerate: (prompt: string, input: InputMap, variant: Variant, refs: RefMap) => void;
 }) {
   const firstVariant = family.variants.find((v) => v.id === initialVariantId) ?? family.variants[0]!;
   const [variant, setVariant] = useState<Variant>(firstVariant);
   const [prompt, setPrompt] = useState(initialPrompt ?? "");
   const [input, setInput] = useState<InputMap>(() => defaultInput(variantControls(family, firstVariant)));
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [refImages, setRefImages] = useState<RefMap>({});
+
+  // Object URLs are process-wide; without this every picked image leaks until reload.
+  const liveRefs = useRef<RefMap>(refImages);
+  useEffect(() => {
+    liveRefs.current = refImages;
+  }, [refImages]);
+  useEffect(() => () => revokeAll(liveRefs.current), []);
 
   const controls = variantControls(family, variant);
   const refs = variantRefs(family, variant);
@@ -58,6 +66,9 @@ export default function Generate({
     setVariant(v);
     setInput(defaultInput(variantControls(family, v)));
     setShowAdvanced(false);
+    // slots differ per variant, so carrying picks over would mis-key them
+    revokeAll(refImages);
+    setRefImages({});
   }
 
   const setValue = (key: string, val: InputValue) => setInput((p) => ({ ...p, [key]: val }));
@@ -122,7 +133,12 @@ export default function Generate({
           <div className="flex flex-col gap-4">
             <SectionLabel>{t("g_inputs")}</SectionLabel>
             {refs.map((slot) => (
-              <RefSlotField key={slot.key} slotKey={slot.key} label={slot.label} max={slot.max} />
+              <RefUpload
+                key={slot.key}
+                slot={slot}
+                images={refImages[slot.key] ?? []}
+                onChange={(imgs) => setRefImages((p) => ({ ...p, [slot.key]: imgs }))}
+              />
             ))}
           </div>
         )}
@@ -181,7 +197,7 @@ export default function Generate({
       {/* sticky CTA */}
       <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-[480px] -translate-x-1/2 border-t border-line bg-surface/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-xl">
         <button
-          onClick={() => onGenerate(prompt.trim(), input, variant)}
+          onClick={() => onGenerate(prompt.trim(), input, variant, refImages)}
           disabled={!canGenerate}
           className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
         >
@@ -202,8 +218,7 @@ export default function Generate({
   );
 }
 
-// keeps each upload slot's local preview state isolated and reset on variant change (via key)
-function RefSlotField({ slotKey, label, max }: { slotKey: string; label: string; max: number }) {
-  const [urls, setUrls] = useState<string[]>([]);
-  return <RefUpload slot={{ key: slotKey, label, max }} urls={urls} onChange={setUrls} />;
+/** Drop every thumbnail URL in a RefMap. The underlying File objects stay usable. */
+function revokeAll(map: RefMap) {
+  for (const imgs of Object.values(map)) for (const img of imgs as RefImage[]) URL.revokeObjectURL(img.url);
 }

@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getFamily, variantControls, type Variant, type ModelKind } from "./data/models";
-import type { InputMap } from "./components/controls";
+import type { InputMap, RefMap } from "./components/controls";
 import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/gallery";
 import { startKieRates } from "./lib/kieRates";
 import { useSwipeBack } from "./lib/useSwipeBack";
@@ -70,10 +70,14 @@ export default function App() {
   const openTemplate = () => (TEMPLATE?.familyId ? openModel(TEMPLATE.familyId, TEMPLATE.prompt) : openModels());
   const markDone = (id: string) => setGens((p) => p.map((g) => (g.id === id ? { ...g, status: "done" } : g)));
 
-  function startGeneration(familyId: string, prompt: string, input: InputMap, variant: Variant) {
+  function startGeneration(familyId: string, prompt: string, input: InputMap, variant: Variant, refs: RefMap) {
     const family = getFamily(familyId);
     if (!family) return;
     const aspect = currentAspect(variantControls(family, variant), input);
+    // TODO(backend): POST each File in `refs` to /uploads and send the returned URLs
+    // with the generate request, keyed by slot (image_url, first_frame_url, …).
+    // `refs` deliberately stops here — Files aren't serialisable, so it can't go
+    // into the persisted Generation, and there is no upload endpoint yet.
     const gen: Generation = {
       id: uid(),
       familyId: family.id,
@@ -124,7 +128,7 @@ export default function App() {
           family={family}
           initialPrompt={flow.prompt}
           onBack={goBack}
-          onGenerate={(prompt, input, variant) => startGeneration(family.id, prompt, input, variant)}
+          onGenerate={(prompt, input, variant, refs) => startGeneration(family.id, prompt, input, variant, refs)}
         />
       </Shell>
     );
