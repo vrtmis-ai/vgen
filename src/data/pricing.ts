@@ -61,7 +61,6 @@ const RATES: Record<string, RateFn> = {
 
   "seedance-2": (i) => pick(i.resolution, { "480p": 19, "720p": 41, "1080p": 102, "4k": 208 }, 41) * num(i.duration, 5),
   "seedance-2-fast": (i) => pick(i.resolution, { "480p": 15.5, "720p": 33 }, 33) * num(i.duration, 5),
-  "seedance-2-mini": (i) => pick(i.resolution, { "480p": 9.5, "720p": 20.5 }, 20.5) * num(i.duration, 5),
   "kling-3": (i) => {
     const sound = Boolean(i.sound);
     return pick(i.resolution, { "720p": sound ? 20 : 14, "1080p": sound ? 27 : 18, "4k": 67 }, 18) * num(i.duration, 5);
@@ -142,7 +141,6 @@ export const LIVE: Record<string, LiveFn> = {
   // conservative text-to-video rate (image input is cheaper — settled after).
   "seedance-2": (i) => perSec(findRate("bytedance/seedance-2,", `${res(i, "720p")} no video`), dur(i, 5)),
   "seedance-2-fast": (i) => perSec(findRate("seedance-2 fast", `${res(i, "720p")} no video`), dur(i, 5)),
-  "seedance-2-mini": (i) => perSec(findRate("seedance-2-mini", `${res(i, "720p")} no video`), dur(i, 5)),
   "seedance-1-5-pro": (i) => perSec(findRate("seedance-1.5-pro", `${Boolean(i.generate_audio) ? "with" : "without"} audio-${res(i, "720p")}`), dur(i, 5)),
   // Kling 3.0 rows are per second by audio + resolution.
   "kling-3": (i) => {

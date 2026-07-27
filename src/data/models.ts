@@ -399,7 +399,8 @@ export const FAMILIES: Family[] = [
     variants: [
       { id: "seedance-2", model: "bytedance/seedance-2", label: "نسخه ۲", badge: "پرچم‌دار" },
       { id: "seedance-2-fast", model: "bytedance/seedance-2-fast", label: "سریع", controls: seedanceControls(["480p", "720p"]) },
-      { id: "seedance-2-mini", model: "bytedance/seedance-2-mini", label: "مینی", badge: "ارزان", controls: seedanceControls(["480p", "720p"]) },
+      // Seedance 2 Mini is priced in KIE's rate table but still shows "coming
+      // soon" on the service, so it can't actually run. Restore when it ships.
       {
         id: "seedance-1-5-pro",
         model: "bytedance/seedance-1.5-pro",
