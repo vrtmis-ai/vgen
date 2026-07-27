@@ -561,7 +561,16 @@ export const FAMILIES: Family[] = [
       {
         id: "wan-2-7",
         model: "wan/2-7-text-to-video",
+        modelWithRefs: "wan/2-7-image-to-video",
         label: "۲٫۷",
+        // Note the field is `ratio` here, not `aspect_ratio` as everywhere else,
+        // and the image-to-video model drops it entirely — the frame follows the
+        // first image. It also accepts first_clip_url (video) and
+        // driving_audio_url (audio), which the uploader can't offer yet.
+        refs: [
+          { key: "first_frame_url", label: "فریم شروع (اختیاری)", max: 1 },
+          { key: "last_frame_url", label: "فریم پایان (اختیاری)", max: 1 },
+        ],
         controls: [
           { kind: "aspect", key: "ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34] },
           { kind: "segment", key: "resolution", label: "کیفیت", def: "1080p", options: [
@@ -569,6 +578,9 @@ export const FAMILIES: Family[] = [
           ] },
           { kind: "slider", key: "duration", label: "مدت", min: 2, max: 15, step: 1, def: 5, unit: "ثانیه" },
           { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
+          // API default is true; kept on to match, but now visible and switchable.
+          { kind: "toggle", key: "prompt_extend", label: "گسترش خودکار پرامپت", def: true, advanced: true },
+          { kind: "toggle", key: "watermark", label: "واترمارک", def: false, advanced: true },
         ],
       },
     ],
