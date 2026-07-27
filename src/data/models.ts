@@ -477,6 +477,10 @@ export const FAMILIES: Family[] = [
         model: "kling-2.6/text-to-video",
         modelWithRefs: "kling-2.6/image-to-video",
         label: "۲٫۶",
+        // Not the family slot: 2.6 takes one source image, not a start/end frame
+        // pair. Its image-to-video model also drops aspect_ratio — the frame comes
+        // from the image — so the backend must omit that field when an image is set.
+        refs: [{ key: "image_urls", label: "تصویر ورودی (اختیاری)", max: 1 }],
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
           { kind: "segment", key: "duration", label: "مدت", def: "5", options: [
