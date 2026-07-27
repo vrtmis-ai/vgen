@@ -125,7 +125,8 @@ function seedanceControls(res: string[]): Control[] {
       key: "aspect_ratio",
       label: "نسبت تصویر",
       def: "16:9",
-      options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34, ratios.l219, ratios.adaptive],
+      // "adaptive" is not one of the API's aspect_ratio options — it would 422.
+      options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34, ratios.l219],
     },
     QUALITY(res.includes("720p") ? "720p" : (res[0] ?? "720p"), res),
     { kind: "slider", key: "duration", label: "مدت", min: 4, max: 15, step: 1, def: 5, unit: "ثانیه" },
@@ -388,11 +389,12 @@ export const FAMILIES: Family[] = [
     blurb: "ویدیوی واقع‌گرا با صدا؛ متن یا عکس به ویدیو",
     badge: "پرچم‌دار",
     grad: "linear-gradient(135deg,#4b6cf7,#9b4bf7)",
-    refs: [
-      { key: "first_frame_url", label: "فریم شروع (عکس‌به‌ویدیو)", max: 1 },
-      { key: "last_frame_url", label: "فریم پایان (اختیاری)", max: 1 },
-      { key: "reference_image_urls", label: "تصاویر مرجع / سوژه (اختیاری)", max: 9 },
-    ],
+    // Seedance 2 takes reference_image_urls / reference_video_urls /
+    // reference_audio_urls — there is no first_frame_url or last_frame_url on
+    // this API, so those two slots were uploading into fields that don't exist.
+    // The video and audio reference slots need media kinds the uploader can't
+    // do yet, so only images are wired up.
+    refs: [{ key: "reference_image_urls", label: "تصاویر مرجع / سوژه (اختیاری)", max: 9 }],
     controls: seedanceControls(["480p", "720p", "1080p", "4k"]),
     variants: [
       { id: "seedance-2", model: "bytedance/seedance-2", label: "نسخه ۲", badge: "پرچم‌دار" },
@@ -406,8 +408,11 @@ export const FAMILIES: Family[] = [
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34, ratios.l219] },
           QUALITY("720p", ["480p", "720p", "1080p"]),
-          { kind: "slider", key: "duration", label: "مدت", min: 4, max: 12, step: 1, def: 5, unit: "ثانیه" },
+          // 1.5 Pro moves in 2s steps (4/6/8/10/12), unlike Seedance 2's 1s.
+          // The old slider stepped by 1 and defaulted to 5, which isn't a legal value.
+          { kind: "slider", key: "duration", label: "مدت", min: 4, max: 12, step: 2, def: 8, unit: "ثانیه" },
           { kind: "toggle", key: "generate_audio", label: "تولید صدا", def: false },
+          { kind: "toggle", key: "fixed_lens", label: "دوربین ثابت", def: false, advanced: true },
         ],
       },
     ],
