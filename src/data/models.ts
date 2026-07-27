@@ -161,13 +161,17 @@ const hailuo23Controls: Control[] = [
 // ElevenLabs TTS. Shared by both speech models — language_code is deliberately
 // NOT here: it works on turbo-2-5 and is a documented error on multilingual-v2.
 //
-// `voice` is an opaque ElevenLabs id and KIE publishes no endpoint to list them,
-// so this is a hand-kept shortlist. EkK5I93UQWFDigLMpZcX is the API's own default.
+// `voice` is an opaque ElevenLabs id and KIE publishes no endpoint to list them.
+// These three are the only ids that appear anywhere in KIE's docs: the default
+// from the speech models, and the two speakers in the dialogue model's example.
+// Labels are deliberately neutral — nothing states who these voices are, and the
+// earlier "male"/"female" guesses were read off a sample conversation.
+// TODO: replace with the real named list from KIE's playground.
 const elevenCommonControls: Control[] = [
   { kind: "segment", key: "voice", label: "صدا", def: "EkK5I93UQWFDigLMpZcX", options: [
-    { value: "EkK5I93UQWFDigLMpZcX", label: "پیش‌فرض" },
-    { value: "TX3LPaxmHKxFdv7VOQHJ", label: "مردانه" },
-    { value: "NNl6r8mD7vthiJatiJt1", label: "زنانه" },
+    { value: "EkK5I93UQWFDigLMpZcX", label: "صدای ۱" },
+    { value: "TX3LPaxmHKxFdv7VOQHJ", label: "صدای ۲" },
+    { value: "NNl6r8mD7vthiJatiJt1", label: "صدای ۳" },
   ] },
   { kind: "slider", key: "speed", label: "سرعت گفتار", min: 0.7, max: 1.2, step: 0.05, def: 1 },
   { kind: "slider", key: "stability", label: "ثبات صدا", min: 0, max: 1, step: 0.05, def: 0.5, advanced: true },
