@@ -90,6 +90,7 @@ const dict = {
     g_est_for: "سکه برای این تنظیمات",
     g_no_rate: "این ترکیب تنظیمات پشتیبانی نمی‌شود",
     g_need_input: "این مدل بدون تصویر ورودی کار نمی‌کند",
+    g_need_also: "این را هم باید بدهی:",
     // result
     r_result: "نتیجه",
     r_making: "در حال ساخت",
@@ -193,6 +194,7 @@ const dict = {
     g_est_for: "coins for these settings",
     g_no_rate: "This combination of settings isn't supported",
     g_need_input: "This model can't run without an input image",
+    g_need_also: "You also need to provide:",
     r_result: "Result",
     r_making: "Generating",
     r_download: "Download",

@@ -44,10 +44,15 @@ export interface RefSlot {
   /**
    * The provider rejects the job without this input (KIE marks the field
    * Required). Gates the create button — otherwise the user pays for a task
-   * that fails validation. Note this is per-slot; slots that are only required
-   * *because another slot is filled* are not expressible yet.
+   * that fails validation.
    */
   required?: boolean;
+  /**
+   * Key of a slot this one depends on: filling this while that one is empty is
+   * invalid. Kling 2.5 Turbo's tail_image_url is meaningless without image_url —
+   * there is no end frame without a start frame.
+   */
+  requires?: string;
 }
 
 /** One concrete KIE model inside a family. */
@@ -492,12 +497,22 @@ export const FAMILIES: Family[] = [
       {
         id: "kling-2-5-turbo",
         model: "kling/v2-5-turbo-text-to-video-pro",
+        modelWithRefs: "kling/v2-5-turbo-image-to-video-pro",
         label: "۲٫۵ Turbo",
+        // The image-to-video model names its frames separately — image_url and
+        // tail_image_url — instead of one image_urls array, and drops
+        // aspect_ratio, which follows the start frame.
+        refs: [
+          { key: "image_url", label: "فریم شروع (اختیاری)", max: 1 },
+          { key: "tail_image_url", label: "فریم پایان", max: 1, requires: "image_url" },
+        ],
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
           { kind: "segment", key: "duration", label: "مدت", def: "5", options: [
             { value: "5", label: "۵ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
           ] },
+          { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
+          { kind: "slider", key: "cfg_scale", label: "پایبندی به پرامپت", min: 0, max: 1, step: 0.1, def: 0.5, advanced: true },
         ],
       },
     ],

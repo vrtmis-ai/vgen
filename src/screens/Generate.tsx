@@ -74,14 +74,18 @@ export default function Generate({
   const setValue = (key: string, val: InputValue) => setInput((p) => ({ ...p, [key]: val }));
   // Some models (image-to-video) are rejected outright without their input image.
   // Blocking here is cheaper than letting the provider 422 a paid job.
-  const needsInput = refs.some((s) => s.required && (refImages[s.key]?.length ?? 0) === 0);
+  const filled = (key: string) => (refImages[key]?.length ?? 0) > 0;
+  const needsInput = refs.some((s) => s.required && !filled(s.key));
+  // A slot that depends on another: an end frame with no start frame is rejected.
+  const orphan = refs.find((s) => s.requires && filled(s.key) && !filled(s.requires));
+  const orphanNeeds = orphan && refs.find((s) => s.key === orphan.requires);
   const { t, n } = useI18n();
   useKieRates(); // re-render when the live KIE price table (re)loads
   const price = priceCoins(variant, input);
   // No price means neither the live table nor the fallback has a rate — the
   // provider doesn't offer this combination at all (Hailuo 2.3 has no 1080P
   // at 10s). Selling it would take the user's coins for a job that can't run.
-  const canGenerate = prompt.trim().length > 0 && !needsInput && price != null;
+  const canGenerate = prompt.trim().length > 0 && !needsInput && !orphan && price != null;
 
   return (
     <div className="relative z-10 min-h-[100dvh] pb-32">
@@ -217,7 +221,13 @@ export default function Generate({
           )}
         </button>
         <div className="pt-1.5 text-center text-[10.5px] text-ink3">
-          {needsInput ? t("g_need_input") : price != null ? `≈ ${n(price)} ${t("g_est_for")}` : t("g_no_rate")}
+          {needsInput
+            ? t("g_need_input")
+            : orphanNeeds
+              ? `${t("g_need_also")} ${orphanNeeds.label}`
+              : price != null
+                ? `≈ ${n(price)} ${t("g_est_for")}`
+                : t("g_no_rate")}
         </div>
       </div>
     </div>
