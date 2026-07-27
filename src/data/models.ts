@@ -548,7 +548,12 @@ export const FAMILIES: Family[] = [
       {
         id: "wan-2-6",
         model: "wan/2-6-text-to-video",
+        modelWithRefs: "wan/2-6-image-to-video",
         label: "۲٫۶",
+        // 2.6 has no aspect/ratio field and no negative_prompt, unlike 2.7 — so it
+        // must not inherit the family controls. It had no upload slot at all,
+        // which left its image-to-video model unreachable.
+        refs: [{ key: "image_urls", label: "تصویر ورودی (اختیاری)", max: 1 }],
         controls: [
           { kind: "segment", key: "resolution", label: "کیفیت", def: "1080p", options: [
             { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
@@ -556,6 +561,7 @@ export const FAMILIES: Family[] = [
           { kind: "segment", key: "duration", label: "مدت", def: "5", options: [
             { value: "5", label: "۵ ثانیه" }, { value: "10", label: "۱۰ ثانیه" }, { value: "15", label: "۱۵ ثانیه" },
           ] },
+          { kind: "toggle", key: "multi_shots", label: "چندنما (روایت چندبخشی)", def: false, advanced: true },
         ],
       },
       {
