@@ -63,7 +63,8 @@ const RATES: Record<string, RateFn> = {
   "seedance-2-fast": (i) => pick(i.resolution, { "480p": 15.5, "720p": 33 }, 33) * num(i.duration, 5),
   "kling-3": (i) => {
     const sound = Boolean(i.sound);
-    return pick(i.resolution, { "720p": sound ? 20 : 14, "1080p": sound ? 27 : 18, "4k": 67 }, 18) * num(i.duration, 5);
+    // keyed by Kling 3.0's `mode`, not a resolution string
+    return pick(i.mode, { std: sound ? 20 : 14, pro: sound ? 27 : 18, "4K": 67 }, 18) * num(i.duration, 5);
   },
   "wan-2-5": (i) => pick(`${i.resolution}-${i.duration}`, { "720p-5": 60, "720p-10": 120, "1080p-5": 100, "1080p-10": 200 }, 60),
   "hailuo-02-pro": () => 57, // Pro, fixed 6s @ 1080p
@@ -117,6 +118,9 @@ const dur = (i: InputMap, fb: number) => num(i.duration, fb);
 const perSec = (cr: number | null, s: number) => (cr == null ? null : cr * s);
 const res = (i: InputMap, fb: string) => String(i.resolution ?? fb).toLowerCase();
 
+/** Kling 3.0's `mode` values, mapped to the resolution tier its rate rows use. */
+const KLING3_MODE_RES: Record<string, string> = { std: "720p", pro: "1080p", "4K": "4k" };
+
 /** Exported for tests (scripts/check-live-pricing.ts) — app code goes through kieCreditsFor. */
 export const LIVE: Record<string, LiveFn> = {
   // ---- image (per image / per generation) ----
@@ -142,9 +146,13 @@ export const LIVE: Record<string, LiveFn> = {
   "seedance-2": (i) => perSec(findRate("bytedance/seedance-2,", `${res(i, "720p")} no video`), dur(i, 5)),
   "seedance-2-fast": (i) => perSec(findRate("seedance-2 fast", `${res(i, "720p")} no video`), dur(i, 5)),
   "seedance-1-5-pro": (i) => perSec(findRate("seedance-1.5-pro", `${Boolean(i.generate_audio) ? "with" : "without"} audio-${res(i, "720p")}`), dur(i, 5)),
-  // Kling 3.0 rows are per second by audio + resolution.
+  // Rows are per second by audio + resolution, but the model's own parameter is
+  // `mode`. std/pro aren't spelled out as 720p/1080p anywhere in the docs — the
+  // mapping comes from "std has standard resolution, pro has higher resolution"
+  // lining up with the rate table's three tiers. Worth re-checking against a
+  // real job's creditsConsumed.
   "kling-3": (i) => {
-    const r = String(i.resolution ?? "1080p").toLowerCase();
+    const r = KLING3_MODE_RES[String(i.mode ?? "pro")] ?? "1080p";
     return perSec(findRate("kling 3.0, video", `${Boolean(i.sound) ? "with" : "without"} audio-${r}`), dur(i, 5));
   },
   // Per second by resolution, no audio tier. The text-to-video and image-to-video

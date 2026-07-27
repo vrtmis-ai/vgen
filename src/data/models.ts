@@ -436,10 +436,18 @@ export const FAMILIES: Family[] = [
         def: "16:9",
         options: [ratios.l169, ratios.p916, ratios.sq],
       },
-      { kind: "segment", key: "resolution", label: "کیفیت", def: "1080p", options: [
-        { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" }, { value: "4k", label: "4K" },
+      // Kling 3.0 has no `resolution` field. It takes a required `mode` of
+      // std | pro | 4K, which the rate table lists as 720P / 1080P / 4K.
+      { kind: "segment", key: "mode", label: "کیفیت", def: "pro", options: [
+        { value: "std", label: "720p" }, { value: "pro", label: "1080p" }, { value: "4K", label: "4K" },
       ] },
+      // There is no top-level duration or prompt on this model — both are
+      // serialised into the `shots` JSON string ({"prompt": …, "duration": …}).
+      // The control stays because duration still drives the per-second price and
+      // the backend needs the value to build `shots`.
       { kind: "slider", key: "duration", label: "مدت", min: 3, max: 15, step: 1, def: 5, unit: "ثانیه", asString: true },
+      // API default is true, and sound doubles the price, so it must always be
+      // sent explicitly rather than left out.
       { kind: "toggle", key: "sound", label: "تولید صدا", def: false },
       { kind: "toggle", key: "multi_shots", label: "چندنما (روایت چندبخشی)", def: false, advanced: true },
     ],
