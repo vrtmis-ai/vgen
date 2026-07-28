@@ -175,7 +175,9 @@ const hailuo23Controls: Control[] = [
 // TODO: replace with the real named list from KIE's playground.
 const elevenCommonControls: Control[] = [
   { kind: "segment", key: "voice", label: "صدا", def: "EkK5I93UQWFDigLMpZcX", options: [
-    { value: "EkK5I93UQWFDigLMpZcX", label: "صدای ۱" },
+    // Confirmed from KIE's playground: this id is "James — Husky, Engaging and Bold".
+    { value: "EkK5I93UQWFDigLMpZcX", label: "James" },
+    // Still unnamed — these two only appear as speakers in the dialogue example.
     { value: "TX3LPaxmHKxFdv7VOQHJ", label: "صدای ۲" },
     { value: "NNl6r8mD7vthiJatiJt1", label: "صدای ۳" },
   ] },
