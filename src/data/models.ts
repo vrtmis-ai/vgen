@@ -91,6 +91,12 @@ export interface Family {
    * the user pays for a job that dies on submit.
    */
   maxPrompt?: number;
+  /**
+   * The model takes no prompt at all — it transforms an uploaded file. Upscalers
+   * and background removal work this way. Generate hides the prompt box and stops
+   * requiring one, which would otherwise keep the create button disabled forever.
+   */
+  noPrompt?: boolean;
   controls: Control[];
   variants: Variant[];
 }
@@ -803,6 +809,48 @@ export const FAMILIES: Family[] = [
         ],
       },
       { id: "eleven-multilingual", model: "elevenlabs/text-to-speech-multilingual-v2", label: "چندزبانه", badge: "کیفیت" },
+    ],
+  },
+
+  // ----------------------------- TOOLS ---------------------------------------
+  // These transform an uploaded file rather than generating from a description,
+  // so they carry no prompt at all.
+  {
+    id: "topaz",
+    name: "Topaz",
+    vendor: "Topaz Labs",
+    kind: "image",
+    blurb: "بزرگ‌نمایی تصویر با حفظ جزئیات",
+    badge: "ابزار",
+    grad: "linear-gradient(135deg,#64748b,#1e293b)",
+    noPrompt: true,
+    refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
+    controls: [
+      // The API takes 1/2/4/8 but the rate table is keyed 2K/4K/8K, with nothing
+      // for 1x — so 1x is left out rather than sold at a made-up price. Which
+      // factor lands in which tier is inferred from the numbers lining up;
+      // confirm against a real job's creditsConsumed before it matters.
+      { kind: "segment", key: "upscale_factor", label: "بزرگ‌نمایی", def: "2", options: [
+        { value: "2", label: "۲ برابر" }, { value: "4", label: "۴ برابر" }, { value: "8", label: "۸ برابر" },
+      ] },
+    ],
+    variants: [{ id: "topaz-image-upscale", model: "topaz/image-upscale", label: "بزرگ‌نمایی" }],
+  },
+  {
+    id: "recraft",
+    name: "Recraft",
+    vendor: "Recraft",
+    kind: "image",
+    blurb: "بزرگ‌نمایی سریع و حذف پس‌زمینه",
+    badge: "ابزار",
+    grad: "linear-gradient(135deg,#a78bfa,#4c1d95)",
+    noPrompt: true,
+    // Note the field is `image` here, where Topaz calls the same thing image_url.
+    refs: [{ key: "image", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
+    controls: [],
+    variants: [
+      { id: "recraft-crisp-upscale", model: "recraft/crisp-upscale", label: "بزرگ‌نمایی", badge: "ارزان" },
+      { id: "recraft-remove-bg", model: "recraft/remove-background", label: "حذف پس‌زمینه" },
     ],
   },
 ];

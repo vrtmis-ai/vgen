@@ -95,7 +95,11 @@ export default function Generate({
   // checked again here. The backend has to check a third time — nothing the
   // client says about length can be trusted once money is attached.
   const promptTooLong = maxPrompt != null && prompt.trim().length > maxPrompt;
-  const canGenerate = prompt.trim().length > 0 && !needsInput && !orphan && !promptTooLong && price != null;
+  // Upscalers and background removal transform a file and take no description,
+  // so requiring a prompt would leave their button permanently disabled.
+  const wantsPrompt = !family.noPrompt;
+  const canGenerate =
+    (!wantsPrompt || prompt.trim().length > 0) && !needsInput && !orphan && !promptTooLong && price != null;
 
   return (
     <div className="relative z-10 min-h-[100dvh] pb-32">
@@ -164,6 +168,7 @@ export default function Generate({
         )}
 
         {/* prompt */}
+        {wantsPrompt && (
         <div className="flex flex-col gap-2.5">
           <div className="flex items-center justify-between">
             <SectionLabel>{t("g_prompt")}</SectionLabel>
@@ -186,6 +191,7 @@ export default function Generate({
             className="ltr w-full resize-none rounded-bezel border border-line bg-card p-4 text-[14px] leading-relaxed text-ink placeholder:text-ink3 focus:border-accent focus:outline-none"
           />
         </div>
+        )}
 
         {/* settings */}
         <div className="flex flex-col gap-6">

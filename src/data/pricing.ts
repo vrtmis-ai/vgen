@@ -103,6 +103,10 @@ const RATES: Record<string, RateFn> = {
       "720p-8": 105, "1080p-8": 105, "4k-8": 189,
       "720p-10": 126, "1080p-10": 126, "4k-10": 210,
     }),
+  // Tools — flat per image. No 1x row exists, so `only` refuses that factor.
+  "topaz-image-upscale": (i) => only(`${i.upscale_factor}`, { "2": 10, "4": 20, "8": 40 }),
+  "recraft-crisp-upscale": () => 0.5,
+  "recraft-remove-bg": () => 1,
   // Text-to-speech: settings don't move the price, the text's length does.
   "eleven-turbo": (_i, chars) => perKChars(6, chars),
   "eleven-multilingual": (_i, chars) => perKChars(12, chars),
@@ -178,6 +182,10 @@ export const LIVE: Record<string, LiveFn> = {
   // Row text is "gemini-omni-video, video, 8s 1080p no video input" — matched as
   // one contiguous token so a duration can't pair with the wrong resolution.
   "gemini-omni-video": (i) => findRate("gemini-omni-video", `${dur(i, 8)}s ${res(i, "1080p")} no video input`),
+  // Row text is "Topaz Image Upscaler, image-upscale, 2K" — the tier, not the factor.
+  "topaz-image-upscale": (i) => findRate("topaz image upscaler", "image-upscale", `${i.upscale_factor}k`),
+  "recraft-crisp-upscale": () => findRate("recraft crisp upscale", "image to image"),
+  "recraft-remove-bg": () => findRate("recraft remove background", "image to image"),
   "eleven-turbo": (_i, chars) => perKChars(findRate("elevenlabs text to speech", "turbo 2.5"), chars),
   "eleven-multilingual": (_i, chars) => perKChars(findRate("elevenlabs text to speech", "multilingual v2"), chars),
   "veo-quality": (i) => findRate("google veo 3.1", "text-to-video", `quality-${res(i, "720p")}`),
