@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, X, Play, Pause } from "@phosphor-icons/react";
-import type { Control, RefSlot } from "../data/models";
+import { Plus, X, Play, Pause, SpeakerHigh } from "@phosphor-icons/react";
+import type { Control, RefSlot, SlotMedia } from "../data/models";
 import { VOICES, voicePreviewUrl } from "../data/voices";
 import { faNum } from "../lib/format";
 
@@ -276,50 +276,100 @@ function VoicePicker({
   );
 }
 
-/** One picked reference image. */
-export interface RefImage {
+/** One picked input file — an image, a video or an audio clip. */
+export interface RefFile {
   /** the real file — this is what gets uploaded once a backend exists */
   file: File;
-  /** object URL for the thumbnail only; revoked as soon as the image is dropped */
+  /** object URL for the preview only; revoked as soon as the file is dropped */
   url: string;
+  /** Seconds, for video and audio. Motion Control is billed per second of the
+   *  supplied clip, so its price cannot be quoted until this is known. */
+  duration?: number;
 }
 
-/** Picked reference images, keyed by RefSlot.key (the field name KIE expects). */
-export type RefMap = Record<string, RefImage[]>;
+/** Picked input files, keyed by RefSlot.key (the field name KIE expects). */
+export type RefMap = Record<string, RefFile[]>;
+
+const ACCEPT: Record<SlotMedia, string> = {
+  image: "image/*",
+  video: "video/mp4,video/quicktime,video/x-matroska",
+  audio: "audio/mpeg,audio/wav",
+};
+
+/** Read a clip's length without playing it. Resolves undefined if unreadable. */
+function readDuration(file: File, url: string, media: SlotMedia): Promise<number | undefined> {
+  if (media === "image") return Promise.resolve(undefined);
+  return new Promise((resolve) => {
+    const el = document.createElement(media === "video" ? "video" : "audio");
+    el.preload = "metadata";
+    el.onloadedmetadata = () => resolve(Number.isFinite(el.duration) ? el.duration : undefined);
+    el.onerror = () => resolve(undefined);
+    el.src = url;
+  });
+}
 
 /**
- * Reference / input image slot. Fully controlled — the owner holds the images so
+ * Reference / input file slot. Fully controlled — the owner holds the files so
  * they can actually reach the generation request (they used to die in local state).
  */
-export function RefUpload({ slot, images, onChange }: { slot: RefSlot; images: RefImage[]; onChange: (i: RefImage[]) => void }) {
+export function RefUpload({ slot, images, onChange }: { slot: RefSlot; images: RefFile[]; onChange: (i: RefFile[]) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [rejected, setRejected] = useState<string | null>(null);
+  const media: SlotMedia = slot.media ?? "image";
 
-  function pick(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (files) {
-      const next = [...images];
-      for (const f of Array.from(files)) {
-        if (next.length >= slot.max) break;
-        next.push({ file: f, url: URL.createObjectURL(f) });
-      }
-      onChange(next);
-    }
-    // clear the input so removing a file and re-picking it still fires onChange
+  async function pick(e: React.ChangeEvent<HTMLInputElement>) {
+    // Copy out of the live FileList before clearing the input — resetting
+    // `value` empties the list itself, so reading it afterwards yields nothing.
+    // Clearing is what lets a removed file be re-picked and still fire onChange.
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
+    if (!files.length) return;
+
+    const next = [...images];
+    let tooBig: string | null = null;
+    for (const f of files) {
+      if (next.length >= slot.max) break;
+      // KIE publishes no enforced cap and no 413, so an over-sized file would be
+      // accepted and only fail deep in the job — after the user has been charged.
+      if (slot.maxMb != null && f.size > slot.maxMb * 1024 * 1024) {
+        tooBig = `${faNum(slot.maxMb)} مگابایت`;
+        continue;
+      }
+      const url = URL.createObjectURL(f);
+      next.push({ file: f, url, duration: await readDuration(f, url, media) });
+    }
+    setRejected(tooBig);
+    onChange(next);
   }
+
   function remove(i: number) {
-    const img = images[i];
-    if (img) URL.revokeObjectURL(img.url);
+    const f = images[i];
+    if (f) URL.revokeObjectURL(f.url);
+    setRejected(null);
     onChange(images.filter((_, idx) => idx !== i));
   }
 
   return (
     <div className="flex flex-col gap-2.5">
-      <span className="text-[12.5px] text-ink2">{slot.label}</span>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[12.5px] text-ink2">{slot.label}</span>
+        {slot.maxMb != null && <span className="text-[11px] text-ink3">حداکثر {faNum(slot.maxMb)} مگابایت</span>}
+      </div>
       <div className="flex flex-wrap gap-2.5">
-        {images.map((img, i) => (
-          <div key={img.url} className="relative h-[84px] w-[84px] overflow-hidden rounded-2xl border border-line">
-            <img src={img.url} alt="" className="h-full w-full object-cover" />
+        {images.map((f, i) => (
+          <div key={f.url} className="relative h-[84px] w-[84px] overflow-hidden rounded-2xl border border-line bg-card2">
+            {media === "image" && <img src={f.url} alt="" className="h-full w-full object-cover" />}
+            {media === "video" && <video src={f.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />}
+            {media === "audio" && (
+              <div className="grid h-full w-full place-items-center text-ink3">
+                <SpeakerHigh size={22} />
+              </div>
+            )}
+            {f.duration != null && (
+              <span className="absolute bottom-1 start-1 rounded-full bg-bg/75 px-1.5 text-[10px] tabular-nums text-ink backdrop-blur-sm">
+                {faNum(Math.round(f.duration))}s
+              </span>
+            )}
             <button
               onClick={() => remove(i)}
               className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-bg/70 backdrop-blur-sm"
@@ -337,7 +387,8 @@ export function RefUpload({ slot, images, onChange }: { slot: RefSlot; images: R
           </button>
         )}
       </div>
-      <input ref={inputRef} type="file" accept="image/*" multiple={slot.max > 1} hidden onChange={pick} />
+      {rejected && <span className="text-[11px] text-danger">فایل بزرگ‌تر از {rejected} رد شد</span>}
+      <input ref={inputRef} type="file" accept={ACCEPT[media]} multiple={slot.max > 1} hidden onChange={pick} />
     </div>
   );
 }

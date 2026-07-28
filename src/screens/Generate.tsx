@@ -13,7 +13,7 @@ import {
 import { priceCoins } from "../data/pricing";
 import { useKieRates } from "../lib/kieRates";
 import { useI18n } from "../lib/i18n";
-import { ControlField, RefUpload, type InputMap, type InputValue, type RefImage, type RefMap } from "../components/controls";
+import { ControlField, RefUpload, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
@@ -78,16 +78,24 @@ export default function Generate({
   // Some models (image-to-video) are rejected outright without their input image.
   // Blocking here is cheaper than letting the provider 422 a paid job.
   const filled = (key: string) => (refImages[key]?.length ?? 0) > 0;
-  const needsInput = refs.some((s) => s.required && !filled(s.key));
+  // Name the slot that's actually missing — "needs an input image" is wrong and
+  // confusing when the empty one is a video.
+  const missingRequired = refs.find((s) => s.required && !filled(s.key));
   // A slot that depends on another: an end frame with no start frame is rejected.
   const orphan = refs.find((s) => s.requires && filled(s.key) && !filled(s.requires));
   const orphanNeeds = orphan && refs.find((s) => s.key === orphan.requires);
   const { t, n } = useI18n();
   const [coverFailed, onCoverError] = useImageFallback();
   useKieRates(); // re-render when the live KIE price table (re)loads
-  // Audio models bill per 1000 characters, so their price tracks the prompt as
-  // the user types rather than sitting still until a setting changes.
-  const price = priceCoins(variant, input, prompt.trim().length);
+  // Two model families price off something other than their settings, and both
+  // read it from this one number: speech bills per 1000 characters of prompt,
+  // Motion Control bills per second of the clip the user attached. A model uses
+  // whichever of the two it declares an interest in; the rest ignore it.
+  const clipSeconds = refs.reduce(
+    (longest, s) => (s.media === "video" ? Math.max(longest, refImages[s.key]?.[0]?.duration ?? 0) : longest),
+    0,
+  );
+  const price = priceCoins(variant, input, clipSeconds > 0 ? clipSeconds : prompt.trim().length);
   // No price means neither the live table nor the fallback has a rate — the
   // provider doesn't offer this combination at all (Hailuo 2.3 has no 1080P
   // at 10s). Selling it would take the user's coins for a job that can't run.
@@ -99,7 +107,7 @@ export default function Generate({
   // so requiring a prompt would leave their button permanently disabled.
   const wantsPrompt = !family.noPrompt;
   const canGenerate =
-    (!wantsPrompt || prompt.trim().length > 0) && !needsInput && !orphan && !promptTooLong && price != null;
+    (!wantsPrompt || prompt.trim().length > 0) && !missingRequired && !orphan && !promptTooLong && price != null;
 
   return (
     <div className="relative z-10 min-h-[100dvh] pb-32">
@@ -246,8 +254,8 @@ export default function Generate({
           )}
         </button>
         <div className="pt-1.5 text-center text-[10.5px] text-ink3">
-          {needsInput
-            ? t("g_need_input")
+          {missingRequired
+            ? `${t("g_need_also")} ${missingRequired.label}`
             : orphanNeeds
               ? `${t("g_need_also")} ${orphanNeeds.label}`
               : price != null
@@ -261,5 +269,5 @@ export default function Generate({
 
 /** Drop every thumbnail URL in a RefMap. The underlying File objects stay usable. */
 function revokeAll(map: RefMap) {
-  for (const imgs of Object.values(map)) for (const img of imgs as RefImage[]) URL.revokeObjectURL(img.url);
+  for (const imgs of Object.values(map)) for (const img of imgs as RefFile[]) URL.revokeObjectURL(img.url);
 }

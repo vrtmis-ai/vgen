@@ -103,10 +103,19 @@ const RATES: Record<string, RateFn> = {
       "720p-8": 105, "1080p-8": 105, "4k-8": 189,
       "720p-10": 126, "1080p-10": 126, "4k-10": 210,
     }),
+  // Motion Control bills per second of the *uploaded* clip — there is no duration
+  // setting. `chars` carries that length here (see costUsdFor); with no clip yet
+  // there is nothing to price, so the create button stays shut rather than
+  // quoting a number that would change once a file is attached.
+  "kling-3-motion": (i, secs) => (secs > 0 ? pick(i.mode, { "720p": 20, "1080p": 27 }, 20) * secs : null),
+  "kling-2-6-motion": (i, secs) => (secs > 0 ? pick(i.mode, { "720p": 11, "1080p": 18 }, 11) * secs : null),
   // Tools — flat per image. No 1x row exists, so `only` refuses that factor.
   "topaz-image-upscale": (i) => only(`${i.upscale_factor}`, { "2": 10, "4": 20, "8": 40 }),
   "recraft-crisp-upscale": () => 0.5,
   "recraft-remove-bg": () => 1,
+  // Per second of the source clip. 1x and 2x share one rate row.
+  "topaz-video-upscale": (i, secs) =>
+    secs > 0 ? pick(`${i.upscale_factor}`, { "1": 8, "2": 8, "4": 14 }, 8) * secs : null,
   // Text-to-speech: settings don't move the price, the text's length does.
   "eleven-turbo": (_i, chars) => perKChars(6, chars),
   "eleven-multilingual": (_i, chars) => perKChars(12, chars),
@@ -182,10 +191,17 @@ export const LIVE: Record<string, LiveFn> = {
   // Row text is "gemini-omni-video, video, 8s 1080p no video input" — matched as
   // one contiguous token so a duration can't pair with the wrong resolution.
   "gemini-omni-video": (i) => findRate("gemini-omni-video", `${dur(i, 8)}s ${res(i, "1080p")} no video input`),
+  "kling-3-motion": (i, secs) =>
+    secs > 0 ? perSec(findRate("kling 3.0 motion control", "video-to-video", String(i.mode ?? "720p")), secs) : null,
+  "kling-2-6-motion": (i, secs) =>
+    secs > 0 ? perSec(findRate("kling 2.6 motion control", String(i.mode ?? "720p")), secs) : null,
   // Row text is "Topaz Image Upscaler, image-upscale, 2K" — the tier, not the factor.
   "topaz-image-upscale": (i) => findRate("topaz image upscaler", "image-upscale", `${i.upscale_factor}k`),
   "recraft-crisp-upscale": () => findRate("recraft crisp upscale", "image to image"),
   "recraft-remove-bg": () => findRate("recraft remove background", "image to image"),
+  // Rows read "upscale factor 1x/2x" and "upscale factor 4x".
+  "topaz-video-upscale": (i, secs) =>
+    secs > 0 ? perSec(findRate("topaz video upscaler", String(i.upscale_factor) === "4" ? "4x" : "1x/2x"), secs) : null,
   "eleven-turbo": (_i, chars) => perKChars(findRate("elevenlabs text to speech", "turbo 2.5"), chars),
   "eleven-multilingual": (_i, chars) => perKChars(findRate("elevenlabs text to speech", "multilingual v2"), chars),
   "veo-quality": (i) => findRate("google veo 3.1", "text-to-video", `quality-${res(i, "720p")}`),

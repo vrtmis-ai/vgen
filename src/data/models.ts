@@ -43,10 +43,25 @@ export type Control =
    */
   | { kind: "voice"; key: string; label: string; def: string; advanced?: boolean };
 
+/** What a slot accepts. Absent means image, which is what most slots take. */
+export type SlotMedia = "image" | "video" | "audio";
+
 export interface RefSlot {
   key: string;
   label: string;
   max: number;
+  /** Image unless stated. Drives the file picker's filter and the preview. */
+  media?: SlotMedia;
+  /**
+   * Per-file ceiling in MB, from each model's own docs — they differ a lot
+   * (30MB for a Wan clip, 100MB for a Motion Control video).
+   *
+   * We enforce this ourselves because KIE won't: the only size figure in its
+   * upload docs is a *recommended* 100MB on one endpoint, the stream endpoint
+   * publishes no cap at all, and no upload endpoint defines a 413. An
+   * over-sized file would be accepted here and fail later, after the charge.
+   */
+  maxMb?: number;
   /**
    * The provider rejects the job without this input (KIE marks the field
    * Required). Gates the create button — otherwise the user pays for a task
@@ -180,6 +195,20 @@ const elevenCommonControls: Control[] = [
   { kind: "slider", key: "stability", label: "ثبات صدا", min: 0, max: 1, step: 0.05, def: 0.5, advanced: true },
   { kind: "slider", key: "similarity_boost", label: "شباهت به صدای اصلی", min: 0, max: 1, step: 0.05, def: 0.75, advanced: true },
   { kind: "slider", key: "style", label: "اغراق در لحن", min: 0, max: 1, step: 0.05, def: 0, advanced: true },
+];
+
+// Both Motion Control models take the same inputs. `mode` is 720p/1080p here —
+// the docs' prose says "use std for 720p or pro for 1080p" but the Options list,
+// which is machine-generated and has been the reliable half elsewhere, says
+// 720p/1080p. character_orientation caps the output length: 10s from the image's
+// orientation, 30s from the video's.
+const motionControlControls: Control[] = [
+  { kind: "segment", key: "mode", label: "کیفیت", def: "720p", options: [
+    { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
+  ] },
+  { kind: "segment", key: "character_orientation", label: "جهت شخصیت", def: "video", options: [
+    { value: "video", label: "از ویدیو (تا ۳۰ ثانیه)" }, { value: "image", label: "از عکس (تا ۱۰ ثانیه)" },
+  ] },
 ];
 
 // ---- families ---------------------------------------------------------------
@@ -430,9 +459,14 @@ export const FAMILIES: Family[] = [
     // Seedance 2 takes reference_image_urls / reference_video_urls /
     // reference_audio_urls — there is no first_frame_url or last_frame_url on
     // this API, so those two slots were uploading into fields that don't exist.
-    // The video and audio reference slots need media kinds the uploader can't
-    // do yet, so only images are wired up.
-    refs: [{ key: "reference_image_urls", label: "تصاویر مرجع / سوژه (اختیاری)", max: 9 }],
+    // Supplying a video also switches KIE to its cheaper "with video input" rate
+    // (25 vs 41 credits/s at 720p); pricing still quotes the dearer one, so that
+    // difference lands in our margin rather than the user's bill.
+    refs: [
+      { key: "reference_image_urls", label: "تصاویر مرجع / سوژه (اختیاری)", max: 9, maxMb: 30 },
+      { key: "reference_video_urls", label: "ویدیوی مرجع (اختیاری)", max: 3, media: "video", maxMb: 50 },
+      { key: "reference_audio_urls", label: "صدای مرجع (اختیاری)", max: 3, media: "audio", maxMb: 15 },
+    ],
     controls: seedanceControls(["480p", "720p", "1080p", "4k"]),
     variants: [
       { id: "seedance-2", model: "bytedance/seedance-2", label: "نسخه ۲", badge: "پرچم‌دار" },
@@ -532,6 +566,31 @@ export const FAMILIES: Family[] = [
         ],
       },
       {
+        // Motion transfer: the character comes from the image, the movement from
+        // the video. Both required. `mode` here means 720p/1080p — not the
+        // std/pro/4K that the same field name means on kling-3.0/video.
+        id: "kling-3-motion",
+        model: "kling-3.0/motion-control",
+        label: "Motion Control",
+        badge: "جدید",
+        refs: [
+          { key: "input_urls", label: "تصویر شخصیت (الزامی)", max: 1, required: true, maxMb: 10 },
+          { key: "video_urls", label: "ویدیوی حرکت (الزامی)", max: 1, required: true, media: "video", maxMb: 100 },
+        ],
+        controls: motionControlControls,
+      },
+      {
+        id: "kling-2-6-motion",
+        model: "kling-2.6/motion-control",
+        label: "Motion Control ۲٫۶",
+        badge: "ارزان",
+        refs: [
+          { key: "input_urls", label: "تصویر شخصیت (الزامی)", max: 1, required: true, maxMb: 10 },
+          { key: "video_urls", label: "ویدیوی حرکت (الزامی)", max: 1, required: true, media: "video", maxMb: 100 },
+        ],
+        controls: motionControlControls,
+      },
+      {
         id: "kling-2-5-turbo",
         model: "kling/v2-5-turbo-text-to-video-pro",
         modelWithRefs: "kling/v2-5-turbo-image-to-video-pro",
@@ -621,11 +680,12 @@ export const FAMILIES: Family[] = [
         label: "۲٫۷",
         // Note the field is `ratio` here, not `aspect_ratio` as everywhere else,
         // and the image-to-video model drops it entirely — the frame follows the
-        // first image. It also accepts first_clip_url (video) and
-        // driving_audio_url (audio), which the uploader can't offer yet.
+        // first image.
         refs: [
-          { key: "first_frame_url", label: "فریم شروع (اختیاری)", max: 1 },
-          { key: "last_frame_url", label: "فریم پایان (اختیاری)", max: 1 },
+          { key: "first_frame_url", label: "فریم شروع (اختیاری)", max: 1, maxMb: 30 },
+          { key: "last_frame_url", label: "فریم پایان (اختیاری)", max: 1, maxMb: 30 },
+          { key: "first_clip_url", label: "کلیپ شروع (اختیاری)", max: 1, media: "video", maxMb: 30 },
+          { key: "driving_audio_url", label: "صدای هدایت‌گر (اختیاری)", max: 1, media: "audio", maxMb: 50 },
         ],
         controls: [
           { kind: "aspect", key: "ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34] },
@@ -831,7 +891,22 @@ export const FAMILIES: Family[] = [
         { value: "2", label: "۲ برابر" }, { value: "4", label: "۴ برابر" }, { value: "8", label: "۸ برابر" },
       ] },
     ],
-    variants: [{ id: "topaz-image-upscale", model: "topaz/image-upscale", label: "بزرگ‌نمایی" }],
+    variants: [
+      { id: "topaz-image-upscale", model: "topaz/image-upscale", label: "بزرگ‌نمایی" },
+      {
+        // Per second of the source clip, like Motion Control — so it can't be
+        // priced until a video is attached. 1x and 2x share a rate row; 8x has none.
+        id: "topaz-video-upscale",
+        model: "topaz/video-upscale",
+        label: "ویدیو",
+        refs: [{ key: "video_url", label: "ویدیوی ورودی (الزامی)", max: 1, required: true, media: "video", maxMb: 50 }],
+        controls: [
+          { kind: "segment", key: "upscale_factor", label: "بزرگ‌نمایی", def: "2", options: [
+            { value: "1", label: "۱ برابر" }, { value: "2", label: "۲ برابر" }, { value: "4", label: "۴ برابر" },
+          ] },
+        ],
+      },
+    ],
   },
   {
     id: "recraft",
