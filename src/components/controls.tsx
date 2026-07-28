@@ -1,6 +1,7 @@
-import { useRef } from "react";
-import { Plus, X } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import { Plus, X, Play, Pause } from "@phosphor-icons/react";
 import type { Control, RefSlot } from "../data/models";
+import { VOICES, voicePreviewUrl } from "../data/voices";
 import { faNum } from "../lib/format";
 
 export type InputValue = string | number | boolean;
@@ -200,7 +201,79 @@ export function ControlField({
       return <ToggleRow control={control} value={Boolean(value)} onChange={(v) => onChange(control.key, v)} />;
     case "text":
       return <NegText control={control} value={String(value ?? "")} onChange={(v) => onChange(control.key, v)} />;
+    case "voice":
+      return <VoicePicker control={control} value={String(value ?? control.def)} onChange={(v) => onChange(control.key, v)} />;
   }
+}
+
+/**
+ * Picking a voice by name alone is guesswork, so every row plays a sample.
+ * The clips are KIE's own public previews — nothing is generated and no credits
+ * are spent. A single shared <audio> means starting one preview stops the last.
+ */
+function VoicePicker({
+  control,
+  value,
+  onChange,
+}: {
+  control: Extract<Control, { kind: "voice" }>;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [playing, setPlaying] = useState<string | null>(null);
+  const audio = useRef<HTMLAudioElement | null>(null);
+
+  // Stop on unmount, so switching model mid-preview doesn't leave a clip
+  // playing with nothing on screen to stop it.
+  useEffect(
+    () => () => {
+      audio.current?.pause();
+      audio.current = null;
+    },
+    [],
+  );
+
+  function toggle(id: string) {
+    audio.current?.pause();
+    if (playing === id) {
+      setPlaying(null);
+      return;
+    }
+    const el = new Audio(voicePreviewUrl(id));
+    el.onended = () => setPlaying(null);
+    el.onerror = () => setPlaying(null); // a missing clip shouldn't strand the button
+    audio.current = el;
+    setPlaying(id);
+    void el.play().catch(() => setPlaying(null));
+  }
+
+  return (
+    <FieldShell label={control.label}>
+      <div className="max-h-64 overflow-y-auto rounded-bezel border border-line bg-card">
+        {VOICES.map((v) => {
+          const on = v.id === value;
+          return (
+            <div
+              key={v.id}
+              className={`flex items-center gap-2 border-b border-line/50 px-3 py-2.5 last:border-0 ${on ? "bg-accent/10" : ""}`}
+            >
+              <button onClick={() => onChange(v.id)} className="flex-1 text-start active:scale-[0.99]">
+                <div className={`text-[13px] ${on ? "font-medium text-accent" : "text-ink"}`}>{v.name}</div>
+                <div className="text-[11px] text-ink3">{v.note}</div>
+              </button>
+              <button
+                onClick={() => toggle(v.id)}
+                aria-label={playing === v.id ? "توقف" : "پخش نمونه"}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-card2 text-ink2 active:scale-95"
+              >
+                {playing === v.id ? <Pause size={14} weight="fill" /> : <Play size={14} weight="fill" />}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </FieldShell>
+  );
 }
 
 /** One picked reference image. */

@@ -35,7 +35,13 @@ export type Control =
       advanced?: boolean;
     }
   | { kind: "toggle"; key: string; label: string; def: boolean; advanced?: boolean }
-  | { kind: "text"; key: string; label: string; placeholder?: string; advanced?: boolean };
+  | { kind: "text"; key: string; label: string; placeholder?: string; advanced?: boolean }
+  /**
+   * Voice chooser. Its own kind rather than a segment because there are dozens
+   * of them and picking by name alone is guesswork — the list needs to be
+   * scrollable and each row needs to play a sample.
+   */
+  | { kind: "voice"; key: string; label: string; def: string; advanced?: boolean };
 
 export interface RefSlot {
   key: string;
@@ -167,20 +173,9 @@ const hailuo23Controls: Control[] = [
 // ElevenLabs TTS. Shared by both speech models — language_code is deliberately
 // NOT here: it works on turbo-2-5 and is a documented error on multilingual-v2.
 //
-// `voice` is an opaque ElevenLabs id and KIE publishes no endpoint to list them.
-// These three are the only ids that appear anywhere in KIE's docs: the default
-// from the speech models, and the two speakers in the dialogue model's example.
-// Labels are deliberately neutral — nothing states who these voices are, and the
-// earlier "male"/"female" guesses were read off a sample conversation.
-// TODO: replace with the real named list from KIE's playground.
+// The full named list lives in data/voices.ts, taken from KIE's API spec.
 const elevenCommonControls: Control[] = [
-  { kind: "segment", key: "voice", label: "صدا", def: "EkK5I93UQWFDigLMpZcX", options: [
-    // Confirmed from KIE's playground: this id is "James — Husky, Engaging and Bold".
-    { value: "EkK5I93UQWFDigLMpZcX", label: "James" },
-    // Still unnamed — these two only appear as speakers in the dialogue example.
-    { value: "TX3LPaxmHKxFdv7VOQHJ", label: "صدای ۲" },
-    { value: "NNl6r8mD7vthiJatiJt1", label: "صدای ۳" },
-  ] },
+  { kind: "voice", key: "voice", label: "صدا", def: "EkK5I93UQWFDigLMpZcX" },
   { kind: "slider", key: "speed", label: "سرعت گفتار", min: 0.7, max: 1.2, step: 0.05, def: 1 },
   { kind: "slider", key: "stability", label: "ثبات صدا", min: 0, max: 1, step: 0.05, def: 0.5, advanced: true },
   { kind: "slider", key: "similarity_boost", label: "شباهت به صدای اصلی", min: 0, max: 1, step: 0.05, def: 0.75, advanced: true },
