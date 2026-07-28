@@ -700,6 +700,41 @@ export const FAMILIES: Family[] = [
         ],
       },
       {
+        // Edits an uploaded video. Priced per second of the *output*, and
+        // `duration` decides what that is: 0 keeps the whole source clip, any
+        // other value trims from the start.
+        //
+        // Its own doc contradicts itself on the legal values — the Range field
+        // says 2-10 step 1, which admits 1, while the description says "0 or any
+        // integer in [2,10]". The description is the stricter reading, so 1 is
+        // not offered.
+        id: "wan-2-7-videoedit",
+        model: "wan/2-7-videoedit",
+        label: "۲٫۷ ویرایش",
+        badge: "ویدیو",
+        refs: [
+          { key: "video_url", label: "ویدیوی ورودی (الزامی)", max: 1, required: true, media: "video", maxMb: 100 },
+          { key: "reference_image", label: "تصویر مرجع (اختیاری)", max: 1, maxMb: 30 },
+        ],
+        controls: [
+          { kind: "segment", key: "resolution", label: "کیفیت", def: "720p", options: [
+            { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
+          ] },
+          // Sent as a number by the backend, unlike the string durations elsewhere.
+          { kind: "segment", key: "duration", label: "مدت خروجی", def: "0", options: [
+            { value: "0", label: "کل ویدیو" }, { value: "2", label: "۲ ثانیه" }, { value: "4", label: "۴ ثانیه" },
+            { value: "6", label: "۶ ثانیه" }, { value: "8", label: "۸ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
+          ] },
+          { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34] },
+          { kind: "segment", key: "audio_setting", label: "صدا", def: "auto", options: [
+            { value: "auto", label: "خودکار" }, { value: "origin", label: "حفظ صدای اصلی" },
+          ] },
+          { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
+          { kind: "toggle", key: "prompt_extend", label: "گسترش خودکار پرامپت", def: true, advanced: true },
+          { kind: "toggle", key: "watermark", label: "واترمارک", def: false, advanced: true },
+        ],
+      },
+      {
         // Reference-to-video. KIE requires at least one reference image OR video,
         // capped at five between them; since only images can be uploaded today,
         // the image slot is marked required and holds all five.

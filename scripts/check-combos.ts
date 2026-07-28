@@ -88,8 +88,11 @@ async function main() {
       const all = combos(variantControls(fam, v));
       for (const input of all) {
         checked++;
-        // Audio models price per 1000 characters; a representative length lets
-        // them resolve like everything else instead of always reading as unpriced.
+        // A probe value for the models whose price comes from something other
+        // than their settings. Speech reads it as characters, the per-second
+        // video models read it as seconds — so their printed coin figure here is
+        // for a 1000-second clip and is not a realistic price. The point is only
+        // that they resolve a rate at all.
         const chars = 1000;
         if (LIVE[v.id]?.(input, chars) != null) continue;
         const fb = RATES_FALLBACK[v.id]?.(input, chars);

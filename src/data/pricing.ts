@@ -91,6 +91,12 @@ const RATES: Record<string, RateFn> = {
     pick(`${i.resolution}-${i.duration}`, { "720p-5": 70, "720p-10": 140, "720p-15": 210, "1080p-5": 104.5, "1080p-10": 209.5, "1080p-15": 315 }, 104.5),
   "wan-2-7": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
   "wan-2-7-r2v": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
+  // Billed per second of output. duration 0 means "keep the whole source clip",
+  // so the length then comes from the uploaded file and isn't known until it lands.
+  "wan-2-7-videoedit": (i, secs) => {
+    const billed = num(i.duration, 0) || secs;
+    return billed > 0 ? pick(i.resolution, { "720p": 16, "1080p": 24 }, 16) * billed : null;
+  },
   // KIE: "10 seconds videos are not supported for 1080p resolution" — the missing
   // key returns null rather than a made-up price for a job that can't be created.
   "hailuo-2-3": (i) => only(`${i.resolution}-${i.duration}`, { "768P-6": 45, "768P-10": 90, "1080P-6": 80 }),
@@ -186,6 +192,10 @@ export const LIVE: Record<string, LiveFn> = {
   "wan-2-6": (i) => findRate("wan 2.6", "text to video", `, ${dur(i, 5)}.0s-${res(i, "1080p")}`), // leading ", " so 5.0s can't match 15.0s
   "wan-2-7": (i) => perSec(findRate("wan 2.7 video", "text-to-video", res(i, "1080p")), dur(i, 5)),
   "wan-2-7-r2v": (i) => perSec(findRate("wan 2.7 video", "r2v", res(i, "1080p")), dur(i, 5)),
+  "wan-2-7-videoedit": (i, secs) => {
+    const billed = num(i.duration, 0) || secs;
+    return billed > 0 ? perSec(findRate("wan 2.7 video", "videoedit", res(i, "720p")), billed) : null;
+  },
   "hailuo-2-3": (i) => findRate("hailuo 2.3", "image-to-video", `pro-${dur(i, 6)}.0s-${res(i, "768P")}`),
   "hailuo-2-3-standard": (i) => findRate("hailuo 2.3", "image-to-video", `standard-${dur(i, 6)}.0s-${res(i, "768P")}`),
   // Row text is "gemini-omni-video, video, 8s 1080p no video input" — matched as
