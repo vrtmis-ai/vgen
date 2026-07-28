@@ -5,7 +5,10 @@
 // rate moves — every displayed price derives from it.
 //
 // Big packs are three-tier (set with owner, 2026-07):
-//   first   ≈ 20% off the normal price — once per Telegram user
+//   first   ≈ 20% off the normal price — once per *account*, not per sign-in
+//           method. Someone who arrives by Telegram and later by the website is
+//           one account and gets it once; keying this to a Telegram id would
+//           hand it out again per host.
 //   normal  = 2nd purchase onward
 //   annual  = first-purchase rate billed monthly, 12 months paid upfront
 // Test/small packs are single-price at full margin (they ARE the entry offer).

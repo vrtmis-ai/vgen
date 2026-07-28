@@ -5,13 +5,7 @@ import { useFavorites } from "../lib/favorites";
 import { CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { useI18n } from "../lib/i18n";
-
-// Telegram user info when opened inside Telegram; graceful fallback in browser dev.
-function tgUser(): { name?: string; username?: string } {
-  const u = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
-  if (u) return { name: [u.first_name, u.last_name].filter(Boolean).join(" "), username: u.username };
-  return {};
-}
+import { useSession } from "../lib/session";
 
 function Row({ icon, label, value, onClick }: { icon: React.ReactNode; label: string; value?: string; onClick?: () => void }) {
   return (
@@ -44,8 +38,8 @@ export default function Profile({
   onOpenModel: (familyId: string) => void;
 }) {
   const { t, n, lang, setLang } = useI18n();
-  const user = tgUser();
-  const name = user.name || t("p_guest");
+  const user = useSession();
+  const name = user.displayName || t("p_guest");
   const { favs } = useFavorites();
   const favFamilies = favs.map(getFamily).filter((f): f is Family => Boolean(f));
   const done = gens.filter((g) => g.status === "done").length;
