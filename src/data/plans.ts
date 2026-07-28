@@ -62,18 +62,35 @@ export const MODEL_MIN_TIER: Record<string, Tier> = {
   "gpt-image": 1,
   wan: 1,
   hailuo: 1,
+  recraft: 1, // 0.5–1 credit — cheapest thing in the catalogue
+  elevenlabs: 1, // 6–14 credits per 1000 characters
+  topaz: 1, // a utility; upscaling someone's own file shouldn't need a big pack
   "nano-banana": 2,
   flux: 2,
   imagen: 2,
   ideogram: 2,
   seedance: 2,
   kling: 2,
+  "gemini-omni": 2, // 63–210 credits per video, in Kling's range
   veo: 3,
 };
 
+/**
+ * Minimum tier for a family. An unlisted family LOCKS rather than unlocks.
+ *
+ * This defaulted to tier 1, which failed in the giveaway direction: four
+ * families added later — gemini-omni, elevenlabs, topaz, recraft — were silently
+ * available on the cheapest pack, and Gemini Omni costs up to 210 KIE credits a
+ * video. Missing config should cost us a sale, never the margin.
+ * `scripts/check-combos.ts` now fails if any family is unlisted.
+ */
+export function minTierFor(familyId: string): Tier {
+  return MODEL_MIN_TIER[familyId] ?? 3;
+}
+
 /** Family display names newly unlocked AT this tier (not cumulative). */
 export function tierUnlockNames(tier: Tier): string[] {
-  return FAMILIES.filter((f) => (MODEL_MIN_TIER[f.id] ?? 1) === tier)
+  return FAMILIES.filter((f) => minTierFor(f.id) === tier)
     .map((f) => f.name)
     .filter((v, i, a) => a.indexOf(v) === i);
 }

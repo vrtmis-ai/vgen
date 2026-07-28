@@ -16,6 +16,7 @@
 
 import { FAMILIES, variantControls, type Control } from "../src/data/models";
 import { LIVE, RATES_FALLBACK, coinsForKieCredits } from "../src/data/pricing";
+import { MODEL_MIN_TIER } from "../src/data/plans";
 import { startKieRates, findRate } from "../src/lib/kieRates";
 import type { InputMap, InputValue } from "../src/components/controls";
 
@@ -79,6 +80,16 @@ async function main() {
     process.exit(1);
   }
 
+  // A family with no tier entry used to fall through to tier 1 — the cheapest
+  // pack — which is the wrong direction to fail in. It now locks instead, so an
+  // omission costs a sale rather than the margin. Catch it here either way.
+  const untiered = FAMILIES.filter((f) => MODEL_MIN_TIER[f.id] == null);
+  if (untiered.length) {
+    console.error(`${untiered.length} families have no MODEL_MIN_TIER entry and will be locked:`);
+    for (const f of untiered) console.error(`  ${f.id.padEnd(16)} ${f.name}`);
+    console.error("Add them to plans.ts.\n");
+  }
+
   let checked = 0;
   const invented: string[] = []; // no live row, but the fallback still quotes a price
   const blocked: string[] = []; // no live row and no fallback — the UI refuses it
@@ -111,10 +122,12 @@ async function main() {
     console.log("");
   }
 
-  if (invented.length === 0) {
+  if (invented.length === 0 && untiered.length === 0) {
     console.log("no combination is quoted a price KIE can't honour ✅");
+    console.log("every family has a tier ✅");
     process.exit(0);
   }
+  if (invented.length === 0) process.exit(2); // untiered families only
   console.log(`${invented.length} combinations are quoted an INVENTED price — KIE has no such rate:\n`);
   for (const m of invented) console.log("  " + m);
   process.exit(2);
