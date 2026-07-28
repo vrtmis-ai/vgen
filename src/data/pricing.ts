@@ -4,8 +4,14 @@
 // path returns 404), but it DOES publish its full per-model rate table (see
 // lib/kieRates.ts). Prices are resolved live from that table by matching the
 // user's chosen settings to the right row; the built-in RATES below are only a
-// fallback for offline / first paint / rows KIE renames. The final source of
-// truth stays `creditsConsumed` returned after each task (backend settles it).
+// fallback for offline / first paint / rows KIE renames.
+//
+// ⚠️ This file used to claim the final source of truth was a `creditsConsumed`
+// value returned after each task. That is unverified and looks wrong: every
+// recordInfo response in KIE's model docs returns taskId, model, state, param,
+// resultJson, failCode, failMsg, costTime, completeTime and createTime — and no
+// consumed-credits field at all. If it really is absent, a job's true cost can't
+// be settled from the API and these estimates are all we have. See HANDOFF §8-ب.
 //
 // Economics (locked):
 //   1 Vgen coin (سکه)    = $0.05    (what the user pays per coin)
