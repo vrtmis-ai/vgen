@@ -1,14 +1,20 @@
-/* Subscription screen. Replaces the old one-time "Wallet" pack screen after the
-   owner's 2026-07-29 decision that every plan is a recurring monthly grant.
+/* Plan screen. Replaces the old "Wallet" pack screen after the owner's
+   2026-07-29 decision that access is sold as plans rather than coin packs.
+
+   A plan is a PREPAID PASS, not an auto-renewing subscription: buying activates
+   30 days, and when they run out the user buys again if they want to continue.
+   Nothing is charged automatically, so this screen must never promise renewal
+   or offer a "cancel" — it said both in its first draft, which was a plain lie
+   about how the user would be billed.
 
    Two states, both reachable today:
-     • no subscription — the empty state the owner asked for. This is what a new
-       user sees, holding only their signup gift coins.
-     • subscribed      — current plan, this month's remaining coins, renewal date.
+     • no plan     — the empty state the owner asked for. What a new user sees,
+                     holding only their 12 signup-gift coins.
+     • has a plan  — current plan, coins left in this period, expiry date.
 
-   `currentPlanId` / `renewsAt` come from the backend once it exists; App passes
-   null today, so the screen honestly renders the not-subscribed case rather
-   than inventing a subscription. */
+   `currentPlanId` / `expiresAt` come from the backend once it exists; App passes
+   null today, so the screen honestly renders the no-plan case rather than
+   inventing one. */
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, CalendarCheck, CheckCircle, Gift, ImageSquare, Lightning, Sparkle, VideoCamera } from "@phosphor-icons/react";
 import {
@@ -29,6 +35,11 @@ type Cycle = "monthly" | "annual";
 
 /** Best annual saving across the catalogue — the number worth putting on the toggle. */
 const MAX_ANNUAL_SAVE = Math.max(...PLANS.map(annualDiscountPct));
+
+/** What the buy button actually commits the user to, spelled out. */
+function buyKey(plan: Plan, cycle: Cycle): "pl_buy_30" | "pl_buy_12m" {
+  return cycle === "annual" && plan.annualUsdPerMonth != null ? "pl_buy_12m" : "pl_buy_30";
+}
 
 function TagChip({ plan }: { plan: Plan }) {
   const { t } = useI18n();
@@ -172,7 +183,7 @@ function PlanCard({ plan, cycle, current }: { plan: Plan; cycle: Cycle; current:
       <div className="border-t border-line pt-3">
         <Price plan={plan} cycle={cycle} />
         <button className="btn-accent mt-3 flex w-full items-center justify-center rounded-2xl py-3 text-[13.5px] font-bold" disabled={current}>
-          {t(current ? "pl_current" : "pl_subscribe")}
+          {t(current ? "pl_current" : buyKey(plan, cycle))}
         </button>
       </div>
     </div>
@@ -204,7 +215,7 @@ function EntryCard({ plan, cycle, current }: { plan: Plan; cycle: Cycle; current
         <Price plan={plan} cycle={cycle} />
       </div>
       <button className="btn-accent mt-1 flex items-center justify-center rounded-xl py-2 text-[12px] font-bold" disabled={current}>
-        {t(current ? "pl_current" : "pl_subscribe")}
+        {t(current ? "pl_current" : buyKey(plan, cycle))}
       </button>
     </div>
   );
@@ -214,14 +225,14 @@ function EntryCard({ plan, cycle, current }: { plan: Plan; cycle: Cycle; current
 export default function Plans({
   coins,
   currentPlanId = null,
-  renewsAt = null,
+  expiresAt = null,
   onBack,
 }: {
   coins: number;
-  /** null until the backend can tell us — do NOT fake a subscription here. */
+  /** null until the backend can tell us — do NOT fake an active plan here. */
   currentPlanId?: string | null;
-  /** epoch ms of the next renewal; null when not subscribed. */
-  renewsAt?: number | null;
+  /** epoch ms when the active plan runs out; null when there is no plan. */
+  expiresAt?: number | null;
   onBack: () => void;
 }) {
   const { t, n, lang } = useI18n();
@@ -239,8 +250,8 @@ export default function Plans({
   const main = PLANS.filter((p) => p.group === "main");
   const entry = PLANS.filter((p) => p.group === "entry");
 
-  const renewLabel =
-    renewsAt != null ? new Date(renewsAt).toLocaleDateString(lang === "fa" ? "fa-IR" : "en-US", { day: "numeric", month: "long" }) : null;
+  const expiryLabel =
+    expiresAt != null ? new Date(expiresAt).toLocaleDateString(lang === "fa" ? "fa-IR" : "en-US", { day: "numeric", month: "long" }) : null;
 
   return (
     <div className="relative z-10 min-h-[100dvh] pt-4 pb-10">
@@ -267,10 +278,10 @@ export default function Plans({
               <CheckCircle size={12} weight="fill" className="text-accent" />
               {current.name}
             </span>
-            {renewLabel && (
+            {expiryLabel && (
               <span className="flex items-center gap-1.5">
                 <CalendarCheck size={12} weight="fill" className="text-accent" />
-                {t("pl_renews")}: {renewLabel}
+                {t("pl_expires")}: {expiryLabel}
               </span>
             )}
           </div>
@@ -311,11 +322,10 @@ export default function Plans({
         ))}
       </div>
 
-      <div className="mt-6 space-y-1.5 px-4 text-center text-[11px] leading-relaxed text-ink3">
-        <p>{t("pl_expiry_note")}</p>
-        <p>{t("pl_cancel_note")}</p>
-        <p>{t("w_foot1")}</p>
-      </div>
+      {/* Owner trimmed this to the expiry line alone. The "no auto-renewal" fact
+          it used to spell out now lives in the button itself — "خرید ۳۰ روزه"
+          says the same thing without a paragraph of fine print. */}
+      <p className="mt-6 px-4 text-center text-[11px] leading-relaxed text-ink3">{t("pl_expiry_note")}</p>
     </div>
   );
 }

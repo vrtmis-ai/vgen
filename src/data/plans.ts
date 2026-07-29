@@ -1,19 +1,29 @@
 // Subscription plans (پلن‌های اشتراکی) for the buy screen.
 //
-// Owner decision 2026-07-29: **subscription only**. There are no one-time coin
-// packs any more — every plan is a recurring monthly grant.
+// Owner decision 2026-07-29: **plan-only**. There are no one-time coin packs any
+// more — buying a plan buys a fixed window of access.
 //
-// How a subscription behaves:
-//   • Each billing month the account is granted `coinsPerMonth + bonus` coins.
-//   • That grant EXPIRES at the end of the billing month. Unused coins do not
-//     roll over.
+// IMPORTANT — this is a PREPAID PASS, not an auto-renewing subscription.
+// Owner, verbatim: buying Pro does not mean 8.3M Toman every month forever; it
+// activates 30 days. When those 30 days are up the plan simply ends, and the
+// user buys again if they want to continue. Nothing is charged automatically,
+// there is no card on file, and there is nothing to "cancel".
+//
+// How a plan behaves:
+//   • On purchase the account is granted `coinsPerMonth + bonus` coins.
+//   • That grant EXPIRES after MONTHLY_EXPIRY_DAYS. Unused coins do not roll
+//     over into a later purchase.
 //   • The expiry is ours alone. The underlying KIE credits never expire, so an
 //     unspent coin costs us nothing — it is pure margin, not a liability.
-//   • `annualUsdPerMonth` is the per-month rate when all 12 months are paid
-//     upfront. The *grant* stays monthly; only the *payment* is annual. Paying
-//     for a year does not hand the user 12 months of coins on day one.
-//   • Company plans (not built yet) grant a 1-year bucket instead of a monthly
-//     one — see COMPANY_EXPIRY_DAYS.
+//   • `annualUsdPerMonth` is the per-month rate when 12 months are paid upfront
+//     in ONE transaction. The user is not billed again during that year, but the
+//     *grant* still lands month by month — paying for a year does not hand over
+//     12 months of coins on day one.
+//   • Company plans (not built yet) grant a single 1-year bucket instead — see
+//     COMPANY_EXPIRY_DAYS.
+//
+// This shape is also what the payment rails can actually do: ZarinPal is a
+// one-shot card gateway, so recurring card-on-file billing was never available.
 //
 // Economics: 1 coin = $0.05 of face value = $0.025 of our KIE cost (5 credits).
 // Iranian users pay Toman via ZarinPal. TOMAN_PER_USD is THE one constant to
@@ -29,7 +39,7 @@ import type { InputMap } from "../components/controls";
 export { COIN_USD };
 export const TOMAN_PER_USD = 170_000; // set 2026-07 by owner ($50 ≈ 8.5M Toman)
 
-/** Days a monthly grant stays spendable. Read-time expiry in the ledger. */
+/** Days a grant stays spendable before it expires. Read-time expiry in the ledger. */
 export const MONTHLY_EXPIRY_DAYS = 30;
 /** Company plans (later) get a one-year bucket instead. */
 export const COMPANY_EXPIRY_DAYS = 365;
