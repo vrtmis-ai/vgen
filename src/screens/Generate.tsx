@@ -11,6 +11,7 @@ import {
   type Variant,
 } from "../data/models";
 import { priceCoins } from "../data/pricing";
+import { CoinMark } from "../components/chrome";
 import { useKieRates } from "../lib/kieRates";
 import { useI18n } from "../lib/i18n";
 import { ControlField, RefUpload, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
@@ -248,7 +249,7 @@ export default function Generate({
           <span>{t("g_create")}</span>
           {price != null && (
             <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
-              <span>⬡</span>
+              <CoinMark size={12} />
               {n(price)}
             </span>
           )}

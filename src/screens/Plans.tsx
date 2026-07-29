@@ -27,6 +27,7 @@ import {
   estVideos,
   type Plan,
 } from "../data/plans";
+import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
 
 const TAG_KEY = { test: "w_tag_test", gift: "w_tag_gift", popular: "w_tag_popular", best: "w_tag_best" } as const;
@@ -267,7 +268,7 @@ export default function Plans({
         <div className="flex items-center justify-between">
           <span className="text-[12px] text-ink3">{current ? t("pl_this_month") : t("w_balance")}</span>
           <span className="flex items-center gap-2">
-            <span className="text-[17px] text-ink2">⬡</span>
+            <CoinMark size={17} className="text-ink2" />
             <span className="text-[24px] font-semibold tabular-nums">{n(coins)}</span>
             <span className="text-[13px] text-ink2">{t("w_coins")}</span>
           </span>

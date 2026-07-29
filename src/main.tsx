@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { MotionConfig } from "framer-motion";
 import "./index.css";
 import App from "./App";
 import { LanguageProvider } from "./lib/i18n";
@@ -15,12 +16,21 @@ if (tg) {
   tg.expand();
 }
 
+// index.css carries a prefers-reduced-motion rule, but it only zeroes CSS
+// animations and transitions — it cannot touch framer-motion, which drives its
+// values from JS. Everything that actually moves here is framer-motion: the
+// drifting ambient blobs, the floating logo, the pulsing prompt bar, the hero's
+// slow zoom. A user who asked the OS for less motion was still getting all of it.
+// reducedMotion="user" makes every motion component honour the setting, and
+// still allows opacity fades so transitions do not become instant jump-cuts.
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
-      <LanguageProvider>
-        <App />
-      </LanguageProvider>
+      <MotionConfig reducedMotion="user">
+        <LanguageProvider>
+          <App />
+        </LanguageProvider>
+      </MotionConfig>
     </ErrorBoundary>
   </StrictMode>,
 );

@@ -25,6 +25,20 @@ export function Logo({ size = 26, animate = false }: { size?: number; animate?: 
   );
 }
 
+/** The coin mark.
+    This was the text glyph "⬡" (U+2B21 WHITE HEXAGON) in three places. A glyph
+    is font-dependent: it lands at a different weight and baseline on Android,
+    and any Persian font stack that lacks the codepoint renders a tofu box right
+    next to the user's balance. An inline SVG scales, inherits currentColor, and
+    looks identical everywhere. */
+export function CoinMark({ size = 14, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden className={`shrink-0 ${className ?? ""}`}>
+      <path d="M12 2.6 20.4 7.3v9.4L12 21.4 3.6 16.7V7.3L12 2.6Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function CreditPill({ coins, onClick }: { coins: number; onClick?: () => void }) {
   const { n } = useI18n();
   return (
@@ -32,7 +46,7 @@ export function CreditPill({ coins, onClick }: { coins: number; onClick?: () => 
       onClick={onClick}
       className="flex items-center gap-1.5 rounded-full border border-line bg-card2 px-3 py-1.5 transition-transform active:scale-95"
     >
-      <span className="text-[13px] leading-none text-ink2">⬡</span>
+      <CoinMark size={13} className="text-ink2" />
       <span className="text-[13px] font-medium tabular-nums tracking-wide">{n(coins)}</span>
       {onClick && (
         <span className="grid h-4 w-4 place-items-center rounded-full bg-ink/90 text-bg">
