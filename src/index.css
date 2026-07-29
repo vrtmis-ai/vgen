@@ -5,27 +5,60 @@
    Vgen design system — Ember: screaming orange on warm near-black
    Tech-dark futuristic. Flat accent (no glow), layered warm surfaces.
    ============================================================ */
-@theme {
-  /* surfaces — near-black, tinted warm toward the ember hue (never flat #000) */
-  --color-bg: #0a0908; /* deepest */
-  --color-surface: #0e0d0b; /* app canvas */
-  --color-card: #16130f; /* elevation 1 */
-  --color-card2: #1e1a14; /* elevation 2 */
-  --color-elev3: #292319; /* popover / sheet */
+/* `static` is load-bearing, not decoration. Tailwind v4 tree-shakes theme
+   variables it cannot see used in scanned source, and this system is referenced
+   from inline `style={{ … var(--color-ink-invert) }}` as often as from utility
+   classes. Without `static`, --color-ink-invert, --color-line-media,
+   --color-accent-wash, --radius-xs and --radius-pill emitted NOTHING — verified
+   in the browser — so a toggle knob or a tile edge would silently render with no
+   colour at all. A design system's tokens must always exist; this block is ~35
+   hand-written variables, so emitting all of them costs nothing. */
+@theme static {
+  /* SURFACE LADDER — every step is +8 RGB or more, because the old ladder wasn't
+     one. bg->surface used to be +4/+4/+3, below the perceptual threshold on a
+     phone, so two tokens rendered as the same colour. That fake ladder is why
+     the app compensated with 18 visible borders on Home alone: a card at
+     #16130f sat ~12 points off the canvas and could not separate on its own.
+     At these values a container separates by lightness and needs no border.
 
-  --color-line: rgba(255, 244, 230, 0.07);
-  --color-line2: rgba(255, 244, 230, 0.13);
+     The Ember warmth now lives in the ladder instead of in a full-page gradient:
+     the R-B gap widens 3 -> 4 -> 6 -> 7 -> 11 as surfaces rise, so the higher a
+     surface sits the warmer it reads. Never introduce a cool/neutral grey here —
+     higgsfield's #1C1E20 and aicines' #1A1A24 are cool and would kill the brand. */
+  --color-bg: #0b0a09; /* page canvas, and the only full-bleed value */
+  --color-surface: #141110; /* chrome floating over the canvas: nav, sticky bars */
+  --color-card: #1d1917; /* elevation 1 — feed cards, rows, tiles, plan cards */
+  --color-card2: #272220; /* elevation 2 — things INSIDE a card: wells, chips */
+  --color-raised: #332c28; /* elevation 3 — sheets, popovers, .tile-raised top stop */
+  --color-elev3: var(--color-raised); /* deprecated alias — CreateSheet still uses bg-elev3 */
+
+  /* Borders are now the exception, not the default. Three legitimate cases:
+     line          — divider between rows of the SAME surface inside one card
+     line-media    — edge of a tile whose interior is an image (lightness unknown)
+     .hairline-t   — single top edge on chrome that floats over unknown content
+     Anything already one ladder step from its parent must NOT be outlined. */
+  --color-line: rgba(255, 244, 230, 0.05);
+  --color-line2: rgba(255, 244, 230, 0.1);
+  --color-line-media: rgba(255, 255, 255, 0.08);
 
   /* ink — warm whites, contrast pushed past AA */
   --color-ink: #f8f5f1;
   --color-ink2: #c4bcb1;
-  --color-ink3: #8a8175;
+  /* was #8a8175 = 4.58:1 on the new card — technically AA but it carries 11px
+     nav labels and the ghost label, where it failed in practice. ink3 is legal
+     down to card2 and NEVER on `raised` (4.07:1 there) — use ink2 instead. */
+  --color-ink3: #9a9184;
+  --color-ink-invert: #0b0a09; /* text/icons on an ink-filled chip, toggle knob, slider */
 
   /* accent — Ember Orange: flat, loud, spent only on moments that matter.
-     Text ON orange is near-black (white fails AA on this hue). */
+     Text ON orange is near-black (white fails AA on this hue).
+     BUDGET: <=3 solid fills and <=6 tints visible at once, per screen. The
+     accent means "commit", never "selected" — selected states are ink fills. */
   --color-accent: #ff5c00;
   --color-accent2: #f05400; /* pressed / filled */
-  --color-accent-soft: rgba(255, 92, 0, 0.14); /* tinted wash */
+  --color-accent-tint: rgba(255, 92, 0, 0.14); /* objects <=44px */
+  --color-accent-wash: rgba(255, 92, 0, 0.07); /* anything larger — at panel scale 14% is a colour, not a tint */
+  --color-accent-soft: var(--color-accent-tint); /* deprecated alias */
   --color-on-accent: #170b02;
 
   /* semantic */
@@ -35,18 +68,36 @@
   --font-sans: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Space Grotesk", "Vazirmatn", ui-sans-serif, sans-serif;
 
-  --radius-md: 0.875rem;
-  --radius-card: 1.25rem;
-  --radius-bezel: 1.75rem;
+  /* FIVE radii, nothing else. Nesting rule: inner = outer minus the padding
+     between them (a 20px card with 8px padding gives its child 12px). Never
+     nest equal radii — concentric mismatch is the "slightly off" feeling. */
+  --radius-xs: 0.5rem; /* 8px  — badges, small chips, <=40px thumbnails */
+  --radius-md: 0.75rem; /* 12px — buttons, inputs, segments, list rows. Was 14px,
+                            a value none of the three references use, while 12px
+                            is the workhorse in all of them (higgsfield: 198 uses). */
+  --radius-card: 1.25rem; /* 20px — anything containing a picture */
+  --radius-bezel: 1.75rem; /* 28px — sheets, modals, the prompt bar */
+  --radius-pill: 999px;
 
   --shadow-soft: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
   --shadow-pop: 0 20px 50px -18px rgba(0, 0, 0, 0.6);
-  --shadow-accent: 0 14px 36px -16px rgba(255, 92, 0, 0.45);
+  --shadow-lift: 0 10px 30px -12px rgba(0, 0, 0, 0.65);
+  /* was 0 14px 36px -16px rgba(255,92,0,0.45) — an orange glow spilling onto
+     neighbouring surfaces under btn-accent, the FAB, the prompt-bar arrow and
+     Profile's CTA. Four uncounted sources of ambient orange, and a coloured
+     shadow none of the three references use — contradicting this file's own
+     "flat accent (no glow)" header. Aliased so all four sites change at once. */
+  --shadow-accent: var(--shadow-lift);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  /* Real bottom-nav height. `pb-28` was a 112px guess that collapses to nothing
+     on a phone with a 34px gesture inset. */
+  --nav-h: calc(64px + max(14px, env(safe-area-inset-bottom)));
+}
 
 /* English mode: Space Grotesk leads, Vazirmatn stays as fallback for any fa text */
 html[lang="en"] { --font-sans: "Space Grotesk", "Vazirmatn", ui-sans-serif, system-ui, sans-serif; }
@@ -82,17 +133,65 @@ textarea, input { font-family: inherit; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* ---- typography system (apply, don't hardcode) --------------- */
-.t-display { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.9rem, 7vw, 2.15rem); line-height: 1.06; letter-spacing: -0.02em; }
-.t-h1 { font-weight: 600; font-size: 1.4rem; line-height: 1.2; letter-spacing: -0.01em; }
-.t-h2 { font-weight: 600; font-size: 1.15rem; line-height: 1.25; letter-spacing: -0.01em; }
-.t-title { font-weight: 600; font-size: 1.02rem; line-height: 1.3; }
-.t-body { font-weight: 400; font-size: 0.9375rem; line-height: 1.6; }
-.t-caption { font-weight: 400; font-size: 0.8125rem; line-height: 1.45; }
-.t-label { font-family: var(--font-display); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.04em; }
+/* ---- typography system (apply, don't hardcode) ---------------
+   THE LADDER: 30 / 22 / 17 / 15 / 13 / 11 — six sizes, minimum 2px apart, and
+   11px is LATIN-ONLY. Three weights: 700 / 600 / 400 (no 500 — delete every
+   font-medium). Nothing else. The app previously rendered five sizes crammed
+   between 11px and 13px, which the eye cannot separate; it reads as sloppiness
+   rather than hierarchy. Hierarchy comes from WEIGHT, never from 1px.
+
+   These live in @layer components deliberately. Unlayered they outranked every
+   Tailwind utility, so `t-title font-bold` silently did nothing. */
+@layer components {
+  .t-display { font-family: var(--font-display); font-weight: 700; font-size: 1.875rem; line-height: 1.15; letter-spacing: -0.03em; }
+  .t-h1 { font-weight: 700; font-size: 1.375rem; line-height: 1.35; letter-spacing: -0.02em; }
+  /* the section header — carries the presence higgsfield buys with uppercase
+     Space Grotesk. 700 ONLY: 600 belongs to .t-title, so a section header and a
+     card title can never be confused despite being 2px apart. The margins live
+     on .section-head, not here — .t-h2 has live call sites that would silently
+     gain 32px. */
+  .t-h2 { font-weight: 700; font-size: 1.0625rem; line-height: 1.35; letter-spacing: -0.015em; }
+  .t-title { font-weight: 600; font-size: 0.9375rem; line-height: 1.4; letter-spacing: -0.01em; }
+  .t-body { font-weight: 400; font-size: 0.9375rem; line-height: 1.6; }
+  .t-caption { font-weight: 400; font-size: 0.8125rem; line-height: 1.55; }
+
+  /* The Latin ghost label — the app's typographic signature, and Persian's
+     answer to "how does a section header get presence when the script has no
+     uppercase". LATIN-ONLY BY CONTRACT: every call site passes lang="en", so
+     there is deliberately no :lang(fa) guard — html is lang="fa" by default and
+     a guard would strip the uppercase and tracking from 100% of instances.
+     Full-strength ink3: Home applied opacity-70 on top of an already-dim token,
+     which is what made it read as an afterthought instead of a device. */
+  .t-ghost { font-family: var(--font-display); font-weight: 700; font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-ink3); }
+  .t-label { font-family: var(--font-display); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.04em; } /* deprecated — migrate to .t-ghost */
+
+  /* Numerics split by script. Vazirmatn's Arabic-Indic digits are ALREADY
+     fixed-width, and tabular-nums shifts them; Space Grotesk has no Persian
+     digit coverage at all, so it must never wrap n() output in fa. */
+  .t-num { font-family: var(--font-display); font-weight: 600; font-size: 0.9375rem; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; direction: ltr; }
+  .t-num-fa { font-weight: 600; font-size: 0.9375rem; }
+
+  /* Persian guards, subject-scoped. Negative tracking pulls Vazirmatn's
+     connecting strokes into each other and renders as broken kerning on Android
+     WebView; the extra leading is because Vazirmatn's descenders and bowls look
+     visibly cramped at Latin line-heights, which reads as low quality. */
+  .t-display:lang(fa) { font-family: var(--font-sans); letter-spacing: 0; }
+  .t-h1:lang(fa), .t-h2:lang(fa), .t-title:lang(fa) { letter-spacing: 0; }
+  .t-body:lang(fa) { line-height: 1.75; }
+  .t-caption:lang(fa) { line-height: 1.7; }
+}
 
 /* ---- primitives --------------------------------------------- */
 .hairline-t { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+.hairline-b { box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06); }
+
+/* The section rhythm. 32px above / 12px below is what a Persian header spends
+   instead of uppercase — it owns whitespace rather than colour or case. */
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block: 32px 12px; }
+
+/* Expand a small control to a 44px hit area without growing its visual box. */
+.tap44 { position: relative; }
+.tap44::after { content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
 
 /* One media scrim for every image/video tile (was three near-identical
    inline gradients). Darkens the bottom so captions stay legible. */
@@ -105,7 +204,7 @@ textarea, input { font-family: inherit; }
 /* Top-lit tactile surface for primary tiles — subtle depth without a hard
    border, so the three create actions read as buttons, not flat cards. */
 .tile-raised {
-  background: linear-gradient(180deg, var(--color-card2), var(--color-card));
+  background: linear-gradient(180deg, var(--color-raised), var(--color-card));
   box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
 }
@@ -142,7 +241,9 @@ input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 20px; height: 20px; border-radius: 999px;
   background: #fff; cursor: pointer;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--color-accent-soft);
+  /* dropped the `0 0 0 4px var(--color-accent-soft)` halo — uncounted accent,
+     and Generate renders several sliders at once */
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
 }
 
 @media (prefers-reduced-motion: reduce) {
