@@ -118,6 +118,10 @@ textarea, input { font-family: inherit; }
   transition: transform 0.18s var(--ease-out), filter 0.18s var(--ease-out);
 }
 .btn-accent:active { transform: scale(0.97); filter: brightness(1.05); }
+/* a disabled accent button must not read as tappable — the "current plan"
+   button on the subscription screen is the first one to need this */
+.btn-accent:disabled { background: var(--color-card2); color: var(--color-ink3); box-shadow: none; cursor: default; }
+.btn-accent:disabled:active { transform: none; filter: none; }
 
 /* ---- motion helpers ----------------------------------------- */
 @keyframes vg-shimmer { 100% { transform: translateX(100%); } }

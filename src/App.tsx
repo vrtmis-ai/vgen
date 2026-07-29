@@ -13,7 +13,7 @@ import Home from "./screens/Home";
 import Models from "./screens/Models";
 import Community from "./screens/Community";
 import Gallery from "./screens/Gallery";
-import Wallet from "./screens/Wallet";
+import Plans from "./screens/Plans";
 import Profile from "./screens/Profile";
 import Generate, { currentAspect } from "./screens/Generate";
 import Result from "./screens/Result";
@@ -108,7 +108,9 @@ export default function App() {
   if (flow.s === "wallet") {
     return (
       <Shell>
-        <Wallet coins={DEMO_COINS} onBack={goBack} />
+        {/* currentPlanId stays null until the backend can answer it — the
+            screen renders the honest not-subscribed state meanwhile. */}
+        <Plans coins={DEMO_COINS} currentPlanId={null} onBack={goBack} />
       </Shell>
     );
   }
