@@ -88,9 +88,34 @@ export function monthlyCoins(plan: Plan): number {
   return plan.coinsPerMonth + plan.bonus;
 }
 
-/** What this plan charges per month on the given cycle. */
+/** List price per month on the given cycle, before any account-level adjustment. */
 function usdOf(plan: Plan, annual: boolean): number {
   return annual ? (plan.annualUsdPerMonth ?? plan.monthlyUsd) : plan.monthlyUsd;
+}
+
+/** Just enough of an account for pricing to look at. Kept structural so this
+ *  module does not have to import the session type. */
+export interface PricingAccount {
+  isTeam?: boolean | undefined;
+}
+
+/**
+ * What THIS account pays — which is not always what the plan row says.
+ *
+ * §14: an admin can flag a Vgen team account, and a flagged account buys at cost
+ * rather than at margin, because the credit comes back to us and there is no
+ * margin to take. Every price the app shows or charges goes through here, so
+ * that stays one decision in one place rather than a condition sprinkled across
+ * call sites — and so team purchases stay separable in the books. Their KIE cost
+ * is real; only the profit is zero, and a discount applied at the display layer
+ * would hide that.
+ *
+ * The seam is worth more than today's single branch: it is also where a coupon,
+ * a regional price or a grandfathered rate would go.
+ */
+export function effectiveUsd(plan: Plan, annual: boolean, account?: PricingAccount): number {
+  if (!account?.isTeam) return usdOf(plan, annual);
+  return monthlyCoins(plan) * (COIN_USD / MARGIN);
 }
 
 /** Coins per dollar — the number a shopper is really comparing. */
@@ -278,6 +303,7 @@ export function annualDiscountPct(plan: Plan): number {
 }
 
 /** Total charged today when the user picks the annual option. */
-export function annualTotalUsd(plan: Plan): number | null {
-  return plan.annualUsdPerMonth == null ? null : plan.annualUsdPerMonth * ANNUAL_MONTHS;
+export function annualTotalUsd(plan: Plan, account?: PricingAccount): number | null {
+  if (plan.annualUsdPerMonth == null) return null;
+  return effectiveUsd(plan, true, account) * ANNUAL_MONTHS;
 }

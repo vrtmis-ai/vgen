@@ -23,12 +23,15 @@ import {
   monthlyCoins,
   annualDiscountPct,
   annualTotalUsd,
+  effectiveUsd,
   estImages,
   estVideos,
   type Plan,
+  type PricingAccount,
 } from "../data/plans";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
+import type { Wallet } from "../data/wallet";
 
 const TAG_KEY = { test: "w_tag_test", gift: "w_tag_gift", popular: "w_tag_popular", best: "w_tag_best" } as const;
 
@@ -121,19 +124,22 @@ function CycleToggle({ cycle, onChange }: { cycle: Cycle; onChange: (c: Cycle) =
 }
 
 /** Price block — the one place monthly/annual actually diverges. */
-function Price({ plan, cycle }: { plan: Plan; cycle: Cycle }) {
+function Price({ plan, cycle, account }: { plan: Plan; cycle: Cycle; account?: PricingAccount | undefined }) {
   const { t, n, lang } = useI18n();
   const pct = lang === "fa" ? "٪" : "%";
   const annual = cycle === "annual" && plan.annualUsdPerMonth != null;
-  const perMonth = annual ? plan.annualUsdPerMonth! : plan.monthlyUsd;
-  const total = annualTotalUsd(plan);
+  // Every figure below goes through effectiveUsd rather than reading the plan
+  // row, so a team account sees cost price everywhere at once instead of in
+  // whichever spots someone remembered.
+  const perMonth = effectiveUsd(plan, annual, account);
+  const total = annualTotalUsd(plan, account);
   const off = annualDiscountPct(plan);
 
   return (
     <>
       {annual && off > 0 && (
         <div className="mb-1 text-[10.5px] text-ink3">
-          <s>{n(toman(plan.monthlyUsd))}</s> · {pct}
+          <s>{n(toman(effectiveUsd(plan, false, account)))}</s> · {pct}
           {n(off)} {t("pl_save")}
         </div>
       )}
@@ -157,7 +163,17 @@ function Price({ plan, cycle }: { plan: Plan; cycle: Cycle }) {
 }
 
 /** Big tiered plan — the money cards. */
-function PlanCard({ plan, cycle, current }: { plan: Plan; cycle: Cycle; current: boolean }) {
+function PlanCard({
+  plan,
+  cycle,
+  current,
+  account,
+}: {
+  plan: Plan;
+  cycle: Cycle;
+  current: boolean;
+  account?: PricingAccount | undefined;
+}) {
   const { t, n } = useI18n();
   return (
     <div
@@ -192,7 +208,7 @@ function PlanCard({ plan, cycle, current }: { plan: Plan; cycle: Cycle; current:
       <Estimates plan={plan} />
 
       <div className="border-t border-line pt-3">
-        <Price plan={plan} cycle={cycle} />
+        <Price plan={plan} cycle={cycle} account={account} />
         <button className="btn-accent mt-3 flex w-full items-center justify-center rounded-2xl py-3 text-[13.5px] font-bold" disabled={current}>
           {t(current ? "pl_current" : buyKey(plan, cycle))}
         </button>
@@ -202,7 +218,17 @@ function PlanCard({ plan, cycle, current }: { plan: Plan; cycle: Cycle; current:
 }
 
 /** Entry plan — compact grid cell. */
-function EntryCard({ plan, cycle, current }: { plan: Plan; cycle: Cycle; current: boolean }) {
+function EntryCard({
+  plan,
+  cycle,
+  current,
+  account,
+}: {
+  plan: Plan;
+  cycle: Cycle;
+  current: boolean;
+  account?: PricingAccount | undefined;
+}) {
   const { t, n } = useI18n();
   return (
     <div
@@ -223,7 +249,7 @@ function EntryCard({ plan, cycle, current }: { plan: Plan; cycle: Cycle; current
       </div>
       <Estimates plan={plan} compact />
       <div className="mt-0.5">
-        <Price plan={plan} cycle={cycle} />
+        <Price plan={plan} cycle={cycle} account={account} />
       </div>
       <button className="btn-accent mt-1 flex items-center justify-center rounded-xl py-2 text-[12px] font-bold" disabled={current}>
         {t(current ? "pl_current" : buyKey(plan, cycle))}
@@ -234,16 +260,16 @@ function EntryCard({ plan, cycle, current }: { plan: Plan; cycle: Cycle; current
 
 /* ============================================================ */
 export default function Plans({
-  coins,
+  wallet,
+  account,
   currentPlanId = null,
-  expiresAt = null,
   onBack,
 }: {
-  coins: number;
+  wallet: Wallet;
+  /** Drives cost-price display for flagged team accounts. */
+  account?: PricingAccount | undefined;
   /** null until the backend can tell us — do NOT fake an active plan here. */
   currentPlanId?: string | null;
-  /** epoch ms when the active plan runs out; null when there is no plan. */
-  expiresAt?: number | null;
   onBack: () => void;
 }) {
   const { t, n, lang } = useI18n();
@@ -261,8 +287,14 @@ export default function Plans({
   const main = PLANS.filter((p) => p.group === "main");
   const entry = PLANS.filter((p) => p.group === "entry");
 
+  // The date that matters is the next grant to expire, not "when the plan ends".
+  // A user can hold a plan bucket and a gift bucket at once, and the gift almost
+  // always burns first — which is the thing worth telling them about.
+  const nextExpiry = wallet.nextExpiry;
   const expiryLabel =
-    expiresAt != null ? new Date(expiresAt).toLocaleDateString(lang === "fa" ? "fa-IR" : "en-US", { day: "numeric", month: "long" }) : null;
+    nextExpiry != null
+      ? new Date(nextExpiry.at).toLocaleDateString(lang === "fa" ? "fa-IR" : "en-US", { day: "numeric", month: "long" })
+      : null;
 
   return (
     <div className="relative z-10 min-h-[100dvh] pt-4 pb-10">
@@ -279,15 +311,15 @@ export default function Plans({
           <span className="text-[12px] text-ink3">{current ? t("pl_this_month") : t("w_balance")}</span>
           <span className="flex items-center gap-2">
             <CoinMark size={17} className="text-ink2" />
-            <span className="text-[24px] font-semibold tabular-nums">{n(coins)}</span>
+            <span className="text-[24px] font-semibold tabular-nums">{n(wallet.spendable)}</span>
             <span className="text-[13px] text-ink2">{t("w_coins")}</span>
           </span>
         </div>
-        {current && (
+        {(current || expiryLabel) && (
           <div className="mt-2.5 flex items-center justify-between border-t border-line pt-2.5 text-[11px] text-ink2">
             <span className="flex items-center gap-1.5">
-              <CheckCircle size={12} weight="fill" className="text-accent" />
-              {current.name}
+              {current && <CheckCircle size={12} weight="fill" className="text-accent" />}
+              {current?.name}
             </span>
             {expiryLabel && (
               <span className="flex items-center gap-1.5">
@@ -321,7 +353,7 @@ export default function Plans({
       </div>
       <div ref={carRef} className="mb-7 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 no-scrollbar">
         {main.map((p) => (
-          <PlanCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} />
+          <PlanCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} account={account} />
         ))}
       </div>
 
@@ -329,7 +361,7 @@ export default function Plans({
       <div className="mb-2.5 px-4 text-[12.5px] text-ink2">{t("pl_entry_group")}</div>
       <div className="grid grid-cols-2 gap-3 px-4">
         {entry.map((p) => (
-          <EntryCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} />
+          <EntryCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} account={account} />
         ))}
       </div>
 

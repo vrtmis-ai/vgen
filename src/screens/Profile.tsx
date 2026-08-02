@@ -5,6 +5,7 @@ import { useFavorites } from "../lib/favorites";
 import { CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { useI18n } from "../lib/i18n";
+import type { Wallet } from "../data/wallet";
 import { useSession } from "../lib/session";
 
 function Row({ icon, label, value, onClick }: { icon: React.ReactNode; label: string; value?: string; onClick?: () => void }) {
@@ -25,21 +26,24 @@ function Row({ icon, label, value, onClick }: { icon: React.ReactNode; label: st
 }
 
 export default function Profile({
-  coins,
+  wallet,
   gens,
   onWallet,
   onGallery,
   onOpenModel,
 }: {
-  coins: number;
+  wallet: Wallet;
   gens: Generation[];
   onWallet: () => void;
   onGallery: () => void;
   onOpenModel: (familyId: string) => void;
 }) {
   const { t, n, lang, setLang } = useI18n();
-  const user = useSession();
-  const name = user.displayName || t("p_guest");
+  const session = useSession();
+  // `user` is present only when authed. App gates on that before rendering this
+  // screen, but the type is honest about it rather than assuming.
+  const user = session.user;
+  const name = user?.displayName || t("p_guest");
   const { favs } = useFavorites();
   const favFamilies = favs.map(getFamily).filter((f): f is Family => Boolean(f));
   const done = gens.filter((g) => g.status === "done").length;
@@ -49,7 +53,7 @@ export default function Profile({
       {/* header */}
       <div className="mb-6 flex items-center justify-between">
         <span className="t-h1">{t("p_title")}</span>
-        <CreditPill coins={coins} onClick={onWallet} />
+        <CreditPill coins={wallet.spendable} onClick={onWallet} />
       </div>
 
       {/* identity */}
@@ -62,7 +66,10 @@ export default function Profile({
         </span>
         <div>
           <div className="t-h2">{name}</div>
-          {user.username && <div className="ltr t-caption text-ink3">@{user.username}</div>}
+          {/* An @handle was a Telegram field. Identity is Google or a phone
+              number now, so show whichever the account actually signed in with. */}
+          {user?.emailNormalized && <div className="ltr t-caption text-ink3">{user.emailNormalized}</div>}
+          {user?.phoneE164 && <div className="ltr t-caption text-ink3">{user.phoneE164}</div>}
         </div>
       </div>
 
@@ -71,7 +78,7 @@ export default function Profile({
         {[
           { v: done, l: t("p_made") },
           { v: favFamilies.length, l: t("p_favs") },
-          { v: coins, l: t("p_coins") },
+          { v: wallet.spendable, l: t("p_coins") },
         ].map((s) => (
           <div key={s.l} className="rounded-card border border-line bg-card py-3.5 text-center">
             <div className="font-display text-[20px] font-semibold tabular-nums">{n(s.v)}</div>

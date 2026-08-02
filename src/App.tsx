@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getFamily, variantControls, type Variant, type ModelKind } from "./data/models";
 import type { InputMap, RefMap } from "./components/controls";
@@ -17,8 +17,10 @@ import Plans from "./screens/Plans";
 import Profile from "./screens/Profile";
 import Generate, { currentAspect } from "./screens/Generate";
 import Result from "./screens/Result";
+import { useSession } from "./lib/session";
+import { demoWallet } from "./data/wallet";
+import { useI18n } from "./lib/i18n";
 
-const DEMO_COINS = 1250;
 const TEMPLATE = FEATURED.find((f) => f.kind === "template");
 
 type Flow =
@@ -37,6 +39,13 @@ export default function App() {
   const [flow, setFlow] = useState<Flow>({ s: "none" });
   const [createOpen, setCreateOpen] = useState(false);
   const [gens, setGens] = useState<Generation[]>(loadGenerations);
+
+  const { t } = useI18n();
+  const session = useSession();
+  // Stand-in for GET /me. A wallet is grants, not a number — screens take the
+  // whole thing so that when the balance becomes real they read `spendable` and
+  // `nextExpiry` from the server instead of being rewired.
+  const wallet = useMemo(() => demoWallet(), []);
 
   useEffect(() => saveGenerations(gens), [gens]);
   useEffect(() => startKieRates(), []); // live KIE price table (cached 6h)
@@ -110,20 +119,42 @@ export default function App() {
     setFlow({ s: "result", gen, instant: false });
   }
 
+  // ---- signed-out and unknown ----
+  // Three states, not two. `loading` is a real frame the moment sign-in involves
+  // a network round trip, and painting "signed out" during it flashes a landing
+  // page at someone who is in fact signed in. The app had no concept of any of
+  // this: it rendered Home unconditionally and handed every screen a constant
+  // balance, so a visitor with no identity got the full product.
+  if (session.status === "loading") {
+    return <Shell>{null}</Shell>;
+  }
+  if (session.status === "anonymous") {
+    return (
+      <Shell>
+        {/* Placeholder, deliberately unstyled. The designed landing page —
+            models, capabilities, plans — belongs here. Flip DEMO_SIGNED_IN in
+            lib/session.ts to see it. */}
+        <div className="relative z-10 grid min-h-[100dvh] place-items-center px-8 text-center">
+          <div className="text-[15px] text-ink2">{t("auth_signed_out")}</div>
+        </div>
+      </Shell>
+    );
+  }
+
   // ---- full-screen flows (no bottom nav) ----
   if (flow.s === "wallet") {
     return (
       <Shell>
         {/* currentPlanId stays null until the backend can answer it — the
             screen renders the honest not-subscribed state meanwhile. */}
-        <Plans coins={DEMO_COINS} currentPlanId={null} onBack={goBack} />
+        <Plans wallet={wallet} account={session.user} currentPlanId={null} onBack={goBack} />
       </Shell>
     );
   }
   if (flow.s === "models") {
     return (
       <Shell>
-        <Models coins={DEMO_COINS} initialKind={flow.kind} onOpen={openModel} onWallet={openWallet} onBack={goBack} />
+        <Models wallet={wallet} initialKind={flow.kind} onOpen={openModel} onWallet={openWallet} onBack={goBack} />
       </Shell>
     );
   }
@@ -165,20 +196,20 @@ export default function App() {
         <AnimatePresence mode="wait">
           <motion.div key={tab} {...pageFade}>
             {tab === "home" && (
-              <Home coins={DEMO_COINS} onOpen={openModel} onModels={openModels} onCommunity={() => setTab("community")} onWallet={openWallet} onCreate={() => setCreateOpen(true)} />
+              <Home wallet={wallet} onOpen={openModel} onModels={openModels} onCommunity={() => setTab("community")} onWallet={openWallet} onCreate={() => setCreateOpen(true)} />
             )}
-            {tab === "community" && <Community coins={DEMO_COINS} onOpen={openModel} onWallet={openWallet} />}
+            {tab === "community" && <Community wallet={wallet} onOpen={openModel} onWallet={openWallet} />}
             {tab === "gallery" && (
               <Gallery
                 gens={gens}
-                coins={DEMO_COINS}
+                wallet={wallet}
                 onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
                 onBrowse={() => openModels()}
                 onWallet={openWallet}
               />
             )}
             {tab === "profile" && (
-              <Profile coins={DEMO_COINS} gens={gens} onWallet={openWallet} onGallery={() => setTab("gallery")} onOpenModel={openModel} />
+              <Profile wallet={wallet} gens={gens} onWallet={openWallet} onGallery={() => setTab("gallery")} onOpenModel={openModel} />
             )}
           </motion.div>
         </AnimatePresence>

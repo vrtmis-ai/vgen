@@ -7,6 +7,7 @@ import { CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { faNum, isVideoUrl } from "../lib/format";
 import { useI18n } from "../lib/i18n";
+import type { Wallet } from "../data/wallet";
 import { useImageFallback } from "../lib/useImageFallback";
 
 const TRENDS = ["Trending", "Cinematic", "Cyberpunk", "Portraits", "Product", "Anime", "3D"];
@@ -51,11 +52,11 @@ function PostCard({ p, i, onOpen }: { p: CommunityPost; i: number; onOpen: () =>
 }
 
 export default function Community({
-  coins,
+  wallet,
   onOpen,
   onWallet,
 }: {
-  coins: number;
+  wallet: Wallet;
   onOpen: (familyId: string, prompt?: string) => void;
   onWallet: () => void;
 }) {
@@ -65,7 +66,7 @@ export default function Community({
     <div className="relative z-10 px-4 pt-4">
       <div className="mb-4 flex items-center justify-between">
         <span className="text-[20px] font-semibold tracking-tight">{t("com_title")}</span>
-        <CreditPill coins={coins} onClick={onWallet} />
+        <CreditPill coins={wallet.spendable} onClick={onWallet} />
       </div>
 
       {/* trend chips */}

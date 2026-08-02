@@ -10,6 +10,7 @@ import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl, faNum } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { useI18n } from "../lib/i18n";
+import type { Wallet } from "../data/wallet";
 import { EASE_OUT, riseItem, riseParent } from "../lib/motion";
 
 const KIND_LABEL: Record<FeaturedItem["kind"], string> = { model: "New model", template: "Template", feature: "New" };
@@ -270,14 +271,14 @@ function FeedCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
 
 /* ============================================================ */
 export default function Home({
-  coins,
+  wallet,
   onOpen,
   onModels,
   onCommunity,
   onWallet,
   onCreate,
 }: {
-  coins: number;
+  wallet: Wallet;
   onOpen: (familyId: string, prompt?: string) => void;
   onModels: (kind?: ModelKind) => void;
   onCommunity: () => void;
@@ -296,7 +297,7 @@ export default function Home({
           <Logo size={26} animate />
           <span className="font-display text-[19px] font-semibold tracking-tight">Vgen</span>
         </div>
-        <CreditPill coins={coins} onClick={onWallet} />
+        <CreditPill coins={wallet.spendable} onClick={onWallet} />
       </div>
 
       {/* immersive hero + the signature prompt bar riding its edge */}

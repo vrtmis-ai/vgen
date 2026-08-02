@@ -3,6 +3,7 @@ import { ImagesSquare, CircleNotch } from "@phosphor-icons/react";
 import type { Generation } from "../lib/gallery";
 import { CreditPill } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
+import type { Wallet } from "../data/wallet";
 
 function GenCard({ g, i, onOpen }: { g: Generation; i: number; onOpen: () => void }) {
   const { t } = useI18n();
@@ -39,13 +40,13 @@ function GenCard({ g, i, onOpen }: { g: Generation; i: number; onOpen: () => voi
 
 export default function Gallery({
   gens,
-  coins,
+  wallet,
   onOpen,
   onBrowse,
   onWallet,
 }: {
   gens: Generation[];
-  coins: number;
+  wallet: Wallet;
   onOpen: (g: Generation) => void;
   onBrowse: () => void;
   onWallet: () => void;
@@ -55,7 +56,7 @@ export default function Gallery({
     <div className="relative z-10 px-4 pt-4">
       <div className="mb-5 flex items-center justify-between">
         <span className="text-[20px] font-semibold tracking-tight">{t("gal_title")}</span>
-        <CreditPill coins={coins} onClick={onWallet} />
+        <CreditPill coins={wallet.spendable} onClick={onWallet} />
       </div>
 
       {gens.length === 0 ? (

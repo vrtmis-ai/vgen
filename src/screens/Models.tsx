@@ -7,6 +7,7 @@ import { CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
 import { useI18n } from "../lib/i18n";
+import type { Wallet } from "../data/wallet";
 import { useImageFallback } from "../lib/useImageFallback";
 
 function Badge({ text }: { text: string }) {
@@ -54,13 +55,13 @@ function GridCard({ f, i, fav, onToggleFav, onOpen }: { f: Family; i: number; fa
 }
 
 export default function Models({
-  coins,
+  wallet,
   onOpen,
   onWallet,
   onBack,
   initialKind = "image",
 }: {
-  coins: number;
+  wallet: Wallet;
   onOpen: (familyId: string) => void;
   onWallet: () => void;
   onBack: () => void;
@@ -80,7 +81,7 @@ export default function Models({
           </button>
           <span className="t-h1">{t("mdl_title")}</span>
         </div>
-        <CreditPill coins={coins} onClick={onWallet} />
+        <CreditPill coins={wallet.spendable} onClick={onWallet} />
       </div>
 
       <div className="mb-4 flex gap-1.5 rounded-2xl bg-card2 p-1">
