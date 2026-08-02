@@ -74,7 +74,13 @@ export const PLANS: Plan[] = [
   // bonus raised 200 → 300: at 200 this plan gave FEWER coins per Toman than Pro
   // (22.22 vs 22.45), so doubling your spend bought you less. See assertLadder().
   { id: "studio", name: "Studio", coinsPerMonth: 2000, bonus: 300, tier: 3, monthlyUsd: 99, annualUsdPerMonth: 80, group: "main" },
-  { id: "creator", name: "Creator", coinsPerMonth: 3000, bonus: 450, tier: 3, monthlyUsd: 139, annualUsdPerMonth: 109, group: "main", tag: "best" },
+  // Bonus trimmed 450 → 350 (owner decision 2026-08-02). At 450 the annual cycle
+  // cleared only 1.264×, under the floor below; 100 coins out of 3450 is 2.9% to
+  // the user and lifts both cycles — annual to 1.301×, monthly to 1.660×. Chosen
+  // over raising the annual price because that would have pushed the single
+  // ZarinPal transaction from 222M to 230M Toman, and whether the gateway even
+  // accepts 222M is still an open question (HANDOFF §6).
+  { id: "creator", name: "Creator", coinsPerMonth: 3000, bonus: 350, tier: 3, monthlyUsd: 139, annualUsdPerMonth: 109, group: "main", tag: "best" },
 ];
 
 /** Total coins a plan grants each month. */
@@ -105,12 +111,26 @@ export function planMargin(plan: Plan, annual = false): number {
 }
 
 /**
- * Below this a sale stops paying for the generations it buys. 1.0 is break-even
- * on provider cost alone — before ZarinPal's cut, the 50-coin referral payout,
- * or the signup gift. Creator annual sits at 1.26×, so the headroom is thin and
- * a bonus bump is all it takes to cross.
+ * Floors a plan's margin may not fall below. Two numbers, not one.
+ *
+ * Margin is exactly `40 / coinsPerUsd`, which makes the ladder rule and the
+ * floor rule the same statement read in opposite directions: "a dearer plan must
+ * give more coins per dollar" IS "a dearer plan must earn a thinner margin". So
+ * the largest plan is always the binding one, and no plan can be repaired alone
+ * — pushing Creator's margin up past Studio's inverts the ladder.
+ *
+ * Annual is allowed to run leaner on purpose. It takes twelve months up front,
+ * carries no churn risk for a year, and its later months' unspent coins expire
+ * into profit. A single floor across both cycles was holding healthy monthly
+ * plans hostage to the thinnest annual one.
+ *
+ * 1.0 is break-even on provider cost alone — before ZarinPal's cut, the 50-coin
+ * referral payout, or the signup gift. And every margin here assumes the user
+ * burns their whole grant; at 70% usage Creator annual clears 1.86×, not 1.30×.
+ * The floor exists for the power user who really does spend it all.
  */
-export const MIN_PLAN_MARGIN = 1.25;
+export const MIN_PLAN_MARGIN_MONTHLY = 1.6;
+export const MIN_PLAN_MARGIN_ANNUAL = 1.3;
 
 /**
  * Everything that must stay true of the plan table, as a list of problems.
@@ -122,7 +142,7 @@ export const MIN_PLAN_MARGIN = 1.25;
  *     the plan costing twice as much was the worse deal in all three price
  *     columns, and nobody noticed because the cards show totals, not unit rates.
  *
- *  2. Every plan must clear MIN_PLAN_MARGIN. The ladder alone does not catch
+ *  2. Every plan must clear its cycle's margin floor. The ladder alone does not catch
  *     this: raising Creator's bonus to 1300 gives away $107.50 of KIE credit for
  *     $109 and still passes rule 1, because it stays above Studio's coins/$.
  *
@@ -152,9 +172,10 @@ export function auditPlans(): string[] {
     }
     for (const plan of ladder) {
       const m = planMargin(plan, annual);
-      if (m < MIN_PLAN_MARGIN) {
+      const floor = annual ? MIN_PLAN_MARGIN_ANNUAL : MIN_PLAN_MARGIN_MONTHLY;
+      if (m < floor) {
         problems.push(
-          `"${plan.id}" (${cycle}) clears only ${m.toFixed(3)}× — floor is ${MIN_PLAN_MARGIN}×. ` +
+          `"${plan.id}" (${cycle}) clears only ${m.toFixed(3)}× — floor is ${floor}×. ` +
             `${monthlyCoins(plan)} coins cost us $${(monthlyCoins(plan) * (COIN_USD / MARGIN)).toFixed(2)} ` +
             `against $${usdOf(plan, annual)} of revenue.`,
         );

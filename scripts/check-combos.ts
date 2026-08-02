@@ -95,7 +95,7 @@ async function main() {
   }
 
   // Plan-table invariants: the ladder must not invert, no plan may clear less
-  // than MIN_PLAN_MARGIN, and the estimate anchors must still have rates. The
+  // than its cycle's margin floor, and the estimate anchors must still have rates. The
   // ladder check used to run as a bare call during module evaluation, so a bad
   // edit threw before React mounted — a blank screen instead of a failed build.
   const planProblems = auditPlans();
