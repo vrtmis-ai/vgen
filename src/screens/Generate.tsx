@@ -88,15 +88,27 @@ export default function Generate({
   const { t, n } = useI18n();
   const [coverFailed, onCoverError] = useImageFallback();
   useKieRates(); // re-render when the live KIE price table (re)loads
-  // Two model families price off something other than their settings, and both
-  // read it from this one number: speech bills per 1000 characters of prompt,
-  // Motion Control bills per second of the clip the user attached. A model uses
-  // whichever of the two it declares an interest in; the rest ignore it.
-  const clipSeconds = refs.reduce(
-    (longest, s) => (s.media === "video" ? Math.max(longest, refImages[s.key]?.[0]?.duration ?? 0) : longest),
-    0,
-  );
-  const price = priceCoins(variant, input, clipSeconds > 0 ? clipSeconds : prompt.trim().length);
+  // Two model families price off something other than their settings: speech
+  // bills per 1000 characters of prompt, Motion Control per second of the
+  // attached clip. Both used to arrive through one argument, so this had to pick
+  // one and pass the other as a stand-in — and with no clip yet it passed the
+  // prompt's length, quoting Motion Control at 27 credits per character typed.
+  // They travel separately now; a model reads whichever it declares.
+  const chars = prompt.trim().length;
+  const videoFiles = refs.flatMap((s) => (s.media === "video" ? (refImages[s.key] ?? []) : []));
+  // KIE bills whole seconds and `duration` is a float, so round up: quoting a
+  // 7.36s clip at 7.36 × the per-second rate loses the fraction on every job.
+  const clipSeconds = videoFiles.reduce((longest, f) => Math.max(longest, Math.ceil(f.duration ?? 0)), 0);
+  const price = priceCoins(variant, input, { chars, clipSeconds });
+  // .mkv and iPhone HEVC .mov are both in the accept list and neither decodes
+  // reliably in a browser, so `duration` can come back undefined. On a per-second
+  // model that number *is* the price, and substituting anything for it sells a
+  // job at a made-up figure. Probe whether this model actually reads it — a
+  // first-frame clip on Wan is not priced by its length, and blocking there
+  // would be a dead button for no reason.
+  const clipUnreadable =
+    videoFiles.some((f) => f.duration == null) &&
+    priceCoins(variant, input, { chars, clipSeconds: 0 }) !== priceCoins(variant, input, { chars, clipSeconds: 1 });
   // No price means neither the live table nor the fallback has a rate — the
   // provider doesn't offer this combination at all (Hailuo 2.3 has no 1080P
   // at 10s). Selling it would take the user's coins for a job that can't run.
@@ -108,7 +120,12 @@ export default function Generate({
   // so requiring a prompt would leave their button permanently disabled.
   const wantsPrompt = !family.noPrompt;
   const canGenerate =
-    (!wantsPrompt || prompt.trim().length > 0) && !missingRequired && !orphan && !promptTooLong && price != null;
+    (!wantsPrompt || prompt.trim().length > 0) &&
+    !missingRequired &&
+    !orphan &&
+    !promptTooLong &&
+    !clipUnreadable &&
+    price != null;
 
   return (
     <div className="relative z-10 min-h-[100dvh] pb-32">
@@ -247,7 +264,7 @@ export default function Generate({
         >
           <Sparkle size={18} weight="fill" />
           <span>{t("g_create")}</span>
-          {price != null && (
+          {price != null && !clipUnreadable && (
             <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
               <CoinMark size={12} />
               {n(price)}
@@ -259,9 +276,11 @@ export default function Generate({
             ? `${t("g_need_also")} ${missingRequired.label}`
             : orphanNeeds
               ? `${t("g_need_also")} ${orphanNeeds.label}`
-              : price != null
-                ? `≈ ${n(price)} ${t("g_est_for")}`
-                : t("g_no_rate")}
+              : clipUnreadable
+                ? t("g_clip_unreadable")
+                : price != null
+                  ? `≈ ${n(price)} ${t("g_est_for")}`
+                  : t("g_no_rate")}
         </div>
       </div>
     </div>

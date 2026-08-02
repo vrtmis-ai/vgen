@@ -61,19 +61,29 @@ function TagChip({ plan }: { plan: Plan }) {
 
 function Estimates({ plan, compact }: { plan: Plan; compact?: boolean }) {
   const { t, n } = useI18n();
+  const images = estImages(plan);
+  const videos = estVideos(plan);
+  // Null means the anchor model lost its rate row. Drop that half of the line
+  // rather than printing a figure derived from nothing — and if both are gone,
+  // there is nothing honest left to say here.
+  if (images == null && videos == null) return null;
   return (
     <div className={`flex items-center gap-3 ${compact ? "text-[11px]" : "text-[12px]"} text-ink2`}>
-      <span className="flex items-center gap-1">
-        <ImageSquare size={compact ? 12 : 14} className="text-accent" />
-        {t("w_about")}
-        {n(estImages(plan))} {t("w_est_img")}
-      </span>
-      <span className="text-ink3">{t("w_est_or")}</span>
-      <span className="flex items-center gap-1">
-        <VideoCamera size={compact ? 12 : 14} className="text-accent" />
-        {t("w_about")}
-        {n(estVideos(plan))} {t("w_est_vid")}
-      </span>
+      {images != null && (
+        <span className="flex items-center gap-1">
+          <ImageSquare size={compact ? 12 : 14} className="text-accent" />
+          {t("w_about")}
+          {n(images)} {t("w_est_img")}
+        </span>
+      )}
+      {images != null && videos != null && <span className="text-ink3">{t("w_est_or")}</span>}
+      {videos != null && (
+        <span className="flex items-center gap-1">
+          <VideoCamera size={compact ? 12 : 14} className="text-accent" />
+          {t("w_about")}
+          {n(videos)} {t("w_est_vid")}
+        </span>
+      )}
     </div>
   );
 }

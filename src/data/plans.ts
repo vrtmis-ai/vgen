@@ -32,7 +32,7 @@
 // NOTE: enforcing renewals, expiry and tier access needs the backend; until then
 // the UI reads this file and the backend phase wires it up against the same data.
 
-import { coinsForKieCredits, COIN_USD, RATES_FALLBACK } from "./pricing";
+import { coinsForKieCredits, COIN_USD, MARGIN, RATES_FALLBACK } from "./pricing";
 import { FAMILIES } from "./models";
 import type { InputMap } from "../components/controls";
 
@@ -82,36 +82,91 @@ export function monthlyCoins(plan: Plan): number {
   return plan.coinsPerMonth + plan.bonus;
 }
 
+/** What this plan charges per month on the given cycle. */
+function usdOf(plan: Plan, annual: boolean): number {
+  return annual ? (plan.annualUsdPerMonth ?? plan.monthlyUsd) : plan.monthlyUsd;
+}
+
 /** Coins per dollar — the number a shopper is really comparing. */
 export function coinsPerUsd(plan: Plan, annual = false): number {
-  const usd = annual ? (plan.annualUsdPerMonth ?? plan.monthlyUsd) : plan.monthlyUsd;
-  return monthlyCoins(plan) / usd;
+  return monthlyCoins(plan) / usdOf(plan, annual);
 }
 
 /**
- * A price ladder must never invert: spending more must never buy fewer coins.
+ * What a plan actually earns against what its coins cost us to honour.
  *
- * This is not hypothetical — Studio shipped giving 22.22 coins/$ against Pro's
- * 22.45, so the plan that cost twice as much was the worse deal, in all three
- * price columns. Nobody noticed because the cards show totals, not unit rates.
- * Fail the build instead of quietly punishing the biggest spenders.
+ * `pricing.ts` charges MARGIN× on every job, but that is the margin on a coin at
+ * face value — and plans sell coins below face value. The discount comes
+ * straight off the top, so the blended number is the real one: Creator annual
+ * clears 1.26×, not the 2× the constant advertises.
  */
-function assertLadder(): void {
+export function planMargin(plan: Plan, annual = false): number {
+  return usdOf(plan, annual) / (monthlyCoins(plan) * (COIN_USD / MARGIN));
+}
+
+/**
+ * Below this a sale stops paying for the generations it buys. 1.0 is break-even
+ * on provider cost alone — before ZarinPal's cut, the 50-coin referral payout,
+ * or the signup gift. Creator annual sits at 1.26×, so the headroom is thin and
+ * a bonus bump is all it takes to cross.
+ */
+export const MIN_PLAN_MARGIN = 1.25;
+
+/**
+ * Everything that must stay true of the plan table, as a list of problems.
+ *
+ * Two rules:
+ *
+ *  1. The ladder must never invert — spending more must never buy fewer coins.
+ *     Not hypothetical: Studio shipped at 22.22 coins/$ against Pro's 22.45, so
+ *     the plan costing twice as much was the worse deal in all three price
+ *     columns, and nobody noticed because the cards show totals, not unit rates.
+ *
+ *  2. Every plan must clear MIN_PLAN_MARGIN. The ladder alone does not catch
+ *     this: raising Creator's bonus to 1300 gives away $107.50 of KIE credit for
+ *     $109 and still passes rule 1, because it stays above Studio's coins/$.
+ *
+ * This used to run — rule 1 only — as a bare call during module evaluation, so a
+ * bad edit threw before React mounted and produced the blank screen the
+ * ErrorBoundary exists to prevent and cannot catch. It reports instead of
+ * throwing, and `scripts/check-combos.ts` fails CI on a non-empty result.
+ */
+export function auditPlans(): string[] {
+  const problems: string[] = [];
   for (const annual of [false, true]) {
-    const ladder = PLANS.filter((p) => !annual || p.annualUsdPerMonth != null);
+    const cycle = annual ? "annual" : "monthly";
+    // Sort rather than trusting PLANS' order: appending a cheap plan at the end
+    // of the array is a natural edit and used to report a false inversion.
+    const ladder = PLANS.filter((p) => !annual || p.annualUsdPerMonth != null)
+      .slice()
+      .sort((a, b) => usdOf(a, annual) - usdOf(b, annual));
     for (let i = 1; i < ladder.length; i++) {
       const lo = ladder[i - 1]!;
       const hi = ladder[i]!;
       if (coinsPerUsd(hi, annual) < coinsPerUsd(lo, annual)) {
-        throw new Error(
-          `plan ladder inverts at "${hi.id}" (${annual ? "annual" : "monthly"}): ` +
+        problems.push(
+          `ladder inverts at "${hi.id}" (${cycle}): ` +
             `${coinsPerUsd(hi, annual).toFixed(2)} coins/$ vs "${lo.id}" ${coinsPerUsd(lo, annual).toFixed(2)}`,
         );
       }
     }
+    for (const plan of ladder) {
+      const m = planMargin(plan, annual);
+      if (m < MIN_PLAN_MARGIN) {
+        problems.push(
+          `"${plan.id}" (${cycle}) clears only ${m.toFixed(3)}× — floor is ${MIN_PLAN_MARGIN}×. ` +
+            `${monthlyCoins(plan)} coins cost us $${(monthlyCoins(plan) * (COIN_USD / MARGIN)).toFixed(2)} ` +
+            `against $${usdOf(plan, annual)} of revenue.`,
+        );
+      }
+    }
   }
+  // The anchors below feed every plan card's "≈N images / ≈N videos". They no
+  // longer throw when a rate disappears, so this is the only thing that notices.
+  if (COST_PER_IMAGE == null) problems.push(`pricing anchor "gpt-image-2" lost its rate — plan cards drop the image estimate`);
+  if (COST_PER_VIDEO5S == null) problems.push(`pricing anchor "kling-3" lost its rate — plan cards drop the video estimate`);
+  return problems;
 }
-assertLadder();
 
 /* ---- model access gating (owner-tunable, single source of truth) ----------
    tier 1 — everyday/economy models, every plan unlocks these
@@ -163,24 +218,31 @@ export function tierUnlockNames(tier: Tier): string[] {
 /* ---- "what can I make with this?" — derived from the real rate table ------
    anchors: a popular image (GPT Image 1K) and a popular video (Kling pro 5s).
    Derived, not hardcoded: repricing models updates every plan card. */
-/** Rates can be null now (combination not offered). An anchor going null is a
-    catalog mistake, so fail loudly instead of rendering NaN on every plan card. */
-function anchor(id: string, input: InputMap): number {
-  const credits = RATES_FALLBACK[id]?.(input, 0);
-  if (credits == null) throw new Error(`pricing anchor "${id}" no longer has a rate`);
-  return coinsForKieCredits(credits);
+/**
+ * Rates can be null (combination not offered), and an anchor going null means
+ * the catalog moved under us.
+ *
+ * This used to throw, which meant a catalog edit took the whole app down before
+ * React mounted — the same blank screen `auditPlans` was pulled out of module
+ * evaluation to avoid. It returns null instead: `auditPlans` reports it so CI
+ * fails, and the plan card drops that one estimate rather than showing a number
+ * derived from nothing.
+ */
+function anchor(id: string, input: InputMap): number | null {
+  const credits = RATES_FALLBACK[id]?.(input, { chars: 0, clipSeconds: 0 });
+  return credits == null ? null : coinsForKieCredits(credits);
 }
 
 export const COST_PER_IMAGE = anchor("gpt-image-2", { resolution: "1K" });
 export const COST_PER_VIDEO5S = anchor("kling-3", { mode: "pro", duration: 5, sound: false });
 
-/** Images per month on this plan (spending the whole grant on images). */
-export function estImages(plan: Plan): number {
-  return Math.floor(monthlyCoins(plan) / COST_PER_IMAGE);
+/** Images per month on this plan, or null if the anchor lost its rate. */
+export function estImages(plan: Plan): number | null {
+  return COST_PER_IMAGE == null ? null : Math.floor(monthlyCoins(plan) / COST_PER_IMAGE);
 }
-/** 5-second videos per month on this plan (spending the whole grant on video). */
-export function estVideos(plan: Plan): number {
-  return Math.floor(monthlyCoins(plan) / COST_PER_VIDEO5S);
+/** 5-second videos per month on this plan, or null if the anchor lost its rate. */
+export function estVideos(plan: Plan): number | null {
+  return COST_PER_VIDEO5S == null ? null : Math.floor(monthlyCoins(plan) / COST_PER_VIDEO5S);
 }
 
 /** Toman price for a USD amount (rounded to the nearest 1000). */

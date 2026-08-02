@@ -111,6 +111,7 @@ const dict = {
     g_create: "ساخت",
     g_est_for: "سکه برای این تنظیمات",
     g_no_rate: "این ترکیب تنظیمات پشتیبانی نمی‌شود",
+    g_clip_unreadable: "مدت این ویدیو خوانده نشد و قیمت از روی همان حساب می‌شود — با MP4 دوباره امتحان کن",
     g_need_input: "این مدل بدون تصویر ورودی کار نمی‌کند",
     g_need_also: "این را هم باید بدهی:",
     // result
@@ -237,6 +238,7 @@ const dict = {
     g_create: "Create",
     g_est_for: "coins for these settings",
     g_no_rate: "This combination of settings isn't supported",
+    g_clip_unreadable: "Couldn't read this video's length, and the price is based on it — try an MP4",
     g_need_input: "This model can't run without an input image",
     g_need_also: "You also need to provide:",
     r_result: "Result",

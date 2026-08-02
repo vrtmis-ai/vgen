@@ -984,13 +984,41 @@ export function variantMaxPrompt(family: Family, variant: Variant): number | nul
   return variant.maxPrompt ?? family.maxPrompt ?? null;
 }
 
-/** Default input object from a control list, ready to send to KIE. */
+/**
+ * Default input object from a control list, ready to send to KIE.
+ *
+ * `voice` and `text` used to fall through this chain. The voice picker renders
+ * `control.def` when it has no value, so a voice *looked* selected while
+ * `input.voice` stayed undefined until the user tapped a row — meaning every
+ * speech job created without touching the picker would have run on KIE's
+ * server-side default voice rather than the one on screen. Nothing surfaced it
+ * because `input` is not serialised anywhere yet.
+ *
+ * The exhaustive `switch` is the point: a new Control kind is now a compile
+ * error here instead of another silently missing field.
+ */
 export function defaultInput(controls: Control[]): Record<string, string | number | boolean> {
   const out: Record<string, string | number | boolean> = {};
   for (const c of controls) {
-    if (c.kind === "aspect" || c.kind === "segment") out[c.key] = c.def;
-    else if (c.kind === "slider") out[c.key] = c.asString ? String(c.def) : c.def;
-    else if (c.kind === "toggle") out[c.key] = c.def;
+    switch (c.kind) {
+      case "aspect":
+      case "segment":
+      case "toggle":
+      case "voice":
+        out[c.key] = c.def;
+        break;
+      case "slider":
+        out[c.key] = c.asString ? String(c.def) : c.def;
+        break;
+      case "text":
+        // The only kind with no `def` — an empty box is its default.
+        out[c.key] = "";
+        break;
+      default: {
+        const unhandled: never = c;
+        void unhandled;
+      }
+    }
   }
   return out;
 }
