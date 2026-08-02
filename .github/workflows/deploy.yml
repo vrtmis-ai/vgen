@@ -12,7 +12,11 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # False, matching GitHub's own Pages starter workflow. The group covers both
+  # jobs, so cancelling in progress can kill a live actions/deploy-pages run and
+  # leave the environment pointing at a half-published artifact — with a
+  # green-looking newer run right behind it.
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -21,8 +25,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
+          cache: npm
       - run: npm ci
+      # `build` runs typecheck first, which now covers scripts/ as well as src/.
+      # The pricing audits are deliberately NOT a deploy gate: they call KIE's
+      # live rate endpoint, and a flaky third-party network should not be able to
+      # block a deploy. Run them with `npm run check` before shipping a pricing
+      # change instead.
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

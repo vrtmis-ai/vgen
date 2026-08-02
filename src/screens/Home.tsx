@@ -17,7 +17,7 @@ const TOP = [...COMMUNITY].sort((a, b) => b.likes - a.likes);
 const TEMPLATE = FEATURED.find((f) => f.kind === "template");
 
 /* ---------- media ---------- */
-function HeroMedia({ family }: { family?: Family }) {
+function HeroMedia({ family }: { family?: Family | undefined }) {
   const cover = family?.cover;
   const [imgFailed, onImgError] = useImageFallback();
   return (
@@ -48,7 +48,7 @@ function HeroMedia({ family }: { family?: Family }) {
   );
 }
 
-function Still({ family }: { family?: Family }) {
+function Still({ family }: { family?: Family | undefined }) {
   const [failed, onError] = useImageFallback();
   const showImg = family?.cover && !isVideoUrl(family.cover) && !failed;
   return (

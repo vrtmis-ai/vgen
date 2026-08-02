@@ -13,9 +13,18 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    // An index or a record lookup can miss at runtime; without this TS types the
+    // result as if it never does. That is the class behind the `.remove()` crash
+    // and the reason `!` was hand-written in six places — this makes the check
+    // uniform instead of remembered.
+    "noUncheckedIndexedAccess": true,
+    // `{ prompt: undefined }` and `{}` are the same to TS without this and
+    // different to JSON.stringify. Worth having in place before any request body
+    // is written against these types.
+    "exactOptionalPropertyTypes": true
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

@@ -25,7 +25,11 @@ type Flow =
   | { s: "none" }
   | { s: "wallet" }
   | { s: "models"; kind: ModelKind }
-  | { s: "generate"; familyId: string; prompt?: string }
+  // `| undefined` on an optional field is not redundant under
+  // exactOptionalPropertyTypes: it is the difference between "the key may be
+  // absent" and "the key may be present holding undefined". openModel passes an
+  // optional argument straight through, so this one is genuinely the latter.
+  | { s: "generate"; familyId: string; prompt?: string | undefined }
   | { s: "result"; gen: Generation; instant: boolean };
 
 export default function App() {
@@ -70,7 +74,9 @@ export default function App() {
   const openTemplate = () => (TEMPLATE?.familyId ? openModel(TEMPLATE.familyId, TEMPLATE.prompt) : openModels());
   const markDone = (id: string) => setGens((p) => p.map((g) => (g.id === id ? { ...g, status: "done" } : g)));
 
-  function startGeneration(familyId: string, prompt: string, input: InputMap, variant: Variant, refs: RefMap) {
+  // `_refs` is deliberately unread — see the note below. Named with the
+  // underscore so the unused-parameter check stays on for everything else.
+  function startGeneration(familyId: string, prompt: string, input: InputMap, variant: Variant, _refs: RefMap) {
     const family = getFamily(familyId);
     if (!family) return;
     const aspect = currentAspect(variantControls(family, variant), input);

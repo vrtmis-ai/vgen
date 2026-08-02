@@ -40,8 +40,8 @@ export default function Generate({
   onGenerate,
 }: {
   family: Family;
-  initialVariantId?: string;
-  initialPrompt?: string;
+  initialVariantId?: string | undefined;
+  initialPrompt?: string | undefined;
   onBack: () => void;
   onGenerate: (prompt: string, input: InputMap, variant: Variant, refs: RefMap) => void;
 }) {

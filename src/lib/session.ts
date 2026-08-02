@@ -18,13 +18,17 @@ export type AuthProvider = "telegram" | "web" | "none";
 
 export interface Session {
   provider: AuthProvider;
+  // Each of these is `| undefined` on purpose. The host hands them over as
+  // fields that may be present and empty, so under exactOptionalPropertyTypes
+  // "absent" and "present but undefined" have to be the same thing here — and
+  // they will have to survive the same way through a JSON response later.
   /** Provider-scoped id — NOT our user id. Pairs with provider to identify. */
-  externalId?: string;
-  displayName?: string;
-  username?: string;
-  avatarUrl?: string;
+  externalId?: string | undefined;
+  displayName?: string | undefined;
+  username?: string | undefined;
+  avatarUrl?: string | undefined;
   /** Language the host reports, for defaulting the UI. */
-  locale?: string;
+  locale?: string | undefined;
 }
 
 interface TelegramUser {

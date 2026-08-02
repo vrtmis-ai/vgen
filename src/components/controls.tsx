@@ -181,7 +181,10 @@ export function ControlField({
   onChange,
 }: {
   control: Control;
-  value: InputValue;
+  /** Undefined when the key is missing from the input map — the pickers already
+   *  fall back to `control.def`, and saying so keeps the lookup honest now that
+   *  index access is checked. */
+  value: InputValue | undefined;
   onChange: (key: string, v: InputValue) => void;
 }) {
   switch (control.kind) {
@@ -283,8 +286,10 @@ export interface RefFile {
   /** object URL for the preview only; revoked as soon as the file is dropped */
   url: string;
   /** Seconds, for video and audio. Motion Control is billed per second of the
-   *  supplied clip, so its price cannot be quoted until this is known. */
-  duration?: number;
+   *  supplied clip, so its price cannot be quoted until this is known.
+   *  Explicitly `| undefined`: readDuration returns undefined for a file whose
+   *  metadata will not decode, and that is a different state from "not a clip". */
+  duration?: number | undefined;
 }
 
 /** Picked input files, keyed by RefSlot.key (the field name KIE expects). */
