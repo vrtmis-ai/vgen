@@ -1,9 +1,32 @@
 @import "tailwindcss";
+
+/* Fonts. All four are self-hosted and bundled — the Stitch export loaded every
+   one of them from the Google CDN, which is the exact failure this app already
+   fixed once: slow from Iran, and a blocked stylesheet dropped the UI to a
+   system font part-way through loading. Vazirmatn is the local woff2 set;
+   the other three come in as npm packages so Vite fingerprints and serves them
+   from our own origin.
+
+   `/wght.css` rather than the bare package name: it takes the weight axis only,
+   without the italic and optical-size axes nothing here uses. The subsets it
+   declares — cyrillic, greek, vietnamese — cost nothing at runtime because
+   fontsource splits them by `unicode-range`, so a Persian user downloads the
+   Arabic and latin faces and never touches the rest. They are emitted into
+   dist as separate files; they are not fetched. */
 @import "./fonts.css";
+@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource-variable/syne/wght.css";
+@import "@fontsource-variable/geist-mono/wght.css";
+
+/* The design system's source of truth. Every --vg-* value lives here and
+   nowhere else; the @theme block below only maps this app's existing token
+   names onto it. */
+@import "./design-system/tokens.css";
 
 /* ============================================================
-   Vgen design system — Ember: screaming orange on warm near-black
-   Tech-dark futuristic. Flat accent (no glow), layered warm surfaces.
+   Vgen — the app's token names, mapped onto the design system.
+   Values live in design-system/tokens.css. Nothing below defines a
+   colour; it renames one so existing markup keeps working.
    ============================================================ */
 /* `static` is load-bearing, not decoration. Tailwind v4 tree-shakes theme
    variables it cannot see used in scanned source, and this system is referenced
@@ -14,82 +37,111 @@
    colour at all. A design system's tokens must always exist; this block is ~35
    hand-written variables, so emitting all of them costs nothing. */
 @theme static {
-  /* SURFACE LADDER — every step is +8 RGB or more, because the old ladder wasn't
-     one. bg->surface used to be +4/+4/+3, below the perceptual threshold on a
-     phone, so two tokens rendered as the same colour. That fake ladder is why
-     the app compensated with 18 visible borders on Home alone: a card at
-     #16130f sat ~12 points off the canvas and could not separate on its own.
-     At these values a container separates by lightness and needs no border.
+  /* ── MAPPING LAYER ────────────────────────────────────────────────────────
+     Every value below is now a pointer into design-system/tokens.css. Nothing
+     here defines a colour; it renames one.
 
-     The Ember warmth now lives in the ladder instead of in a full-page gradient:
-     the R-B gap widens 3 -> 4 -> 6 -> 7 -> 11 as surfaces rise, so the higher a
-     surface sits the warmer it reads. Never introduce a cool/neutral grey here —
-     higgsfield's #1C1E20 and aicines' #1A1A24 are cool and would kill the brand. */
-  --color-bg: #0b0a09; /* page canvas, and the only full-bleed value */
-  --color-surface: #141110; /* chrome floating over the canvas: nav, sticky bars */
-  --color-card: #1d1917; /* elevation 1 — feed cards, rows, tiles, plan cards */
-  --color-card2: #272220; /* elevation 2 — things INSIDE a card: wells, chips */
-  --color-raised: #332c28; /* elevation 3 — sheets, popovers, .tile-raised top stop */
-  --color-elev3: var(--color-raised); /* deprecated alias — CreateSheet still uses bg-elev3 */
+     Why an alias layer instead of a rewrite: the app has ~40 screens' worth of
+     `bg-card`, `text-ink2`, `border-line` already written, and rewriting all of
+     them in one pass is how you end up half-migrated with a hex and a token
+     both describing the same colour — which the design system's own handoff
+     calls out as worse than either alone. Pointing the old names at the new
+     values means the whole app adopts the system at once, and components move
+     to the `.vg-*` classes one at a time with the screen still shipping.
+
+     Delete an entry here when its last call site is converted.
+     ──────────────────────────────────────────────────────────────────────── */
+
+  /* Surfaces. The new ladder is five steps on a true-black canvas; the old one
+     was five warm steps. Mapped by ROLE, not by lightness — the new system puts
+     cards at level 1 alongside content, where the old one had chrome there. */
+  --color-bg: var(--vg-canvas); /* #090909 — page canvas, OLED-true */
+  --color-surface: var(--vg-surface); /* #121212 — nav, sticky bars */
+  --color-card: var(--vg-surface); /* #121212 — feed cards, rows, tiles */
+  --color-card2: var(--vg-surface-raised); /* #191919 — things inside a card */
+  --color-raised: var(--vg-surface-overlay); /* #232323 — sheets, popovers */
+  --color-elev3: var(--color-raised); /* deprecated alias — CreateSheet uses bg-elev3 */
 
   /* Borders are now the exception, not the default. Three legitimate cases:
      line          — divider between rows of the SAME surface inside one card
      line-media    — edge of a tile whose interior is an image (lightness unknown)
      .hairline-t   — single top edge on chrome that floats over unknown content
      Anything already one ladder step from its parent must NOT be outlined. */
-  --color-line: rgba(255, 244, 230, 0.05);
-  --color-line2: rgba(255, 244, 230, 0.1);
-  --color-line-media: rgba(255, 255, 255, 0.08);
+  --color-line: var(--vg-border-subtle); /* .05 white */
+  --color-line2: var(--vg-border); /* .10 white */
+  --color-line-media: var(--vg-border);
 
-  /* ink — warm whites, contrast pushed past AA */
-  --color-ink: #f8f5f1;
-  --color-ink2: #c4bcb1;
+  /* ink. The new scale is off-white rather than warm-white, and it separates
+     "body copy" from "caption" where the old one ran them together. */
+  --color-ink: var(--vg-text); /* #F5F3EF — headings, primary */
+  --color-ink2: var(--vg-text-secondary); /* #E5E2E1 — body copy */
   /* was #8a8175 = 4.58:1 on the new card — technically AA but it carries 11px
      nav labels and the ghost label, where it failed in practice. ink3 is legal
      down to card2 and NEVER on `raised` (4.07:1 there) — use ink2 instead. */
-  --color-ink3: #9a9184;
-  --color-ink-invert: #0b0a09; /* text/icons on an ink-filled chip, toggle knob, slider */
+  --color-ink3: var(--vg-text-muted); /* #A8A29E — captions, metadata */
+  --color-ink-invert: var(--vg-canvas);
 
-  /* accent — Ember Orange: flat, loud, spent only on moments that matter.
-     Text ON orange is near-black (white fails AA on this hue).
-     BUDGET: <=3 solid fills and <=6 tints visible at once, per screen. The
-     accent means "commit", never "selected" — selected states are ink fills. */
-  --color-accent: #ff5c00;
-  --color-accent2: #f05400; /* pressed / filled */
-  --color-accent-tint: rgba(255, 92, 0, 0.14); /* objects <=44px */
-  --color-accent-wash: rgba(255, 92, 0, 0.07); /* anything larger — at panel scale 14% is a colour, not a tint */
+  /* accent — the system's orange. Two changes worth knowing about:
+     · the hex moved from #FF5C00 to #E95F18, deeper and less saturated;
+     · text ON the fill is now WHITE, not near-black. The system pairs the
+       fill with #FFFFFF and reserves --vg-primary-soft (#FFB598) for orange
+       used AS text, where the fill colour fails contrast at body sizes.
+     The scarcity rule survives the move and gets stricter: two orange elements
+     on one screen means one of them is wrong. */
+  --color-accent: var(--vg-primary); /* #E95F18 */
+  --color-accent2: var(--vg-primary-press); /* #C94E10 — pressed */
+  --color-accent-tint: var(--vg-primary-a20);
+  --color-accent-wash: var(--vg-primary-a10);
   --color-accent-soft: var(--color-accent-tint); /* deprecated alias */
-  --color-on-accent: #170b02;
+  --color-on-accent: var(--vg-text-on-primary); /* #FFFFFF */
+
+  /* Blue is new to this app and has no old name to map. It is the counterweight
+     the system is built around — orange means "act", blue means "know" — and it
+     is what keeps orange findable. Model badges, links, info, background tasks. */
+  --color-info: var(--vg-accent); /* #9DCAFF — blue as text/icon */
+  --color-info-fill: var(--vg-accent-strong); /* #1995F1 — blue as a fill */
+  --color-on-info: var(--vg-accent-deep); /* #002440 — text on that fill */
 
   /* semantic */
-  --color-success: #2ee6b6;
-  --color-danger: #ff6b6b;
+  --color-success: var(--vg-success);
+  --color-danger: var(--vg-danger);
 
-  --font-sans: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", "Vazirmatn", ui-sans-serif, sans-serif;
+  /* Type. --vg-font-ui flips to Vazirmatn under [dir="rtl"], so one token
+     serves both languages. Syne is the display face and has NO Arabic
+     coverage — see the note under html[lang] below. */
+  --font-sans: var(--vg-font-ui);
+  --font-display: var(--vg-font-display);
+  --font-mono: var(--vg-font-mono);
 
   /* FIVE radii, nothing else. Nesting rule: inner = outer minus the padding
      between them (a 20px card with 8px padding gives its child 12px). Never
      nest equal radii — concentric mismatch is the "slightly off" feeling. */
-  --radius-xs: 0.5rem; /* 8px  — badges, small chips, <=40px thumbnails */
-  --radius-md: 0.75rem; /* 12px — buttons, inputs, segments, list rows. Was 14px,
-                            a value none of the three references use, while 12px
-                            is the workhorse in all of them (higgsfield: 198 uses). */
-  --radius-card: 1.25rem; /* 20px — anything containing a picture */
-  --radius-bezel: 1.75rem; /* 28px — sheets, modals, the prompt bar */
-  --radius-pill: 999px;
+  --radius-xs: var(--vg-radius); /* 8px  — badges, small chips */
+  --radius-md: var(--vg-radius-md); /* 12px — inputs, small cards */
+  --radius-card: var(--vg-radius-lg); /* 16px — cards, buttons, nav (was 20px) */
+  --radius-bezel: var(--vg-radius-xl); /* 24px — bottom sheets (was 28px) */
+  --radius-pill: var(--vg-radius-full);
 
+  /* The system expresses depth as surface lightness and reserves shadow for
+     things that genuinely float — sheets and modals. These three survive only
+     because existing call sites reference them; prefer moving a component up a
+     ladder step over reaching for one of these. */
   --shadow-soft: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
-  --shadow-pop: 0 20px 50px -18px rgba(0, 0, 0, 0.6);
-  --shadow-lift: 0 10px 30px -12px rgba(0, 0, 0, 0.65);
+  --shadow-pop: var(--vg-shadow-modal);
+  --shadow-lift: var(--vg-shadow-sheet);
   /* was 0 14px 36px -16px rgba(255,92,0,0.45) — an orange glow spilling onto
      neighbouring surfaces under btn-accent, the FAB, the prompt-bar arrow and
      Profile's CTA. Four uncounted sources of ambient orange, and a coloured
      shadow none of the three references use — contradicting this file's own
      "flat accent (no glow)" header. Aliased so all four sites change at once. */
-  --shadow-accent: var(--shadow-lift);
+  /* The system DOES want a glow on the primary CTA — outer bloom plus a 1px
+     inner top highlight, so the button reads as a lit physical surface. That is
+     the opposite of the old "flat accent, no glow" rule, and it is deliberate:
+     this is a cinematic dark-room language, not a flat one. */
+  --shadow-accent: var(--vg-glow-primary);
 
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: var(--vg-ease-out);
+  --ease: var(--vg-ease);
 }
 
 :root {
@@ -99,8 +151,16 @@
   --nav-h: calc(64px + max(14px, env(safe-area-inset-bottom)));
 }
 
-/* English mode: Space Grotesk leads, Vazirmatn stays as fallback for any fa text */
-html[lang="en"] { --font-sans: "Space Grotesk", "Vazirmatn", ui-sans-serif, system-ui, sans-serif; }
+/* Language no longer needs a rule here. tokens.css flips --vg-font-ui from
+   Inter to Vazirmatn under [dir="rtl"] / :lang(fa), and --font-sans points at
+   that, so one token serves both scripts.
+
+   ⚠️ OPEN: Syne carries the display voice and has NO Arabic coverage, so every
+   Persian heading falls through to Vazirmatn. The chain works — Latin renders
+   Syne, Persian renders Vazirmatn — but it means the display *character* only
+   exists in English, on a Persian-first product. Either we find a Persian
+   display face, or Persian headings need their own treatment (heavier weight,
+   tighter measure) to carry the same presence. Not solved here. */
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
 

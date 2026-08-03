@@ -1,0 +1,303 @@
+/* ==========================================================================
+   VGen Design System — Design Tokens
+   Unified from the two Stitch projects:
+     · "Cinematic Noir"            (VGen Mobile Design System)
+     · "VGen Cinematic Creative"   (VGen AI Creative Workspace)
+
+   Single source of truth. Everything else (tailwind.config.js, components.css)
+   reads from here. Dark is the only mode — the product is a dark-room tool.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* ---------------------------------------------------------------------
+     1. SURFACES — tonal elevation ladder
+     In near-black, shadows are invisible; elevation is expressed as surface
+     lightness. Each step is a real level, not decoration.
+     --------------------------------------------------------------------- */
+  --vg-canvas:            #090909;  /* level 0 — page background, OLED-true  */
+  --vg-surface:           #121212;  /* level 1 — cards, inputs, content      */
+  --vg-surface-raised:    #191919;  /* level 2 — sheets, menus, popovers     */
+  --vg-surface-overlay:   #232323;  /* level 3 — active pills, hovered rows  */
+  --vg-surface-bright:    #353534;  /* level 4 — highest, rare               */
+
+  /* Translucent surfaces (glass). Pair with --vg-blur-*.
+     Two levels, as the Stitch screens had: docked chrome sits at 0.80 because
+     content scrolls *under* it and must not distract; a floating panel sits at
+     0.70 so you can actually see the blur doing its job. Above ~0.85 the
+     backdrop-filter is invisible and you have just built an opaque card. */
+  --vg-glass:             rgb(18 18 18 / 0.80);  /* docked: header, nav, sheet */
+  --vg-glass-panel:       rgb(18 18 18 / 0.70);  /* floating panel over media  */
+  --vg-glass-light:       rgb(255 255 255 / 0.05);
+  --vg-glass-faint:       rgb(255 255 255 / 0.02);
+  --vg-scrim:             rgb(0 0 0 / 0.60);
+
+  /* ---------------------------------------------------------------------
+     2. CONTENT — text and icons
+     Off-white, never pure #fff: less eye strain in a dark room.
+     --------------------------------------------------------------------- */
+  --vg-text:              #F5F3EF;  /* headings, primary content            */
+  --vg-text-secondary:    #E5E2E1;  /* body copy                            */
+  --vg-text-muted:        #A8A29E;  /* captions, metadata, placeholders     */
+  --vg-text-faint:        #6B6663;  /* disabled, timestamps                 */
+  --vg-text-on-primary:   #FFFFFF;  /* on the orange fill                   */
+
+  /* ---------------------------------------------------------------------
+     3. BRAND — "the spark"
+     Orange is a scalpel, not a paint roller. CTAs, active states, progress.
+     Never a large background area.
+     --------------------------------------------------------------------- */
+  --vg-primary:           #E95F18;  /* the one accent                       */
+  --vg-primary-hover:     #FF7A38;
+  --vg-primary-press:     #C94E10;
+  --vg-primary-soft:      #FFB598;  /* orange *text* on dark — passes AA    */
+  --vg-primary-dim:       #B83F0A;  /* deep, for gradient ends              */
+
+  /* Tinted washes — for glows, focus rings, subtle fills. */
+  --vg-primary-a05:       rgb(233 95 24 / 0.05);
+  --vg-primary-a10:       rgb(233 95 24 / 0.10);
+  --vg-primary-a20:       rgb(233 95 24 / 0.20);
+  --vg-primary-a40:       rgb(233 95 24 / 0.40);
+
+  /* ---------------------------------------------------------------------
+     3b. ACCENT — the cool counterweight
+     Carried over from the mobile system's `tertiary`. Orange means "act";
+     blue means "know". It cools the composition where a screen would
+     otherwise be entirely orange-on-black, and gives non-destructive
+     machine states a colour that isn't the CTA.
+
+     Use for: AI/model badges and capability tags, links, informational
+     banners, selected-but-not-primary state, background-task progress,
+     data-viz series alongside orange, ambient shadow on floating chrome.
+
+     Never for: the primary CTA, destructive actions, or anything that
+     competes with orange for "the action on this screen".
+     --------------------------------------------------------------------- */
+  --vg-accent:            #9DCAFF;  /* blue *text* and icons on dark — AA   */
+  --vg-accent-strong:     #1995F1;  /* fills, active blue chips             */
+  --vg-accent-deep:       #002440;  /* text on an --vg-accent-strong fill.
+                                       Stitch shipped #003257 here, but that
+                                       is 4.15:1 on the blue — it fails AA at
+                                       the 12px chip size. Darkened to 4.98:1. */
+  --vg-accent-a10:        rgb(25 149 241 / 0.10);
+  --vg-accent-a20:        rgb(25 149 241 / 0.20);
+  --vg-accent-a40:        rgb(25 149 241 / 0.40);
+
+  /* ---------------------------------------------------------------------
+     4. STATUS
+     --------------------------------------------------------------------- */
+  --vg-success:           #4ADE80;
+  --vg-warning:           #FBBF24;
+  --vg-danger:            #FFB4AB;
+  --vg-danger-bg:         #93000A;
+  --vg-info:              var(--vg-accent);
+
+  /* ---------------------------------------------------------------------
+     5. BORDERS — depth through fine lines, not shadows
+     Higher z-index gets a brighter edge. This is the "hardware" look.
+     --------------------------------------------------------------------- */
+  --vg-border:            rgb(255 255 255 / 0.10);  /* default              */
+  --vg-border-subtle:     rgb(255 255 255 / 0.05);  /* dividers, inner rows */
+  --vg-border-strong:     rgb(255 255 255 / 0.15);  /* elevated elements    */
+  --vg-border-primary:    var(--vg-primary);        /* focus, selected      */
+
+  /* ---------------------------------------------------------------------
+     6. TYPOGRAPHY
+     Three families, one job each:
+       Syne      — display/brand. Latin only; has no Arabic script coverage.
+       Inter     — Latin UI and body.
+       Vazirmatn — Persian UI and body. Also covers Latin digits acceptably.
+     `--vg-font-ui` flips per document direction; see [dir="rtl"] below.
+     --------------------------------------------------------------------- */
+  --vg-font-display:  'Syne', 'Vazirmatn', sans-serif;
+  --vg-font-latin:    'Inter', system-ui, sans-serif;
+  --vg-font-farsi:    'Vazirmatn', 'Noto Sans Arabic', sans-serif;
+  --vg-font-mono:     'Geist Mono', ui-monospace, 'SF Mono', monospace;
+  --vg-font-ui:       var(--vg-font-latin);
+
+  /* Type scale — mobile-first values; see @media below for desktop bumps. */
+  --vg-display-size:      40px;   --vg-display-lh:    1.15;  --vg-display-ls: -0.03em;
+  --vg-headline-size:     28px;   --vg-headline-lh:   1.25;  --vg-headline-ls: -0.02em;
+  --vg-title-size:        20px;   --vg-title-lh:      1.35;
+  --vg-body-lg-size:      16px;   --vg-body-lg-lh:    1.6;
+  --vg-body-size:         14px;   --vg-body-lh:       1.55;
+  --vg-label-size:        12px;   --vg-label-lh:      1.4;   --vg-label-ls:  0.02em;
+  --vg-caps-size:         11px;   --vg-caps-lh:       1;     --vg-caps-ls:   0.08em;
+
+  --vg-weight-regular:    400;
+  --vg-weight-medium:     500;
+  --vg-weight-semibold:   600;
+  --vg-weight-bold:       700;
+  --vg-weight-black:      800;
+
+  /* ---------------------------------------------------------------------
+     7. SPACING — 4px base unit
+     --------------------------------------------------------------------- */
+  --vg-space-1:   4px;
+  --vg-space-2:   8px;    /* stack-sm — tightly packed control panels       */
+  --vg-space-3:  12px;    /* gutter (mobile grid / gallery)                 */
+  --vg-space-4:  16px;    /* stack-md — the default rhythm                  */
+  --vg-space-6:  24px;    /* stack-lg                                       */
+  --vg-space-8:  32px;
+  --vg-space-12: 48px;
+  --vg-space-20: 80px;
+  --vg-space-30: 120px;   /* section-gap on desktop editorial pages         */
+
+  /* Page margin — steps up with viewport. Overridden in @media below. */
+  --vg-page-margin: 16px;
+  --vg-container-max: 1440px;
+
+  /* Fixed dimensions the design depends on. */
+  --vg-cta-height:      54px;   /* primary CTA — thumb-friendly              */
+  --vg-touch-min:       44px;   /* minimum tap target                        */
+  --vg-chip-height:     32px;
+  --vg-icon:            24px;
+  --vg-nav-height:      64px;
+  --vg-sidebar-width:  280px;
+
+  /* ---------------------------------------------------------------------
+     8. SHAPE — "soft-modern"
+     --------------------------------------------------------------------- */
+  --vg-radius-sm:   0.25rem;  /*  4px — tags, tiny controls                 */
+  --vg-radius:      0.5rem;   /*  8px — default, precise                    */
+  --vg-radius-md:   0.75rem;  /* 12px — inputs, small cards                 */
+  --vg-radius-lg:   1rem;     /* 16px — cards, buttons, nav bar             */
+  --vg-radius-xl:   1.5rem;   /* 24px — bottom sheets (top corners only)    */
+  --vg-radius-full: 9999px;   /* chips, avatars, FAB                        */
+
+  /* ---------------------------------------------------------------------
+     9. ELEVATION & LIGHT
+     --------------------------------------------------------------------- */
+  --vg-blur-sm:  12px;
+  --vg-blur:     20px;   /* the standard glass blur                         */
+  --vg-blur-lg:  40px;
+
+  /* Cinematic glow: outer bloom + a 1px inner top highlight, so the button
+     reads as a lit physical surface rather than a flat rectangle. */
+  --vg-glow-primary:
+    0 0 20px var(--vg-primary-a20),
+    inset 0 1px 0 rgb(255 255 255 / 0.20);
+  --vg-glow-primary-lg:
+    0 0 40px -10px var(--vg-primary-a40),
+    inset 0 1px 0 rgb(255 255 255 / 0.20);
+  --vg-glow-focus:
+    0 0 0 2px var(--vg-canvas),
+    0 0 0 4px var(--vg-primary-a40);
+
+  --vg-shadow-sheet:  0 -8px 40px rgb(0 0 0 / 0.60);
+  --vg-shadow-modal:  0 40px 100px -20px rgb(0 0 0 / 0.80);
+
+  --vg-glow-accent:
+    0 0 20px var(--vg-accent-a20),
+    inset 0 1px 0 rgb(255 255 255 / 0.20);
+
+  /* Ambient blue cast under floating chrome — the nav bar in the desktop
+     screens used this (`shadow-tertiary/10`). Reads as cold room light. */
+  --vg-shadow-ambient: 0 24px 60px -20px var(--vg-accent-a20);
+
+  /* Light leak — a faint orange reflection in the top corner of hero cards. */
+  --vg-light-leak: radial-gradient(
+    circle at 0% 0%, var(--vg-primary-a10) 0%, transparent 55%);
+
+  /* Cool leak — the blue counterpart, for informational or model-detail
+     panels that should read as machine rather than action. */
+  --vg-cool-leak: radial-gradient(
+    circle at 100% 0%, var(--vg-accent-a10) 0%, transparent 55%);
+
+  /* Media scrim — bottom-up fade so white type sits legibly over artwork. */
+  --vg-media-scrim: linear-gradient(
+    to top, rgb(0 0 0 / 0.85) 0%, rgb(0 0 0 / 0.35) 45%, transparent 100%);
+
+  /* ---------------------------------------------------------------------
+     10. MOTION
+     --------------------------------------------------------------------- */
+  --vg-ease:        cubic-bezier(0.32, 0.72, 0, 1);   /* the house curve    */
+  --vg-ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --vg-dur-fast:    120ms;
+  --vg-dur:         220ms;
+  --vg-dur-slow:    420ms;   /* sheet enter/exit                            */
+
+  /* ---------------------------------------------------------------------
+     11. Z-INDEX
+     --------------------------------------------------------------------- */
+  --vg-z-nav:       50;
+  --vg-z-sticky:    60;
+  --vg-z-scrim:     80;
+  --vg-z-sheet:     90;
+  --vg-z-toast:    100;
+}
+
+/* --------------------------------------------------------------------------
+   Direction-aware typography.
+   Persian needs a taller line-height: the script's ascenders and descenders
+   collide at the Latin defaults. Set dir="rtl" lang="fa" on <html>.
+   -------------------------------------------------------------------------- */
+[dir="rtl"],
+:root:lang(fa) {
+  --vg-font-ui:       var(--vg-font-farsi);
+  --vg-body-lh:       1.75;
+  --vg-body-lg-lh:    1.85;
+  --vg-headline-ls:   0;      /* negative tracking damages Persian joins    */
+  --vg-display-ls:    0;
+}
+
+/* --------------------------------------------------------------------------
+   Viewport steps. The type scale grows; the tokens' names do not.
+   -------------------------------------------------------------------------- */
+@media (min-width: 768px) {
+  :root {
+    --vg-page-margin:    24px;
+    --vg-display-size:   56px;
+    --vg-headline-size:  36px;
+    --vg-title-size:     22px;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --vg-page-margin:    64px;
+    --vg-display-size:   80px;
+    --vg-headline-size:  48px;
+    --vg-body-lg-size:   18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --vg-dur-fast: 1ms;
+    --vg-dur:      1ms;
+    --vg-dur-slow: 1ms;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+html {
+  background-color: var(--vg-canvas);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--vg-canvas);
+  color: var(--vg-text-secondary);
+  font-family: var(--vg-font-ui);
+  font-size: var(--vg-body-size);
+  line-height: var(--vg-body-lh);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--vg-primary-a40);
+  color: var(--vg-text);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--vg-glow-focus);
+  border-radius: var(--vg-radius);
+}
