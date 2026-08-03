@@ -9,7 +9,9 @@ import { pageFade } from "./lib/motion";
 import { FEATURED } from "./data/featured";
 import { Ambient, BottomNav, type NavKey } from "./components/chrome";
 import { CreateSheet } from "./components/CreateSheet";
+import Landing from "./screens/Landing";
 import Home from "./screens/Home";
+import { minCoinsForFamily } from "./data/pricing";
 import Models from "./screens/Models";
 import Community from "./screens/Community";
 import Gallery from "./screens/Gallery";
@@ -19,7 +21,6 @@ import Generate, { currentAspect } from "./screens/Generate";
 import Result from "./screens/Result";
 import { useSession } from "./lib/session";
 import { demoWallet } from "./data/wallet";
-import { useI18n } from "./lib/i18n";
 
 const TEMPLATE = FEATURED.find((f) => f.kind === "template");
 
@@ -40,7 +41,6 @@ export default function App() {
   const [createOpen, setCreateOpen] = useState(false);
   const [gens, setGens] = useState<Generation[]>(loadGenerations);
 
-  const { t } = useI18n();
   const session = useSession();
   // Stand-in for GET /me. A wallet is grants, not a number — screens take the
   // whole thing so that when the balance becomes real they read `spendable` and
@@ -129,16 +129,11 @@ export default function App() {
     return <Shell>{null}</Shell>;
   }
   if (session.status === "anonymous") {
-    return (
-      <Shell>
-        {/* Placeholder, deliberately unstyled. The designed landing page —
-            models, capabilities, plans — belongs here. Flip DEMO_SIGNED_IN in
-            lib/session.ts to see it. */}
-        <div className="relative z-10 grid min-h-[100dvh] place-items-center px-8 text-center">
-          <div className="text-[15px] text-ink2">{t("auth_signed_out")}</div>
-        </div>
-      </Shell>
-    );
+    // Not wrapped in Shell: the landing page is the one surface that is
+    // desktop-first and full-width, so it must not inherit the phone-shaped cap.
+    // onSignIn is a no-op stub until /auth/google and /auth/phone exist — the
+    // page is complete, the endpoints behind its buttons are not.
+    return <Landing onSignIn={() => {}} />;
   }
 
   // ---- full-screen flows (no bottom nav) ----
@@ -196,7 +191,7 @@ export default function App() {
         <AnimatePresence mode="wait">
           <motion.div key={tab} {...pageFade}>
             {tab === "home" && (
-              <Home wallet={wallet} onOpen={openModel} onModels={openModels} onCommunity={() => setTab("community")} onWallet={openWallet} onCreate={() => setCreateOpen(true)} />
+              <Home wallet={wallet} onOpen={openModel} onModels={openModels} onCommunity={() => setTab("community")} onWallet={openWallet} minPrice={minCoinsForFamily} />
             )}
             {tab === "community" && <Community wallet={wallet} onOpen={openModel} onWallet={openWallet} />}
             {tab === "gallery" && (

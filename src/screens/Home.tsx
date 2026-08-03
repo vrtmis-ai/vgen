@@ -1,228 +1,112 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, PlayCircle, CaretLeft, ImageSquare, VideoCamera, MagicWand, Heart, Sparkle } from "@phosphor-icons/react";
-import { getFamily, type Family, type ModelKind } from "../data/models";
-import { FEATURED, type FeaturedItem } from "../data/featured";
+import { motion } from "framer-motion";
+import { Star, CaretLeft } from "@phosphor-icons/react";
+import { FAMILIES, getFamily, type Family, type ModelKind } from "../data/models";
 import { COMMUNITY, type CommunityPost } from "../data/community";
-import { useFavorites } from "../lib/favorites";
-import { Logo, CreditPill } from "../components/chrome";
-import { VendorMark } from "../components/VendorMark";
-import { isVideoUrl, faNum } from "../lib/format";
+import { CreditPill } from "../components/chrome";
+import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { useI18n } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
-import { EASE_OUT, riseItem, riseParent } from "../lib/motion";
+import { riseItem, riseParent } from "../lib/motion";
 
-const KIND_LABEL: Record<FeaturedItem["kind"], string> = { model: "New model", template: "Template", feature: "New" };
-const TOP = [...COMMUNITY].sort((a, b) => b.likes - a.likes);
-const TEMPLATE = FEATURED.find((f) => f.kind === "template");
+/* Built from stitch-export/mobile/vgen-home-persian.html, measured rather than
+   eyeballed: hero 40/48 at weight 700, section headings 24 at 600, model cards
+   12px radius on a 12px pad and a 12px gutter, page margin 16.
+
+   Two deliberate departures, both because the export is a mockup and this is
+   the real app:
+
+   · The rating row ("۴٫۷ ★") is replaced by the model's starting price. We have
+     no ratings and inventing them would put a fabricated number on a purchase
+     decision; the price is real, and it is what a buyer actually needs there.
+   · The nav keeps this app's five destinations. The export's "پروژه‌ها" tab
+     has no screen behind it. */
 
 /* ---------- media ---------- */
-function HeroMedia({ family }: { family?: Family | undefined }) {
-  const cover = family?.cover;
-  const [imgFailed, onImgError] = useImageFallback();
-  return (
-    <>
-      <div className="absolute inset-0" style={{ background: family?.grad ?? "#1b1b22" }} />
-      {cover && isVideoUrl(cover) ? (
-        <video src={cover} autoPlay muted loop playsInline preload="metadata" className="absolute inset-0 h-full w-full object-cover" />
-      ) : cover && !imgFailed ? (
-        <motion.img
-          src={cover}
-          alt=""
-          initial={{ scale: 1.06 }}
-          animate={{ scale: 1.16 }}
-          transition={{ duration: 6, ease: "linear" }}
-          className="absolute inset-0 h-full w-full object-cover"
-          onError={onImgError}
-        />
-      ) : (
-        <motion.div
-          className="absolute inset-0"
-          style={{ background: "radial-gradient(60% 55% at 28% 22%, rgba(255,255,255,0.3), transparent 70%)" }}
-          initial={{ scale: 1, opacity: 0.5 }}
-          animate={{ scale: 1.35, opacity: 0.9 }}
-          transition={{ duration: 6, ease: "linear" }}
-        />
-      )}
-    </>
-  );
-}
-
-function Still({ family }: { family?: Family | undefined }) {
+function Cover({ family, className }: { family?: Family | undefined; className?: string }) {
   const [failed, onError] = useImageFallback();
-  const showImg = family?.cover && !isVideoUrl(family.cover) && !failed;
+  const cover = family?.cover;
   return (
-    <>
-      <div className="absolute inset-0" style={{ background: family?.grad ?? "#1b1b22" }} />
-      {showImg && (
-        <img src={family!.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={onError} />
-      )}
-    </>
+    <span className={`absolute inset-0 block ${className ?? ""}`}>
+      <span className="absolute inset-0 block" style={{ background: family?.grad ?? "var(--vg-surface-overlay)" }} />
+      {cover && isVideoUrl(cover) ? (
+        <video src={cover} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
+      ) : cover && !failed ? (
+        <img src={cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={onError} />
+      ) : null}
+    </span>
   );
 }
 
-/* ---------- immersive hero (full-bleed, swipeable, melts into the page) ---------- */
-function Hero({ items, onOpen }: { items: FeaturedItem[]; onOpen: (id: string, prompt?: string) => void }) {
-  const n = items.length;
-  // [index, direction] — direction drives the slide-in/out x offset.
-  const [[i, dir], setSlide] = useState<[number, number]>([0, 0]);
-  const go = useCallback((idx: number, d: number) => setSlide([((idx % n) + n) % n, d]), [n]);
-  const next = useCallback(() => setSlide(([p]) => [(p + 1) % n, 1]), [n]);
-  const prev = useCallback(() => setSlide(([p]) => [(p - 1 + n) % n, -1]), [n]);
-
-  // auto-advance; re-arms on every change so a manual swipe gets the full dwell
-  useEffect(() => {
-    const id = setTimeout(next, 4600);
-    return () => clearTimeout(id);
-  }, [i, next]);
-
-  // touch swipe — horizontal-dominant only, so vertical page scroll still works.
-  // `moved` guards the tap-to-open handler from firing at the end of a swipe.
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const moved = useRef(false);
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0]!;
-    startX.current = t.clientX;
-    startY.current = t.clientY;
-    moved.current = false;
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (Math.abs(e.touches[0]!.clientX - startX.current) > 12) moved.current = true;
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const t = e.changedTouches[0]!;
-    const dx = t.clientX - startX.current;
-    const dy = t.clientY - startY.current;
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) (dx < 0 ? next : prev)();
-  };
-
-  const item = items[i]!;
-  const f = item.familyId ? getFamily(item.familyId) : undefined;
-  const isVideo = f?.kind === "video";
-
-  return (
-    <div className="relative h-[min(46vh,390px)] w-full touch-pan-y overflow-hidden" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-      <AnimatePresence custom={dir}>
-        <motion.div
-          key={item.id}
-          custom={dir}
-          initial={{ opacity: 0, x: dir >= 0 ? 34 : -34 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: dir >= 0 ? -34 : 34 }}
-          transition={{ duration: 0.5, ease: EASE_OUT }}
-          className="absolute inset-0"
-        >
-          <HeroMedia family={f} />
-          {/* bar legibility up top; melt into the page at the bottom */}
-          <div className="absolute inset-x-0 top-0 h-24" style={{ background: "linear-gradient(to bottom, rgba(9,9,12,0.72), transparent)" }} />
-          <div className="absolute inset-x-0 bottom-0 h-44" style={{ background: "linear-gradient(to top, var(--color-bg), rgba(9,9,12,0.55) 46%, transparent)" }} />
-
-          {/* tap (not swipe) anywhere on the artwork to open the model */}
-          <button
-            onClick={() => {
-              if (moved.current) return; // was a swipe, not a tap
-              if (item.familyId) onOpen(item.familyId, item.prompt);
-            }}
-            aria-label={`${item.title} — بساز`}
-            className="absolute inset-0 text-right"
-          >
-            <span className="absolute right-4 top-[76px] flex items-center gap-1.5">
-              {isVideo && <PlayCircle size={18} weight="fill" className="text-white/90" />}
-              <span className="t-label rounded-full bg-white/12 px-2.5 py-1 text-white backdrop-blur-md">{KIND_LABEL[item.kind]}</span>
-            </span>
-            <span className="absolute inset-x-4 bottom-[76px] block">
-              <span className="mb-2 flex items-center gap-2">
-                {f && <VendorMark vendor={f.vendor} size={24} />}
-                <span className="t-caption text-white/70">{f?.vendor}</span>
-              </span>
-              <span className="t-display block text-white">{item.title}</span>
-              <span className="mt-1.5 flex items-center justify-between">
-                <span className="line-clamp-1 t-caption text-white/65">{item.subtitle}</span>
-                <span className="flex shrink-0 items-center gap-1 rounded-full bg-white/12 px-3 py-1.5 text-[12px] font-semibold text-white backdrop-blur-md">
-                  <HeroCta />
-                </span>
-              </span>
-            </span>
-          </button>
-        </motion.div>
-      </AnimatePresence>
-      {/* tappable pagination */}
-      <div className="absolute bottom-[52px] left-1/2 z-10 flex -translate-x-1/2 gap-2">
-        {items.map((_, idx) => (
-          <button
-            key={idx}
-            onClick={() => go(idx, idx > i ? 1 : -1)}
-            aria-label={`اسلاید ${idx + 1}`}
-            className="grid h-4 place-items-center"
-          >
-            <span className="h-1.5 rounded-full transition-all" style={{ width: idx === i ? 18 : 6, background: idx === i ? "var(--color-accent)" : "rgba(255,255,255,0.4)" }} />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function HeroCta() {
+/* ---------- header ------------------------------------------------------
+   Greeting at the inline start, logotype centred, credits at the end. The
+   logotype is absolutely positioned so it stays optically centred no matter
+   how long the user's name is. */
+function TopBar({ wallet, onWallet }: { wallet: Wallet; onWallet: () => void }) {
   const { t } = useI18n();
   return (
-    <>
-      {t("home_make")}
-      <ArrowRight size={13} weight="bold" className="rtl:-scale-x-100" />
-    </>
-  );
-}
-
-/* ---------- the signature: prompt bar ---------- */
-function PromptBar({ onCreate }: { onCreate: () => void }) {
-  const { t } = useI18n();
-  return (
-    <div className="relative z-10 -mt-10 px-4">
-      <button
-        onClick={onCreate}
-        className="flex w-full items-center gap-3 rounded-[22px] border border-line2 bg-card2/85 px-4 py-3.5 text-right backdrop-blur-xl transition-transform active:scale-[0.985]"
-        style={{ boxShadow: "var(--shadow-pop), 0 0 0 1px var(--color-accent-soft)" }}
-      >
-        <motion.span
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-accent"
-          style={{ background: "var(--color-accent-soft)" }}
-          animate={{ scale: [1, 1.08, 1] }}
-          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Sparkle size={17} weight="fill" />
-        </motion.span>
-        <span className="flex-1 text-[14.5px] text-ink2">{t("home_prompt")}</span>
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "var(--color-accent)", color: "var(--color-on-accent)", boxShadow: "var(--shadow-accent)" }}>
-          <ArrowRight size={16} weight="bold" className="rtl:-scale-x-100" />
+    <header
+      className="sticky top-0 z-20 flex items-center justify-between border-b px-4 py-3"
+      style={{ background: "var(--vg-glass)", backdropFilter: "blur(var(--vg-blur))", borderColor: "var(--vg-border-subtle)" }}
+    >
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full" style={{ background: "var(--vg-surface-overlay)" }}>
+          <span className="text-[15px] font-semibold" style={{ color: "var(--vg-text-muted)" }}>
+            و
+          </span>
         </span>
-      </button>
-    </div>
-  );
-}
-
-function KindChip({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="tile-raised flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-[12.5px] font-medium">
-      <span className="text-accent">{icon}</span>
-      {label}
-    </button>
-  );
-}
-
-/* ---------- editorial section header (fa title + latin ghost) ---------- */
-function SectionHeader({ title, en, onMore }: { title: string; en: string; onMore?: () => void }) {
-  const { t, lang } = useI18n();
-  return (
-    <div className="mb-3 flex items-baseline justify-between">
-      <div className="flex items-baseline gap-2">
-        <h2 className="t-h2">{title}</h2>
-        {lang === "fa" && <span className="t-label ltr text-ink3 opacity-70">{en}</span>}
+        <span className="text-[13px]" style={{ color: "var(--vg-text-secondary)" }}>
+          {t("home_greeting")}
+        </span>
       </div>
+
+      <span
+        className="pointer-events-none absolute start-1/2 -translate-x-1/2 text-[20px] font-extrabold tracking-tight rtl:translate-x-1/2"
+        style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+      >
+        VGen
+      </span>
+
+      <CreditPill coins={wallet.spendable} onClick={onWallet} />
+    </header>
+  );
+}
+
+/* ---------- hero --------------------------------------------------------
+   Typographic, not pictorial. The export leads with a small caps badge, one
+   very large line, and a two-line subtitle over empty canvas — the artwork
+   below carries the imagery, so the top of the page carries the claim. */
+function Hero() {
+  const { t } = useI18n();
+  return (
+    <motion.section variants={riseItem} className="px-4 pb-2 pt-10 text-center">
+      <span
+        className="inline-block rounded-pill px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em]"
+        style={{ background: "var(--vg-primary-a10)", color: "var(--vg-primary-soft)", fontFamily: "var(--vg-font-latin)" }}
+        lang="en"
+      >
+        Artificial Intelligence
+      </span>
+      <h1 className="mt-5 text-[40px] font-bold leading-[1.2]" style={{ color: "var(--vg-text)" }}>
+        {t("home_hero_title")}
+      </h1>
+      <p className="mx-auto mt-3 max-w-[34ch] text-[14px] leading-[1.85]" style={{ color: "var(--vg-text-muted)" }}>
+        {t("home_hero_sub")}
+      </p>
+    </motion.section>
+  );
+}
+
+function SectionHead({ title, onMore }: { title: string; onMore?: (() => void) | undefined }) {
+  const { t } = useI18n();
+  return (
+    <div className="mb-3 flex items-center justify-between px-4">
+      <h2 className="text-[24px] font-semibold" style={{ color: "var(--vg-text)" }}>
+        {title}
+      </h2>
       {onMore && (
-        <button onClick={onMore} className="flex items-center gap-0.5 t-caption text-ink3 active:scale-95">
-          {t("home_more")}
+        <button onClick={onMore} className="flex items-center gap-0.5 text-[13px] active:scale-95" style={{ color: "var(--vg-primary-soft)" }}>
+          {t("home_more_all")}
           <CaretLeft size={13} weight="bold" className="ltr:-scale-x-100" />
         </button>
       )}
@@ -230,42 +114,53 @@ function SectionHeader({ title, en, onMore }: { title: string; en: string; onMor
   );
 }
 
-/* ---------- trend + feed cards ---------- */
-function TrendCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
+/** A 16:9 clip with its duration stamped in the corner. */
+function RecentCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
   const f = getFamily(p.familyId);
+  const secs = 5 + (p.id.charCodeAt(p.id.length - 1) % 8); // stand-in until jobs carry a real duration
   return (
-    <button onClick={onOpen} aria-label={`ساخته با ${f?.name ?? "مدل"} — ${faNum(p.likes.toLocaleString("en-US"))} پسند`} className="relative h-[196px] w-[136px] shrink-0 overflow-hidden rounded-card border border-line text-right active:scale-[0.98] transition-transform">
-      <Still family={f} />
-      <div className="scrim-media" />
-      <div className="absolute left-2 top-2"><VendorMark vendor={f?.vendor ?? ""} size={18} /></div>
-      <div className="absolute inset-x-2.5 bottom-2.5 flex items-center gap-1 text-[11px] text-white/90">
-        <Heart size={12} weight="fill" className="text-accent" />
-        {faNum(p.likes.toLocaleString("en-US"))}
-      </div>
-    </button>
+    <motion.button
+      variants={riseItem}
+      onClick={onOpen}
+      className="relative aspect-video w-[248px] shrink-0 overflow-hidden rounded-md text-start active:scale-[0.98] transition-transform"
+    >
+      <Cover family={f} />
+      <span
+        className="absolute bottom-2 end-2 rounded-sm px-1.5 py-0.5 text-[11px] tabular-nums"
+        style={{ background: "var(--vg-scrim)", color: "var(--vg-text)", fontFamily: "var(--vg-font-mono)" }}
+      >
+        00:{String(secs).padStart(2, "0")}
+      </span>
+    </motion.button>
   );
 }
 
-function FeedCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
-  const f = getFamily(p.familyId);
+/** Square artwork, name, blurb, and what it costs to start. */
+function ModelCard({ f, price, onOpen }: { f: Family; price: number | null; onOpen: () => void }) {
+  const { t, n } = useI18n();
   return (
-    <motion.div variants={riseItem} className="mb-3 block w-full break-inside-avoid overflow-hidden rounded-card border border-line">
-      <div className="relative w-full" style={{ aspectRatio: `${p.w}/${p.h}` }}>
-        <Still family={f} />
-        <div className="scrim-media" />
-        <div className="absolute left-2.5 top-2.5"><VendorMark vendor={f?.vendor ?? ""} size={20} /></div>
-        <div className="absolute inset-x-2.5 bottom-2.5 text-right">
-          <div className="flex items-center justify-between text-[11px] text-white/80">
-            <span>@{p.author}</span>
-            <span className="flex items-center gap-1"><Heart size={11} weight="fill" className="text-accent" />{faNum(p.likes.toLocaleString("en-US"))}</span>
-          </div>
-          <p className="ltr mt-1 line-clamp-2 text-[11px] leading-snug text-white/85">{p.prompt}</p>
-        </div>
-      </div>
-      <button onClick={onOpen} className="flex w-full items-center justify-center gap-1.5 bg-card py-2.5 text-[12.5px] font-semibold text-accent active:scale-[0.98] transition-transform">
-        <MagicWand size={14} weight="fill" /> Remix
-      </button>
-    </motion.div>
+    <motion.button
+      variants={riseItem}
+      onClick={onOpen}
+      className="flex flex-col gap-3 rounded-md p-3 text-start active:scale-[0.98] transition-transform"
+      style={{ background: "var(--vg-surface-raised)" }}
+    >
+      <span className="relative block aspect-square w-full overflow-hidden rounded-md">
+        <Cover family={f} />
+      </span>
+      <span className="block">
+        <span className="block truncate text-[16px] font-bold" style={{ color: "var(--vg-text)" }} lang="en">
+          {f.name}
+        </span>
+        <span className="mt-0.5 block truncate text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
+          {f.blurb}
+        </span>
+      </span>
+      <span className="flex items-center gap-1 text-[13px]" style={{ color: "var(--vg-text-secondary)" }}>
+        <Star size={13} weight="fill" style={{ color: "var(--vg-primary)" }} />
+        {price == null ? t("home_price_na") : `${t("home_price_from")} ${n(price)}`}
+      </span>
+    </motion.button>
   );
 }
 
@@ -276,83 +171,47 @@ export default function Home({
   onModels,
   onCommunity,
   onWallet,
-  onCreate,
+  minPrice,
 }: {
   wallet: Wallet;
   onOpen: (familyId: string, prompt?: string) => void;
   onModels: (kind?: ModelKind) => void;
   onCommunity: () => void;
   onWallet: () => void;
-  onCreate: () => void;
+  /** Cheapest coin price this family can be run for, or null if unpriceable. */
+  minPrice: (f: Family) => number | null;
 }) {
   const { t } = useI18n();
-  const { favs } = useFavorites();
-  const favFamilies = favs.map(getFamily).filter((f): f is Family => Boolean(f));
+  const recent = [...COMMUNITY].sort((a, b) => b.likes - a.likes).slice(0, 6);
 
   return (
-    <div className="relative z-10">
-      {/* floating top bar, over the hero */}
-      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4">
-        <div className="flex items-center gap-2 text-ink">
-          <Logo size={26} animate />
-          <span className="font-display text-[19px] font-semibold tracking-tight">Vgen</span>
+    <motion.div
+      variants={riseParent}
+      initial="hidden"
+      animate="show"
+      className="relative z-10"
+      style={{ paddingBottom: "calc(var(--nav-h) + 16px)" }}
+    >
+      <TopBar wallet={wallet} onWallet={onWallet} />
+      <Hero />
+
+      <section className="mt-8">
+        <SectionHead title={t("home_recent")} onMore={onCommunity} />
+        <div className="flex gap-3 overflow-x-auto px-4 pb-1 no-scrollbar">
+          {recent.map((p) => (
+            <RecentCard key={p.id} p={p} onOpen={() => onOpen(p.familyId, p.prompt)} />
+          ))}
         </div>
-        <CreditPill coins={wallet.spendable} onClick={onWallet} />
-      </div>
+      </section>
 
-      {/* immersive hero + the signature prompt bar riding its edge */}
-      <Hero items={FEATURED} onOpen={onOpen} />
-      <PromptBar onCreate={onCreate} />
-
-      {/* kind chips */}
-      <div className="mt-3 flex gap-2 px-4">
-        <KindChip icon={<ImageSquare size={16} />} label={t("home_image")} onClick={() => onModels("image")} />
-        <KindChip icon={<VideoCamera size={16} />} label={t("home_video")} onClick={() => onModels("video")} />
-        <KindChip icon={<MagicWand size={16} />} label={t("home_template")} onClick={() => (TEMPLATE ? onOpen(TEMPLATE.familyId!, TEMPLATE.prompt) : onModels())} />
-      </div>
-
-      <div className="px-4 pt-8">
-        {/* favorites */}
-        {favFamilies.length > 0 && (
-          <div className="mb-7">
-            <SectionHeader title={t("home_shortcuts")} en="Shortcuts" />
-            <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 no-scrollbar">
-              {favFamilies.map((f) => (
-                <button key={f.id} onClick={() => onOpen(f.id)} className="flex shrink-0 items-center gap-2.5 rounded-2xl border border-line bg-card p-1.5 pe-3.5 active:scale-[0.97] transition-transform">
-                  <span className="relative h-9 w-9 overflow-hidden rounded-xl" style={{ background: f.grad }}>
-                    <span className="absolute bottom-0.5 right-0.5"><VendorMark vendor={f.vendor} size={15} /></span>
-                  </span>
-                  <span className="text-[12.5px] font-medium">{f.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* trends */}
-        <div className="mb-7">
-          <SectionHeader title={t("home_trending")} en="Trending" onMore={onCommunity} />
-          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 no-scrollbar">
-            {TOP.slice(0, 8).map((p) => (
-              <TrendCard key={p.id} p={p} onOpen={() => onOpen(p.familyId, p.prompt)} />
-            ))}
-          </div>
+      <section className="mt-9">
+        <SectionHead title={t("home_popular")} onMore={() => onModels()} />
+        <div className="grid grid-cols-2 gap-3 px-4 sm:grid-cols-3 lg:grid-cols-4">
+          {FAMILIES.slice(0, 8).map((f) => (
+            <ModelCard key={f.id} f={f} price={minPrice(f)} onOpen={() => onOpen(f.id)} />
+          ))}
         </div>
-
-        {/* for you */}
-        <div>
-          <SectionHeader title={t("home_foryou")} en="For you" onMore={onCommunity} />
-          <motion.div variants={riseParent} initial="hidden" animate="show" className="[column-fill:_balance] columns-2 gap-3">
-            {COMMUNITY.slice(0, 6).map((p) => (
-              <FeedCard key={p.id} p={p} onOpen={() => onOpen(p.familyId, p.prompt)} />
-            ))}
-          </motion.div>
-          <button onClick={onCommunity} className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-card border border-line bg-card py-3 text-[13px] font-medium active:scale-[0.99] transition-transform">
-            {t("home_see_community")}
-            <ArrowRight size={15} weight="bold" className="rtl:-scale-x-100" />
-          </button>
-        </div>
-      </div>
-    </div>
+      </section>
+    </motion.div>
   );
 }

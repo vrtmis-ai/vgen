@@ -17,3 +17,6 @@ HANDOFF.md
 
 # raw API responses from scripts/spike-kie.ts — may contain account details
 scripts/spike-out/
+
+# local-only: Stitch reference screens, served for side-by-side comparison
+public/_ref/

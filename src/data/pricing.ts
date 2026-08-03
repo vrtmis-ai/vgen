@@ -19,7 +19,7 @@
 // (KIE bills credits at $0.005 each) and converts to USD before the coin formula
 // sees it, so adding a second provider doesn't touch the coin economy.
 
-import type { Variant } from "./models";
+import { defaultInput, variantControls, type Family, type Variant } from "./models";
 import type { InputMap } from "../components/controls";
 import { findRate } from "../lib/kieRates";
 
@@ -309,6 +309,23 @@ export function priceCoins(variant: Variant, input: InputMap, ctx: PriceCtx = NO
   const usd = costUsdFor(variant, input, ctx);
   if (usd == null || !Number.isFinite(usd)) return null;
   return coinsFor(usd);
+}
+
+/**
+ * Cheapest this family can be run for, at each variant's own defaults.
+ *
+ * Home shows it where the mockup had a star rating: we have no ratings, and a
+ * fabricated one sits on a purchase decision. Null means every variant needs
+ * something we cannot know yet — Motion Control cannot be priced until a clip
+ * is attached — and the card says so rather than guessing.
+ */
+export function minCoinsForFamily(family: Family): number | null {
+  let best: number | null = null;
+  for (const v of family.variants) {
+    const p = priceCoins(v, defaultInput(variantControls(family, v)), NO_CTX);
+    if (p != null && (best == null || p < best)) best = p;
+  }
+  return best;
 }
 
 /** Small helper for rate tables: look up a setting value in a map with a fallback. */
