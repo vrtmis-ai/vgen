@@ -6,13 +6,11 @@ import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/ga
 import { startKieRates } from "./lib/kieRates";
 import { useSwipeBack } from "./lib/useSwipeBack";
 import { pageFade } from "./lib/motion";
-import { FEATURED } from "./data/featured";
-import { Ambient, BottomNav, SideNav, type NavKey } from "./components/chrome";
-import { CreateSheet } from "./components/CreateSheet";
+import { Ambient } from "./components/chrome";
+import { TopBar, type NavKey } from "./components/TopBar";
 import Landing from "./screens/Landing";
-import Home from "./screens/Home";
-import { minCoinsForFamily } from "./data/pricing";
 import Models from "./screens/Models";
+import Studio from "./screens/Studio";
 import Community from "./screens/Community";
 import Gallery from "./screens/Gallery";
 import Plans from "./screens/Plans";
@@ -22,11 +20,14 @@ import Result from "./screens/Result";
 import { useSession } from "./lib/session";
 import { demoWallet } from "./data/wallet";
 
-const TEMPLATE = FEATURED.find((f) => f.kind === "template");
+/** The nav is modality-first, so three of its five keys map straight onto a
+ *  catalog kind. The other two are surfaces, not kinds. */
+const STUDIO_KIND: Partial<Record<NavKey, ModelKind>> = { image: "image", video: "video", audio: "audio" };
 
 type Flow =
   | { s: "none" }
   | { s: "wallet" }
+  | { s: "profile" }
   | { s: "models"; kind: ModelKind }
   // `| undefined` on an optional field is not redundant under
   // exactOptionalPropertyTypes: it is the difference between "the key may be
@@ -36,9 +37,8 @@ type Flow =
   | { s: "result"; gen: Generation; instant: boolean };
 
 export default function App() {
-  const [tab, setTab] = useState<NavKey>("home");
+  const [tab, setTab] = useState<NavKey>("video");
   const [flow, setFlow] = useState<Flow>({ s: "none" });
-  const [createOpen, setCreateOpen] = useState(false);
   const [gens, setGens] = useState<Generation[]>(loadGenerations);
 
   const session = useSession();
@@ -80,7 +80,6 @@ export default function App() {
   const openModel = (familyId: string, prompt?: string) => navigate({ s: "generate", familyId, prompt });
   const openModels = (kind: ModelKind = "image") => navigate({ s: "models", kind });
   const openWallet = () => navigate({ s: "wallet" });
-  const openTemplate = () => (TEMPLATE?.familyId ? openModel(TEMPLATE.familyId, TEMPLATE.prompt) : openModels());
   const markDone = (id: string) => setGens((p) => p.map((g) => (g.id === id ? { ...g, status: "done" } : g)));
 
   // `_refs` is deliberately unread — see the note below. Named with the
@@ -146,6 +145,13 @@ export default function App() {
       </Shell>
     );
   }
+  if (flow.s === "profile") {
+    return (
+      <Shell>
+        <Profile wallet={wallet} gens={gens} onWallet={openWallet} onGallery={goBack} onOpenModel={openModel} />
+      </Shell>
+    );
+  }
   if (flow.s === "models") {
     return (
       <Shell>
@@ -184,42 +190,41 @@ export default function App() {
     );
   }
 
-  // ---- tabbed area ----
+  // ---- the nav'd area ----
+  // No sidebar and no bottom tab bar: one 44px row carries every destination,
+  // and the same row serves phone and desktop. See components/TopBar.
+  const studioKind = STUDIO_KIND[tab];
   return (
-    <Shell withNav>
-      <SideNav active={tab} onNav={setTab} onCreate={() => setCreateOpen(true)} coins={wallet.spendable} onWallet={openWallet} />
-      <div className="pb-28 md:pb-10">
-        <AnimatePresence mode="wait">
-          <motion.div key={tab} {...pageFade}>
-            {tab === "home" && (
-              <Home wallet={wallet} onOpen={openModel} onModels={openModels} onCommunity={() => setTab("community")} onWallet={openWallet} minPrice={minCoinsForFamily} />
-            )}
-            {tab === "community" && <Community wallet={wallet} onOpen={openModel} onWallet={openWallet} />}
-            {tab === "gallery" && (
-              <Gallery
-                gens={gens}
-                wallet={wallet}
-                onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
-                onBrowse={() => openModels()}
-                onWallet={openWallet}
-              />
-            )}
-            {tab === "profile" && (
-              <Profile wallet={wallet} gens={gens} onWallet={openWallet} onGallery={() => setTab("gallery")} onOpenModel={openModel} />
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      <BottomNav active={tab} onNav={setTab} onCreate={() => setCreateOpen(true)} />
-      <CreateSheet
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onImage={() => openModels("image")}
-        onVideo={() => openModels("video")}
-        onTemplate={openTemplate}
-        onAll={() => openModels()}
+    <Shell cap={false}>
+      <TopBar
+        active={tab}
+        onNav={setTab}
+        coins={wallet.spendable}
+        onWallet={openWallet}
+        onProfile={() => navigate({ s: "profile" })}
       />
+      <AnimatePresence mode="wait">
+        <motion.div key={tab} {...pageFade}>
+          {studioKind && (
+            <Studio
+              kind={studioKind}
+              gens={gens}
+              onGenerate={(family, variant, prompt, input) => startGeneration(family.id, prompt, input, variant, {})}
+              onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
+            />
+          )}
+          {tab === "explore" && <Community wallet={wallet} onOpen={openModel} onWallet={openWallet} />}
+          {tab === "gallery" && (
+            <Gallery
+              gens={gens}
+              wallet={wallet}
+              onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
+              onBrowse={() => openModels()}
+              onWallet={openWallet}
+            />
+          )}
+        </motion.div>
+      </AnimatePresence>
     </Shell>
   );
 }
@@ -227,22 +232,23 @@ export default function App() {
 /**
  * The frame every screen sits in.
  *
- * `max-w-[480px]` was a phone-shaped cap applied to every viewport, so a desktop
- * browser got a narrow column with dead gutters either side. It now only caps
- * below `md`; from there the sidebar takes 280px on the inline start and the
- * content fills what is left, up to the system's 1440px container.
- *
- * `withNav` is false for the full-screen flows (generate, result, plans) — they
- * are their own context and the rail would only offer a way to lose the work.
+ * `cap` holds the legacy 480px phone column. The full-screen flows — generate,
+ * result, plans, models, profile — were drawn against that width and still read
+ * as a phone layout stretched if it is removed, so they keep it until each is
+ * rebuilt against the new shell. The nav'd area passes `cap={false}`: its
+ * screens set their own width, and the top bar has to span the viewport for the
+ * layout to read as a desktop app at all.
  */
-function Shell({ children, withNav = false }: { children: React.ReactNode; withNav?: boolean }) {
+function Shell({ children, cap = true }: { children: React.ReactNode; cap?: boolean }) {
   return (
     <div className="relative min-h-[100dvh] bg-surface">
-      <Ambient />
-      <div
-        className={`relative mx-auto min-h-[100dvh] w-full max-w-[480px] md:max-w-none ${withNav ? "md:ps-[var(--vg-sidebar-width)]" : ""}`}
-      >
-        <div className="mx-auto w-full md:max-w-[var(--vg-container-max)]">{children}</div>
+      {/* Ambient rides with the capped phone column only. Its drifting orange
+          blobs read as depth behind a 480px card; behind a full-width tool they
+          read as a smudge, and they are the single most off-register thing
+          against a reference whose background is flat to the pixel. */}
+      {cap && <Ambient />}
+      <div className={`relative min-h-[100dvh] w-full ${cap ? "mx-auto max-w-[480px] overflow-hidden" : ""}`}>
+        {children}
       </div>
     </div>
   );

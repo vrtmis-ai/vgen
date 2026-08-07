@@ -155,6 +155,8 @@
   --vg-icon:            24px;
   --vg-nav-height:      64px;
   --vg-sidebar-width:  280px;
+  --vg-top-bar:         44px;   /* the whole chrome — one row, no rail       */
+  --vg-form-panel:     320px;   /* the create panel; canvas takes the rest   */
 
   /* ---------------------------------------------------------------------
      8. SHAPE — "soft-modern"
