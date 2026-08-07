@@ -314,6 +314,11 @@ input[type="range"]::-webkit-slider-thumb {
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
 }
 
+/* Banner media fade. A linear-gradient along the inline axis has no logical
+   direction, so `dir="rtl"` will not mirror it — the flip has to be written. */
+.vg-banner-fade { background: linear-gradient(to right, var(--vg-surface), transparent 55%); }
+[dir="rtl"] .vg-banner-fade { background: linear-gradient(to left, var(--vg-surface), transparent 55%); }
+
 /* A row that is meant to scroll sideways but must not show a bar doing it.
    The nav lives inside a 44px chrome element, where a scrollbar reads as a
    rendering fault rather than an affordance. Scrolling still works by wheel,

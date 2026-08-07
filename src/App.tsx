@@ -11,7 +11,7 @@ import { TopBar, type NavKey } from "./components/TopBar";
 import Landing from "./screens/Landing";
 import Models from "./screens/Models";
 import Studio from "./screens/Studio";
-import Community from "./screens/Community";
+import Explore from "./screens/Explore";
 import Gallery from "./screens/Gallery";
 import Plans from "./screens/Plans";
 import Profile from "./screens/Profile";
@@ -213,7 +213,7 @@ export default function App() {
               onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
             />
           )}
-          {tab === "explore" && <Community wallet={wallet} onOpen={openModel} onWallet={openWallet} />}
+          {tab === "explore" && <Explore onOpen={openModel} onNav={setTab} onWallet={openWallet} />}
           {tab === "gallery" && (
             <Gallery
               gens={gens}
