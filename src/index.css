@@ -23,6 +23,14 @@
    names onto it. */
 @import "./design-system/tokens.css";
 
+/* The component layer — .vg-btn, .vg-card, .vg-nav, .vg-sheet and the rest.
+   It was copied in with the tokens and then never imported, so all fifty
+   classes sat in the repo doing nothing.
+   `layer(components)` is load-bearing: unlayered CSS outranks every Tailwind
+   utility, so without it `class="vg-btn px-8"` would silently lose its padding.
+   Inside the layer, utilities win — which is the whole point of having both. */
+@import "./design-system/components.css" layer(components);
+
 /* ============================================================
    Vgen — the app's token names, mapped onto the design system.
    Values live in design-system/tokens.css. Nothing below defines a

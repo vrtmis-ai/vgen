@@ -7,7 +7,7 @@ import { startKieRates } from "./lib/kieRates";
 import { useSwipeBack } from "./lib/useSwipeBack";
 import { pageFade } from "./lib/motion";
 import { FEATURED } from "./data/featured";
-import { Ambient, BottomNav, type NavKey } from "./components/chrome";
+import { Ambient, BottomNav, SideNav, type NavKey } from "./components/chrome";
 import { CreateSheet } from "./components/CreateSheet";
 import Landing from "./screens/Landing";
 import Home from "./screens/Home";
@@ -186,8 +186,9 @@ export default function App() {
 
   // ---- tabbed area ----
   return (
-    <Shell>
-      <div className="pb-28">
+    <Shell withNav>
+      <SideNav active={tab} onNav={setTab} onCreate={() => setCreateOpen(true)} coins={wallet.spendable} onWallet={openWallet} />
+      <div className="pb-28 md:pb-10">
         <AnimatePresence mode="wait">
           <motion.div key={tab} {...pageFade}>
             {tab === "home" && (
@@ -223,11 +224,26 @@ export default function App() {
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+/**
+ * The frame every screen sits in.
+ *
+ * `max-w-[480px]` was a phone-shaped cap applied to every viewport, so a desktop
+ * browser got a narrow column with dead gutters either side. It now only caps
+ * below `md`; from there the sidebar takes 280px on the inline start and the
+ * content fills what is left, up to the system's 1440px container.
+ *
+ * `withNav` is false for the full-screen flows (generate, result, plans) — they
+ * are their own context and the rail would only offer a way to lose the work.
+ */
+function Shell({ children, withNav = false }: { children: React.ReactNode; withNav?: boolean }) {
   return (
-    <div className="relative mx-auto min-h-[100dvh] max-w-[480px] overflow-hidden bg-surface">
+    <div className="relative min-h-[100dvh] bg-surface">
       <Ambient />
-      {children}
+      <div
+        className={`relative mx-auto min-h-[100dvh] w-full max-w-[480px] md:max-w-none ${withNav ? "md:ps-[var(--vg-sidebar-width)]" : ""}`}
+      >
+        <div className="mx-auto w-full md:max-w-[var(--vg-container-max)]">{children}</div>
+      </div>
     </div>
   );
 }
