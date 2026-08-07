@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Plus, Minus, Sparkle, PencilSimple } from "@phosphor-icons/react";
+import { Plus, Minus, Sparkle, PencilSimple, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut } from "@phosphor-icons/react";
 import { FAMILIES, type Family, type Variant } from "../data/models";
 import type { InputMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, type ChipControl } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
 import { EXPLORE } from "../data/explore";
 import { CoinMark } from "../components/chrome";
+import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
 import { useI18n } from "../lib/i18n";
 
 /* ---------------------------------------------------------------------------
@@ -93,25 +94,74 @@ function chipOptions(c: ChipControl) {
       : c.options.map((o) => ({ value: o.value as string | number, label: o.label }));
 }
 
+/** The hover stack the reference puts on every tile: favourite, download,
+ *  recreate, enlarge. Before this the tile did nothing at all — the thing the
+ *  user paid for was a picture you could look at and not act on. */
+function TileActions({ onOpen, onDownload }: { onOpen: () => void; onDownload: () => void }) {
+  const stop = (fn: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    fn();
+  };
+  return (
+    <div
+      className="absolute top-1.5 flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+      style={{ insetInlineEnd: "0.375rem" }}
+    >
+      {[
+        { Icon: Heart, label: "پسندیدن", on: () => {} },
+        { Icon: DownloadSimple, label: "دانلود", on: onDownload },
+        { Icon: ArrowsClockwise, label: "دوباره بساز", on: () => {} },
+        { Icon: ArrowsOut, label: "بزرگ کن", on: onOpen },
+      ].map(({ Icon, label, on }) => (
+        <button
+          key={label}
+          aria-label={label}
+          title={label}
+          onClick={stop(on)}
+          className="grid size-7 place-items-center rounded-lg backdrop-blur-md"
+          style={{ background: "rgba(0,0,0,0.55)", color: "var(--vg-text)" }}
+        >
+          <Icon size={13} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function StudioImage({
   gens,
   onGenerate,
-  onOpen,
+  onOpenModel,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
-  onOpen: (g: Generation) => void;
+  onOpenModel: (familyId: string, prompt?: string) => void;
 }) {
   const { n } = useI18n();
   const families = FAMILIES.filter((f) => f.kind === "image");
   const s = useCreateState(families);
   const [count, setCount] = useState(1);
   const [pickModel, setPickModel] = useState(false);
+  const [viewing, setViewing] = useState<ViewerAsset | null>(null);
 
   const mine = gens.filter((g) => g.kind === "image");
   // Until the user has a library, the seeded examples stand in for one — an
   // empty wall would leave the dock floating over nothing.
-  const wall = mine.length > 0 ? mine.map((g) => ({ key: g.id, seed: g.id, gen: g })) : EXPLORE.map((e) => ({ key: e.id, seed: e.seed, gen: null }));
+  const wall: ViewerAsset[] =
+    mine.length > 0
+      ? mine.map((g) => ({ id: g.id, url: g.outputUrl ?? art(g.id), prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h, createdAt: g.createdAt }))
+      : EXPLORE.map((e) => ({ id: e.id, url: art(e.seed), prompt: e.prompt, familyId: e.familyId, w: 1152, h: 1536 }));
+
+  // No blob, no fetch: the asset is a remote URL and `download` on an anchor is
+  // the whole mechanism. It becomes a real save once outputs live in our own
+  // storage and the response carries Content-Disposition.
+  const download = (a: ViewerAsset) => {
+    const el = document.createElement("a");
+    el.href = a.url;
+    el.download = `vgen-${a.id}.jpg`;
+    el.rel = "noopener";
+    el.click();
+  };
 
   return (
     <div className="relative">
@@ -121,16 +171,31 @@ export default function StudioImage({
           hanging in empty space, which is not what the layout is. */}
       <div className="grid grid-cols-3 gap-px pb-[280px] sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
         {Array.from({ length: 42 }, (_, i) => wall[i % wall.length]!).map((w, i) => (
-          <button
-            key={`${w.key}-${i}`}
-            onClick={() => w.gen && onOpen(w.gen)}
-            className="relative block aspect-[3/4] overflow-hidden"
+          <div
+            key={`${w.id}-${i}`}
+            className="group relative block aspect-[3/4] overflow-hidden"
             style={{ background: "var(--vg-surface)" }}
           >
-            <img src={art(`${w.seed}-${i}`)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-          </button>
+            <button onClick={() => setViewing(w)} className="absolute inset-0" aria-label="باز کردن">
+              <img src={art(`${w.id}-${i}`)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+              <span className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.25)" }} />
+            </button>
+            <TileActions onOpen={() => setViewing(w)} onDownload={() => download(w)} />
+          </div>
         ))}
       </div>
+
+      {viewing && (
+        <AssetViewer
+          asset={viewing}
+          onClose={() => setViewing(null)}
+          onOpenModel={(id, prompt) => {
+            setViewing(null);
+            onOpenModel(id, prompt);
+          }}
+          onDownload={download}
+        />
+      )}
 
       {/* The dock. Fixed, centred, glass. */}
       <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-3">

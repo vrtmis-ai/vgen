@@ -221,7 +221,7 @@ export default function App() {
             <StudioImage
               gens={gens}
               onGenerate={(family, variant, prompt, input) => startGeneration(family.id, prompt, input, variant, {})}
-              onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
+              onOpenModel={openModel}
             />
           )}
           {tab === "audio" && (
