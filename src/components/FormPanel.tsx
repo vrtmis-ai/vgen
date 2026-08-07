@@ -1,14 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { CaretLeft, Image as ImageIcon, MusicNote, VideoCamera, Sparkle, PencilSimple } from "@phosphor-icons/react";
-import {
-  defaultInput,
-  variantControls,
-  type Control,
-  type Family,
-  type Variant,
-} from "../data/models";
+import { type Family, type Variant } from "../data/models";
 import type { InputMap } from "./controls";
-import { priceCoins } from "../data/pricing";
+import { useCreateState, valueLabel, sliderSteps } from "../lib/useCreateState";
 import { useI18n } from "../lib/i18n";
 import { CoinMark } from "./chrome";
 import { useImageFallback } from "../lib/useImageFallback";
@@ -37,28 +31,8 @@ import { useImageFallback } from "../lib/useImageFallback";
    direction-specific rule.
    --------------------------------------------------------------------------- */
 
-type ChipControl = Extract<Control, { kind: "aspect" | "segment" | "toggle" | "slider" }>;
-
-function chipControls(controls: Control[]): ChipControl[] {
-  return controls.filter(
-    (c): c is ChipControl =>
-      !("advanced" in c && c.advanced) &&
-      (c.kind === "aspect" || c.kind === "segment" || c.kind === "toggle" || c.kind === "slider"),
-  );
-}
-
-function valueLabel(c: ChipControl, input: InputMap): string {
-  const v = input[c.key];
-  if (c.kind === "toggle") return v ? "روشن" : "خاموش";
-  if (c.kind === "slider") return `${v}${c.unit ? ` ${c.unit}` : ""}`;
-  return c.options.find((o) => o.value === String(v))?.label ?? String(v ?? c.def);
-}
-
-function sliderSteps(c: Extract<Control, { kind: "slider" }>): number[] {
-  const out: number[] = [];
-  for (let v = c.min; v <= c.max + 1e-9; v += c.step) out.push(Number(v.toFixed(4)));
-  return out.length > 8 ? out.filter((_, i) => i % Math.ceil(out.length / 8) === 0) : out;
-}
+/* chipControls / valueLabel / sliderSteps live in lib/useCreateState — this file
+   had its own copies, which is the usual way two surfaces drift apart. */
 
 /** The panel's one surface primitive. Everything in the stack is one of these. */
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -135,31 +109,22 @@ function PresetCard({ family, onChange }: { family: Family; onChange: () => void
 
 export function FormPanel({
   families,
-  family,
-  onFamily,
   onGenerate,
 }: {
   families: Family[];
-  family: Family;
-  onFamily: (f: Family) => void;
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
 }) {
   const { n } = useI18n();
-  const [prompt, setPrompt] = useState("");
   const [pickModel, setPickModel] = useState(false);
 
-  const variant = family.variants[0]!;
-  const controls = useMemo(() => variantControls(family, variant), [family, variant]);
-  const [input, setInput] = useState<InputMap>(() => defaultInput(controls));
-
-  // A different family means a different control set; the old keys may not even
-  // exist on the new model, which the provider answers with a 422.
-  useEffect(() => setInput(defaultInput(controls)), [controls]);
-
-  const chips = chipControls(controls);
-  const price = priceCoins(variant, input, { chars: prompt.length, clipSeconds: 0 });
-  const ready = (family.noPrompt || prompt.trim().length > 0) && price !== null;
-  const set = (k: string, v: string | number | boolean) => setInput((p) => ({ ...p, [k]: v }));
+  // Same hook as the other two studios. This panel used to keep its own copy of
+  // family/controls/input/price, which is how it ended up pinned to variants[0]
+  // while the shared version moved on.
+  const s = useCreateState(families);
+  const { family, variant, chips, input, prompt, price, ready } = s;
+  const set = s.set;
+  const setPrompt = s.setPrompt;
+  const onFamily = s.setFamily;
 
   return (
     // The height cap is `md:` only. Applied at every width it clips the panel on
@@ -249,6 +214,36 @@ export function FormPanel({
         <Card>
           <RowSelect label="مدل" value={family.name} onClick={() => setPickModel((v) => !v)} />
         </Card>
+
+        {/* Kling carries six variants and Wan five — separate models at
+            separate prices, not labels. A family with one gets no row. */}
+        {s.hasVariants && (
+          <Card className="p-1">
+            <div className="flex flex-wrap gap-1">
+              {family.variants.map((v) => {
+                const on = v.id === variant.id;
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => s.setVariant(v.id)}
+                    className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold transition-colors"
+                    style={{
+                      background: on ? "rgba(233,95,24,0.14)" : "transparent",
+                      color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                    }}
+                  >
+                    {v.label}
+                    {v.badge && (
+                      <span className="rounded px-1 py-0.5 text-[9.5px]" style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-faint)" }}>
+                        {v.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+        )}
 
         {/* Segments and aspects sit in a chip grid — three across, the widths
             equal so the row reads as one control strip rather than a form. */}

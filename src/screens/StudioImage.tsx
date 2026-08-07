@@ -186,6 +186,20 @@ export default function StudioImage({
                   style={CHIP_STYLE}
                 />
 
+                {/* A second chip, not a submenu. Nano Banana Pro and Nano Banana
+                    2 are different models at different prices, so the choice
+                    belongs next to the family rather than buried inside it. */}
+                {s.hasVariants && (
+                  <PopoverChip
+                    label={s.variant.label}
+                    value={s.variant.id}
+                    options={s.family.variants.map((v) => ({ value: v.id, label: v.label, ...(v.badge ? { hint: v.badge } : {}) }))}
+                    onPick={(id) => s.setVariant(String(id))}
+                    className={CHIP_CLASS}
+                    style={CHIP_STYLE}
+                  />
+                )}
+
                 {s.chips.map((c) =>
                   c.kind === "toggle" ? (
                     <button

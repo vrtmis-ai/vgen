@@ -116,7 +116,7 @@ export default function Studio({
     // The panel is a flex sibling of the canvas rather than a fixed overlay, so
     // it can simply stack above the canvas below `md` with no second layout.
     <div className="flex flex-col md:flex-row md:items-start">
-      <FormPanel families={families} family={family} onFamily={setFamily} onGenerate={onGenerate} />
+      <FormPanel families={families} onGenerate={onGenerate} />
 
       <main
         className="min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"

@@ -44,6 +44,7 @@ export function sliderSteps(c: Extract<Control, { kind: "slider" }>): number[] {
 
 export function useCreateState(families: Family[]) {
   const [family, setFamily] = useState<Family>(() => families[0]!);
+  const [variantId, setVariantId] = useState<string>(() => families[0]!.variants[0]!.id);
   const [prompt, setPrompt] = useState("");
 
   // A modality switch swaps the whole catalog, so the held family may no longer
@@ -52,12 +53,29 @@ export function useCreateState(families: Family[]) {
     if (!families.some((f) => f.id === family.id)) setFamily(families[0]!);
   }, [families, family.id]);
 
-  const variant: Variant = family.variants[0]!;
+  /**
+   * The variant, not `variants[0]`.
+   *
+   * Thirteen of the eighteen families carry more than one — Kling has six, Wan
+   * five — and they are separate models with separate prices, not cosmetic
+   * labels. Pinning the first one made most of the catalog unreachable and
+   * quoted a price for something the user had not chosen.
+   *
+   * Held by id rather than by object so a family change cannot leave a variant
+   * belonging to the previous family in state; the lookup falls back to the new
+   * family's first, which is the only sane default.
+   */
+  const variant: Variant = family.variants.find((v) => v.id === variantId) ?? family.variants[0]!;
+
+  // Keep the id honest after a family change, so the chip and the price agree.
+  useEffect(() => setVariantId(family.variants[0]!.id), [family]);
+
   const controls = useMemo(() => variantControls(family, variant), [family, variant]);
   const [input, setInput] = useState<InputMap>(() => defaultInput(controls));
 
-  // A different family means a different control set. Carrying the old keys over
-  // is not merely stale — the provider answers unknown keys with a 422.
+  // A different control set means different keys. Carrying the old ones over is
+  // not merely stale — the provider answers unknown keys with a 422. Variants
+  // may override controls too, so this has to key off the resolved list.
   useEffect(() => setInput(defaultInput(controls)), [controls]);
 
   const price = priceCoins(variant, input, { chars: prompt.length, clipSeconds: 0 });
@@ -67,6 +85,9 @@ export function useCreateState(families: Family[]) {
     family,
     setFamily,
     variant,
+    setVariant: (id: string) => setVariantId(id),
+    /** More than one is worth a control; exactly one is noise. */
+    hasVariants: family.variants.length > 1,
     controls,
     chips: chipControls(controls),
     input,

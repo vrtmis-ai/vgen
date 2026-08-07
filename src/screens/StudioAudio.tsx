@@ -196,6 +196,16 @@ export default function StudioAudio({
                 className={CHIP_CLASS}
                 style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
               />
+              {s.hasVariants && (
+                <PopoverChip
+                  label={s.variant.label}
+                  value={s.variant.id}
+                  options={s.family.variants.map((v) => ({ value: v.id, label: v.label, ...(v.badge ? { hint: v.badge } : {}) }))}
+                  onPick={(id) => s.setVariant(String(id))}
+                  className={CHIP_CLASS}
+                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
+                />
+              )}
               {s.chips.map((c) =>
                 c.kind === "toggle" ? (
                   <button
