@@ -11,6 +11,8 @@ import { TopBar, type NavKey } from "./components/TopBar";
 import Landing from "./screens/Landing";
 import Models from "./screens/Models";
 import Studio from "./screens/Studio";
+import StudioImage from "./screens/StudioImage";
+import StudioAudio from "./screens/StudioAudio";
 import Explore from "./screens/Explore";
 import Gallery from "./screens/Gallery";
 import Plans from "./screens/Plans";
@@ -20,9 +22,6 @@ import Result from "./screens/Result";
 import { useSession } from "./lib/session";
 import { demoWallet } from "./data/wallet";
 
-/** The nav is modality-first, so three of its five keys map straight onto a
- *  catalog kind. The other two are surfaces, not kinds. */
-const STUDIO_KIND: Partial<Record<NavKey, ModelKind>> = { image: "image", video: "video", audio: "audio" };
 
 type Flow =
   | { s: "none" }
@@ -193,7 +192,6 @@ export default function App() {
   // ---- the nav'd area ----
   // No sidebar and no bottom tab bar: one 44px row carries every destination,
   // and the same row serves phone and desktop. See components/TopBar.
-  const studioKind = STUDIO_KIND[tab];
   return (
     <Shell cap={false}>
       <TopBar
@@ -205,12 +203,31 @@ export default function App() {
       />
       <AnimatePresence mode="wait">
         <motion.div key={tab} {...pageFade}>
-          {studioKind && (
+          {/* One screen per modality, not one screen parameterised by modality.
+              The reference gives image, video and audio genuinely different
+              architectures — a full-bleed wall under a floating glass dock, a
+              320px side panel, and an icon rail over waveform cards — because
+              the three kinds of output are shaped differently. They share the
+              token layer and `useCreateState`, and nothing else. */}
+          {tab === "video" && (
             <Studio
-              kind={studioKind}
+              kind="video"
               gens={gens}
               onGenerate={(family, variant, prompt, input) => startGeneration(family.id, prompt, input, variant, {})}
               onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
+            />
+          )}
+          {tab === "image" && (
+            <StudioImage
+              gens={gens}
+              onGenerate={(family, variant, prompt, input) => startGeneration(family.id, prompt, input, variant, {})}
+              onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
+            />
+          )}
+          {tab === "audio" && (
+            <StudioAudio
+              gens={gens}
+              onGenerate={(family, variant, prompt, input) => startGeneration(family.id, prompt, input, variant, {})}
             />
           )}
           {tab === "explore" && <Explore onOpen={openModel} onNav={setTab} onWallet={openWallet} />}
