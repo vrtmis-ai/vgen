@@ -7,6 +7,7 @@ import { type Generation } from "../lib/gallery";
 import { EXPLORE } from "../data/explore";
 import { CoinMark } from "../components/chrome";
 import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
+import { PopoverChip } from "../components/Popover";
 import { useI18n } from "../lib/i18n";
 
 /* ---------------------------------------------------------------------------
@@ -30,61 +31,11 @@ import { useI18n } from "../lib/i18n";
 
 const art = (seed: string, w = 600, h = 800) => `https://picsum.photos/seed/${seed}/${w}/${h}`;
 
-function Chip({
-  label,
-  options,
-  value,
-  onPick,
-}: {
-  label: string;
-  options: { value: string | number; label: string }[];
-  value: string;
-  onPick: (v: string | number) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex h-10 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold"
-        style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-      >
-        {label}
-      </button>
-      {open && (
-        <>
-          {/* A transparent full-screen lid rather than a document listener: the
-              dock is `fixed`, so a click anywhere else must close it and this
-              needs no cleanup or capture-phase ordering. */}
-          <button className="fixed inset-0 z-40 cursor-default" aria-hidden onClick={() => setOpen(false)} />
-          <div
-            className="absolute bottom-12 z-50 max-h-64 min-w-[170px] overflow-y-auto rounded-xl p-1"
-            style={{
-              insetInlineStart: 0,
-              background: "var(--vg-surface-raised)",
-              border: "1px solid var(--vg-border)",
-              boxShadow: "0 16px 40px rgba(0,0,0,0.6)",
-            }}
-          >
-            {options.map((o) => (
-              <button
-                key={String(o.value)}
-                onClick={() => {
-                  onPick(o.value);
-                  setOpen(false);
-                }}
-                className="flex w-full rounded-lg px-2.5 py-2 text-start text-[13px] transition-colors hover:bg-white/5"
-                style={{ color: String(o.value) === value ? "var(--vg-primary-soft)" : "var(--vg-text)" }}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+/** Every chip in the dock. The menu goes through PopoverChip, which portals it
+ *  to <body> — the chip row scrolls horizontally, and an overflow container
+ *  clips on both axes, so an in-tree menu is cut to the row's 40px. */
+const CHIP_CLASS = "flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold";
+const CHIP_STYLE: React.CSSProperties = { background: "var(--vg-surface-overlay)", color: "var(--vg-text)" };
 
 function chipOptions(c: ChipControl) {
   return c.kind === "slider"
@@ -141,7 +92,6 @@ export default function StudioImage({
   const families = FAMILIES.filter((f) => f.kind === "image");
   const s = useCreateState(families);
   const [count, setCount] = useState(1);
-  const [pickModel, setPickModel] = useState(false);
   const [viewing, setViewing] = useState<ViewerAsset | null>(null);
 
   const mine = gens.filter((g) => g.kind === "image");
@@ -227,40 +177,14 @@ export default function StudioImage({
 
             <div className="mt-3 flex items-end gap-2">
               <div className="hide-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
-                <div className="relative shrink-0">
-                  <button
-                    onClick={() => setPickModel((v) => !v)}
-                    className="flex h-10 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold"
-                    style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-                  >
-                    {s.family.name}
-                  </button>
-                  {pickModel && (
-                    <>
-                      <button className="fixed inset-0 z-40 cursor-default" aria-hidden onClick={() => setPickModel(false)} />
-                      <div
-                        className="absolute bottom-12 z-50 max-h-72 min-w-[220px] overflow-y-auto rounded-xl p-1"
-                        style={{ insetInlineStart: 0, background: "var(--vg-surface-raised)", border: "1px solid var(--vg-border)" }}
-                      >
-                        {families.map((f) => (
-                          <button
-                            key={f.id}
-                            onClick={() => {
-                              s.setFamily(f);
-                              setPickModel(false);
-                            }}
-                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start transition-colors hover:bg-white/5"
-                          >
-                            <span className="flex-1 truncate text-[13px]" style={{ color: f.id === s.family.id ? "var(--vg-primary-soft)" : "var(--vg-text)" }}>
-                              {f.name}
-                            </span>
-                            <span className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>{f.vendor}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+                <PopoverChip
+                  label={s.family.name}
+                  value={s.family.id}
+                  options={families.map((f) => ({ value: f.id, label: f.name, hint: f.vendor }))}
+                  onPick={(id) => s.setFamily(families.find((f) => f.id === id) ?? s.family)}
+                  className={CHIP_CLASS}
+                  style={CHIP_STYLE}
+                />
 
                 {s.chips.map((c) =>
                   c.kind === "toggle" ? (
@@ -276,14 +200,15 @@ export default function StudioImage({
                       {c.label}
                     </button>
                   ) : (
-                    <div key={c.key} className="shrink-0">
-                      <Chip
-                        label={valueLabel(c, s.input)}
-                        value={String(s.input[c.key])}
-                        options={chipOptions(c)}
-                        onPick={(v) => s.set(c.key, v)}
-                      />
-                    </div>
+                    <PopoverChip
+                      key={c.key}
+                      label={valueLabel(c, s.input)}
+                      value={String(s.input[c.key])}
+                      options={chipOptions(c)}
+                      onPick={(v) => s.set(c.key, v)}
+                      className={CHIP_CLASS}
+                      style={CHIP_STYLE}
+                    />
                   ),
                 )}
 

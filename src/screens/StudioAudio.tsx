@@ -6,6 +6,7 @@ import { useCreateState, valueLabel, sliderSteps } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
 import { VOICES } from "../data/voices";
 import { CoinMark } from "../components/chrome";
+import { PopoverChip } from "../components/Popover";
 import { useI18n } from "../lib/i18n";
 
 /* ---------------------------------------------------------------------------
@@ -91,6 +92,8 @@ function WaveCard({ id, prompt, voice, seconds }: { id: string; prompt: string; 
   );
 }
 
+const CHIP_CLASS = "flex h-8 shrink-0 items-center rounded-lg px-2.5 text-[12px] font-semibold";
+
 const SEED_CLIPS = [
   { id: "a1", prompt: "یک دو سه داستانت رو عمودی روایت کن", voice: "ARIA", seconds: 9 },
   { id: "a2", prompt: "خوش آمدید به اولین قسمت از پادکست ما", voice: "ROMAN", seconds: 119 },
@@ -111,7 +114,6 @@ export default function StudioAudio({
   const families = FAMILIES.filter((f) => f.kind === "audio");
   const s = useCreateState(families);
   const [tab, setTab] = useState<"all" | "liked">("all");
-  const [openKey, setOpenKey] = useState<string | null>(null);
 
   const mine = gens.filter((g) => g.kind === "audio");
   const clips =
@@ -182,55 +184,46 @@ export default function StudioAudio({
               className="hide-scrollbar min-h-[44px] w-full resize-none bg-transparent text-[13.5px] leading-6 outline-none"
               style={{ color: "var(--vg-text)" }}
             />
+            {/* Menus portal out through PopoverChip. This row scrolls
+                horizontally, and an overflow container clips both axes — an
+                in-tree menu would be cut to the row's 32px. */}
             <div className="hide-scrollbar flex items-center gap-1.5 overflow-x-auto">
-              <button
-                onClick={() => setOpenKey((k) => (k === "__model" ? null : "__model"))}
-                className="h-8 shrink-0 rounded-lg px-2.5 text-[12px] font-semibold"
+              <PopoverChip
+                label={s.family.name}
+                value={s.family.id}
+                options={families.map((f) => ({ value: f.id, label: f.name, hint: f.vendor }))}
+                onPick={(id) => s.setFamily(families.find((f) => f.id === id) ?? s.family)}
+                className={CHIP_CLASS}
                 style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-              >
-                {s.family.name}
-              </button>
-              {s.chips.map((c) => (
-                <button
-                  key={c.key}
-                  onClick={() => {
-                    if (c.kind === "toggle") return s.set(c.key, !s.input[c.key]);
-                    const opts =
-                      c.kind === "slider"
-                        ? sliderSteps(c).map((v) => (c.asString ? String(v) : v))
-                        : c.options.map((o) => o.value);
-                    const i = opts.findIndex((o) => String(o) === String(s.input[c.key]));
-                    // Few enough stops that cycling beats a menu at this size.
-                    s.set(c.key, opts[(i + 1) % opts.length]!);
-                  }}
-                  className="h-8 shrink-0 rounded-lg px-2.5 text-[12px] font-semibold"
-                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
-                >
-                  {c.label}: {valueLabel(c, s.input)}
-                </button>
-              ))}
-              {openKey === "__model" && (
-                <>
-                  <button className="fixed inset-0 z-40 cursor-default" aria-hidden onClick={() => setOpenKey(null)} />
-                  <div
-                    className="absolute bottom-[86px] z-50 max-h-64 min-w-[220px] overflow-y-auto rounded-xl p-1"
-                    style={{ insetInlineStart: "0.75rem", background: "var(--vg-surface-raised)", border: "1px solid var(--vg-border)" }}
+              />
+              {s.chips.map((c) =>
+                c.kind === "toggle" ? (
+                  <button
+                    key={c.key}
+                    onClick={() => s.set(c.key, !s.input[c.key])}
+                    className={CHIP_CLASS}
+                    style={{
+                      background: s.input[c.key] ? "rgba(233,95,24,0.16)" : "var(--vg-surface-overlay)",
+                      color: s.input[c.key] ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                    }}
                   >
-                    {families.map((f) => (
-                      <button
-                        key={f.id}
-                        onClick={() => {
-                          s.setFamily(f);
-                          setOpenKey(null);
-                        }}
-                        className="flex w-full rounded-lg px-2.5 py-2 text-start text-[13px] transition-colors hover:bg-white/5"
-                        style={{ color: f.id === s.family.id ? "var(--vg-primary-soft)" : "var(--vg-text)" }}
-                      >
-                        {f.name}
-                      </button>
-                    ))}
-                  </div>
-                </>
+                    {c.label}
+                  </button>
+                ) : (
+                  <PopoverChip
+                    key={c.key}
+                    label={`${c.label}: ${valueLabel(c, s.input)}`}
+                    value={String(s.input[c.key])}
+                    options={
+                      c.kind === "slider"
+                        ? sliderSteps(c).map((v) => ({ value: (c.asString ? String(v) : v) as string | number, label: `${v}${c.unit ? ` ${c.unit}` : ""}` }))
+                        : c.options.map((o) => ({ value: o.value as string | number, label: o.label }))
+                    }
+                    onPick={(v) => s.set(c.key, v)}
+                    className={CHIP_CLASS}
+                    style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+                  />
+                ),
               )}
             </div>
           </div>
