@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { getFamily, variantControls, type Variant, type ModelKind } from "./data/models";
 import type { InputMap, RefMap } from "./components/controls";
 import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/gallery";
@@ -201,8 +201,15 @@ export default function App() {
         onWallet={openWallet}
         onProfile={() => navigate({ s: "profile" })}
       />
-      <AnimatePresence mode="wait">
-        <motion.div key={tab} {...pageFade}>
+      {/* No AnimatePresence and no exit animation on the tab area.
+          `mode="wait"` holds the outgoing screen mounted until its exit
+          animation reports completion, and that report rides on
+          requestAnimationFrame — which the browser throttles to nothing in a
+          backgrounded or non-compositing tab. The next screen then never
+          mounts and the app looks frozen on the old one. A keyed enter-only
+          fade gives the same read with nothing to wait on. */}
+      <div key={tab}>
+        <motion.div initial={pageFade.initial} animate={pageFade.animate} transition={pageFade.transition}>
           {/* One screen per modality, not one screen parameterised by modality.
               The reference gives image, video and audio genuinely different
               architectures — a full-bleed wall under a floating glass dock, a
@@ -241,7 +248,7 @@ export default function App() {
             />
           )}
         </motion.div>
-      </AnimatePresence>
+      </div>
     </Shell>
   );
 }

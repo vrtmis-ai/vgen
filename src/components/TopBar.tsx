@@ -17,7 +17,7 @@ import { useI18n } from "../lib/i18n";
 export type NavKey = "explore" | "image" | "video" | "audio" | "gallery";
 
 const ITEMS: { key: NavKey; label: string }[] = [
-  { key: "explore", label: "کشف" },
+  { key: "explore", label: "اکسپلور" },
   { key: "image", label: "تصویر" },
   { key: "video", label: "ویدیو" },
   { key: "audio", label: "صدا" },

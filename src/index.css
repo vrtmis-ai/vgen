@@ -318,6 +318,10 @@ input[type="range"]::-webkit-slider-thumb {
    direction, so `dir="rtl"` will not mirror it — the flip has to be written. */
 .vg-banner-fade { background: linear-gradient(to right, var(--vg-surface), transparent 55%); }
 [dir="rtl"] .vg-banner-fade { background: linear-gradient(to left, var(--vg-surface), transparent 55%); }
+/* The mirrored banner puts its media on the other side, so its fade runs the
+   other way — and then flips again under RTL. */
+.vg-banner-fade-flip { background: linear-gradient(to left, var(--vg-surface), transparent 55%); }
+[dir="rtl"] .vg-banner-fade-flip { background: linear-gradient(to right, var(--vg-surface), transparent 55%); }
 
 /* A row that is meant to scroll sideways but must not show a bar doing it.
    The nav lives inside a 44px chrome element, where a scrollbar reads as a
