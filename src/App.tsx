@@ -140,7 +140,9 @@ export default function App() {
   // ---- full-screen flows (no bottom nav) ----
   if (flow.s === "wallet") {
     return (
-      <Shell>
+      // Uncapped: Plans lays out its own 1100px container and turns its plan
+      // rows into grids above `md`. Held in the phone column it was a strip.
+      <Shell cap={false}>
         {/* currentPlanId stays null until the backend can answer it — the
             screen renders the honest not-subscribed state meanwhile. */}
         <Plans wallet={wallet} account={session.user} currentPlanId={null} onBack={goBack} />
@@ -243,7 +245,7 @@ export default function App() {
           {tab === "explore" && <Explore onOpen={openModel} onNav={setTab} onWallet={openWallet} />}
           {tab === "effects" && <Effects onOpen={openModel} />}
           {tab === "academy" && <Academy onOpenModel={openModel} />}
-          {tab === "community" && <Community wallet={wallet} onOpen={openModel} onWallet={openWallet} />}
+          {tab === "community" && <Community onOpen={openModel} />}
           {tab === "gallery" && (
             <Gallery
               gens={gens}

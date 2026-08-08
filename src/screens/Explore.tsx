@@ -1,4 +1,4 @@
-import { ArrowUpRight, Image as ImageIcon, VideoCamera, MusicNote, Coins, Terminal, PuzzlePiece } from "@phosphor-icons/react";
+import { ArrowUpRight, Image as ImageIcon, VideoCamera, MusicNote, GraduationCap, Terminal, FilmSlate } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
 import { FEATURED, type FeaturedItem } from "../data/featured";
 import { COMMUNITY, type CommunityPost } from "../data/community";
@@ -177,13 +177,32 @@ function Banner({
   );
 }
 
-const TILES: { key: NavKey | "plans" | "mcp" | "skills"; Icon: typeof ImageIcon; title: string; sub: string; badge?: string }[] = [
-  { key: "video", Icon: VideoCamera, title: "ویدیو", sub: "متن یا عکس، تبدیل به ویدیو", badge: "پرکاربرد" },
-  { key: "image", Icon: ImageIcon, title: "تصویر", sub: "از یک جمله تا یک عکس" },
-  { key: "audio", Icon: MusicNote, title: "صدا", sub: "گویندگی فارسی و انگلیسی" },
-  { key: "mcp", Icon: Terminal, title: "MCP و CLI", sub: "از داخل کلاد و ترمینال بساز", badge: "به‌زودی" },
-  { key: "skills", Icon: PuzzlePiece, title: "مهارت‌ها", sub: "جریان‌های آمادهٔ چندمرحله‌ای", badge: "به‌زودی" },
-  { key: "plans", Icon: Coins, title: "شارژ سکه", sub: "پرداخت ریالی، بدون کارت خارجی" },
+/**
+ * What goes in the tile grid: newly-landed models and surfaces that do not have
+ * a nav item. Not the modalities.
+ *
+ * Video / image / audio were in here and they are already the second, third and
+ * fourth items of the top bar — a tile that repeats a nav item spends a 396px
+ * card to say something the user is already looking at. The reference fills
+ * this grid with model drops and features for exactly that reason.
+ *
+ * "شارژ سکه" is gone from here too. It was reachable from the top bar pill,
+ * this tile, the promo panel immediately beside it, and the closing cloud —
+ * four buttons for one action, two of them inside the same grid. The pill is
+ * persistent chrome and the promo panel is the pricing pitch; the rest was
+ * noise. Skills is gone as well: it belongs on the MCP page with the rest of
+ * that story, not as a second "به‌زودی" tile next to it.
+ */
+type Tile = { Icon: typeof ImageIcon; title: string; sub: string; badge?: string; soon?: boolean; go?: (a: Api) => void };
+type Api = { onOpen: (f: string, p?: string) => void; onNav: (k: NavKey) => void };
+
+const TILES: Tile[] = [
+  { Icon: VideoCamera, title: "Seedance 2.0", sub: "صدا و تصویر با هم، در یک تولید", badge: "جدید", go: (a) => a.onOpen("seedance") },
+  { Icon: ImageIcon, title: "Nano Banana", sub: "ویرایش تصویر با دستور متنی", go: (a) => a.onOpen("nano-banana") },
+  { Icon: MusicNote, title: "Veo 3.1", sub: "ویدیوی سینمایی گوگل", go: (a) => a.onOpen("veo") },
+  { Icon: GraduationCap, title: "آکادمی", sub: "دوره‌های فارسی کار با مدل‌ها", badge: "جدید", go: (a) => a.onNav("academy") },
+  { Icon: Terminal, title: "MCP و CLI", sub: "از داخل کلاد و ترمینال بساز", badge: "به‌زودی", soon: true },
+  { Icon: FilmSlate, title: "استودیو سینما", sub: "کنترل دوربین، لنز و نور", badge: "به‌زودی", soon: true },
 ];
 
 export default function Explore({
@@ -200,6 +219,7 @@ export default function Explore({
   // Drafts exist on purpose and must not leak onto a user surface.
   const presets = published(PRESETS);
   const courses = published(COURSES);
+  const featured = published(FEATURED);
 
   const heroCard = (f: FeaturedItem) => (
     <button
@@ -277,15 +297,15 @@ export default function Explore({
     </button>
   );
 
-  /** The reference closes on a dense cloud of every surface it owns. It is the
-   *  cheapest possible sitemap and it makes the product look deep. */
+  /** The reference closes on a dense cloud of everything it owns. It is the
+   *  cheapest possible sitemap and it makes the product look deep.
+   *
+   *  Models and effects only — the surfaces are all one click away in the top
+   *  bar already, and repeating them here is where the duplicate buttons came
+   *  from in the first place. */
   const CLOUD = [
     ...FAMILIES.map((f) => ({ label: f.name, go: () => onOpen(f.id) })),
-    ...presets.slice(0, 8).map((p) => ({ label: p.title, go: () => onOpen(p.familyId, p.prompt) })),
-    { label: "همهٔ افکت‌ها", go: () => onNav("effects") },
-    { label: "آکادمی", go: () => onNav("academy") },
-    { label: "کارهای من", go: () => onNav("gallery") },
-    { label: "شارژ سکه", go: onWallet },
+    ...presets.map((p) => ({ label: p.title, go: () => onOpen(p.familyId, p.prompt) })),
   ];
 
   return (
@@ -293,7 +313,7 @@ export default function Explore({
       <div className="flex flex-col gap-5">
         {/* 1 — hero row */}
         <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 md:mx-0 md:px-0">
-          {FEATURED.map(heroCard)}
+          {featured.map(heroCard)}
         </div>
 
         {/* 2 — promo split beside the surface tiles */}
@@ -311,39 +331,36 @@ export default function Explore({
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {TILES.map(({ key, Icon, title, sub, badge }) => {
-              const soon = badge === "به‌زودی";
-              return (
-                <button
-                  key={title}
-                  disabled={soon}
-                  onClick={() => (key === "plans" ? onWallet() : onNav(key as NavKey))}
-                  className="flex min-h-[112px] flex-col rounded-2xl p-4 text-start transition-colors enabled:hover:bg-white/[0.04] disabled:cursor-default"
-                  style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)", opacity: soon ? 0.55 : 1 }}
-                >
-                  <div className="mb-auto flex w-full items-start justify-between">
-                    <Icon size={19} style={{ color: "var(--vg-primary-soft)" }} />
-                    {badge && (
-                      <span
-                        className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
-                        style={{
-                          background: soon ? "var(--vg-surface-overlay)" : "rgba(233,95,24,0.16)",
-                          color: soon ? "var(--vg-text-faint)" : "var(--vg-primary-soft)",
-                        }}
-                      >
-                        {badge}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-3 text-[14px] font-bold" style={{ color: "var(--vg-text)" }}>
-                    {title}
-                  </p>
-                  <p className="mt-0.5 line-clamp-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
-                    {sub}
-                  </p>
-                </button>
-              );
-            })}
+            {TILES.map(({ Icon, title, sub, badge, soon, go }) => (
+              <button
+                key={title}
+                disabled={soon}
+                onClick={() => go?.({ onOpen, onNav })}
+                className="flex min-h-[112px] flex-col rounded-2xl p-4 text-start transition-colors enabled:hover:bg-white/[0.04] disabled:cursor-default"
+                style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)", opacity: soon ? 0.55 : 1 }}
+              >
+                <div className="mb-auto flex w-full items-start justify-between">
+                  <Icon size={19} style={{ color: "var(--vg-primary-soft)" }} />
+                  {badge && (
+                    <span
+                      className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+                      style={{
+                        background: soon ? "var(--vg-surface-overlay)" : "rgba(233,95,24,0.16)",
+                        color: soon ? "var(--vg-text-faint)" : "var(--vg-primary-soft)",
+                      }}
+                    >
+                      {badge}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-3 text-[14px] font-bold" style={{ color: "var(--vg-text)" }}>
+                  <bdi>{title}</bdi>
+                </p>
+                <p className="mt-0.5 line-clamp-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
+                  {sub}
+                </p>
+              </button>
+            ))}
           </div>
         </div>
 

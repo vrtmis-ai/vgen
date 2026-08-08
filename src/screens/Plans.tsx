@@ -26,6 +26,8 @@ import {
   effectiveUsd,
   estImages,
   estVideos,
+  BENCHMARKS,
+  outputsPerMonth,
   type Plan,
   type PricingAccount,
 } from "../data/plans";
@@ -177,7 +179,10 @@ function PlanCard({
   const { t, n } = useI18n();
   return (
     <div
-      className="flex w-[82%] shrink-0 snap-center flex-col gap-3.5 rounded-bezel border bg-card p-4"
+      /* 82% of the viewport is a phone affordance — it leaves the next card
+         peeking so the row reads as scrollable. Above `md` the row becomes a
+         grid, so the card must stop being sized against the viewport. */
+      className="flex w-[82%] shrink-0 snap-center flex-col gap-3.5 rounded-bezel border bg-card p-4 md:w-auto"
       style={{ borderColor: current ? "var(--color-accent)" : plan.popular ? "var(--color-accent)" : "var(--color-line)" }}
     >
       <div className="flex items-center justify-between">
@@ -209,7 +214,14 @@ function PlanCard({
 
       <div className="border-t border-line pt-3">
         <Price plan={plan} cycle={cycle} account={account} />
-        <button className="btn-accent mt-3 flex w-full items-center justify-center rounded-2xl py-3 text-[13.5px] font-bold" disabled={current}>
+        {/* Only the recommended plan gets the accent fill. Seven filled buttons
+            on one screen is the system's own "if two things are orange, one of
+            them is wrong" — and on a pricing table it also throws away the one
+            job the colour can do here, which is point at a plan. */}
+        <button
+          className={`${plan.popular || current ? "btn-accent" : "btn-quiet"} mt-3 flex w-full items-center justify-center rounded-2xl py-3 text-[13.5px] font-bold`}
+          disabled={current}
+        >
           {t(current ? "pl_current" : buyKey(plan, cycle))}
         </button>
       </div>
@@ -251,7 +263,11 @@ function EntryCard({
       <div className="mt-0.5">
         <Price plan={plan} cycle={cycle} account={account} />
       </div>
-      <button className="btn-accent mt-1 flex items-center justify-center rounded-xl py-2 text-[12px] font-bold" disabled={current}>
+      {/* Entry plans are never the recommendation, so they are never filled. */}
+      <button
+        className={`${current ? "btn-accent" : "btn-quiet"} mt-1 flex items-center justify-center rounded-xl py-2 text-[12px] font-bold`}
+        disabled={current}
+      >
         {t(current ? "pl_current" : buyKey(plan, cycle))}
       </button>
     </div>
@@ -259,6 +275,82 @@ function EntryCard({
 }
 
 /* ============================================================ */
+/**
+ * Per-model output counts, plan by plan.
+ *
+ * "≈۱٬۶۷۵ تصویر یا ۱۸۶ ویدیو" is close to meaningless on a catalogue whose
+ * models differ by 50x — the same coins buy 208 cheap frames or 6 Veo clips.
+ * The buyer's real question is "how many of the thing I make", and only a table
+ * answers it.
+ *
+ * Rows are priced through the same rate table the studios quote from, at a
+ * stated setting printed next to the model name so the number can be checked.
+ * A model whose rate has gone missing shows a dash, never an invented count.
+ */
+function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId: string | null }) {
+  const { n } = useI18n();
+  const cols = PLANS.filter((p) => p.group === "main");
+  const rows = BENCHMARKS.filter((b) => b.coins != null);
+  const missing = BENCHMARKS.length - rows.length;
+
+  return (
+    <section className="mt-10">
+      <h2 className="text-[15px] font-semibold">با هر پلن چقدر می‌سازی</h2>
+      <p className="mt-1 text-[11.5px] leading-relaxed text-ink3">
+        تعداد خروجی در ماه، با تنظیماتی که کنار اسم هر مدل نوشته شده. همان قیمتی که موقع ساخت روی دکمه می‌بینی.
+      </p>
+
+      {/* The table scrolls sideways rather than collapsing: a comparison whose
+          columns stack is no longer a comparison. */}
+      <div className="hide-scrollbar mt-3 overflow-x-auto rounded-bezel border border-line">
+        <table className="w-full min-w-[520px] border-collapse text-start">
+          <thead>
+            <tr style={{ background: "var(--color-card2)" }}>
+              <th className="px-3 py-2.5 text-start text-[11.5px] font-medium text-ink3">مدل</th>
+              {cols.map((p) => (
+                <th
+                  key={p.id}
+                  className="px-3 py-2.5 text-center text-[12px] font-semibold"
+                  style={{ color: p.popular || p.id === currentPlanId ? "var(--vg-primary-soft)" : "var(--color-ink)" }}
+                >
+                  <bdi>{p.name}</bdi>
+                  <span className="mt-0.5 block vg-numeric text-[10.5px] font-normal text-ink3">
+                    {n(monthlyCoins(p))} سکه
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((b) => (
+              <tr key={b.key} className="border-t border-line">
+                <td className="px-3 py-2.5">
+                  <bdi className="text-[12.5px]">{b.label}</bdi>
+                  <span className="mt-0.5 block text-[10.5px] text-ink3">{b.at}</span>
+                </td>
+                {cols.map((p) => {
+                  const v = outputsPerMonth(p, b);
+                  return (
+                    <td key={p.id} className="px-3 py-2.5 text-center">
+                      <span className="vg-numeric text-[13.5px] font-semibold">{v == null ? "—" : n(v)}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="mt-2 text-[10.5px] leading-relaxed text-ink3">
+        اعداد سقف‌اند: سکه‌ها بین مدل‌ها مشترک‌اند، پس اگر از چند مدل استفاده کنی تعدادها بین‌شان تقسیم می‌شود.
+        {cycle === "annual" && " سکه‌ی ماهانه‌ی پلن سالانه همان مقدار است؛ فقط قیمتش کمتر می‌شود."}
+        {missing > 0 && ` ${n(missing)} مدل فعلاً قیمت زنده ندارد و در جدول نیامده.`}
+      </p>
+    </section>
+  );
+}
+
 export default function Plans({
   wallet,
   account,
@@ -297,16 +389,23 @@ export default function Plans({
       : null;
 
   return (
-    <div className="relative z-10 min-h-[100dvh] pt-4 pb-10">
-      <div className="mb-5 flex items-center gap-3 px-4">
+    /* The screen was built inside the old 480px phone column and never left it:
+       every child pinned itself with `px-4` and the plan row was a snap
+       carousel at any width, so a 1440px window got a phone strip down the
+       middle. It now runs in a 1100px container, and the two rows that were
+       carousels become grids from `md`. */
+    <div className="relative z-10 mx-auto min-h-[100dvh] w-full max-w-[1100px] px-4 pb-10 pt-4 md:px-8">
+      <div className="mb-5 flex items-center gap-3">
         <button onClick={onBack} aria-label={t("nav_home")} className="grid h-10 w-10 place-items-center rounded-full bg-card2 active:scale-95">
           <ArrowRight size={18} weight="bold" className="ltr:-scale-x-100" />
         </button>
         <div className="text-[15px] font-medium">{t("pl_title")}</div>
       </div>
 
-      {/* balance — this month's spendable coins */}
-      <div className="mb-4 rounded-bezel border border-line bg-card px-5 py-4 mx-4">
+      {/* Balance and the not-subscribed notice sit side by side once there is
+          room — they are two halves of the same "where you stand" statement. */}
+      <div className="mb-6 grid gap-3 md:grid-cols-2 md:items-stretch">
+      <div className="rounded-bezel border border-line bg-card px-5 py-4">
         <div className="flex items-center justify-between">
           <span className="text-[12px] text-ink3">{current ? t("pl_this_month") : t("w_balance")}</span>
           <span className="flex items-center gap-2">
@@ -333,7 +432,7 @@ export default function Plans({
 
       {/* not-subscribed state — the reason this screen exists for a new user */}
       {!current && (
-        <div className="mb-6 flex items-start gap-3 rounded-bezel border border-line2 bg-card2/70 px-4 py-3.5 mx-4">
+        <div className="flex items-start gap-3 rounded-bezel border border-line2 bg-card2/70 px-4 py-3.5">
           <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-accent" style={{ background: "var(--color-accent-soft)" }}>
             <Sparkle size={15} weight="fill" />
           </span>
@@ -343,32 +442,40 @@ export default function Plans({
           </div>
         </div>
       )}
+      </div>
 
       <CycleToggle cycle={cycle} onChange={setCycle} />
 
-      {/* main plans — snap carousel keeps all three discoverable */}
-      <div className="mb-2.5 flex items-center gap-1.5 px-4 text-[12.5px] text-ink2">
+      {/* Main plans. A snap carousel on a phone, where three cards cannot sit
+          side by side; a plain grid from `md`, where they can and where a
+          horizontal scroll hides two thirds of the catalogue behind a gesture
+          nobody makes with a mouse. */}
+      <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] text-ink2">
         <Lightning size={14} weight="fill" className="text-accent" />
         {t("pl_main_group")}
       </div>
-      <div ref={carRef} className="mb-7 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 no-scrollbar">
+      <div
+        ref={carRef}
+        className="no-scrollbar mb-7 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 md:grid md:grid-cols-3 md:overflow-visible"
+      >
         {main.map((p) => (
           <PlanCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} account={account} />
         ))}
       </div>
 
-      {/* entry plans — one glance, no burying */}
-      <div className="mb-2.5 px-4 text-[12.5px] text-ink2">{t("pl_entry_group")}</div>
-      <div className="grid grid-cols-2 gap-3 px-4">
+      <div className="mb-2.5 text-[12.5px] text-ink2">{t("pl_entry_group")}</div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {entry.map((p) => (
           <EntryCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} account={account} />
         ))}
       </div>
 
+      <ComparisonTable cycle={cycle} currentPlanId={currentPlanId} />
+
       {/* Owner trimmed this to the expiry line alone. The "no auto-renewal" fact
           it used to spell out now lives in the button itself — "خرید ۳۰ روزه"
           says the same thing without a paragraph of fine print. */}
-      <p className="mt-6 px-4 text-center text-[11px] leading-relaxed text-ink3">{t("pl_expiry_note")}</p>
+      <p className="mt-6 text-center text-[11px] leading-relaxed text-ink3">{t("pl_expiry_note")}</p>
     </div>
   );
 }

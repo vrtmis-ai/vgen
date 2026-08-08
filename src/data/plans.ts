@@ -291,6 +291,52 @@ export function estVideos(plan: Plan): number | null {
   return COST_PER_VIDEO5S == null ? null : Math.floor(monthlyCoins(plan) / COST_PER_VIDEO5S);
 }
 
+/* ---------------------------------------------------------------------------
+   The comparison table.
+
+   Two headline numbers ("≈1,675 images or 186 videos") tell a buyer almost
+   nothing, because the models differ by 50x: the same coins buy 208 Z-Image
+   frames or 6 Veo clips. Someone choosing a plan is really asking "how much of
+   the thing I actually make does this get me", and only a per-model table
+   answers that.
+
+   Every row is priced through the same RATES_FALLBACK the studios quote from,
+   at a stated, ordinary setting — not an invented average. A row whose rate has
+   gone missing returns null and renders as a dash rather than a made-up count,
+   which is the same rule the plan cards already follow.
+   --------------------------------------------------------------------------- */
+
+export interface Benchmark {
+  key: string;
+  /** Model name as the user sees it elsewhere. Latin, isolated when rendered. */
+  label: string;
+  /** The setting the count is quoted at, spelled out so the number is checkable. */
+  at: string;
+  kind: "image" | "video" | "audio";
+  /** Coins for one output at that setting, or null if the rate is gone. */
+  coins: number | null;
+}
+
+const bench = (key: string, label: string, at: string, kind: Benchmark["kind"], variantId: string, input: InputMap): Benchmark => ({
+  key, label, at, kind, coins: anchor(variantId, input),
+});
+
+export const BENCHMARKS: Benchmark[] = [
+  bench("nano", "Nano Banana", "۱K", "image", "nano-banana-2", { resolution: "1K" }),
+  bench("gpt", "GPT Image", "۱K", "image", "gpt-image-2", { resolution: "1K" }),
+  bench("seedream", "Seedream", "پیش‌فرض", "image", "seedream-4-5", {}),
+  bench("imagen", "Imagen 4", "Ultra", "image", "imagen-4-ultra", {}),
+  bench("kling", "Kling 3.0", "۱۰۸۰p · ۵ ثانیه", "video", "kling-3", { mode: "pro", duration: 5, sound: false }),
+  bench("seedance", "Seedance 2.0", "۷۲۰p · ۵ ثانیه", "video", "seedance-2", { resolution: "720p", duration: 5 }),
+  bench("wan", "Wan 2.7", "۷۲۰p · ۵ ثانیه", "video", "wan-2-7", { resolution: "720p", duration: 5 }),
+  bench("veo", "Veo 3.1", "۱۰۸۰p", "video", "veo-fast", { resolution: "1080p" }),
+];
+
+/** How many of this output a plan's monthly coins buy. */
+export function outputsPerMonth(plan: Plan, b: Benchmark): number | null {
+  return b.coins == null || b.coins <= 0 ? null : Math.floor(monthlyCoins(plan) / b.coins);
+}
+
 /** Toman price for a USD amount (rounded to the nearest 1000). */
 export function toman(usd: number): number {
   return Math.round((usd * TOMAN_PER_USD) / 1000) * 1000;

@@ -290,6 +290,21 @@ textarea, input { font-family: inherit; }
 .btn-accent:disabled { background: var(--color-card2); color: var(--color-ink3); box-shadow: none; cursor: default; }
 .btn-accent:disabled:active { transform: none; filter: none; }
 
+/* The secondary action, borrowed from the reference: an alpha wash of the SAME
+   accent with accent-coloured type, rather than a grey button. It costs
+   nothing, keeps a screen full of buttons coherent, and leaves the solid fill
+   free to mean "this is the one". */
+.btn-quiet {
+  background: var(--color-accent-soft);
+  /* primary-soft, not the accent itself: #E95F18 as type on a dark surface
+     fails AA at body sizes, which is the rule the token exists for. The fill
+     may be the accent; the letters may not. */
+  color: var(--vg-primary-soft);
+  transition: transform 0.18s var(--ease-out), filter 0.18s var(--ease-out);
+}
+.btn-quiet:active { transform: scale(0.97); filter: brightness(1.12); }
+.btn-quiet:disabled { background: var(--color-card2); color: var(--color-ink3); cursor: default; }
+
 /* ---- motion helpers ----------------------------------------- */
 @keyframes vg-shimmer { 100% { transform: translateX(100%); } }
 .shimmer { position: relative; overflow: hidden; }

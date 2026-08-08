@@ -3,14 +3,22 @@ import { motion } from "framer-motion";
 import { Heart, MagicWand } from "@phosphor-icons/react";
 import { getFamily } from "../data/models";
 import { COMMUNITY, type CommunityPost } from "../data/community";
-import { CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { faNum, isVideoUrl } from "../lib/format";
 import { useI18n } from "../lib/i18n";
-import type { Wallet } from "../data/wallet";
 import { useImageFallback } from "../lib/useImageFallback";
 
-const TRENDS = ["Trending", "Cinematic", "Cyberpunk", "Portraits", "Product", "Anime", "3D"];
+/* Persian labels, and no emoji — the system bans them, and "🔥 Trending" was
+   the only one left in the app. */
+const TRENDS = [
+  { key: "hot", label: "داغ" },
+  { key: "cinematic", label: "سینمایی" },
+  { key: "cyberpunk", label: "سایبرپانک" },
+  { key: "portrait", label: "پرتره" },
+  { key: "product", label: "محصول" },
+  { key: "anime", label: "انیمه" },
+  { key: "3d", label: "سه‌بعدی" },
+];
 
 function PostCard({ p, i, onOpen }: { p: CommunityPost; i: number; onOpen: () => void }) {
   const f = getFamily(p.familyId);
@@ -51,47 +59,48 @@ function PostCard({ p, i, onOpen }: { p: CommunityPost; i: number; onOpen: () =>
   );
 }
 
-export default function Community({
-  wallet,
-  onOpen,
-  onWallet,
-}: {
-  wallet: Wallet;
-  onOpen: (familyId: string, prompt?: string) => void;
-  onWallet: () => void;
-}) {
+/* No wallet prop any more: the balance lives in the top bar, and passing it
+   here is what let the duplicate pill exist. */
+export default function Community({ onOpen }: { onOpen: (familyId: string, prompt?: string) => void }) {
   const { t } = useI18n();
-  const [trend, setTrend] = useState("Trending");
+  const [trend, setTrend] = useState(TRENDS[0]!);
   return (
-    <div className="relative z-10 px-4 pt-4">
-      <div className="mb-4 flex items-center justify-between">
-        <span className="text-[20px] font-semibold tracking-tight">{t("com_title")}</span>
-        <CreditPill coins={wallet.spendable} onClick={onWallet} />
-      </div>
+    /* Rebuilt for the top-bar shell. It used to print its own title row with a
+       CreditPill in it, which put a second balance directly under the one in
+       the chrome — the screen predates the bar and was still carrying the
+       header it needed when it was a tab in a 480px column. */
+    <div className="relative z-10 mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-16 pt-5 md:px-8">
+      <h1 className="text-[19px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+        {t("com_title")}
+      </h1>
+      <p className="mt-0.5 text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
+        هرچه اینجاست را صاحبش خودش منتشر کرده. پرامپتش باز است — بردار و عوضش کن.
+      </p>
 
-      {/* trend chips */}
-      <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 no-scrollbar">
+      <div className="hide-scrollbar -mx-4 my-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
         {TRENDS.map((tr) => {
           const on = tr === trend;
           return (
             <button
-              key={tr}
+              key={tr.key}
               onClick={() => setTrend(tr)}
-              className="shrink-0 rounded-full border px-3.5 py-1.5 text-[12.5px] transition-colors active:scale-95"
-              style={
-                on
-                  ? { borderColor: "transparent", background: "var(--color-accent)", color: "var(--color-on-accent)" }
-                  : { borderColor: "var(--color-line)", background: "var(--color-card2)", color: "var(--color-ink2)" }
-              }
+              className="h-9 shrink-0 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
+              style={{
+                background: on ? "rgba(233,95,24,0.14)" : "var(--vg-surface)",
+                color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                border: "1px solid var(--vg-border-subtle)",
+              }}
             >
-              {tr === "Trending" ? "🔥 Trending" : tr}
+              {tr.label}
             </button>
           );
         })}
       </div>
 
-      <div className="[column-fill:_balance] columns-2 gap-3">
-        {COMMUNITY.map((p, i) => (
+      {/* Masonry widens with the viewport instead of staying at two phone
+          columns on a 1440px window. */}
+      <div className="[column-fill:_balance] columns-2 gap-3 md:columns-3 xl:columns-4">
+        {COMMUNITY.filter((p) => p.status === "approved").map((p, i) => (
           <PostCard key={p.id} p={p} i={i} onOpen={() => onOpen(p.familyId, p.prompt)} />
         ))}
       </div>
