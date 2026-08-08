@@ -14,6 +14,9 @@ import Studio from "./screens/Studio";
 import StudioImage from "./screens/StudioImage";
 import StudioAudio from "./screens/StudioAudio";
 import Explore from "./screens/Explore";
+import Effects from "./screens/Effects";
+import Academy from "./screens/Academy";
+import Community from "./screens/Community";
 import Gallery from "./screens/Gallery";
 import Plans from "./screens/Plans";
 import Profile from "./screens/Profile";
@@ -238,6 +241,9 @@ export default function App() {
             />
           )}
           {tab === "explore" && <Explore onOpen={openModel} onNav={setTab} onWallet={openWallet} />}
+          {tab === "effects" && <Effects onOpen={openModel} />}
+          {tab === "academy" && <Academy onOpenModel={openModel} />}
+          {tab === "community" && <Community wallet={wallet} onOpen={openModel} onWallet={openWallet} />}
           {tab === "gallery" && (
             <Gallery
               gens={gens}

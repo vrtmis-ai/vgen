@@ -14,13 +14,18 @@ import { useI18n } from "../lib/i18n";
    user's question on arrival is "what am I building", not "where in the app am I".
    --------------------------------------------------------------------------- */
 
-export type NavKey = "explore" | "image" | "video" | "audio" | "gallery";
+/** `community` is routable but deliberately absent from ITEMS below: it is
+ *  reached from Explore's own CTA, and a seven-item bar is already at the edge
+ *  of what a phone can scroll comfortably. */
+export type NavKey = "explore" | "image" | "video" | "audio" | "effects" | "academy" | "gallery" | "community";
 
-const ITEMS: { key: NavKey; label: string }[] = [
+const ITEMS: { key: NavKey; label: string; badge?: string }[] = [
   { key: "explore", label: "اکسپلور" },
   { key: "image", label: "تصویر" },
   { key: "video", label: "ویدیو" },
   { key: "audio", label: "صدا" },
+  { key: "effects", label: "افکت‌ها" },
+  { key: "academy", label: "آکادمی", badge: "جدید" },
   { key: "gallery", label: "کارهای من" },
 ];
 
@@ -57,20 +62,30 @@ export function TopBar({
         {/* hide-scrollbar: the row is meant to scroll on narrow viewports, but a
             visible bar inside a 44px chrome element reads as a rendering fault. */}
         <nav className="hide-scrollbar -mx-1 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto px-1">
-          {ITEMS.map(({ key, label }) => {
+          {ITEMS.map(({ key, label, badge }) => {
             const on = active === key;
             return (
               <button
                 key={key}
                 onClick={() => onNav(key)}
                 aria-current={on ? "page" : undefined}
-                className="shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 text-[13px] transition-colors"
+                className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-1 text-[13px] transition-colors"
                 style={{
                   color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
                   background: on ? "rgba(233,95,24,0.10)" : "transparent",
                 }}
               >
                 {label}
+                {/* A badge in the nav is a growth tool, not decoration — the
+                    reference marks every surface it wants traffic on. */}
+                {badge && (
+                  <span
+                    className="rounded px-1 py-px text-[9.5px] font-bold"
+                    style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+                  >
+                    {badge}
+                  </span>
+                )}
               </button>
             );
           })}

@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { FEATURED, type FeaturedItem } from "../data/featured";
 import { COMMUNITY, type CommunityPost } from "../data/community";
 import { PRESETS } from "../data/presets";
+import { COURSES, courseMinutes, LEVEL_LABEL, type Course } from "../data/academy";
+import { published } from "../data/content";
 import { FAMILIES, getFamily } from "../data/models";
 import { VendorMark } from "../components/VendorMark";
 import { faNum } from "../lib/format";
@@ -33,15 +35,32 @@ import type { NavKey } from "../components/TopBar";
 
 const art = (seed: string, w = 800, h = 450) => `https://picsum.photos/seed/${seed}/${w}/${h}`;
 
-function Pill({ children, onClick, away }: { children: React.ReactNode; onClick?: () => void; away?: boolean }) {
+function Pill({
+  children,
+  onClick,
+  away,
+  disabled,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  away?: boolean;
+  // `| undefined` is load-bearing under exactOptionalPropertyTypes: Banner
+  // forwards its own optional prop, which is present-and-undefined.
+  disabled?: boolean | undefined;
+}) {
   return (
     <button
       onClick={onClick}
-      className="inline-flex h-10 items-center gap-1.5 rounded-[10px] px-4 text-[13.5px] font-bold transition-transform active:scale-[0.98]"
-      style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+      disabled={disabled}
+      className="inline-flex h-10 items-center gap-1.5 rounded-[10px] px-4 text-[13.5px] font-bold transition-transform enabled:active:scale-[0.98] disabled:cursor-default"
+      style={
+        disabled
+          ? { background: "var(--vg-surface-overlay)", color: "var(--vg-text-faint)" }
+          : { background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }
+      }
     >
       {children}
-      {away && <ArrowUpRight size={14} weight="bold" />}
+      {away && !disabled && <ArrowUpRight size={14} weight="bold" />}
     </button>
   );
 }
@@ -119,6 +138,7 @@ function Banner({
   onCta,
   seed,
   flip,
+  ctaDisabled,
 }: {
   eyebrow: string;
   title: string;
@@ -127,6 +147,9 @@ function Banner({
   onCta: () => void;
   seed: string;
   flip?: boolean;
+  /** The surface is announced but not built. A CTA that navigates somewhere
+   *  unrelated is worse than one that plainly says "not yet". */
+  ctaDisabled?: boolean;
 }) {
   return (
     <div className="grid overflow-hidden rounded-2xl md:grid-cols-2" style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}>
@@ -141,7 +164,7 @@ function Banner({
           {body}
         </p>
         <div className="mt-6">
-          <Pill onClick={onCta} away>
+          <Pill onClick={onCta} away disabled={ctaDisabled}>
             {cta}
           </Pill>
         </div>
@@ -173,6 +196,10 @@ export default function Explore({
   onWallet: () => void;
 }) {
   const posts = COMMUNITY.filter((p) => p.status === "approved");
+  // Read admin-editable collections through `published()` — never the raw array.
+  // Drafts exist on purpose and must not leak onto a user surface.
+  const presets = published(PRESETS);
+  const courses = published(COURSES);
 
   const heroCard = (f: FeaturedItem) => (
     <button
@@ -233,12 +260,31 @@ export default function Explore({
     </button>
   );
 
+  const courseCard = (c: Course) => (
+    <button key={c.id} onClick={() => onNav("academy")} className="block w-full text-start">
+      <div className="overflow-hidden rounded-xl" style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}>
+        <img src={art(c.seed)} alt="" loading="lazy" className="aspect-video w-full object-cover" />
+      </div>
+      <p className="mt-2 text-[13px] font-bold leading-snug" style={{ color: "var(--vg-text)" }}>
+        {c.title}
+      </p>
+      <p className="mt-1 flex items-center gap-2 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
+        <span>{LEVEL_LABEL[c.level]}</span>
+        <span>·</span>
+        <span className="vg-numeric">{courseMinutes(c)}</span>
+        <span>دقیقه</span>
+      </p>
+    </button>
+  );
+
   /** The reference closes on a dense cloud of every surface it owns. It is the
    *  cheapest possible sitemap and it makes the product look deep. */
   const CLOUD = [
     ...FAMILIES.map((f) => ({ label: f.name, go: () => onOpen(f.id) })),
-    ...PRESETS.slice(0, 8).map((p) => ({ label: p.title, go: () => onOpen(p.familyId, p.prompt) })),
-    { label: "کامیونیتی", go: () => onNav("gallery") },
+    ...presets.slice(0, 8).map((p) => ({ label: p.title, go: () => onOpen(p.familyId, p.prompt) })),
+    { label: "همهٔ افکت‌ها", go: () => onNav("effects") },
+    { label: "آکادمی", go: () => onNav("academy") },
+    { label: "کارهای من", go: () => onNav("gallery") },
     { label: "شارژ سکه", go: onWallet },
   ];
 
@@ -317,10 +363,22 @@ export default function Explore({
           title="افکت‌های آماده"
           sub="یک عکس بده، بقیه‌اش با ما. هر افکت یک پرامپت کامل پشتش دارد."
           cta="همهٔ افکت‌ها"
-          onCta={() => onNav("video")}
-          items={PRESETS.slice(0, 8).map(presetCard)}
-          tease={PRESETS.slice(8, 12).map((p) => ({ key: p.id, seed: p.seed }))}
+          onCta={() => onNav("effects")}
+          items={presets.slice(0, 8).map(presetCard)}
+          tease={presets.slice(8, 12).map((p) => ({ key: p.id, seed: p.seed }))}
           ratio="3/4"
+        />
+
+        {/* Academy. Slotted right after the presets because they answer the
+            same question at two speeds: "I can't write a prompt" gets a card to
+            click, then a course to watch. */}
+        <Showcase
+          title="آکادمی VGen"
+          sub="دوره‌های کوتاه فارسی برای کار با مدل‌ها. از اولین ویدیو تا فروختن خروجی."
+          cta="همهٔ دوره‌ها"
+          onCta={() => onNav("academy")}
+          items={courses.slice(0, 4).map(courseCard)}
+          tease={courses.slice(4, 8).map((c) => ({ key: c.id, seed: c.seed }))}
         />
 
         {/* 5 — community */}
@@ -328,7 +386,7 @@ export default function Explore({
           title="داخل هر کار را ببین"
           sub="پرامپت، مدل و تنظیمات هر خروجی باز است. بردار، عوض کن، دوباره بساز."
           cta="کاوش در کامیونیتی"
-          onCta={() => onNav("gallery")}
+          onCta={() => onNav("community")}
           items={posts.slice(0, 4).map(projectCard)}
           tease={posts.slice(4, 8).map((p) => ({ key: p.id, seed: p.seed }))}
         />
@@ -339,8 +397,9 @@ export default function Explore({
           eyebrow="MCP و مهارت‌ها"
           title="از داخل کلاد بساز، نه فقط از سایت"
           body="مدل‌ها را به‌عنوان ابزار به دستیار خودت وصل کن، و جریان‌های چندمرحله‌ای را یک‌بار بنویس و هربار اجرا کن."
-          cta="در راه است"
-          onCta={() => onNav("video")}
+          cta="هنوز در دسترس نیست"
+          onCta={() => {}}
+          ctaDisabled
           seed="vgen-mcp-banner"
           flip
         />
