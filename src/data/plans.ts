@@ -323,6 +323,12 @@ export interface Benchmark {
   coins: number | null;
 }
 
+/** What one output is called, so a cell reads "۵۵۰ تصویر" rather than "۵۵۰". */
+export const UNIT_LABEL: Record<Benchmark["kind"], string> = { image: "تصویر", video: "ویدیو", audio: "کلیپ" };
+
+/** Section headings, in the order the table shows them. */
+export const KIND_LABEL: Record<Benchmark["kind"], string> = { video: "ویدیو", image: "تصویر", audio: "صدا" };
+
 /** Resolve a variant id back to its family and label so the row cannot claim to
  *  be a model it is not. Returns null if the id has left the catalog. */
 function nameOf(variantId: string): { family: string; variant: string } | null {

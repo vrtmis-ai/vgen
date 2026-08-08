@@ -16,7 +16,7 @@
    null today, so the screen honestly renders the no-plan case rather than
    inventing one. */
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, CalendarCheck, CheckCircle, Gift, ImageSquare, Lightning, Sparkle, VideoCamera } from "@phosphor-icons/react";
+import { ArrowRight, CalendarCheck, CaretDown, CheckCircle, Gift, ImageSquare, Lightning, Sparkle, VideoCamera, X } from "@phosphor-icons/react";
 import {
   PLANS,
   toman,
@@ -28,6 +28,8 @@ import {
   estVideos,
   BENCHMARKS,
   outputsPerMonth,
+  UNIT_LABEL,
+  KIND_LABEL,
   type Plan,
   type PricingAccount,
 } from "../data/plans";
@@ -287,73 +289,136 @@ function EntryCard({
  * stated setting printed next to the model name so the number can be checked.
  * A model whose rate has gone missing shows a dash, never an invented count.
  */
-function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId: string | null }) {
-  const { n } = useI18n();
-  const cols = PLANS.filter((p) => p.group === "main");
+function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; currentPlanId: string | null; account?: PricingAccount | undefined }) {
+  const { t, n } = useI18n();
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // Every tier, cheapest first — the table scrolls, so there is no reason to
+  // hide half the ladder. A comparison that omits the plan you are on is not
+  // one you can act from.
+  const cols = [...PLANS].sort((a, b) => monthlyCoins(a) - monthlyCoins(b));
   const rows = BENCHMARKS.filter((b) => b.coins != null);
   const missing = BENCHMARKS.length - rows.length;
+  const kinds = (["video", "image", "audio"] as const).filter((k) => rows.some((b) => b.kind === k));
+  const VISIBLE = 3;
 
   return (
-    <section className="mt-10">
-      <h2 className="text-[15px] font-semibold">با هر پلن چقدر می‌سازی</h2>
-      <p className="mt-1 text-[11.5px] leading-relaxed text-ink3">
-        تعداد خروجی در ماه، با تنظیماتی که کنار اسم هر مدل نوشته شده. همان قیمتی که موقع ساخت روی دکمه می‌بینی.
-      </p>
+    <section className="mt-12">
+      <h2 className="text-[28px] font-extrabold leading-tight md:text-[36px]" style={{ fontFamily: "var(--vg-font-display)" }}>
+        مقایسهٔ پلن‌ها
+      </h2>
+      <p className="mt-1 text-[13px] text-ink3">ببین با هر پلن دقیقاً چند تا از چه چیزی می‌سازی.</p>
 
-      {/* The table scrolls sideways rather than collapsing: a comparison whose
-          columns stack is no longer a comparison. */}
-      <div className="hide-scrollbar mt-3 overflow-x-auto rounded-bezel border border-line">
-        <table className="w-full min-w-[520px] border-collapse text-start">
+      {/* Scrolls sideways rather than collapsing: a comparison whose columns
+          stack is no longer a comparison. The label column is sticky so the
+          model name stays put while the plans move under it. */}
+      <div className="hide-scrollbar mt-5 overflow-x-auto rounded-bezel border border-line">
+        <table className="w-full border-collapse text-start" style={{ minWidth: `${220 + cols.length * 150}px` }}>
           <thead>
-            <tr style={{ background: "var(--color-card2)" }}>
-              <th className="px-3 py-2.5 text-start text-[11.5px] font-medium text-ink3">مدل</th>
-              {/* The unit price, so the counts are arithmetic the reader can do
-                  rather than numbers they have to trust. It also explains why
-                  three image rows land on the same count. */}
-              <th className="px-3 py-2.5 text-center text-[11.5px] font-medium text-ink3">هر خروجی</th>
-              {cols.map((p) => (
-                <th
-                  key={p.id}
-                  className="px-3 py-2.5 text-center text-[12px] font-semibold"
-                  style={{ color: p.popular || p.id === currentPlanId ? "var(--vg-primary-soft)" : "var(--color-ink)" }}
-                >
-                  <bdi>{p.name}</bdi>
-                  <span className="mt-0.5 block vg-numeric text-[10.5px] font-normal text-ink3">
-                    {n(monthlyCoins(p))} سکه
-                  </span>
-                </th>
-              ))}
+            <tr>
+              <th className="sticky w-[220px] p-4 align-bottom" style={{ insetInlineStart: 0, background: "var(--color-bg)" }} />
+              {cols.map((p) => {
+                const lead = p.popular || p.id === currentPlanId;
+                return (
+                  <th key={p.id} className="p-4 align-bottom text-center">
+                    <span className="flex items-center justify-center gap-1.5">
+                      <bdi className="text-[17px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)" }}>
+                        {p.name}
+                      </bdi>
+                      {lead && (
+                        <span
+                          className="rounded px-1 py-px text-[9px] font-bold"
+                          style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}
+                        >
+                          {p.id === currentPlanId ? t("pl_current") : "بهترین"}
+                        </span>
+                      )}
+                    </span>
+                    {/* nowrap on both: a price that breaks mid-number reads as
+                        two prices, and "۲۵۵,۰۰۰ / تومان / ماه" over three lines
+                        is unreadable in a 132px column. */}
+                    <span className="vg-numeric mt-1 block whitespace-nowrap text-[12px] font-normal text-ink2">
+                      {n(monthlyCoins(p))} سکه / ماه
+                    </span>
+                    {/* One line, not the full Price block: the plan cards above
+                        already carry the breakdown, and a second copy of it in
+                        every header cell is the duplication this page just lost. */}
+                    <span className="vg-numeric mt-0.5 block whitespace-nowrap text-[11px] font-normal text-ink3">
+                      {n(toman(effectiveUsd(p, cycle === "annual" && p.annualUsdPerMonth != null, account)))} تومان
+                    </span>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
-          <tbody>
-            {rows.map((b) => (
-              <tr key={b.key} className="border-t border-line">
-                <td className="px-3 py-2.5">
-                  <span className="text-[12.5px]">
-                    <bdi>{b.family}</bdi>
-                    <span className="text-ink2"> · </span>
-                    <bdi className="text-ink2">{b.variant}</bdi>
-                  </span>
-                  <span className="mt-0.5 block text-[10.5px] text-ink3">{b.at}</span>
-                </td>
-                <td className="px-3 py-2.5 text-center">
-                  <span className="vg-numeric text-[12px] text-ink2">{b.coins == null ? "—" : n(b.coins)}</span>
-                </td>
-                {cols.map((p) => {
-                  const v = outputsPerMonth(p, b);
-                  return (
-                    <td key={p.id} className="px-3 py-2.5 text-center">
-                      <span className="vg-numeric text-[13.5px] font-semibold">{v == null ? "—" : n(v)}</span>
+
+          {kinds.map((kind) => {
+            const group = rows.filter((b) => b.kind === kind);
+            const open = expanded[kind] ?? false;
+            const shown = open ? group : group.slice(0, VISIBLE);
+            return (
+              <tbody key={kind}>
+                <tr>
+                  <td colSpan={cols.length + 1} className="px-4 pb-1 pt-6 text-[15px] font-bold">
+                    {KIND_LABEL[kind]}
+                  </td>
+                </tr>
+                {shown.map((b) => (
+                  <tr key={b.key} className="border-t border-line">
+                    <td className="sticky p-4 align-top" style={{ insetInlineStart: 0, background: "var(--color-bg)" }}>
+                      {/* Dotted underline, as the reference marks a term that
+                          carries detail — here the detail is the setting. */}
+                      <span className="text-[13px]" style={{ textDecoration: "underline dotted var(--color-line2)", textUnderlineOffset: "3px" }}>
+                        <bdi>{b.family}</bdi>
+                        <span className="text-ink2"> · </span>
+                        <bdi className="text-ink2">{b.variant}</bdi>
+                      </span>
+                      {/* The unit price belongs under the label, not in a column
+                          of its own where it competes with the plans. It is also
+                          what explains three image rows sharing a figure. */}
+                      <span className="vg-numeric mt-1 block text-[11px] text-ink3">
+                        {b.at} · {n(b.coins!)} سکه
+                      </span>
                     </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
+                    {cols.map((p) => {
+                      const v = outputsPerMonth(p, b);
+                      return (
+                        <td key={p.id} className="p-4 text-center align-top">
+                          {v == null || v === 0 ? (
+                            // A plan whose month does not buy even one is an ×,
+                            // not a zero. Zero reads as a number you could grow.
+                            <X size={13} className="mx-auto text-ink3" />
+                          ) : (
+                            <span className="text-[13px]">
+                              <span className="vg-numeric font-semibold">{n(v)}</span>{" "}
+                              <span className="text-ink3">{UNIT_LABEL[b.kind]}</span>
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+                {group.length > VISIBLE && (
+                  <tr className="border-t border-line">
+                    <td colSpan={cols.length + 1} className="p-3">
+                      <button
+                        onClick={() => setExpanded((s) => ({ ...s, [kind]: !open }))}
+                        className="flex items-center gap-1.5 text-[12.5px] text-ink2"
+                      >
+                        <CaretDown size={12} weight="bold" className={open ? "rotate-180" : ""} />
+                        {open ? "کمتر" : `${n(group.length - VISIBLE)} مدل دیگر`}
+                      </button>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            );
+          })}
         </table>
       </div>
 
-      <p className="mt-2 text-[10.5px] leading-relaxed text-ink3">
+      <p className="mt-3 text-[11px] leading-relaxed text-ink3">
         اعداد سقف‌اند: سکه‌ها بین مدل‌ها مشترک‌اند، پس اگر از چند مدل استفاده کنی تعدادها بین‌شان تقسیم می‌شود.
         {cycle === "annual" && " سکه‌ی ماهانه‌ی پلن سالانه همان مقدار است؛ فقط قیمتش کمتر می‌شود."}
         {missing > 0 && ` ${n(missing)} مدل فعلاً قیمت زنده ندارد و در جدول نیامده.`}
@@ -481,7 +546,7 @@ export default function Plans({
         ))}
       </div>
 
-      <ComparisonTable cycle={cycle} currentPlanId={currentPlanId} />
+      <ComparisonTable cycle={cycle} currentPlanId={currentPlanId} account={account} />
 
       {/* Owner trimmed this to the expiry line alone. The "no auto-renewal" fact
           it used to spell out now lives in the button itself — "خرید ۳۰ روزه"
