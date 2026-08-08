@@ -308,8 +308,14 @@ export function estVideos(plan: Plan): number | null {
 
 export interface Benchmark {
   key: string;
-  /** Model name as the user sees it elsewhere. Latin, isolated when rendered. */
-  label: string;
+  /** The variant that was actually priced — resolved from the catalog, never
+   *  hand-written, so a row can't drift from the model it claims to be. */
+  variantId: string;
+  /** Family name, e.g. "Nano Banana". Latin, isolated when rendered. */
+  family: string;
+  /** Variant label, e.g. "Pro". A row named only by its family is a lie when
+   *  the family holds variants that differ 4x in price. */
+  variant: string;
   /** The setting the count is quoted at, spelled out so the number is checkable. */
   at: string;
   kind: "image" | "video" | "audio";
@@ -317,19 +323,49 @@ export interface Benchmark {
   coins: number | null;
 }
 
-const bench = (key: string, label: string, at: string, kind: Benchmark["kind"], variantId: string, input: InputMap): Benchmark => ({
-  key, label, at, kind, coins: anchor(variantId, input),
-});
+/** Resolve a variant id back to its family and label so the row cannot claim to
+ *  be a model it is not. Returns null if the id has left the catalog. */
+function nameOf(variantId: string): { family: string; variant: string } | null {
+  for (const f of FAMILIES) {
+    const v = f.variants.find((x) => x.id === variantId);
+    if (v) return { family: f.name, variant: v.label };
+  }
+  return null;
+}
 
+const bench = (key: string, at: string, kind: Benchmark["kind"], variantId: string, input: InputMap): Benchmark => {
+  const nm = nameOf(variantId);
+  return {
+    key,
+    variantId,
+    family: nm?.family ?? variantId,
+    variant: nm?.variant ?? "—",
+    at,
+    kind,
+    coins: anchor(variantId, input),
+  };
+};
+
+/**
+ * Which variants get a row.
+ *
+ * The first cut quietly benchmarked the CHEAPEST variant of the two priciest
+ * families — Veo Fast rather than Veo Quality, Nano Banana v2 rather than Pro —
+ * and labelled both with the family name. On a page whose whole job is telling
+ * someone what their money buys, that overstates it by 4x. Where a family's
+ * variants diverge that far, both get a row.
+ */
 export const BENCHMARKS: Benchmark[] = [
-  bench("nano", "Nano Banana", "۱K", "image", "nano-banana-2", { resolution: "1K" }),
-  bench("gpt", "GPT Image", "۱K", "image", "gpt-image-2", { resolution: "1K" }),
-  bench("seedream", "Seedream", "پیش‌فرض", "image", "seedream-4-5", {}),
-  bench("imagen", "Imagen 4", "Ultra", "image", "imagen-4-ultra", {}),
-  bench("kling", "Kling 3.0", "۱۰۸۰p · ۵ ثانیه", "video", "kling-3", { mode: "pro", duration: 5, sound: false }),
-  bench("seedance", "Seedance 2.0", "۷۲۰p · ۵ ثانیه", "video", "seedance-2", { resolution: "720p", duration: 5 }),
-  bench("wan", "Wan 2.7", "۷۲۰p · ۵ ثانیه", "video", "wan-2-7", { resolution: "720p", duration: 5 }),
-  bench("veo", "Veo 3.1", "۱۰۸۰p", "video", "veo-fast", { resolution: "1080p" }),
+  bench("nano2", "۱K", "image", "nano-banana-2", { resolution: "1K" }),
+  bench("nanopro", "۱K", "image", "nano-banana-pro", { resolution: "1K" }),
+  bench("gpt", "۱K", "image", "gpt-image-2", { resolution: "1K" }),
+  bench("seedream", "پیش‌فرض", "image", "seedream-4-5", {}),
+  bench("imagen", "پیش‌فرض", "image", "imagen-4-ultra", {}),
+  bench("kling", "۱۰۸۰p · ۵ ثانیه", "video", "kling-3", { mode: "pro", duration: 5, sound: false }),
+  bench("seedance", "۷۲۰p · ۵ ثانیه", "video", "seedance-2", { resolution: "720p", duration: 5 }),
+  bench("wan", "۷۲۰p · ۵ ثانیه", "video", "wan-2-7", { resolution: "720p", duration: 5 }),
+  bench("veofast", "۱۰۸۰p", "video", "veo-fast", { resolution: "1080p" }),
+  bench("veoq", "۱۰۸۰p", "video", "veo-quality", { resolution: "1080p" }),
 ];
 
 /** How many of this output a plan's monthly coins buy. */

@@ -307,6 +307,10 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
           <thead>
             <tr style={{ background: "var(--color-card2)" }}>
               <th className="px-3 py-2.5 text-start text-[11.5px] font-medium text-ink3">مدل</th>
+              {/* The unit price, so the counts are arithmetic the reader can do
+                  rather than numbers they have to trust. It also explains why
+                  three image rows land on the same count. */}
+              <th className="px-3 py-2.5 text-center text-[11.5px] font-medium text-ink3">هر خروجی</th>
               {cols.map((p) => (
                 <th
                   key={p.id}
@@ -325,8 +329,15 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
             {rows.map((b) => (
               <tr key={b.key} className="border-t border-line">
                 <td className="px-3 py-2.5">
-                  <bdi className="text-[12.5px]">{b.label}</bdi>
+                  <span className="text-[12.5px]">
+                    <bdi>{b.family}</bdi>
+                    <span className="text-ink2"> · </span>
+                    <bdi className="text-ink2">{b.variant}</bdi>
+                  </span>
                   <span className="mt-0.5 block text-[10.5px] text-ink3">{b.at}</span>
+                </td>
+                <td className="px-3 py-2.5 text-center">
+                  <span className="vg-numeric text-[12px] text-ink2">{b.coins == null ? "—" : n(b.coins)}</span>
                 </td>
                 {cols.map((p) => {
                   const v = outputsPerMonth(p, b);
