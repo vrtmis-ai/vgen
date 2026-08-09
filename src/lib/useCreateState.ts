@@ -35,11 +35,30 @@ export function valueLabel(c: ChipControl, input: InputMap): string {
 }
 
 /** A slider rendered as a menu. Fine steps produce a scroll rather than a menu,
- *  so anything over eight stops is thinned to eight. */
+ *  so anything over eight stops is thinned to eight.
+ *
+ *  Only for surfaces that cannot show a real slider. Where one fits, use
+ *  `rangeOf` instead — thinning a 4-to-15-second range down to eight stops
+ *  quietly removes seconds the model will happily accept. */
 export function sliderSteps(c: Extract<Control, { kind: "slider" }>): number[] {
   const out: number[] = [];
   for (let v = c.min; v <= c.max + 1e-9; v += c.step) out.push(Number(v.toFixed(4)));
   return out.length > 8 ? out.filter((_, i) => i % Math.ceil(out.length / 8) === 0) : out;
+}
+
+/**
+ * The range behind a chip, or null if the control is a fixed set.
+ *
+ * This is the whole distinction the catalog already draws and the UI was
+ * throwing away: Seedance takes any duration from 4 to 15, Kling 2.5 takes 5 or
+ * 10 and nothing else. One deserves a bar you drag; the other must stay a list,
+ * because a slider there would offer seven values the provider rejects.
+ */
+export function rangeOf(
+  c: ChipControl,
+): { min: number; max: number; step: number; unit?: string | undefined; title: string } | null {
+  if (c.kind !== "slider") return null;
+  return { min: c.min, max: c.max, step: c.step, unit: c.unit, title: c.label };
 }
 
 export function useCreateState(families: Family[]) {

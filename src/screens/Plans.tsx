@@ -15,7 +15,7 @@
    `currentPlanId` / `expiresAt` come from the backend once it exists; App passes
    null today, so the screen honestly renders the no-plan case rather than
    inventing one. */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, CalendarCheck, CaretDown, CheckCircle, Gift, ImageSquare, Lightning, Sparkle, VideoCamera, X } from "@phosphor-icons/react";
 import {
   PLANS,
@@ -26,7 +26,7 @@ import {
   effectiveUsd,
   estImages,
   estVideos,
-  BENCHMARKS,
+  buildBenchmarks,
   outputsPerMonth,
   UNIT_LABEL,
   KIND_LABEL,
@@ -297,8 +297,10 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
   // hide half the ladder. A comparison that omits the plan you are on is not
   // one you can act from.
   const cols = [...PLANS].sort((a, b) => monthlyCoins(a) - monthlyCoins(b));
-  const rows = BENCHMARKS.filter((b) => b.coins != null);
-  const missing = BENCHMARKS.length - rows.length;
+  // Built at render, not at module load: some rates arrive from the live table
+  // after mount, and a list frozen at import time would quote the fallbacks
+  // forever.
+  const rows = useMemo(() => buildBenchmarks(), []);
   const kinds = (["video", "image", "audio"] as const).filter((k) => rows.some((b) => b.kind === k));
   const VISIBLE = 3;
 
@@ -313,7 +315,13 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
           stack is no longer a comparison. The label column is sticky so the
           model name stays put while the plans move under it. */}
       <div className="hide-scrollbar mt-5 overflow-x-auto rounded-bezel border border-line">
-        <table className="w-full border-collapse text-start" style={{ minWidth: `${220 + cols.length * 150}px` }}>
+        {/* `border-separate`, not `collapse`: a collapsed table drops the
+            borders of a position:sticky cell, so the pinned model column lost
+            its edges and slid under the scrolling ones. */}
+        <table
+          className="w-full border-separate text-start"
+          style={{ minWidth: `${220 + cols.length * 150}px`, borderSpacing: 0 }}
+        >
           <thead>
             <tr>
               <th className="sticky w-[220px] p-4 align-bottom" style={{ insetInlineStart: 0, background: "var(--color-bg)" }} />
@@ -334,17 +342,22 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
                         </span>
                       )}
                     </span>
-                    {/* nowrap on both: a price that breaks mid-number reads as
-                        two prices, and "۲۵۵,۰۰۰ / تومان / ماه" over three lines
-                        is unreadable in a 132px column. */}
-                    <span className="vg-numeric mt-1 block whitespace-nowrap text-[12px] font-normal text-ink2">
-                      {n(monthlyCoins(p))} سکه / ماه
+                    {/* `vg-numeric` goes on the digits ALONE. It switches to
+                        Geist Mono, and a Persian word inside it renders in a
+                        Latin monospace — the letters stop joining and the word
+                        comes apart, which is exactly what the type rules forbid.
+                        nowrap because a price broken mid-number reads as two. */}
+                    <span className="mt-1 block whitespace-nowrap text-[12px] font-normal text-ink2">
+                      <span className="vg-numeric">{n(monthlyCoins(p))}</span> سکه / ماه
                     </span>
                     {/* One line, not the full Price block: the plan cards above
                         already carry the breakdown, and a second copy of it in
                         every header cell is the duplication this page just lost. */}
-                    <span className="vg-numeric mt-0.5 block whitespace-nowrap text-[11px] font-normal text-ink3">
-                      {n(toman(effectiveUsd(p, cycle === "annual" && p.annualUsdPerMonth != null, account)))} تومان
+                    <span className="mt-0.5 block whitespace-nowrap text-[11px] font-normal text-ink3">
+                      <span className="vg-numeric">
+                        {n(toman(effectiveUsd(p, cycle === "annual" && p.annualUsdPerMonth != null, account)))}
+                      </span>{" "}
+                      تومان
                     </span>
                   </th>
                 );
@@ -364,8 +377,8 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
                   </td>
                 </tr>
                 {shown.map((b) => (
-                  <tr key={b.key} className="border-t border-line">
-                    <td className="sticky p-4 align-top" style={{ insetInlineStart: 0, background: "var(--color-bg)" }}>
+                  <tr key={b.key}>
+                    <td className="sticky border-t border-line p-4 align-top" style={{ insetInlineStart: 0, background: "var(--color-bg)" }}>
                       {/* Dotted underline, as the reference marks a term that
                           carries detail — here the detail is the setting. */}
                       <span className="text-[13px]" style={{ textDecoration: "underline dotted var(--color-line2)", textUnderlineOffset: "3px" }}>
@@ -376,14 +389,16 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
                       {/* The unit price belongs under the label, not in a column
                           of its own where it competes with the plans. It is also
                           what explains three image rows sharing a figure. */}
-                      <span className="vg-numeric mt-1 block text-[11px] text-ink3">
-                        {b.at} · {n(b.coins!)} سکه
+                      {/* `at` is mixed — "720p · 5 ثانیه" — so it stays in the
+                          UI font. Only the coin figure is isolated numerals. */}
+                      <span className="mt-1 block text-[11px] text-ink3">
+                        {b.at} · <span className="vg-numeric">{n(b.coins!)}</span> سکه
                       </span>
                     </td>
                     {cols.map((p) => {
                       const v = outputsPerMonth(p, b);
                       return (
-                        <td key={p.id} className="p-4 text-center align-top">
+                        <td key={p.id} className="border-t border-line p-4 text-center align-top">
                           {v == null || v === 0 ? (
                             // A plan whose month does not buy even one is an ×,
                             // not a zero. Zero reads as a number you could grow.
@@ -400,8 +415,8 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
                   </tr>
                 ))}
                 {group.length > VISIBLE && (
-                  <tr className="border-t border-line">
-                    <td colSpan={cols.length + 1} className="p-3">
+                  <tr>
+                    <td colSpan={cols.length + 1} className="border-t border-line p-3">
                       <button
                         onClick={() => setExpanded((s) => ({ ...s, [kind]: !open }))}
                         className="flex items-center gap-1.5 text-[12.5px] text-ink2"
@@ -421,7 +436,7 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
       <p className="mt-3 text-[11px] leading-relaxed text-ink3">
         اعداد سقف‌اند: سکه‌ها بین مدل‌ها مشترک‌اند، پس اگر از چند مدل استفاده کنی تعدادها بین‌شان تقسیم می‌شود.
         {cycle === "annual" && " سکه‌ی ماهانه‌ی پلن سالانه همان مقدار است؛ فقط قیمتش کمتر می‌شود."}
-        {missing > 0 && ` ${n(missing)} مدل فعلاً قیمت زنده ندارد و در جدول نیامده.`}
+        {" ترکیبی که پرووایدر نمی‌فروشد در جدول نمی‌آید."}
       </p>
     </section>
   );

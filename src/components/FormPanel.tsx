@@ -2,7 +2,7 @@ import { useState } from "react";
 import { CaretLeft, Image as ImageIcon, MusicNote, VideoCamera, Sparkle, PencilSimple } from "@phosphor-icons/react";
 import { type Family, type Variant } from "../data/models";
 import type { InputMap } from "./controls";
-import { useCreateState, valueLabel, sliderSteps } from "../lib/useCreateState";
+import { useCreateState, valueLabel, rangeOf } from "../lib/useCreateState";
 import { useI18n } from "../lib/i18n";
 import { CoinMark } from "./chrome";
 import { useImageFallback } from "../lib/useImageFallback";
@@ -245,17 +245,51 @@ export function FormPanel({
           </Card>
         )}
 
-        {/* Segments and aspects sit in a chip grid — three across, the widths
-            equal so the row reads as one control strip rather than a form. */}
-        {chips.some((c) => c.kind !== "toggle") && (
+        {/* A fixed set gets a select; a continuous range gets a real slider.
+            Seedance takes any duration from 4 to 15 and Kling 2.5 takes 5 or 10
+            — collapsing both into a dropdown loses the range on one and would
+            offer values the other rejects. The catalog already knows which is
+            which; `rangeOf` is just reading it. */}
+        {chips
+          .filter((c) => c.kind === "slider")
+          .map((c) => {
+            const r = rangeOf(c)!;
+            const v = Number(input[c.key]);
+            return (
+              <Card key={c.key} className="px-3 py-2.5">
+                <div className="mb-1.5 flex items-baseline justify-between">
+                  <span className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+                    {c.label}
+                  </span>
+                  <span className="text-[13px] font-bold" style={{ color: "var(--vg-primary-soft)" }}>
+                    <span className="vg-numeric">{v}</span>
+                    {c.unit ? <span className="ms-1 text-[11px] font-normal">{c.unit}</span> : null}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={r.min}
+                  max={r.max}
+                  step={r.step}
+                  value={v}
+                  aria-label={c.label}
+                  onChange={(e) => set(c.key, c.asString ? e.target.value : Number(e.target.value))}
+                  className="w-full"
+                />
+                <div className="mt-1 flex justify-between text-[10px]" style={{ color: "var(--vg-text-faint)" }}>
+                  <span className="vg-numeric">{r.min}</span>
+                  <span className="vg-numeric">{r.max}</span>
+                </div>
+              </Card>
+            );
+          })}
+
+        {chips.some((c) => c.kind !== "toggle" && c.kind !== "slider") && (
           <div className="grid grid-cols-3 gap-1.5">
             {chips
-              .filter((c) => c.kind !== "toggle")
+              .filter((c) => c.kind !== "toggle" && c.kind !== "slider")
               .map((c) => {
-                const opts =
-                  c.kind === "slider"
-                    ? sliderSteps(c).map((v) => ({ value: c.asString ? String(v) : v, label: `${v}${c.unit ? ` ${c.unit}` : ""}` }))
-                    : c.options.map((o) => ({ value: o.value as string | number, label: o.label }));
+                const opts = c.options.map((o) => ({ value: o.value as string | number, label: o.label }));
                 return (
                   <label key={c.key} className="relative block">
                     <span className="sr-only">{c.label}</span>

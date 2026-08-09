@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Plus, Minus, Sparkle, PencilSimple, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut } from "@phosphor-icons/react";
 import { FAMILIES, type Family, type Variant } from "../data/models";
 import type { InputMap } from "../components/controls";
-import { useCreateState, valueLabel, sliderSteps, type ChipControl } from "../lib/useCreateState";
+import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
 import { EXPLORE } from "../data/explore";
 import { CoinMark } from "../components/chrome";
@@ -219,7 +219,8 @@ export default function StudioImage({
                       label={valueLabel(c, s.input)}
                       value={String(s.input[c.key])}
                       options={chipOptions(c)}
-                      onPick={(v) => s.set(c.key, v)}
+                      range={rangeOf(c)}
+                      onPick={(v) => s.set(c.key, c.kind === "slider" && c.asString ? String(v) : v)}
                       className={CHIP_CLASS}
                       style={CHIP_STYLE}
                     />

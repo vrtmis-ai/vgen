@@ -116,6 +116,122 @@ export function PopoverMenu({
   );
 }
 
+/**
+ * A continuous control, for the models that actually have one.
+ *
+ * Duration is a `slider` on Seedance (4–15s, step 1) and a fixed `segment` on
+ * Kling 2.5 (5 or 10, nothing between). Rendering both as a list of options
+ * threw away the range on one and would invent values on the other. The catalog
+ * already draws the distinction; the UI just has to respect it.
+ */
+export function PopoverSlider({
+  anchor,
+  label,
+  min,
+  max,
+  step,
+  unit,
+  value,
+  onChange,
+  onClose,
+}: {
+  anchor: HTMLElement | null;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  unit?: string | undefined;
+  value: number;
+  onChange: (v: number) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!anchor || !ref.current) return;
+    const a = anchor.getBoundingClientRect();
+    const m = ref.current.getBoundingClientRect();
+    let top = a.top - m.height - 8;
+    if (top < 8) top = Math.min(a.bottom + 8, window.innerHeight - m.height - 8);
+    const rtl = document.documentElement.dir === "rtl";
+    let left = rtl ? a.right - m.width : a.left;
+    left = Math.max(8, Math.min(left, window.innerWidth - m.width - 8));
+    setPos({ top, left });
+  }, [anchor]);
+
+  useEffect(() => {
+    const away = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (ref.current?.contains(t) || anchor?.contains(t)) return;
+      onClose();
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [anchor, onClose]);
+
+  const marks = [min, Math.round((min + max) / 2), max];
+
+  return createPortal(
+    <div
+      ref={ref}
+      className="fixed z-[80] w-[248px] rounded-xl p-3.5"
+      style={{
+        top: pos?.top ?? -9999,
+        left: pos?.left ?? -9999,
+        background: "var(--vg-surface-raised)",
+        border: "1px solid var(--vg-border)",
+        boxShadow: "0 16px 44px rgba(0,0,0,0.62)",
+        visibility: pos ? "visible" : "hidden",
+      }}
+    >
+      <div className="mb-2.5 flex items-baseline justify-between">
+        <span className="text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
+          {label}
+        </span>
+        <span className="text-[15px] font-bold" style={{ color: "var(--vg-primary-soft)" }}>
+          <span className="vg-numeric">{value}</span>
+          {unit ? <span className="ms-1 text-[11px] font-normal">{unit}</span> : null}
+        </span>
+      </div>
+
+      {/* The browser already mirrors range inputs under `direction: rtl`; a
+          transform on top of that flips it a second time and paints the fill on
+          the wrong side of the thumb. Only the track gradient needs the RTL
+          rule, and that lives in index.css. */}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full"
+        aria-label={label}
+      />
+
+      <div className="mt-1.5 flex justify-between">
+        {marks.map((m) => (
+          <button
+            key={m}
+            onClick={() => onChange(m)}
+            className="vg-numeric text-[10.5px]"
+            style={{ color: m === value ? "var(--vg-primary-soft)" : "var(--vg-text-faint)" }}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 /** Trigger + menu in one. The trigger holds its own ref so the menu can measure
  *  against it without the caller threading one through. */
 export function PopoverChip({
@@ -123,6 +239,7 @@ export function PopoverChip({
   options,
   value,
   onPick,
+  range,
   className,
   style,
 }: {
@@ -130,6 +247,10 @@ export function PopoverChip({
   options: PopoverOption[];
   value: string;
   onPick: (v: string | number) => void;
+  /** Present when the control is a continuous range rather than a fixed set.
+   *  A model that offers 4–15 seconds gets a slider; one that offers 5 or 10
+   *  gets the list, because those are the only two numbers it will accept. */
+  range?: { min: number; max: number; step: number; unit?: string | undefined; title: string } | null | undefined;
   className?: string;
   style?: React.CSSProperties;
 }) {
@@ -141,16 +262,29 @@ export function PopoverChip({
         ref={ref}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
+        aria-haspopup={range ? "dialog" : "listbox"}
         aria-expanded={open}
         className={className}
         style={style}
       >
         {label}
       </button>
-      {open && (
-        <PopoverMenu anchor={ref.current} options={options} value={value} onPick={onPick} onClose={() => setOpen(false)} />
-      )}
+      {open &&
+        (range ? (
+          <PopoverSlider
+            anchor={ref.current}
+            label={range.title}
+            min={range.min}
+            max={range.max}
+            step={range.step}
+            unit={range.unit}
+            value={Number(value)}
+            onChange={onPick}
+            onClose={() => setOpen(false)}
+          />
+        ) : (
+          <PopoverMenu anchor={ref.current} options={options} value={value} onPick={onPick} onClose={() => setOpen(false)} />
+        ))}
     </>
   );
 }

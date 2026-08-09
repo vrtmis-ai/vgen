@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Waveform, Heart, SquaresFour, Sparkle, Play } from "@phosphor-icons/react";
 import { FAMILIES, type Family, type Variant } from "../data/models";
 import type { InputMap } from "../components/controls";
-import { useCreateState, valueLabel, sliderSteps } from "../lib/useCreateState";
+import { useCreateState, valueLabel, sliderSteps, rangeOf } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
 import { VOICES } from "../data/voices";
 import { CoinMark } from "../components/chrome";
@@ -224,12 +224,13 @@ export default function StudioAudio({
                     key={c.key}
                     label={`${c.label}: ${valueLabel(c, s.input)}`}
                     value={String(s.input[c.key])}
+                    range={rangeOf(c)}
                     options={
                       c.kind === "slider"
                         ? sliderSteps(c).map((v) => ({ value: (c.asString ? String(v) : v) as string | number, label: `${v}${c.unit ? ` ${c.unit}` : ""}` }))
                         : c.options.map((o) => ({ value: o.value as string | number, label: o.label }))
                     }
-                    onPick={(v) => s.set(c.key, v)}
+                    onPick={(v) => s.set(c.key, c.kind === "slider" && c.asString ? String(v) : v)}
                     className={CHIP_CLASS}
                     style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
                   />

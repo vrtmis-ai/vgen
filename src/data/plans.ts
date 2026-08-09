@@ -32,8 +32,8 @@
 // NOTE: enforcing renewals, expiry and tier access needs the backend; until then
 // the UI reads this file and the backend phase wires it up against the same data.
 
-import { coinsForKieCredits, COIN_USD, MARGIN, RATES_FALLBACK } from "./pricing";
-import { FAMILIES } from "./models";
+import { coinsForKieCredits, COIN_USD, MARGIN, RATES_FALLBACK, priceCoins } from "./pricing";
+import { FAMILIES, defaultInput, variantControls } from "./models";
 import type { InputMap } from "../components/controls";
 
 export { COIN_USD };
@@ -329,50 +329,81 @@ export const UNIT_LABEL: Record<Benchmark["kind"], string> = { image: "تصوی�
 /** Section headings, in the order the table shows them. */
 export const KIND_LABEL: Record<Benchmark["kind"], string> = { video: "ویدیو", image: "تصویر", audio: "صدا" };
 
-/** Resolve a variant id back to its family and label so the row cannot claim to
- *  be a model it is not. Returns null if the id has left the catalog. */
-function nameOf(variantId: string): { family: string; variant: string } | null {
-  for (const f of FAMILIES) {
-    const v = f.variants.find((x) => x.id === variantId);
-    if (v) return { family: f.name, variant: v.label };
-  }
-  return null;
-}
+/** The control that decides how much an output costs, in preference order. A
+ *  family exposes at most one of these, and it is the axis worth a row each. */
+const QUALITY_KEYS = ["resolution", "quality", "mode", "upscale_factor", "rendering_speed"];
 
-const bench = (key: string, at: string, kind: Benchmark["kind"], variantId: string, input: InputMap): Benchmark => {
-  const nm = nameOf(variantId);
-  return {
-    key,
-    variantId,
-    family: nm?.family ?? variantId,
-    variant: nm?.variant ?? "—",
-    at,
-    kind,
-    coins: anchor(variantId, input),
-  };
-};
+/** Videos are quoted at five seconds so the rows compare against each other. */
+const BENCH_SECONDS = 5;
+/** Speech is quoted per thousand characters — roughly a minute of narration. */
+const BENCH_CHARS = 1000;
 
 /**
- * Which variants get a row.
+ * Build a row for every priceable combination in the catalog.
  *
- * The first cut quietly benchmarked the CHEAPEST variant of the two priciest
- * families — Veo Fast rather than Veo Quality, Nano Banana v2 rather than Pro —
- * and labelled both with the family name. On a page whose whole job is telling
- * someone what their money buys, that overstates it by 4x. Where a family's
- * variants diverge that far, both get a row.
+ * The first cut was ten hand-picked rows, which made an 18-family catalog look
+ * like five video models and five image models — and worse, it silently chose
+ * the cheapest variant of the two priciest families. Nothing hand-picked
+ * survives: every family, every variant, and every step of that variant's
+ * quality axis gets a row, so Seedance 2.0 appears at 480p, 720p, 1080p and 4K
+ * the way the reference lists it.
+ *
+ * Prices come from `priceCoins` — the same function the Generate button calls —
+ * rather than a private copy of the rate table, so the page cannot quote a
+ * number the studio would disagree with. A combination the provider does not
+ * sell prices as null and is dropped; that is the same rule everywhere else.
  */
-export const BENCHMARKS: Benchmark[] = [
-  bench("nano2", "۱K", "image", "nano-banana-2", { resolution: "1K" }),
-  bench("nanopro", "۱K", "image", "nano-banana-pro", { resolution: "1K" }),
-  bench("gpt", "۱K", "image", "gpt-image-2", { resolution: "1K" }),
-  bench("seedream", "پیش‌فرض", "image", "seedream-4-5", {}),
-  bench("imagen", "پیش‌فرض", "image", "imagen-4-ultra", {}),
-  bench("kling", "۱۰۸۰p · ۵ ثانیه", "video", "kling-3", { mode: "pro", duration: 5, sound: false }),
-  bench("seedance", "۷۲۰p · ۵ ثانیه", "video", "seedance-2", { resolution: "720p", duration: 5 }),
-  bench("wan", "۷۲۰p · ۵ ثانیه", "video", "wan-2-7", { resolution: "720p", duration: 5 }),
-  bench("veofast", "۱۰۸۰p", "video", "veo-fast", { resolution: "1080p" }),
-  bench("veoq", "۱۰۸۰p", "video", "veo-quality", { resolution: "1080p" }),
-];
+export function buildBenchmarks(): Benchmark[] {
+  const out: Benchmark[] = [];
+
+  for (const family of FAMILIES) {
+    for (const variant of family.variants) {
+      const controls = variantControls(family, variant);
+      const base = defaultInput(controls);
+
+      // Pin duration so every video row is the same length. Without this a
+      // 10-second default silently doubles one model against its neighbours.
+      const dur = controls.find((c) => c.key === "duration");
+      if (dur?.kind === "segment") {
+        base.duration = (dur.options.find((o) => o.value === String(BENCH_SECONDS)) ?? dur.options[0]!).value;
+      } else if (dur?.kind === "slider") {
+        const v = Math.min(Math.max(BENCH_SECONDS, dur.min), dur.max);
+        base.duration = dur.asString ? String(v) : v;
+      }
+
+      const axis = controls.find((c) => c.kind === "segment" && QUALITY_KEYS.includes(c.key));
+      const steps =
+        axis?.kind === "segment" ? axis.options.map((o) => ({ value: o.value, label: o.label })) : [null];
+
+      for (const step of steps) {
+        const input: InputMap = axis && step ? { ...base, [axis.key]: step.value } : base;
+        const ctx = { chars: family.kind === "audio" ? BENCH_CHARS : 0, clipSeconds: 0 };
+        const coins = priceCoins(variant, input, ctx);
+        if (coins == null) continue; // not sold in that combination
+
+        // What the number is quoted at, so the row is checkable.
+        const parts: string[] = [];
+        if (step) parts.push(step.label);
+        if (base.duration != null) parts.push(`${base.duration} ثانیه`);
+        if (family.kind === "audio") parts.push("۱۰۰۰ نویسه");
+
+        out.push({
+          key: `${variant.id}:${step?.value ?? "-"}`,
+          variantId: variant.id,
+          family: family.name,
+          variant: variant.label,
+          at: parts.join(" · ") || "پیش‌فرض",
+          kind: family.kind,
+          coins,
+        });
+      }
+    }
+  }
+
+  // Cheapest first inside each kind: the table groups by kind anyway, and a
+  // price ladder is the order someone comparing actually reads in.
+  return out.sort((a, b) => (a.coins ?? 0) - (b.coins ?? 0));
+}
 
 /** How many of this output a plan's monthly coins buy. */
 export function outputsPerMonth(plan: Plan, b: Benchmark): number | null {
