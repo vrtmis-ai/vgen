@@ -1,9 +1,9 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { ImagesSquare, CircleNotch } from "@phosphor-icons/react";
 import type { Generation } from "../lib/gallery";
-import { CreditPill } from "../components/chrome";
+import type { ModelKind } from "../data/models";
 import { useI18n } from "../lib/i18n";
-import type { Wallet } from "../data/wallet";
 
 function GenCard({ g, i, onOpen }: { g: Generation; i: number; onOpen: () => void }) {
   const { t } = useI18n();
@@ -38,26 +38,70 @@ function GenCard({ g, i, onOpen }: { g: Generation; i: number; onOpen: () => voi
   );
 }
 
+type Filter = "all" | ModelKind | "running";
+
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "all", label: "همه" },
+  { key: "video", label: "ویدیو" },
+  { key: "image", label: "تصویر" },
+  { key: "audio", label: "صدا" },
+  { key: "running", label: "در حال ساخت" },
+];
+
 export default function Gallery({
   gens,
-  wallet,
   onOpen,
   onBrowse,
-  onWallet,
 }: {
   gens: Generation[];
-  wallet: Wallet;
   onOpen: (g: Generation) => void;
   onBrowse: () => void;
-  onWallet: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, n } = useI18n();
+  const [filter, setFilter] = useState<Filter>("all");
+
+  const count = (f: Filter) =>
+    f === "all" ? gens.length : f === "running" ? gens.filter((g) => g.status === "running").length : gens.filter((g) => g.kind === f).length;
+  const shown = gens.filter((g) => (filter === "all" ? true : filter === "running" ? g.status === "running" : g.kind === filter));
+
   return (
-    <div className="relative z-10 px-4 pt-4">
-      <div className="mb-5 flex items-center justify-between">
-        <span className="text-[20px] font-semibold tracking-tight">{t("gal_title")}</span>
-        <CreditPill coins={wallet.spendable} onClick={onWallet} />
-      </div>
+    /* Rebuilt for the top-bar shell. Like Community, this printed its own title
+       row with a CreditPill in it — a second balance directly under the one in
+       the chrome, left over from when it was a tab in a 480px column. */
+    <div className="relative z-10 mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-16 pt-5 md:px-8">
+      <h1 className="text-[19px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+        {t("gal_title")}
+      </h1>
+      <p className="mt-0.5 text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
+        هرچه ساخته‌ای اینجاست. هیچ‌کدام تا وقتی خودت نخواهی عمومی نمی‌شود.
+      </p>
+
+      {/* A filter row only earns its space once there is something to filter. */}
+      {gens.length > 0 && (
+        <div className="hide-scrollbar -mx-4 my-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
+          {FILTERS.filter((f) => count(f.key) > 0 || f.key === "all").map((f) => {
+            const on = f.key === filter;
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                aria-pressed={on}
+                className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
+                style={{
+                  background: on ? "rgba(233,95,24,0.14)" : "var(--vg-surface)",
+                  color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                  border: "1px solid var(--vg-border-subtle)",
+                }}
+              >
+                {f.label}
+                <span className="vg-numeric text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+                  {n(count(f.key))}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {gens.length === 0 ? (
         <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-4 px-8 text-center">
@@ -70,9 +114,14 @@ export default function Gallery({
             {t("gal_browse")}
           </button>
         </div>
+      ) : shown.length === 0 ? (
+        <p className="py-16 text-center text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
+          با این فیلتر چیزی نیست.
+        </p>
       ) : (
-        <div className="[column-fill:_balance] columns-2 gap-3">
-          {gens.map((g, i) => (
+        /* Widens past two phone columns — it was fixed at two on a 1440px page. */
+        <div className="[column-fill:_balance] columns-2 gap-3 md:columns-3 xl:columns-4">
+          {shown.map((g, i) => (
             <GenCard key={g.id} g={g} i={i} onOpen={() => onOpen(g)} />
           ))}
         </div>

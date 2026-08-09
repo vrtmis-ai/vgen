@@ -14,10 +14,11 @@ import { useI18n } from "../lib/i18n";
    user's question on arrival is "what am I building", not "where in the app am I".
    --------------------------------------------------------------------------- */
 
-/** `community` is routable but deliberately absent from ITEMS below: it is
- *  reached from Explore's own CTA, and a seven-item bar is already at the edge
- *  of what a phone can scroll comfortably. */
-export type NavKey = "explore" | "image" | "video" | "audio" | "effects" | "academy" | "gallery" | "community";
+/** `community` and `mcp` are routable but deliberately absent from ITEMS below.
+ *  Both are reached from Explore — the community CTA and the MCP tile — and a
+ *  seven-item bar is already at the edge of what a phone scrolls comfortably.
+ *  MCP earns a nav item the day it actually works. */
+export type NavKey = "explore" | "image" | "video" | "audio" | "effects" | "academy" | "gallery" | "community" | "mcp";
 
 const ITEMS: { key: NavKey; label: string; badge?: string }[] = [
   { key: "explore", label: "اکسپلور" },

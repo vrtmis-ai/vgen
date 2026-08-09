@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { getFamily, variantControls, type Variant, type ModelKind } from "./data/models";
+import { getFamily, variantControls, type Variant } from "./data/models";
 import type { InputMap, RefMap } from "./components/controls";
 import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/gallery";
 import { startKieRates } from "./lib/kieRates";
@@ -9,13 +9,13 @@ import { pageFade } from "./lib/motion";
 import { Ambient } from "./components/chrome";
 import { TopBar, type NavKey } from "./components/TopBar";
 import Landing from "./screens/Landing";
-import Models from "./screens/Models";
 import Studio from "./screens/Studio";
 import StudioImage from "./screens/StudioImage";
 import StudioAudio from "./screens/StudioAudio";
 import Explore from "./screens/Explore";
 import Effects from "./screens/Effects";
 import Academy from "./screens/Academy";
+import Mcp from "./screens/Mcp";
 import Community from "./screens/Community";
 import Gallery from "./screens/Gallery";
 import Plans from "./screens/Plans";
@@ -30,7 +30,6 @@ type Flow =
   | { s: "none" }
   | { s: "wallet" }
   | { s: "profile" }
-  | { s: "models"; kind: ModelKind }
   // `| undefined` on an optional field is not redundant under
   // exactOptionalPropertyTypes: it is the difference between "the key may be
   // absent" and "the key may be present holding undefined". openModel passes an
@@ -80,7 +79,6 @@ export default function App() {
   useSwipeBack(flow.s !== "none" ? goBack : undefined);
 
   const openModel = (familyId: string, prompt?: string) => navigate({ s: "generate", familyId, prompt });
-  const openModels = (kind: ModelKind = "image") => navigate({ s: "models", kind });
   const openWallet = () => navigate({ s: "wallet" });
   const markDone = (id: string) => setGens((p) => p.map((g) => (g.id === id ? { ...g, status: "done" } : g)));
 
@@ -153,13 +151,6 @@ export default function App() {
     return (
       <Shell>
         <Profile wallet={wallet} gens={gens} onWallet={openWallet} onGallery={goBack} onOpenModel={openModel} />
-      </Shell>
-    );
-  }
-  if (flow.s === "models") {
-    return (
-      <Shell>
-        <Models wallet={wallet} initialKind={flow.kind} onOpen={openModel} onWallet={openWallet} onBack={goBack} />
       </Shell>
     );
   }
@@ -245,14 +236,13 @@ export default function App() {
           {tab === "explore" && <Explore onOpen={openModel} onNav={setTab} onWallet={openWallet} />}
           {tab === "effects" && <Effects onOpen={openModel} />}
           {tab === "academy" && <Academy onOpenModel={openModel} />}
+          {tab === "mcp" && <Mcp onOpenModel={openModel} />}
           {tab === "community" && <Community onOpen={openModel} />}
           {tab === "gallery" && (
             <Gallery
               gens={gens}
-              wallet={wallet}
               onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
-              onBrowse={() => openModels()}
-              onWallet={openWallet}
+              onBrowse={() => setTab("video")}
             />
           )}
         </motion.div>

@@ -201,7 +201,9 @@ const TILES: Tile[] = [
   { Icon: ImageIcon, title: "Nano Banana", sub: "ویرایش تصویر با دستور متنی", go: (a) => a.onOpen("nano-banana") },
   { Icon: MusicNote, title: "Veo 3.1", sub: "ویدیوی سینمایی گوگل", go: (a) => a.onOpen("veo") },
   { Icon: GraduationCap, title: "آکادمی", sub: "دوره‌های فارسی کار با مدل‌ها", badge: "جدید", go: (a) => a.onNav("academy") },
-  { Icon: Terminal, title: "MCP و CLI", sub: "از داخل کلاد و ترمینال بساز", badge: "به‌زودی", soon: true },
+  // MCP has a page now — it explains the setup and lists the skills. The tile
+  // opens it; the actions inside it are still honestly disabled.
+  { Icon: Terminal, title: "MCP و مهارت‌ها", sub: "از داخل کلاد و ترمینال بساز", badge: "به‌زودی", go: (a) => a.onNav("mcp") },
   { Icon: FilmSlate, title: "استودیو سینما", sub: "کنترل دوربین، لنز و نور", badge: "به‌زودی", soon: true },
 ];
 
@@ -414,9 +416,8 @@ export default function Explore({
           eyebrow="MCP و مهارت‌ها"
           title="از داخل کلاد بساز، نه فقط از سایت"
           body="مدل‌ها را به‌عنوان ابزار به دستیار خودت وصل کن، و جریان‌های چندمرحله‌ای را یک‌بار بنویس و هربار اجرا کن."
-          cta="هنوز در دسترس نیست"
-          onCta={() => {}}
-          ctaDisabled
+          cta="ببین چطور کار می‌کند"
+          onCta={() => onNav("mcp")}
           seed="vgen-mcp-banner"
           flip
         />
