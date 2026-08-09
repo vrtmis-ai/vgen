@@ -61,6 +61,41 @@ export function rangeOf(
   return { min: c.min, max: c.max, step: c.step, unit: c.unit, title: c.label };
 }
 
+/* ---------------------------------------------------------------------------
+   Row metadata for the model picker.
+
+   The reference's picker does not list names — each row carries the ceiling
+   that actually decides whether the model is the right one: top resolution and
+   the length range it will produce. Ours has the same facts in the catalog and
+   was throwing them away, printing "name · vendor" instead.
+   --------------------------------------------------------------------------- */
+
+export interface VariantMeta {
+  /** Best resolution the variant offers, e.g. "4K". Null when it has no choice. */
+  topRes: string | null;
+  /** Length range as the reference writes it, e.g. "۴s-۱۵s". Null for stills. */
+  range: string | null;
+}
+
+export function variantMeta(family: Family, variant: Variant): VariantMeta {
+  const controls = variantControls(family, variant);
+
+  // Resolution goes by the LAST option, not the largest number: the catalog
+  // already lists them ascending, and "4K" does not sort above "1080p" as text.
+  const res = controls.find((c) => c.kind === "segment" && (c.key === "resolution" || c.key === "mode" || c.key === "quality"));
+  const topRes = res?.kind === "segment" ? (res.options[res.options.length - 1]?.label ?? null) : null;
+
+  const dur = controls.find((c) => c.key === "duration");
+  let range: string | null = null;
+  if (dur?.kind === "slider") range = `${dur.min}s-${dur.max}s`;
+  else if (dur?.kind === "segment") {
+    const vals = dur.options.map((o) => Number(o.value)).filter((v) => !Number.isNaN(v));
+    if (vals.length) range = vals.length === 1 ? `${vals[0]}s` : `${Math.min(...vals)}s-${Math.max(...vals)}s`;
+  }
+
+  return { topRes, range };
+}
+
 export function useCreateState(families: Family[]) {
   const [family, setFamily] = useState<Family>(() => families[0]!);
   const [variantId, setVariantId] = useState<string>(() => families[0]!.variants[0]!.id);

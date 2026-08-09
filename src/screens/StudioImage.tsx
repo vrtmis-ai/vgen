@@ -8,6 +8,7 @@ import { EXPLORE } from "../data/explore";
 import { CoinMark } from "../components/chrome";
 import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
+import { ModelChip } from "../components/ModelPicker";
 import { useI18n } from "../lib/i18n";
 
 /* ---------------------------------------------------------------------------
@@ -177,28 +178,18 @@ export default function StudioImage({
 
             <div className="mt-3 flex items-end gap-2">
               <div className="hide-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
-                <PopoverChip
-                  label={s.family.name}
-                  value={s.family.id}
-                  options={families.map((f) => ({ value: f.id, label: f.name, hint: f.vendor }))}
-                  onPick={(id) => s.setFamily(families.find((f) => f.id === id) ?? s.family)}
+                {/* One chip for the model, not a family chip plus a variant
+                    chip. The picker shows both in one panel, so the dock does
+                    not have to expose our data model to make the choice. */}
+                <ModelChip
+                  families={families}
+                  family={s.family}
+                  variant={s.variant}
+                  onPickFamily={s.setFamily}
+                  onPickVariant={s.setVariant}
                   className={CHIP_CLASS}
                   style={CHIP_STYLE}
                 />
-
-                {/* A second chip, not a submenu. Nano Banana Pro and Nano Banana
-                    2 are different models at different prices, so the choice
-                    belongs next to the family rather than buried inside it. */}
-                {s.hasVariants && (
-                  <PopoverChip
-                    label={s.variant.label}
-                    value={s.variant.id}
-                    options={s.family.variants.map((v) => ({ value: v.id, label: v.label, ...(v.badge ? { hint: v.badge } : {}) }))}
-                    onPick={(id) => s.setVariant(String(id))}
-                    className={CHIP_CLASS}
-                    style={CHIP_STYLE}
-                  />
-                )}
 
                 {s.chips.map((c) =>
                   c.kind === "toggle" ? (

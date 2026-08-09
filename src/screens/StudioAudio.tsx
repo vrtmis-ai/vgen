@@ -7,6 +7,7 @@ import { type Generation } from "../lib/gallery";
 import { VOICES } from "../data/voices";
 import { CoinMark } from "../components/chrome";
 import { PopoverChip } from "../components/Popover";
+import { ModelChip } from "../components/ModelPicker";
 import { useI18n } from "../lib/i18n";
 
 /* ---------------------------------------------------------------------------
@@ -188,24 +189,15 @@ export default function StudioAudio({
                 horizontally, and an overflow container clips both axes — an
                 in-tree menu would be cut to the row's 32px. */}
             <div className="hide-scrollbar flex items-center gap-1.5 overflow-x-auto">
-              <PopoverChip
-                label={s.family.name}
-                value={s.family.id}
-                options={families.map((f) => ({ value: f.id, label: f.name, hint: f.vendor }))}
-                onPick={(id) => s.setFamily(families.find((f) => f.id === id) ?? s.family)}
-                className={CHIP_CLASS}
+              <ModelChip
+                families={families}
+                family={s.family}
+                variant={s.variant}
+                onPickFamily={s.setFamily}
+                onPickVariant={s.setVariant}
+                className={`${CHIP_CLASS} gap-1.5`}
                 style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
               />
-              {s.hasVariants && (
-                <PopoverChip
-                  label={s.variant.label}
-                  value={s.variant.id}
-                  options={s.family.variants.map((v) => ({ value: v.id, label: v.label, ...(v.badge ? { hint: v.badge } : {}) }))}
-                  onPick={(id) => s.setVariant(String(id))}
-                  className={CHIP_CLASS}
-                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-                />
-              )}
               {s.chips.map((c) =>
                 c.kind === "toggle" ? (
                   <button

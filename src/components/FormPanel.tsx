@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CaretLeft, Image as ImageIcon, MusicNote, VideoCamera, Sparkle, PencilSimple } from "@phosphor-icons/react";
 import { type Family, type Variant } from "../data/models";
 import type { InputMap } from "./controls";
 import { useCreateState, valueLabel, rangeOf } from "../lib/useCreateState";
+import { ModelPicker } from "./ModelPicker";
+import { PresetPicker } from "./PresetPicker";
+import type { Preset } from "../data/presets";
 import { useI18n } from "../lib/i18n";
 import { CoinMark } from "./chrome";
 import { useImageFallback } from "../lib/useImageFallback";
@@ -76,16 +79,23 @@ function RowSelect({
   );
 }
 
-function PresetCard({ family, onChange }: { family: Family; onChange: () => void }) {
+/**
+ * The cover card shows the PRESET, with the model as its subtitle — the
+ * reference reads "GENERAL" over "Seedance 2.0", not the model twice.
+ *
+ * That split is the whole point of the card: the big word is the look you
+ * picked, and "تغییر" changes the look. The model lives in its own row below
+ * and has its own picker.
+ */
+function PresetCard({ family, preset, onChange }: { family: Family; preset: Preset | null; onChange: () => void }) {
   const [failed, onError] = useImageFallback();
+  const cover = preset ? `https://picsum.photos/seed/${preset.seed}/480/300` : family.cover;
   return (
     <div
       className="relative aspect-[16/10] overflow-hidden rounded-xl"
       style={{ background: family.grad, border: "1px solid var(--vg-border-subtle)" }}
     >
-      {family.cover && !failed && (
-        <img src={family.cover} alt="" onError={onError} className="absolute inset-0 size-full object-cover" />
-      )}
+      {cover && !failed && <img src={cover} alt="" onError={onError} className="absolute inset-0 size-full object-cover" />}
       <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78), transparent 62%)" }} />
       <button
         onClick={onChange}
@@ -97,10 +107,10 @@ function PresetCard({ family, onChange }: { family: Family; onChange: () => void
       </button>
       <div className="absolute bottom-2.5 px-3" style={{ insetInlineStart: 0 }}>
         <p className="text-[15px] font-extrabold leading-tight" style={{ color: "var(--vg-primary-soft)" }}>
-          {family.name}
+          {preset ? preset.title : "بدون افکت"}
         </p>
         <p className="text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-          {family.vendor}
+          <bdi>{family.name}</bdi>
         </p>
       </div>
     </div>
@@ -116,6 +126,9 @@ export function FormPanel({
 }) {
   const { n } = useI18n();
   const [pickModel, setPickModel] = useState(false);
+  const [pickPreset, setPickPreset] = useState(false);
+  const [preset, setPreset] = useState<Preset | null>(null);
+  const modelRow = useRef<HTMLDivElement>(null);
 
   // Same hook as the other two studios. This panel used to keep its own copy of
   // family/controls/input/price, which is how it ended up pinned to variants[0]
@@ -132,28 +145,27 @@ export function FormPanel({
     // the canvas and has the whole page to grow into.
     <aside className="flex w-full shrink-0 flex-col gap-2 md:sticky md:top-11 md:max-h-[calc(100dvh-2.75rem)] md:w-[var(--vg-form-panel)] md:self-start md:overflow-y-auto">
       <div className="flex flex-col gap-2 p-3">
-        <PresetCard family={family} onChange={() => setPickModel((v) => !v)} />
+        <PresetCard family={family} preset={preset} onChange={() => setPickPreset(true)} />
 
-        {pickModel && (
-          <Card className="max-h-56 overflow-y-auto p-1">
-            {families.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => {
-                  onFamily(f);
-                  setPickModel(false);
-                }}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start transition-colors hover:bg-white/5"
-              >
-                <span className="flex-1 truncate text-[13px]" style={{ color: f.id === family.id ? "var(--vg-primary-soft)" : "var(--vg-text)" }}>
-                  {f.name}
-                </span>
-                <span className="shrink-0 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-                  {f.vendor}
-                </span>
-              </button>
-            ))}
-          </Card>
+        {pickPreset && (
+          <PresetPicker
+            kind={family.kind}
+            selectedId={preset?.id ?? null}
+            onPick={(p) => {
+              setPreset(p);
+              // A preset is a prompt with a hole in it, so it seeds the box and
+              // switches to the family it was written against — running it on
+              // another model is not the effect the picture showed.
+              const f = families.find((x) => x.id === p.familyId);
+              if (f) onFamily(f);
+              setPrompt(p.prompt);
+            }}
+            onClear={() => {
+              setPreset(null);
+              setPrompt("");
+            }}
+            onClose={() => setPickPreset(false)}
+          />
         )}
 
         {/* Upload sits above the prompt, as its own card. A reference file is a
@@ -211,9 +223,24 @@ export function FormPanel({
           </div>
         </Card>
 
-        <Card>
-          <RowSelect label="مدل" value={family.name} onClick={() => setPickModel((v) => !v)} />
-        </Card>
+        {/* The model row opens the model picker — a different component from the
+            cover's "تغییر", because it is a different decision. */}
+        <div ref={modelRow}>
+          <Card>
+            <RowSelect label="مدل" value={`${family.name} · ${variant.label}`} onClick={() => setPickModel((v) => !v)} />
+          </Card>
+        </div>
+        {pickModel && (
+          <ModelPicker
+            anchor={modelRow.current}
+            families={families}
+            family={family}
+            variant={variant}
+            onPickFamily={onFamily}
+            onPickVariant={s.setVariant}
+            onClose={() => setPickModel(false)}
+          />
+        )}
 
         {/* Kling carries six variants and Wan five — separate models at
             separate prices, not labels. A family with one gets no row. */}
