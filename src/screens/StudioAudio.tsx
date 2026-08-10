@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Heart, Sparkle, Play, PencilSimple, CaretLeft, Plus, Minus } from "@phosphor-icons/react";
+import { Heart, Sparkle, Play, PencilSimple, CaretLeft, Plus, Minus, Copy, DownloadSimple, DotsThree, FolderSimple } from "@phosphor-icons/react";
 import { FAMILIES, type Family, type Variant } from "../data/models";
 import type { InputMap } from "../components/controls";
 import { useCreateState, valueLabel } from "../lib/useCreateState";
@@ -49,41 +49,64 @@ function bars(seed: string, n = 56): number[] {
 }
 
 function WaveCard({ id, prompt, voice, seconds, list }: { id: string; prompt: string; voice: string; seconds: number; list?: boolean }) {
-  const data = useMemo(() => bars(id, list ? 96 : 56), [id, list]);
+  const data = useMemo(() => bars(id, list ? 120 : 56), [id, list]);
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
 
-  /* List view is a different card, not a squashed one: the waveform becomes a
-     thin strip and the metadata runs beside it, which is the shape that lets
-     you read twelve prompts down a column. */
+  /* Their History row, measured: 74px tall, NO card background — just a divider
+     — a 40px play, a wide waveform that takes all the slack, then the model and
+     four 28px actions. The waveform being the widest thing in the row is the
+     whole design: it is the only part of a speech result you can read at a
+     glance. */
   if (list) {
     return (
-      <div
-        className="group relative flex items-center gap-4 overflow-hidden rounded-xl px-4 py-3"
-        style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
-      >
+      <div className="group flex h-[74px] items-center gap-3 border-b px-2" style={{ borderColor: "var(--vg-border-subtle)" }}>
         <button
           aria-label="پخش"
-          className="grid size-9 shrink-0 place-items-center rounded-full"
-          style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+          className="grid size-10 shrink-0 place-items-center rounded-full transition-colors"
+          style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
         >
           <Play size={14} weight="fill" />
         </button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px]" style={{ color: "var(--vg-text)" }}>
+
+        <div className="hidden w-[200px] shrink-0 sm:block">
+          <bdi className="vg-numeric block truncate text-[12.5px] tracking-[0.1em]" style={{ color: "var(--vg-text)" }}>
+            {voice}
+          </bdi>
+          <span className="block truncate text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
             {prompt}
-          </p>
-          <div className="mt-1.5 flex h-5 items-center gap-[1.5px]" aria-hidden>
-            {data.map((v, i) => (
-              <span key={i} className="flex-1 rounded-full" style={{ height: `${Math.round(v * 100)}%`, background: "var(--vg-border-strong)" }} />
-            ))}
-          </div>
+          </span>
         </div>
-        <bdi className="vg-numeric hidden shrink-0 text-[12.5px] tracking-[0.12em] sm:block" style={{ color: "var(--vg-text-muted)" }}>
-          {voice}
-        </bdi>
-        <span className="vg-numeric shrink-0 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
+
+        <span className="flex h-9 min-w-0 flex-1 items-center gap-[1.5px]" aria-hidden>
+          {data.map((v, i) => (
+            <span key={i} className="flex-1 rounded-full" style={{ height: `${Math.round(v * 100)}%`, background: "var(--vg-border-strong)" }} />
+          ))}
+        </span>
+
+        <span className="vg-numeric hidden shrink-0 text-[11.5px] sm:block" style={{ color: "var(--vg-text-muted)" }}>
           {mm}:{ss}
+        </span>
+
+        {/* Four 28px actions, as theirs has. Visible rather than hover-revealed:
+            there is no artwork here for a control to get in the way of. */}
+        <span className="flex shrink-0 items-center gap-0.5">
+          {[
+            { Icon: Heart, label: "پسندیدن" },
+            { Icon: Copy, label: "رونوشت متن" },
+            { Icon: DownloadSimple, label: "دانلود" },
+            { Icon: DotsThree, label: "بیشتر" },
+          ].map(({ Icon, label }) => (
+            <button
+              key={label}
+              aria-label={label}
+              title={label}
+              className="grid size-7 place-items-center rounded-lg"
+              style={{ color: "var(--vg-text-muted)" }}
+            >
+              <Icon size={15} />
+            </button>
+          ))}
         </span>
       </div>
     );
@@ -158,7 +181,9 @@ export default function StudioAudio({
   const [pickModel, setPickModel] = useState(false);
   const [batch, setBatch] = useState(1);
   const modelRow = useRef<HTMLDivElement>(null);
-  const view = useViewMode("audio", { mode: "grid", density: 1 });
+  // Their audio canvas opens in list: a speech result has no thumbnail, so the
+  // row with its waveform is the more useful default.
+  const view = useViewMode("audio", { mode: "list", density: 1 });
 
   const mine = gens.filter((g) => g.kind === "audio");
   const clips =
@@ -370,23 +395,28 @@ export default function StudioAudio({
       </PanelShell>
 
       <main className="min-w-0 flex-1" style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}>
+        {/* Their canvas header: History / How it works on the leading side, a
+            Filters control on the trailing side. */}
         <div className="flex items-center gap-1 px-4 py-2.5" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>
-          {([["all", "همه"], ["liked", "پسندیده"]] as const).map(([k, label]) => (
+          {([
+            { k: "all" as const, Icon: FolderSimple, label: "تاریخچه" },
+            { k: "liked" as const, Icon: Heart, label: "پسندیده" },
+          ]).map(({ k, Icon, label }) => (
             <button
               key={k}
               onClick={() => setTab(k)}
               aria-pressed={tab === k}
-              className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold"
+              className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold"
               style={{
                 background: tab === k ? "var(--vg-surface-overlay)" : "transparent",
                 color: tab === k ? "var(--vg-text)" : "var(--vg-text-muted)",
               }}
             >
-              {k === "liked" && <Heart size={13} />}
+              <Icon size={13} />
               {label}
             </button>
           ))}
-          <div className="ms-auto">
+          <div className="ms-auto flex items-center gap-1.5">
             <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
           </div>
         </div>

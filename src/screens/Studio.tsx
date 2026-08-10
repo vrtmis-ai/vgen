@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { FolderSimple, BookOpen } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
 import { FAMILIES, type Family, type ModelKind, type Variant } from "../data/models";
+import { VendorMark } from "../components/VendorMark";
 import type { InputMap } from "../components/controls";
 import { FormPanel } from "../components/FormPanel";
 import { ViewControls, useViewMode } from "../components/ViewControls";
@@ -105,6 +107,7 @@ export default function Studio({
   const families = useMemo(() => FAMILIES.filter((f) => f.kind === kind), [kind]);
   const [family, setFamily] = useState<Family>(() => families[0]!);
   const view = useViewMode("video", { mode: "grid", density: 1 });
+  const [canvasTab, setCanvasTab] = useState<"history" | "how">("history");
 
   // Switching modality changes the whole catalog, so the held family may not
   // belong to it any more — keep the bar pointing at something real.
@@ -124,7 +127,44 @@ export default function Studio({
         className="min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
         style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}
       >
-        {mine.length === 0 ? (
+        {/* Their canvas heads with two pill tabs on the leading side and the
+            view controls on the trailing side — 120x32 at radius 8. The row is
+            always present; it does not appear only once there is history. */}
+        {mine.length > 0 && (
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1">
+              {([
+                { k: "history" as const, Icon: FolderSimple, label: "تاریخچه" },
+                { k: "how" as const, Icon: BookOpen, label: "چطور کار می‌کند" },
+              ]).map(({ k, Icon, label }) => (
+                <button
+                  key={k}
+                  onClick={() => setCanvasTab(k)}
+                  aria-pressed={canvasTab === k}
+                  className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
+                  style={{
+                    background: canvasTab === k ? "var(--vg-surface-overlay)" : "transparent",
+                    color: canvasTab === k ? "var(--vg-text)" : "var(--vg-text-muted)",
+                  }}
+                >
+                  <Icon size={13} />
+                  {label}
+                </button>
+              ))}
+            </div>
+            {/* Video gets the list as well as the size control. There are few
+                enough clips that reading which prompt produced which is a real
+                way to look at them — unlike the image wall, forty frames you
+                scan. Hidden on the explainer, which has nothing to lay out. */}
+            {canvasTab === "history" && (
+              <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
+            )}
+          </div>
+        )}
+
+        {/* "How it works" stays reachable once there is history, because the
+            person who needs it most is the one whose first two came out wrong. */}
+        {mine.length === 0 || canvasTab === "how" ? (
           <div className="mx-auto max-w-[720px] py-8">
             {/* The reference opens on a three-step explainer rather than an empty
                 grid: on first run there is nothing to show, and "how this works"
@@ -162,20 +202,6 @@ export default function Studio({
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-[17px] font-bold" style={{ color: "var(--vg-text)" }}>
-                کارهای تو
-                <span className="vg-numeric ms-2 text-[12px] font-normal" style={{ color: "var(--vg-text-muted)" }}>
-                  {mine.length}
-                </span>
-              </h2>
-              {/* Video gets the list as well as the size control. There are few
-                  enough clips that reading which prompt produced which is a
-                  real way to look at them — unlike the image wall, which is
-                  forty frames you scan. */}
-              <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
-            </div>
-
             {view.mode === "grid" ? (
               <motion.div
                 variants={riseParent}
@@ -191,36 +217,62 @@ export default function Studio({
                 ))}
               </motion.div>
             ) : (
-              <div className="mt-4 flex flex-col gap-2">
+              /* Their list row is not a compact strip — it is the media at full
+                 size with a 240px metadata column beside it. One generation per
+                 row, the output dominant. A thumbnail-and-truncated-prompt row
+                 is a denser grid, which is the one thing a list should not be. */
+              <div className="mt-4 flex flex-col gap-6">
                 {mine.map((g) => (
-                  <button
-                    key={g.id}
-                    onClick={() => onOpen(g)}
-                    className="flex items-center gap-3 rounded-xl p-2 text-start"
-                    style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
-                  >
-                    <span
-                      className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg"
-                      style={{ background: g.grad }}
+                  <div key={g.id} className="flex flex-col gap-3 lg:flex-row lg:items-start">
+                    <button
+                      onClick={() => onOpen(g)}
+                      className="relative min-w-0 flex-1 overflow-hidden rounded-2xl"
+                      style={{ aspectRatio: `${g.w} / ${g.h}`, background: g.grad, maxHeight: "70dvh" }}
+                      aria-label="باز کردن"
                     >
-                      {g.outputUrl && !isVideoUrl(g.outputUrl) && (
-                        <img src={g.outputUrl} alt="" className="absolute inset-0 size-full object-cover" />
-                      )}
-                      {g.status === "running" && <span className="shimmer absolute inset-0" />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="ltr line-clamp-2 block text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
-                        {g.prompt || "—"}
-                      </span>
-                      <span className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-                        <bdi>{g.name}</bdi>
-                        <span className="vg-numeric">
-                          {g.w}×{g.h}
+                      {g.outputUrl &&
+                        (isVideoUrl(g.outputUrl) ? (
+                          <video src={g.outputUrl} muted loop playsInline className="absolute inset-0 size-full object-cover" />
+                        ) : (
+                          <img src={g.outputUrl} alt="" className="absolute inset-0 size-full object-cover" />
+                        ))}
+                      {g.status === "running" && (
+                        <span className="absolute inset-0 grid place-items-center" style={{ background: "rgba(0,0,0,0.45)" }}>
+                          <span className="text-[12px]" style={{ color: "var(--vg-text-secondary)" }}>
+                            در حال ساخت…
+                          </span>
                         </span>
-                        {g.status === "running" && <span style={{ color: "var(--vg-primary-soft)" }}>در حال ساخت</span>}
-                      </span>
-                    </span>
-                  </button>
+                      )}
+                    </button>
+
+                    <div className="flex w-full shrink-0 flex-col lg:w-[240px] lg:self-stretch">
+                      <p className="flex items-center gap-1.5 text-[12.5px] font-bold" style={{ color: "var(--vg-text)" }}>
+                        <VendorMark vendor={g.vendor} size={16} />
+                        <bdi>{g.name}</bdi>
+                      </p>
+                      {/* The whole prompt. This column is the reason to leave
+                          grid view; clamping it here would defeat the switch. */}
+                      <p className="ltr mt-2 text-[12px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
+                        {g.prompt || "—"}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {[`${g.w}×${g.h}`, g.durationMs ? `${Math.round(g.durationMs / 1000)}s` : null]
+                          .filter(Boolean)
+                          .map((t) => (
+                            <span
+                              key={t as string}
+                              className="vg-numeric rounded-md px-1.5 py-0.5 text-[10.5px]"
+                              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+                            >
+                              {t}
+                            </span>
+                          ))}
+                      </div>
+                      <p className="mt-auto pt-3 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+                        {new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(g.createdAt)}
+                      </p>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

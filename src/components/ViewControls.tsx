@@ -126,23 +126,25 @@ export function ViewControls({
           role="group"
           aria-label="نحوهٔ نمایش"
         >
+          {/* Labelled, as theirs are — 61x32 "List" and 66x32 "Grid" at radius
+              8. Two abstract icons side by side make the user guess which is
+              which; the word costs 30px and removes the guess. */}
           {([
-            { m: "grid" as const, Icon: SquaresFour, label: "نمای شبکه‌ای" },
-            { m: "list" as const, Icon: Rows, label: "نمای فهرستی" },
+            { m: "list" as const, Icon: Rows, label: "فهرست" },
+            { m: "grid" as const, Icon: SquaresFour, label: "شبکه" },
           ]).map(({ m, Icon, label }) => (
             <button
               key={m}
               onClick={() => onMode(m)}
-              aria-label={label}
-              title={label}
               aria-pressed={mode === m}
-              className="grid size-7 place-items-center rounded-md transition-colors"
+              className="flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] font-semibold transition-colors"
               style={{
                 background: mode === m ? "var(--vg-surface-overlay)" : "transparent",
                 color: mode === m ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
               }}
             >
-              <Icon size={14} weight={mode === m ? "fill" : "regular"} />
+              <Icon size={13} weight={mode === m ? "fill" : "regular"} />
+              {label}
             </button>
           ))}
         </div>
