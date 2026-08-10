@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SquaresFour, Rows, Minus, Plus } from "@phosphor-icons/react";
+import { SquaresFour, Rows } from "@phosphor-icons/react";
 
 /* ---------------------------------------------------------------------------
    How the output canvas is laid out: grid or list, and how big.
@@ -88,35 +88,30 @@ export function ViewControls({
   const last = DENSITY_STEPS.length - 1;
   return (
     <div className="flex items-center gap-1.5">
-      {/* Density. Stepper rather than a range input: there are five stops, and
-          a slider implies a continuum that the grid cannot render. Hidden below
-          `sm`, where the column count is driven by width, not preference. */}
-      <div
-        className="hidden items-center gap-0.5 rounded-lg p-0.5 sm:flex"
-        style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
-        role="group"
-        aria-label="اندازهٔ کارت‌ها"
-      >
-        {/* Fewer columns = bigger cards, so "+" has to mean bigger. Wiring the
-            plus to a higher column count would invert what the icon promises. */}
-        <button
-          onClick={() => onDensity(density - 1)}
-          disabled={density === 0}
-          aria-label="کارت‌های بزرگ‌تر"
-          className="grid size-7 place-items-center rounded-md disabled:opacity-30"
-          style={{ color: "var(--vg-text-muted)" }}
-        >
-          <Plus size={13} weight="bold" />
-        </button>
-        <button
-          onClick={() => onDensity(density + 1)}
-          disabled={density === last}
-          aria-label="کارت‌های کوچک‌تر"
-          className="grid size-7 place-items-center rounded-md disabled:opacity-30"
-          style={{ color: "var(--vg-text-muted)" }}
-        >
-          <Minus size={13} weight="bold" />
-        </button>
+      {/* Density is a slider, as theirs is — a 12px thumb on a thin track, not
+          the stepper this used to be. Five stops still, but dragging one
+          control beats hunting two buttons when you are eyeballing a wall.
+          Hidden below `sm`, where width decides the count, not preference.
+
+          Bookended by a small and a large square so the direction reads without
+          a label: left is bigger, right is more. Under RTL the browser mirrors
+          the input and the icons mirror with it, so the pairing holds. */}
+      <div className="hidden items-center gap-2 sm:flex" role="group" aria-label="اندازهٔ کارت‌ها">
+        <span className="block rounded-[2px]" style={{ width: 11, height: 11, background: "var(--vg-text-muted)" }} aria-hidden />
+        <input
+          type="range"
+          min={0}
+          max={last}
+          step={1}
+          // Inverted: index 0 is the loosest grid (biggest cards), so the thumb
+          // travelling right must raise the column count.
+          value={density}
+          onChange={(e) => onDensity(Number(e.target.value))}
+          aria-label="اندازهٔ کارت‌ها"
+          aria-valuetext={`${DENSITY_STEPS[density]} ستون`}
+          className="vg-density w-[92px]"
+        />
+        <span className="block rounded-[1px]" style={{ width: 6, height: 6, background: "var(--vg-text-muted)" }} aria-hidden />
       </div>
 
       {modes && (

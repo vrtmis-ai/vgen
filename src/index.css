@@ -332,6 +332,30 @@ input[type="range"]::-webkit-slider-thumb {
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
 }
 
+/* The density slider on the output canvases. Thinner and quieter than the
+   generic range input above — it is chrome sitting next to the view toggle, not
+   a form control, so it gets a 3px track and a 12px thumb like theirs. */
+/* `input.vg-density`, not `.vg-density`: the generic `input[type="range"]` rule
+   above is (0,1,1) and forces `direction: ltr`, so a bare class at (0,1,0) loses
+   and the track stayed LTR while its bookend icons mirrored — the minimum ended
+   up under the *small* square. Matching specificity and coming later wins. */
+input.vg-density {
+  /* Deliberately NOT forced to ltr. That rule exists so dragging a value slider
+     is predictable; here the control is bookended by a large and a small square
+     and the minimum has to sit under the large one, so it must mirror. */
+  -webkit-appearance: none; appearance: none; direction: inherit;
+  height: 3px; border-radius: 999px; background: var(--color-line2); outline: none; cursor: pointer;
+}
+.vg-density::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 12px; height: 12px; border-radius: 999px;
+  background: var(--vg-text-secondary); cursor: pointer; box-shadow: none;
+}
+.vg-density::-moz-range-thumb {
+  width: 12px; height: 12px; border: 0; border-radius: 999px;
+  background: var(--vg-text-secondary); cursor: pointer;
+}
+
 /* Banner media fade. A linear-gradient along the inline axis has no logical
    direction, so `dir="rtl"` will not mirror it — the flip has to be written. */
 .vg-banner-fade { background: linear-gradient(to right, var(--vg-surface), transparent 55%); }
