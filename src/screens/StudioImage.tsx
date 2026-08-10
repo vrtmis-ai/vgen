@@ -125,64 +125,35 @@ export default function StudioImage({
 
   return (
     <div className="relative">
-      {/* The controls float over the wall's top corner, as the reference puts
-          them — the wall is edge to edge, so there is no header to put them in. */}
+      {/* Size only, no list. This surface is a wall of frames — it exists so you
+          can scan pictures, and a list of them is the same wall with the
+          pictures made small. The reference does not offer one here either. */}
       <div className="sticky top-11 z-20 flex justify-start px-3 py-2">
-        <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
+        <ViewControls mode="grid" density={view.density} onMode={() => {}} onDensity={view.setDensity} modes={false} />
       </div>
 
       {/* Edge to edge, no page margin, no gutter. The wall is the page. */}
       {/* Repeated to 42 so the wall reaches the fold on a desktop viewport. The
           dock floats over it, and a wall that stops halfway leaves the dock
           hanging in empty space, which is not what the layout is. */}
-      {view.mode === "grid" ? (
-        <div
-          className="grid gap-px pb-[280px]"
-          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(1600 / view.cols)}px, 1fr))` }}
-        >
-          {Array.from({ length: 42 }, (_, i) => wall[i % wall.length]!).map((w, i) => (
-            <div
-              key={`${w.id}-${i}`}
-              className="group relative block aspect-[3/4] overflow-hidden"
-              style={{ background: "var(--vg-surface)" }}
-            >
-              <button onClick={() => setViewing(w)} className="absolute inset-0" aria-label="باز کردن">
-                <img src={art(`${w.id}-${i}`)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-                <span className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.25)" }} />
-              </button>
-              <TileActions onOpen={() => setViewing(w)} onDownload={() => download(w)} />
-            </div>
-          ))}
-        </div>
-      ) : (
-        /* List view earns its keep by showing the prompt, which the wall cannot:
-           a 3:4 thumbnail has nowhere to put a sentence. This is the view for
-           finding "the one where I asked for rain", not for scanning frames. */
-        <div className="flex flex-col gap-2 px-3 pb-[280px]">
-          {Array.from({ length: 14 }, (_, i) => wall[i % wall.length]!).map((w, i) => (
-            <div
-              key={`${w.id}-${i}`}
-              className="group flex items-center gap-3 rounded-xl p-2"
-              style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
-            >
-              <button onClick={() => setViewing(w)} className="relative size-14 shrink-0 overflow-hidden rounded-lg" aria-label="باز کردن">
-                <img src={art(`${w.id}-${i}`)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-              </button>
-              <button onClick={() => setViewing(w)} className="min-w-0 flex-1 text-start">
-                <p className="ltr line-clamp-2 text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
-                  {w.prompt}
-                </p>
-                <span className="vg-numeric mt-1 block text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-                  {w.w}×{w.h}
-                </span>
-              </button>
-              <div className="relative shrink-0 opacity-100">
-                <TileActions onOpen={() => setViewing(w)} onDownload={() => download(w)} inline />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <div
+        className="grid gap-px pb-[280px]"
+        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(1600 / view.cols)}px, 1fr))` }}
+      >
+        {Array.from({ length: 42 }, (_, i) => wall[i % wall.length]!).map((w, i) => (
+          <div
+            key={`${w.id}-${i}`}
+            className="group relative block aspect-[3/4] overflow-hidden"
+            style={{ background: "var(--vg-surface)" }}
+          >
+            <button onClick={() => setViewing(w)} className="absolute inset-0" aria-label="باز کردن">
+              <img src={art(`${w.id}-${i}`)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+              <span className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.25)" }} />
+            </button>
+            <TileActions onOpen={() => setViewing(w)} onDownload={() => download(w)} />
+          </div>
+        ))}
+      </div>
 
       {viewing && (
         <AssetViewer

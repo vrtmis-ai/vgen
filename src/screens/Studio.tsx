@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { FAMILIES, type Family, type ModelKind, type Variant } from "../data/models";
 import type { InputMap } from "../components/controls";
 import { FormPanel } from "../components/FormPanel";
+import { ViewControls, useViewMode } from "../components/ViewControls";
 import { type Generation } from "../lib/gallery";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
@@ -103,6 +104,7 @@ export default function Studio({
 }) {
   const families = useMemo(() => FAMILIES.filter((f) => f.kind === kind), [kind]);
   const [family, setFamily] = useState<Family>(() => families[0]!);
+  const view = useViewMode("video", { mode: "grid", density: 1 });
 
   // Switching modality changes the whole catalog, so the held family may not
   // belong to it any more — keep the bar pointing at something real.
@@ -160,26 +162,68 @@ export default function Studio({
           </div>
         ) : (
           <>
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-center justify-between gap-3">
               <h2 className="text-[17px] font-bold" style={{ color: "var(--vg-text)" }}>
                 کارهای تو
+                <span className="vg-numeric ms-2 text-[12px] font-normal" style={{ color: "var(--vg-text-muted)" }}>
+                  {mine.length}
+                </span>
               </h2>
-              <span className="vg-numeric text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
-                {mine.length}
-              </span>
+              {/* Video gets the list as well as the size control. There are few
+                  enough clips that reading which prompt produced which is a
+                  real way to look at them — unlike the image wall, which is
+                  forty frames you scan. */}
+              <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
             </div>
-            <motion.div
-              variants={riseParent}
-              initial="hidden"
-              animate="show"
-              className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4"
-            >
-              {mine.map((g) => (
-                <button key={g.id} onClick={() => onOpen(g)} className="text-start">
-                  <OutputCard gen={g} />
-                </button>
-              ))}
-            </motion.div>
+
+            {view.mode === "grid" ? (
+              <motion.div
+                variants={riseParent}
+                initial="hidden"
+                animate="show"
+                className="mt-4 grid gap-3"
+                style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(1300 / view.cols)}px, 1fr))` }}
+              >
+                {mine.map((g) => (
+                  <button key={g.id} onClick={() => onOpen(g)} className="text-start">
+                    <OutputCard gen={g} />
+                  </button>
+                ))}
+              </motion.div>
+            ) : (
+              <div className="mt-4 flex flex-col gap-2">
+                {mine.map((g) => (
+                  <button
+                    key={g.id}
+                    onClick={() => onOpen(g)}
+                    className="flex items-center gap-3 rounded-xl p-2 text-start"
+                    style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+                  >
+                    <span
+                      className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg"
+                      style={{ background: g.grad }}
+                    >
+                      {g.outputUrl && !isVideoUrl(g.outputUrl) && (
+                        <img src={g.outputUrl} alt="" className="absolute inset-0 size-full object-cover" />
+                      )}
+                      {g.status === "running" && <span className="shimmer absolute inset-0" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="ltr line-clamp-2 block text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
+                        {g.prompt || "—"}
+                      </span>
+                      <span className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+                        <bdi>{g.name}</bdi>
+                        <span className="vg-numeric">
+                          {g.w}×{g.h}
+                        </span>
+                        {g.status === "running" && <span style={{ color: "var(--vg-primary-soft)" }}>در حال ساخت</span>}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </>
         )}
       </main>

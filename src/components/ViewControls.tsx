@@ -63,11 +63,22 @@ export function ViewControls({
   density,
   onMode,
   onDensity,
+  modes = true,
 }: {
   mode: ViewMode;
   density: Density;
   onMode: (m: ViewMode) => void;
   onDensity: (d: Density) => void;
+  /**
+   * Whether this canvas offers a list at all.
+   *
+   * The image wall does not. It is a wall of frames — the whole surface exists
+   * so you can scan pictures, and a list of them is just the wall with the
+   * pictures made small and a prompt bolted on. Only the size control belongs
+   * there. Video and the gallery do offer it: they hold few enough items that
+   * reading which prompt produced what is a real way to look at them.
+   */
+  modes?: boolean;
 }) {
   const last = DENSITY_STEPS.length - 1;
   return (
@@ -103,32 +114,34 @@ export function ViewControls({
         </button>
       </div>
 
-      <div
-        className="flex items-center gap-0.5 rounded-lg p-0.5"
-        style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
-        role="group"
-        aria-label="نحوهٔ نمایش"
-      >
-        {([
-          { m: "grid" as const, Icon: SquaresFour, label: "نمای شبکه‌ای" },
-          { m: "list" as const, Icon: Rows, label: "نمای فهرستی" },
-        ]).map(({ m, Icon, label }) => (
-          <button
-            key={m}
-            onClick={() => onMode(m)}
-            aria-label={label}
-            title={label}
-            aria-pressed={mode === m}
-            className="grid size-7 place-items-center rounded-md transition-colors"
-            style={{
-              background: mode === m ? "var(--vg-surface-overlay)" : "transparent",
-              color: mode === m ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
-            }}
-          >
-            <Icon size={14} weight={mode === m ? "fill" : "regular"} />
-          </button>
-        ))}
-      </div>
+      {modes && (
+        <div
+          className="flex items-center gap-0.5 rounded-lg p-0.5"
+          style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+          role="group"
+          aria-label="نحوهٔ نمایش"
+        >
+          {([
+            { m: "grid" as const, Icon: SquaresFour, label: "نمای شبکه‌ای" },
+            { m: "list" as const, Icon: Rows, label: "نمای فهرستی" },
+          ]).map(({ m, Icon, label }) => (
+            <button
+              key={m}
+              onClick={() => onMode(m)}
+              aria-label={label}
+              title={label}
+              aria-pressed={mode === m}
+              className="grid size-7 place-items-center rounded-md transition-colors"
+              style={{
+                background: mode === m ? "var(--vg-surface-overlay)" : "transparent",
+                color: mode === m ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+              }}
+            >
+              <Icon size={14} weight={mode === m ? "fill" : "regular"} />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
