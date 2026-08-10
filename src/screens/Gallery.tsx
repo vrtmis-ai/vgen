@@ -3,11 +3,48 @@ import { motion } from "framer-motion";
 import { ImagesSquare, CircleNotch } from "@phosphor-icons/react";
 import type { Generation } from "../lib/gallery";
 import type { ModelKind } from "../data/models";
+import { ViewControls, useViewMode } from "../components/ViewControls";
 import { useI18n } from "../lib/i18n";
 
-function GenCard({ g, i, onOpen }: { g: Generation; i: number; onOpen: () => void }) {
+function GenCard({ g, i, onOpen, list }: { g: Generation; i: number; onOpen: () => void; list?: boolean }) {
   const { t } = useI18n();
   const running = g.status === "running";
+
+  /* In list view the thumbnail stops being the card and becomes a 56px chip
+     beside the prompt — the point of the list is reading what you asked for,
+     and a full-bleed 9:16 frame per row makes that a scroll. */
+  if (list) {
+    return (
+      <motion.button
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: Math.min(i, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
+        onClick={onOpen}
+        className="mb-2 flex w-full break-inside-avoid items-center gap-3 rounded-xl border border-line p-2 text-start"
+        style={{ background: "var(--vg-surface)" }}
+      >
+        <span className="relative size-14 shrink-0 overflow-hidden rounded-lg" style={{ background: g.grad }}>
+          {running && <span className="shimmer absolute inset-0" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="ltr line-clamp-2 block text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
+            {g.prompt || "—"}
+          </span>
+          <span className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+            <bdi>{g.name}</bdi>
+            <span className="vg-numeric">{g.w}×{g.h}</span>
+            {running && (
+              <span className="flex items-center gap-1" style={{ color: "var(--vg-primary-soft)" }}>
+                <CircleNotch size={10} className="animate-spin" />
+                {t("gal_making")}
+              </span>
+            )}
+          </span>
+        </span>
+      </motion.button>
+    );
+  }
+
   return (
     <motion.button
       initial={{ opacity: 0, y: 12 }}
@@ -59,6 +96,7 @@ export default function Gallery({
 }) {
   const { t, n } = useI18n();
   const [filter, setFilter] = useState<Filter>("all");
+  const view = useViewMode("gallery", { mode: "grid", density: 1 });
 
   const count = (f: Filter) =>
     f === "all" ? gens.length : f === "running" ? gens.filter((g) => g.status === "running").length : gens.filter((g) => g.kind === f).length;
@@ -100,6 +138,9 @@ export default function Gallery({
               </button>
             );
           })}
+          <div className="ms-auto shrink-0">
+            <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
+          </div>
         </div>
       )}
 
@@ -119,10 +160,12 @@ export default function Gallery({
           با این فیلتر چیزی نیست.
         </p>
       ) : (
-        /* Widens past two phone columns — it was fixed at two on a 1440px page. */
-        <div className="[column-fill:_balance] columns-2 gap-3 md:columns-3 xl:columns-4">
+        /* Masonry columns rather than a grid, because generations have mixed
+           aspect ratios and a fixed row height would letterbox half of them.
+           The density stepper drives the column count directly. */
+        <div className="[column-fill:_balance] gap-3" style={{ columnCount: view.mode === "list" ? 1 : view.cols }}>
           {shown.map((g, i) => (
-            <GenCard key={g.id} g={g} i={i} onOpen={() => onOpen(g)} />
+            <GenCard key={g.id} g={g} i={i} onOpen={() => onOpen(g)} list={view.mode === "list"} />
           ))}
         </div>
       )}
