@@ -37,14 +37,65 @@ import { useImageFallback } from "../lib/useImageFallback";
 /* chipControls / valueLabel / sliderSteps live in lib/useCreateState — this file
    had its own copies, which is the usual way two surfaces drift apart. */
 
-/** The panel's one surface primitive. Everything in the stack is one of these. */
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+/**
+ * The panel's one surface primitive. Everything in the stack is one of these.
+ *
+ * Measured off their panel: radius 12 on `rgba(255,255,255,0.05)` with no
+ * border. It was an opaque `--vg-surface` behind a hairline here, which reads
+ * heavier — a wash lifts off the panel without drawing a second edge around
+ * something the panel background already separates.
+ */
+export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div
-      className={`rounded-xl ${className}`}
-      style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+    <div className={`rounded-xl ${className}`} style={{ background: "rgba(255,255,255,0.05)" }}>
+      {children}
+    </div>
+  );
+}
+
+/** The 342px column both create panels sit in, on their `#131517`. */
+export function PanelShell({ children }: { children: React.ReactNode }) {
+  return (
+    <aside
+      className="flex w-full shrink-0 flex-col md:sticky md:top-11 md:max-h-[calc(100dvh-2.75rem)] md:w-[var(--vg-form-panel)] md:self-start md:overflow-y-auto"
+      style={{ background: "var(--vg-deep, #131517)" }}
     >
       {children}
+    </aside>
+  );
+}
+
+/** Underline tabs, as their audio panel heads with. 2px on the active item. */
+export function PanelTabs<T extends string>({
+  tabs,
+  active,
+  onPick,
+}: {
+  tabs: { key: T; label: string; disabled?: boolean }[];
+  active: T;
+  onPick: (k: T) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-3" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>
+      {tabs.map((t) => {
+        const on = t.key === active;
+        return (
+          <button
+            key={t.key}
+            onClick={() => !t.disabled && onPick(t.key)}
+            disabled={t.disabled}
+            aria-current={on ? "page" : undefined}
+            title={t.disabled ? "به‌زودی" : undefined}
+            className="h-9 whitespace-nowrap text-[12.5px] font-semibold transition-colors disabled:opacity-40"
+            style={{
+              color: on ? "var(--vg-text)" : "var(--vg-text-muted)",
+              borderBlockEnd: `2px solid ${on ? "var(--vg-text)" : "transparent"}`,
+            }}
+          >
+            {t.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -144,7 +195,7 @@ export function FormPanel({
     // The height cap is `md:` only. Applied at every width it clips the panel on
     // a phone, where the panel is a stacked block rather than a column beside
     // the canvas and has the whole page to grow into.
-    <aside className="flex w-full shrink-0 flex-col gap-2 md:sticky md:top-11 md:max-h-[calc(100dvh-2.75rem)] md:w-[var(--vg-form-panel)] md:self-start md:overflow-y-auto">
+    <PanelShell>
       <div className="flex flex-col gap-2 p-3">
         <PresetCard family={family} preset={preset} onChange={() => setPickPreset(true)} />
 
@@ -369,6 +420,6 @@ export function FormPanel({
           </p>
         )}
       </div>
-    </aside>
+    </PanelShell>
   );
 }

@@ -17,6 +17,10 @@
      lightness. Each step is a real level, not decoration.
      --------------------------------------------------------------------- */
   --vg-canvas:            #090909;  /* level 0 — page background, OLED-true  */
+  /* The create panel's own ground. Measured off their audio panel: it sits a
+     step above the canvas so the column reads as a separate surface without a
+     divider doing the work. */
+  --vg-deep:              #131517;  /* level 0.5 — the create panel column   */
   --vg-surface:           #121212;  /* level 1 — cards, inputs, content      */
   --vg-surface-raised:    #191919;  /* level 2 — sheets, menus, popovers     */
   --vg-surface-overlay:   #232323;  /* level 3 — active pills, hovered rows  */
@@ -165,7 +169,7 @@
   --vg-nav-height:      64px;
   --vg-sidebar-width:  280px;
   --vg-top-bar:         44px;   /* the whole chrome — one row, no rail       */
-  --vg-form-panel:     320px;   /* the create panel; canvas takes the rest   */
+  --vg-form-panel:     342px;   /* the create panel; canvas takes the rest   */
 
   /* ---------------------------------------------------------------------
      8. SHAPE — "soft-modern"

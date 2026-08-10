@@ -1,28 +1,50 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, MagnifyingGlass, Play, Pause, Check, SpinnerGap } from "@phosphor-icons/react";
+import { X, MagnifyingGlass, Play, Pause, SpinnerGap, Sparkle } from "@phosphor-icons/react";
 import { VOICES, voicePreviewUrl, type Voice } from "../data/voices";
 
 /* ---------------------------------------------------------------------------
    The voice picker.
 
-   It was a bare <select> of 46 names. Choosing a voice by reading "Bradford"
-   is guesswork — the one thing that decides the choice is what it sounds like,
-   and the catalog has carried a free, public, no-auth preview URL for every
-   voice this whole time. `voicePreviewUrl` existed and nothing called it.
+   Rebuilt after measuring theirs. The first version was a vertical list of 46
+   rows; theirs is a 3-column CARD grid, and the difference is the point — a
+   voice is picked the way a face is picked, by scanning, not by reading down a
+   column.
 
-   So the picker plays. One <audio> element for the whole list, retargeted on
-   each row, because 46 elements is 46 connections and only one can be audible
-   anyway. Playing a second row stops the first — a picker that lets two voices
-   overlap is not a picker.
+   Measured off /audio: panel 649x540, card 204x108 at radius 12 on #131416 with
+   4px padding, a 42px circular orb, 10px gutters, three across. Each card
+   carries its own play button and waveform strip, so a preview is one click
+   from anywhere in the grid rather than a row you have to find first.
 
-   Rows carry the spec's own one-line character description, which is the other
-   half of the decision and was also being thrown away.
+   The previews are real. `voicePreviewUrl` gives every voice a free, public,
+   no-auth sample and nothing was calling it. One <audio> element retargeted per
+   card — 46 elements would be 46 connections and only one can be audible.
    --------------------------------------------------------------------------- */
+
+/** A calm two-stop orb per voice, deterministic from the id. Stands in for the
+ *  portrait art theirs uses; a flat grey circle would read as a missing image. */
+function orb(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  const a = h % 360;
+  return `linear-gradient(140deg, hsl(${a} 70% 62%), hsl(${(a + 40) % 360} 65% 42%))`;
+}
+
+/** A short static waveform so the card has the same silhouette theirs does. */
+function bars(id: string, n = 34): number[] {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return Array.from({ length: n }, (_, i) => {
+    h = (h * 1103515245 + 12345) >>> 0;
+    const base = 0.3 + ((h >>> 16) % 1000) / 1600;
+    const env = Math.sin((Math.PI * (i + 1)) / (n + 1)) ** 0.4;
+    return Math.max(0.12, base * env);
+  });
+}
 
 type Load = { id: string; state: "loading" | "playing" } | null;
 
-function Row({
+function VoiceCard({
   voice,
   selected,
   load,
@@ -35,37 +57,60 @@ function Row({
   onPreview: () => void;
   onPick: () => void;
 }) {
+  const wave = useMemo(() => bars(voice.id), [voice.id]);
   const playing = load?.id === voice.id && load.state === "playing";
   const loading = load?.id === voice.id && load.state === "loading";
+
   return (
     <div
-      className="flex items-center gap-2.5 rounded-xl px-2 py-2 transition-colors hover:bg-white/[0.05]"
-      style={selected ? { background: "rgba(233,95,24,0.12)" } : undefined}
+      className="relative flex h-[108px] flex-col rounded-xl p-1 transition-colors"
+      style={{
+        background: "#131416",
+        outline: selected ? "2px solid var(--vg-primary)" : "1px solid var(--vg-border-subtle)",
+        outlineOffset: selected ? "-2px" : "-1px",
+      }}
     >
-      <button
-        onClick={onPreview}
-        aria-label={`${playing ? "توقف" : "پخش نمونه"} ${voice.name}`}
-        className="grid size-9 shrink-0 place-items-center rounded-full transition-colors"
-        style={{
-          background: playing ? "var(--vg-primary)" : "var(--vg-surface-overlay)",
-          color: playing ? "var(--vg-text-on-primary)" : "var(--vg-text)",
-        }}
-      >
-        {loading ? <SpinnerGap size={15} className="animate-spin" /> : playing ? <Pause size={14} weight="fill" /> : <Play size={14} weight="fill" />}
-      </button>
-
-      <button onClick={onPick} className="flex min-w-0 flex-1 flex-col items-start text-start">
-        {/* The name is Latin inside an RTL line — bdi keeps its punctuation
-            attached to it rather than to the description that follows. */}
-        <bdi className="vg-numeric truncate text-[13px] tracking-[0.06em]" style={{ color: selected ? "var(--vg-primary-soft)" : "var(--vg-text)" }}>
-          {voice.name}
-        </bdi>
-        <span className="mt-0.5 truncate text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
-          {voice.note}
+      <button onClick={onPick} className="flex flex-1 items-center gap-2.5 rounded-lg p-2 text-start">
+        <span className="size-[42px] shrink-0 rounded-full" style={{ background: orb(voice.id) }} aria-hidden />
+        <span className="min-w-0">
+          <bdi
+            className="vg-numeric block truncate text-[13px] font-semibold"
+            style={{ color: selected ? "var(--vg-primary-soft)" : "var(--vg-text)" }}
+          >
+            {voice.name}
+          </bdi>
+          <span className="mt-0.5 block truncate text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+            {voice.note}
+          </span>
         </span>
       </button>
 
-      {selected && <Check size={14} weight="bold" className="shrink-0" style={{ color: "var(--vg-primary-soft)" }} />}
+      {/* Play sits on the card, not on a row you have to locate first. */}
+      <div className="flex items-center gap-2 px-2 pb-1">
+        <button
+          onClick={onPreview}
+          aria-label={`${playing ? "توقف" : "پخش نمونهٔ"} ${voice.name}`}
+          className="grid size-6 shrink-0 place-items-center rounded-full"
+          style={{
+            background: playing ? "var(--vg-primary)" : "var(--vg-surface-overlay)",
+            color: playing ? "var(--vg-text-on-primary)" : "var(--vg-text)",
+          }}
+        >
+          {loading ? <SpinnerGap size={11} className="animate-spin" /> : playing ? <Pause size={10} weight="fill" /> : <Play size={10} weight="fill" />}
+        </button>
+        <span className="flex h-4 flex-1 items-center gap-[1.5px]" aria-hidden>
+          {wave.map((v, i) => (
+            <span
+              key={i}
+              className="flex-1 rounded-full"
+              style={{
+                height: `${Math.round(v * 100)}%`,
+                background: playing ? "var(--vg-primary-soft)" : "var(--vg-border-strong)",
+              }}
+            />
+          ))}
+        </span>
+      </div>
     </div>
   );
 }
@@ -83,8 +128,6 @@ export function VoicePicker({
   const [load, setLoad] = useState<Load>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
 
-  // One element, retargeted. Also stops whatever is playing when the sheet
-  // closes — audio outliving its UI is the classic version of this bug.
   useEffect(() => {
     const el = new Audio();
     el.preload = "none";
@@ -95,6 +138,7 @@ export function VoicePicker({
     el.addEventListener("ended", clear);
     el.addEventListener("error", clear);
     return () => {
+      // Stop on unmount: audio outliving its UI is the classic version of this.
       el.pause();
       el.src = "";
       el.removeEventListener("playing", onPlay);
@@ -131,40 +175,63 @@ export function VoicePicker({
   return createPortal(
     <div className="fixed inset-0 z-[85] flex items-end justify-center sm:items-center" style={{ background: "rgba(9,9,9,0.9)" }} onClick={onClose}>
       <div
-        className="flex max-h-[86dvh] w-full max-w-[520px] flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl"
+        className="flex max-h-[88dvh] w-full max-w-[680px] flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl"
         style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-3 p-4" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>
+        {/* Their header block: a big line, a supporting line, and the one action
+            that is not "pick an existing voice". */}
+        <div className="relative flex items-start gap-4 p-5" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>
           <div className="min-w-0 flex-1">
-            <h2 className="text-[17px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
-              انتخاب صدا
+            <h2 className="text-[21px] font-extrabold leading-tight" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+              یک صدا انتخاب کن
             </h2>
-            <p className="mt-0.5 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
-              گوش بده و انتخاب کن. شنیدن نمونه رایگان است و سکه‌ای کم نمی‌کند.
+            <p className="mt-1 max-w-[46ch] text-[12.5px] leading-5" style={{ color: "var(--vg-text-muted)" }}>
+              از میان صداهای آماده بشنو و انتخاب کن. شنیدن نمونه رایگان است و سکه‌ای کم نمی‌کند.
             </p>
+            {/* Voice cloning is theirs, not ours — shown so the gap is visible,
+                disabled because there is nothing behind it. */}
+            <button
+              disabled
+              title="به‌زودی"
+              className="mt-3 flex h-9 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-bold"
+              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-faint)" }}
+            >
+              <Sparkle size={13} weight="fill" />
+              ساخت صدای اختصاصی — به‌زودی
+            </button>
           </div>
           <button onClick={onClose} aria-label="بستن" className="grid size-9 shrink-0 place-items-center rounded-lg" style={{ color: "var(--vg-text-muted)" }}>
             <X size={16} weight="bold" />
           </button>
         </div>
 
-        <div className="px-4 py-3">
-          <div className="flex h-9 items-center gap-2 rounded-lg px-2.5" style={{ background: "var(--vg-canvas)", border: "1px solid var(--vg-border-subtle)" }}>
-            <MagnifyingGlass size={13} style={{ color: "var(--vg-text-faint)" }} />
+        <div className="flex items-center gap-2 px-5 py-3">
+          <span className="text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
+            صداها
+          </span>
+          <span className="vg-numeric text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+            {shown.length}
+          </span>
+          <div
+            className="ms-auto flex h-8 w-[180px] items-center gap-2 rounded-lg px-2.5"
+            style={{ background: "var(--vg-canvas)", border: "1px solid var(--vg-border-subtle)" }}
+          >
+            <MagnifyingGlass size={12} style={{ color: "var(--vg-text-muted)" }} />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="جستجوی نام یا لحن"
-              className="w-full bg-transparent text-[12.5px] outline-none"
+              placeholder="جستجو"
+              className="w-full bg-transparent text-[12px] outline-none"
               style={{ color: "var(--vg-text)" }}
             />
           </div>
         </div>
 
-        <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+        {/* Three across, as theirs is — 204px cards with 10px gutters. */}
+        <div className="hide-scrollbar grid min-h-0 flex-1 grid-cols-2 gap-2.5 overflow-y-auto px-5 pb-5 sm:grid-cols-3">
           {shown.map((v) => (
-            <Row
+            <VoiceCard
               key={v.id}
               voice={v}
               selected={v.id === selectedId}
@@ -177,7 +244,7 @@ export function VoicePicker({
             />
           ))}
           {shown.length === 0 && (
-            <p className="py-10 text-center text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
+            <p className="col-span-full py-10 text-center text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
               صدایی با این نام نیست.
             </p>
           )}
