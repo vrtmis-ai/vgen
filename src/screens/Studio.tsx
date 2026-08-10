@@ -121,10 +121,15 @@ export default function Studio({
     // The panel is a flex sibling of the canvas rather than a fixed overlay, so
     // it can simply stack above the canvas below `md` with no second layout.
     <div className="flex flex-col md:flex-row md:items-start">
+      {/* See StudioImage. The visible heading below belongs to the empty state
+          only, so once there is history this page had no h1 at all. */}
+      <h1 className="sr-only">{kind === "video" ? "ساخت ویدیو" : "ساخت"}</h1>
       <FormPanel families={families} onGenerate={onGenerate} />
 
       <main
-        className="min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
+        // @container so the header's view controls size against this canvas
+        // rather than the viewport — see ViewControls and StudioAudio.
+        className="@container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
         style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}
       >
         {/* Their canvas heads with two pill tabs on the leading side and the
@@ -169,12 +174,14 @@ export default function Studio({
             {/* The reference opens on a three-step explainer rather than an empty
                 grid: on first run there is nothing to show, and "how this works"
                 is the only useful thing the space can hold. */}
-            <h1
+            {/* h2, not h1: the sr-only page title above owns level one, and two
+                h1s on a page is the same orientation problem as none. */}
+            <h2
               className="text-[34px] font-extrabold leading-[1.15]"
               style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
             >
               با یک جمله بساز
-            </h1>
+            </h2>
             <p className="mt-2 max-w-[52ch] text-[13.5px] leading-7" style={{ color: "var(--vg-text-muted)" }}>
               {KIND_EMPTY[kind]}
             </p>

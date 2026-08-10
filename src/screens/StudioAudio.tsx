@@ -72,7 +72,9 @@ function WaveCard({ id, prompt, voice, seconds, list }: { id: string; prompt: st
           <Play size={14} weight="fill" />
         </button>
 
-        <div className="hidden w-[200px] shrink-0 sm:block">
+        {/* Widest fixed part of the row, so it needs the most canvas: only once
+            the container itself can spare 200px on top of everything else. */}
+        <div className="hidden w-[200px] shrink-0 @2xl:block">
           <bdi className="vg-numeric block truncate text-[12.5px] tracking-[0.1em]" style={{ color: "var(--vg-text)" }}>
             {voice}
           </bdi>
@@ -87,24 +89,30 @@ function WaveCard({ id, prompt, voice, seconds, list }: { id: string; prompt: st
           ))}
         </span>
 
-        <span className="vg-numeric hidden shrink-0 text-[11.5px] sm:block" style={{ color: "var(--vg-text-muted)" }}>
+        <span className="vg-numeric hidden shrink-0 text-[11.5px] @lg:block" style={{ color: "var(--vg-text-muted)" }}>
           {mm}:{ss}
         </span>
 
         {/* Four 28px actions, as theirs has. Visible rather than hover-revealed:
             there is no artwork here for a control to get in the way of. */}
+        {/* Below `sm` only the overflow menu survives.
+            The row's fixed parts — a 40px play and four 28px actions — come to
+            more than a 375px viewport can hold beside a waveform, and the row
+            was pushing the whole page 18px sideways. Cramming was the wrong half
+            of the trade: the menu already exists, so the three secondary
+            actions belong inside it rather than off the edge of the screen. */}
         <span className="flex shrink-0 items-center gap-0.5">
           {[
-            { Icon: Heart, label: "پسندیدن" },
-            { Icon: Copy, label: "رونوشت متن" },
-            { Icon: DownloadSimple, label: "دانلود" },
-            { Icon: DotsThree, label: "بیشتر" },
-          ].map(({ Icon, label }) => (
+            { Icon: Heart, label: "پسندیدن", secondary: true },
+            { Icon: Copy, label: "رونوشت متن", secondary: true },
+            { Icon: DownloadSimple, label: "دانلود", secondary: true },
+            { Icon: DotsThree, label: "بیشتر", secondary: false },
+          ].map(({ Icon, label, secondary }) => (
             <button
               key={label}
               aria-label={`${label} — ${voice}`}
               title={label}
-              className="grid size-7 place-items-center rounded-lg"
+              className={`${secondary ? "hidden @md:grid" : "grid"} size-7 place-items-center rounded-lg`}
               style={{ color: "var(--vg-text-muted)" }}
             >
               <Icon size={15} />
@@ -206,6 +214,9 @@ export default function StudioAudio({
        it used to have. Copying the old shape would leave us matching a
        screenshot instead of the product. */
     <div className="flex flex-col md:flex-row md:items-start">
+      {/* See StudioImage: the studios carry no visible page title, so without
+          this the document has no h1 and a route change announces nothing. */}
+      <h1 className="sr-only">ساخت صدا</h1>
       <PanelShell>
         {/* We only sell text-to-speech. The other two are theirs, shown
             disabled rather than omitted so the gap stays visible to us too. */}
@@ -399,7 +410,15 @@ export default function StudioAudio({
         </div>
       </PanelShell>
 
-      <main className="min-w-0 flex-1" style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}>
+      {/* `@container`, and the history rows below size against it rather than
+          against the viewport.
+          The canvas sits beside a 342px panel, so at an 800px viewport it is
+          only ~443px wide — but `sm:` had already fired at 640px and switched
+          on a 200px voice column, a duration and four actions the canvas could
+          not hold. The row's min-content went to 634px in a 443px box and
+          pushed the page 208px sideways. A viewport breakpoint cannot see that;
+          a container query can. */}
+      <main className="@container min-w-0 flex-1" style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}>
         {/* Their canvas header: History / How it works on the leading side, a
             Filters control on the trailing side. */}
         <div className="flex items-center gap-1 px-4 py-2.5" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>

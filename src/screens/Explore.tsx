@@ -157,9 +157,10 @@ function Banner({
         <p className="text-[14px] font-extrabold" style={{ color: "var(--vg-primary-soft)" }}>
           {eyebrow}
         </p>
-        <h3 className="mt-1 text-[28px] font-extrabold leading-[1.2]" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+        {/* h2: a banner is a section of the feed, ranked with the others. */}
+        <h2 className="mt-1 text-[28px] font-extrabold leading-[1.2]" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
           {title}
-        </h3>
+        </h2>
         <p className="mt-2.5 max-w-[46ch] text-[13px] leading-6" style={{ color: "var(--vg-text-muted)" }}>
           {body}
         </p>
@@ -312,6 +313,12 @@ export default function Explore({
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-20 pt-4">
+      {/* The feed opens on the hero carousel, so its first heading was an h2 and
+          the document had no h1. Hidden rather than drawn: adding a visible
+          title above the carousel would push the thing the page exists to show
+          below the fold. */}
+      <h1 className="sr-only">اکسپلور</h1>
+
       <div className="flex flex-col gap-5">
         {/* 1 — hero row */}
         <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -321,9 +328,12 @@ export default function Explore({
         {/* 2 — promo split beside the surface tiles */}
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.9fr)]">
           <div className="flex flex-col justify-center rounded-2xl p-7" style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}>
-            <h3 className="text-[26px] font-extrabold leading-[1.25]" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+            {/* h2, matching SectionHead. This is a top-level section of the
+                feed, and as an h3 directly under the page title it made the
+                outline skip a level. */}
+            <h2 className="text-[26px] font-extrabold leading-[1.25]" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
               همهٔ مدل‌ها، <span style={{ color: "var(--vg-primary-soft)" }}>یک حساب</span>
-            </h3>
+            </h2>
             <p className="mt-2 max-w-[42ch] text-[13px] leading-6" style={{ color: "var(--vg-text-muted)" }}>
               به‌جای ده اشتراک جدا، با تومان شارژ می‌کنی و فقط بابت چیزی که می‌سازی پول می‌دهی.
             </p>

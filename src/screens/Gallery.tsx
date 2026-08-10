@@ -106,7 +106,10 @@ export default function Gallery({
     /* Rebuilt for the top-bar shell. Like Community, this printed its own title
        row with a CreditPill in it — a second balance directly under the one in
        the chrome, left over from when it was a tab in a 480px column. */
-    <div className="relative z-10 mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-16 pt-5 md:px-8">
+    // @container for ViewControls, which asks `@xl` whether the row has space
+    // for the density group. Without a container ancestor the query can never
+    // match and the control disappears. Full width here, so it tracks the page.
+    <div className="@container relative z-10 mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-16 pt-5 md:px-8">
       <h1 className="text-[19px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
         {t("gal_title")}
       </h1>

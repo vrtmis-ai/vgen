@@ -344,8 +344,16 @@ input.vg-density {
      is predictable; here the control is bookended by a large and a small square
      and the minimum has to sit under the large one, so it must mirror. */
   -webkit-appearance: none; appearance: none; direction: inherit;
-  height: 3px; border-radius: 999px; background: var(--color-line2); outline: none; cursor: pointer;
+  height: 3px; border-radius: 999px; background: var(--color-line2); cursor: pointer;
 }
+/* `outline: none` only once there is something else to see.
+   The app-wide ring is `:where(…):focus-visible`, whose zero-specificity
+   `:where()` loses to this class — so killing the outline here without a
+   replacement left the control invisible to keyboard focus, which is exactly
+   the anti-pattern the ring exists to prevent. A 2px ring offset around a 3px
+   track also reads as a box round nothing; the thumb is the part that moves,
+   so the thumb is what lights up. Same trade `.vg-slider` already makes. */
+.vg-density:focus-visible { outline: none; }
 .vg-density::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 12px; height: 12px; border-radius: 999px;
@@ -355,6 +363,8 @@ input.vg-density {
   width: 12px; height: 12px; border: 0; border-radius: 999px;
   background: var(--vg-text-secondary); cursor: pointer;
 }
+.vg-density:focus-visible::-webkit-slider-thumb { box-shadow: var(--vg-glow-focus); background: var(--vg-text); }
+.vg-density:focus-visible::-moz-range-thumb     { box-shadow: var(--vg-glow-focus); background: var(--vg-text); }
 
 /* Banner media fade. A linear-gradient along the inline axis has no logical
    direction, so `dir="rtl"` will not mirror it — the flip has to be written. */

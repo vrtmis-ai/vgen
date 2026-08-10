@@ -193,13 +193,24 @@ export default function StudioImage({
   };
 
   return (
-    <div className="relative">
+    // @container is required, not decorative: ViewControls asks `@xl` whether
+    // there is room for the density group, and a container query with no
+    // container ancestor never matches — the control would vanish for good.
+    // Here the wall is full width, so the container is effectively the page.
+    <div className="@container relative">
       {/* Size only, no list. This surface is a wall of frames — it exists so you
           can scan pictures, and a list of them is the same wall with the
           pictures made small. The reference does not offer one here either. */}
       <div className="sticky top-11 z-20 flex justify-start px-3 py-2">
         <ViewControls mode="grid" density={view.density} onMode={() => {}} onDensity={view.setDensity} modes={false} />
       </div>
+
+      {/* A tool surface with no visible title still needs one. The wall and the
+          dock carry no page heading, so the document started at h2 — or, here,
+          at nothing at all — and a screen reader arriving on a route change had
+          no way to hear which studio it landed in. Hidden, because the layout is
+          right as it is; the heading is orientation, not decoration. */}
+      <h1 className="sr-only">ساخت تصویر</h1>
 
       {/* Edge to edge, no page margin, no gutter. The wall is the page. */}
       {/* Repeated to 42 so the wall reaches the fold on a desktop viewport. The

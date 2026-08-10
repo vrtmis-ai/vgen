@@ -96,7 +96,14 @@ export function ViewControls({
           Bookended by a small and a large square so the direction reads without
           a label: left is bigger, right is more. Under RTL the browser mirrors
           the input and the icons mirror with it, so the pairing holds. */}
-      <div className="hidden items-center gap-2 sm:flex" role="group" aria-label="اندازهٔ کارت‌ها">
+      {/* `@xl`, a container query, not `sm`. This control lives in a canvas
+          that may sit beside a 342px panel, so the viewport being 800px wide
+          says nothing about whether the header has room — at that width the
+          audio canvas is 443px and the density group plus the mode toggle plus
+          the tabs came to more than it could hold. Consumers mark their canvas
+          `@container`; where none does, the query falls back to the nearest
+          one, which is the page. */}
+      <div className="hidden items-center gap-2 @xl:flex" role="group" aria-label="اندازهٔ کارت‌ها">
         <span className="block rounded-[2px]" style={{ width: 11, height: 11, background: "var(--vg-text-muted)" }} aria-hidden />
         <input
           type="range"
