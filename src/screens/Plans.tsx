@@ -37,7 +37,6 @@ import {
 } from "../data/plans";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
-import { useEdgeFade } from "../lib/useEdgeFade";
 import type { Wallet } from "../data/wallet";
 
 const TAG_KEY = { test: "w_tag_test", gift: "w_tag_gift", popular: "w_tag_popular", best: "w_tag_best" } as const;
@@ -300,7 +299,7 @@ function EntryCard({
  * stated setting printed next to the model name so the number can be checked.
  * A model whose rate has gone missing shows a dash, never an invented count.
  */
-function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; currentPlanId: string | null; account?: PricingAccount | undefined }) {
+function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId: string | null }) {
   const { t, n } = useI18n();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -315,10 +314,6 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
   const kinds = (["video", "image", "audio"] as const).filter((k) => rows.some((b) => b.kind === k));
   const VISIBLE = 3;
 
-  // Is there still table past the edge? See lib/useEdgeFade — the RTL sign
-  // handling is the fiddly part and lives there now, shared with the nav row.
-  const { ref: scrollerRef, onScroll, more } = useEdgeFade();
-
   return (
     <section className="mt-12">
       <h2 className="text-[28px] font-extrabold leading-tight md:text-[36px]" style={{ fontFamily: "var(--vg-font-display)" }}>
@@ -326,41 +321,35 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
       </h2>
       <p className="mt-1 text-[13px] text-ink3">ببین با هر پلن دقیقاً چند تا از چه چیزی می‌سازی.</p>
 
-      {/* Scrolls sideways rather than collapsing: a comparison whose columns
-          stack is no longer a comparison. The label column is sticky so the
-          model name stays put while the plans move under it.
+      {/* No sideways scroll, at any width.
+          It scrolled because the table forced 220 + 7x150 = 1270px into a
+          1036px box. Three things fixed that without dropping a plan: the unit
+          label moved out of all seven cells into the row label where it is said
+          once, the money column came out of the header, and the widths went
+          fluid. Seven plans now share whatever there is — 269 + 7x109 at 1425.
 
-          This used to carry `hide-scrollbar`, and that was the bug: at 1425px
-          the table is 1270 wide in a 1036 box, so a quarter of the plans sat
-          off the edge with the scrollbar painted out and nothing else saying so.
-          A pricing table you cannot tell is incomplete is worse than one that
-          obviously overflows. Three affordances now, because one is easy to
-          miss: a real scrollbar, a fade on the edge there is more behind, and a
-          focusable region so it can be scrolled from the keyboard at all —
-          WCAG requires that of any scrolling container. */}
-      <div className="relative mt-5">
-        <div
-          ref={scrollerRef}
-          onScroll={onScroll}
-          role="region"
-          aria-label="جدول مقایسهٔ پلن‌ها"
-          tabIndex={0}
-          className="vg-xscroll overflow-x-auto rounded-bezel border border-line"
-        >
+          Below `md` no arrangement of seven columns is honest, so the table is
+          not shown there at all; the same data stacks instead. A comparison
+          whose columns collapse into a scroll is not a comparison, but neither
+          is one clipped mid-number. */}
+      <div className="mt-5 hidden overflow-hidden rounded-bezel border border-line md:block">
         {/* `border-separate`, not `collapse`: a collapsed table drops the
             borders of a position:sticky cell, so the pinned model column lost
             its edges and slid under the scrolling ones. */}
         <table
           className="w-full border-separate text-start"
-          style={{ minWidth: `${220 + cols.length * 150}px`, borderSpacing: 0 }}
+          // No min-width. It used to force 220 + 7x150 = 1270px into a 1036px
+          // box and rely on scrolling to reach the rest, which is the thing
+          // being removed: the columns now share whatever width there is.
+          style={{ borderSpacing: 0, tableLayout: "fixed" }}
         >
           <thead>
             <tr>
-              <th className="sticky w-[220px] p-4 align-bottom" style={{ insetInlineStart: 0, background: "var(--color-bg)" }} />
+              <th className="sticky w-[34%] p-3 align-bottom sm:w-[26%]" style={{ insetInlineStart: 0, background: "var(--color-bg)" }} />
               {cols.map((p) => {
                 const lead = p.popular || p.id === currentPlanId;
                 return (
-                  <th key={p.id} className="p-4 align-bottom text-center">
+                  <th key={p.id} className="px-2 py-3 align-bottom text-center">
                     <span className="flex items-center justify-center gap-1.5">
                       <bdi className="text-[17px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)" }}>
                         {p.name}
@@ -374,22 +363,17 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
                         </span>
                       )}
                     </span>
-                    {/* `vg-numeric` goes on the digits ALONE. It switches to
-                        Geist Mono, and a Persian word inside it renders in a
-                        Latin monospace — the letters stop joining and the word
-                        comes apart, which is exactly what the type rules forbid.
-                        nowrap because a price broken mid-number reads as two. */}
+                    {/* `vg-numeric` goes on the digits ALONE — a Persian word
+                        inside it inherits the numeral font and stops joining.
+
+                        Coins per month, and no money. A price here would be the
+                        third place the same figure lives, and the one nobody
+                        remembers to update: the plan cards above already carry
+                        the full breakdown with the cycle discount applied. This
+                        table answers "how much can I make", which is a question
+                        about the allowance, not the bill. */}
                     <span className="mt-1 block whitespace-nowrap text-[12px] font-normal text-ink2">
-                      <span className="vg-numeric">{n(monthlyCoins(p))}</span> سکه / ماه
-                    </span>
-                    {/* One line, not the full Price block: the plan cards above
-                        already carry the breakdown, and a second copy of it in
-                        every header cell is the duplication this page just lost. */}
-                    <span className="mt-0.5 block whitespace-nowrap text-[11px] font-normal text-ink3">
-                      <span className="vg-numeric">
-                        {n(toman(effectiveUsd(p, cycle === "annual" && p.annualUsdPerMonth != null, account)))}
-                      </span>{" "}
-                      تومان
+                      <span className="vg-numeric">{n(monthlyCoins(p))}</span> سکه
                     </span>
                   </th>
                 );
@@ -410,7 +394,7 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
                 </tr>
                 {shown.map((b) => (
                   <tr key={b.key}>
-                    <td className="sticky border-t border-line p-4 align-top" style={{ insetInlineStart: 0, background: "var(--color-bg)" }}>
+                    <td className="sticky border-t border-line p-3 align-top" style={{ insetInlineStart: 0, background: "var(--color-bg)" }}>
                       {/* Dotted underline, as the reference marks a term that
                           carries detail — here the detail is the setting. */}
                       <span className="text-[13px]" style={{ textDecoration: "underline dotted var(--color-line2)", textUnderlineOffset: "3px" }}>
@@ -423,23 +407,28 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
                           what explains three image rows sharing a figure. */}
                       {/* `at` is mixed — "720p · 5 ثانیه" — so it stays in the
                           UI font. Only the coin figure is isolated numerals. */}
+                      {/* The unit moves here, where it is said once. It was
+                          printed inside all seven cells, and being constant for
+                          the whole row it added nothing but roughly 35px of
+                          width per column — which is most of what was pushing
+                          the table off the edge in the first place. */}
                       <span className="mt-1 block text-[11px] text-ink3">
-                        {b.at} · <span className="vg-numeric">{n(b.coins!)}</span> سکه
+                        {b.at} · <span className="vg-numeric">{n(b.coins!)}</span> سکه برای هر {UNIT_LABEL[b.kind]}
                       </span>
                     </td>
                     {cols.map((p) => {
                       const v = outputsPerMonth(p, b);
                       return (
-                        <td key={p.id} className="border-t border-line p-4 text-center align-top">
+                        <td key={p.id} className="border-t border-line px-2 py-4 text-center align-top">
                           {v == null || v === 0 ? (
                             // A plan whose month does not buy even one is an ×,
                             // not a zero. Zero reads as a number you could grow.
                             <X size={13} className="mx-auto text-ink3" />
                           ) : (
-                            <span className="text-[13px]">
-                              <span className="vg-numeric font-semibold">{n(v)}</span>{" "}
-                              <span className="text-ink3">{UNIT_LABEL[b.kind]}</span>
-                            </span>
+                            // 15px, up from 13. These are the numbers the page
+                            // exists to show and they were the smallest thing on
+                            // it, in a font that could not draw them.
+                            <span className="vg-numeric text-[15px] font-semibold">{n(v)}</span>
                           )}
                         </td>
                       );
@@ -463,22 +452,67 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
             );
           })}
         </table>
-        </div>
-
-        {/* Only while there is something behind it — a permanent fade would
-            claim more columns exist after you have reached the last one. */}
-        {more && (
-          <span
-            aria-hidden
-            className="vg-xscroll-fade pointer-events-none absolute inset-y-0 w-16"
-            style={{ insetInlineEnd: 0 }}
-          />
-        )}
       </div>
 
-      {more && (
-        <p className="mt-2 text-[11px] text-ink3">برای دیدن بقیهٔ پلن‌ها جدول را بکش.</p>
-      )}
+      {/* Phone: the same numbers, turned ninety degrees.
+          One block per model, the plans as a grid inside it. A row of seven
+          plans does not fit a 375px screen at any font size worth reading, and
+          the alternative — the table with a scrollbar — hides four of them
+          behind a gesture. Stacked, nothing is hidden and nothing is clipped;
+          it is simply taller, which a phone already is. */}
+      <div className="mt-5 flex flex-col gap-4 md:hidden">
+        {kinds.map((kind) => {
+          const group = rows.filter((b) => b.kind === kind);
+          const open = expanded[kind] ?? false;
+          const shown = open ? group : group.slice(0, VISIBLE);
+          return (
+            <div key={kind}>
+              <p className="mb-2 text-[15px] font-bold">{KIND_LABEL[kind]}</p>
+              <div className="flex flex-col gap-2">
+                {shown.map((b) => (
+                  <div key={b.key} className="rounded-bezel border border-line p-3">
+                    <p className="text-[13px]">
+                      <bdi>{b.family}</bdi>
+                      <span className="text-ink2"> · </span>
+                      <bdi className="text-ink2">{b.variant}</bdi>
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-ink3">
+                      {b.at} · <span className="vg-numeric">{n(b.coins!)}</span> سکه برای هر {UNIT_LABEL[kind]}
+                    </p>
+                    <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                      {cols.map((p) => {
+                        const v = outputsPerMonth(p, b);
+                        const lead = p.popular || p.id === currentPlanId;
+                        return (
+                          <div key={p.id} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5">
+                            <bdi className="truncate text-[11.5px]" style={{ color: lead ? "var(--color-accent)" : "var(--color-ink2)" }}>
+                              {p.name}
+                            </bdi>
+                            {v == null || v === 0 ? (
+                              <X size={11} className="shrink-0 text-ink3" />
+                            ) : (
+                              <span className="vg-numeric shrink-0 text-[14px] font-semibold">{n(v)}</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {group.length > VISIBLE && (
+                <button
+                  onClick={() => setExpanded((s) => ({ ...s, [kind]: !open }))}
+                  className="mt-2 flex items-center gap-1.5 text-[12.5px] text-ink2"
+                >
+                  <CaretDown size={12} weight="bold" className={open ? "rotate-180" : ""} />
+                  {open ? "کمتر" : `${n(group.length - VISIBLE)} مدل دیگر`}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink3">
         اعداد سقف‌اند: سکه‌ها بین مدل‌ها مشترک‌اند، پس اگر از چند مدل استفاده کنی تعدادها بین‌شان تقسیم می‌شود.
@@ -608,7 +642,7 @@ export default function Plans({
         ))}
       </div>
 
-      <ComparisonTable cycle={cycle} currentPlanId={currentPlanId} account={account} />
+      <ComparisonTable cycle={cycle} currentPlanId={currentPlanId} />
 
       {/* Owner trimmed this to the expiry line alone. The "no auto-renewal" fact
           it used to spell out now lives in the button itself — "خرید ۳۰ روزه"

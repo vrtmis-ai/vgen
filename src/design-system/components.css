@@ -112,6 +112,27 @@
   unicode-bidi: isolate;
 }
 
+/* Persian digits get none of the above, because none of it works on them.
+   Geist Mono has no Arabic-Indic coverage — probe ۱۲۳۴۵ against it and you get
+   the same advance width as `serif`, which is the browser quietly falling back.
+   So the numbers users actually read were rendering in an unspecified default
+   with `tabular-nums` doing nothing and a -0.01em tracking, meant for a Latin
+   mono, squeezing them. That is why they were hard to read.
+
+   Vazirmatn draws them properly and its Arabic-Indic digits are already
+   fixed-width, so tabular-nums is not just useless here but actively shifts
+   them. The design system said this years ago in `.t-num-fa`; the class
+   everything actually uses had never been told.
+
+   Scoped by [dir=rtl] as well as :lang(fa) — the app declares both on <html>,
+   and the rest of the stylesheet keys off dir. */
+[dir="rtl"] .vg-numeric,
+.vg-numeric:lang(fa) {
+  font-family: var(--vg-font-ui);
+  font-variant-numeric: normal;
+  letter-spacing: 0;
+}
+
 /* --------------------------------------------------------------------------
    Buttons
    -------------------------------------------------------------------------- */
