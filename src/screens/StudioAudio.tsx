@@ -236,7 +236,11 @@ export default function StudioAudio({
           <button
             onClick={() => setPickVoice(true)}
             className="relative h-[160px] overflow-hidden rounded-2xl text-start"
-            style={{ background: "#000" }}
+            // --vg-canvas (#090909), not #000. The only raw hex left in a screen
+            // and the only pure black in the app: it sat outside the token layer,
+            // so a change to the base surface would have skipped it, and against
+            // the near-black canvas it read as a hole rather than a card.
+            style={{ background: "var(--vg-canvas)" }}
           >
             <span className="absolute inset-0" style={{ background: voiceGradient(voice?.id ?? "x") }} />
             <span

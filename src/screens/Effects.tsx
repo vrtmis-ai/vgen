@@ -244,7 +244,10 @@ export default function Effects({ onOpen }: { onOpen: (familyId: string, prompt?
       {/* 72px with -0.05em tracking on theirs, in the accent. The negative
           tracking is what stops a word that size reading as a mistake. */}
       <h1
-        className="text-center text-[46px] font-extrabold leading-none md:text-[68px]"
+        // clamp, not a breakpoint jump. This is the largest type in the app and
+        // it held 46px flat from 375 to 768 and then snapped to 68 — the one
+        // size where a step is visible as a step. Same endpoints, scaled through.
+        className="text-center text-[clamp(2.875rem,1.55rem+5.65vw,4.25rem)] font-extrabold leading-none"
         style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-primary-soft)", letterSpacing: "-0.04em" }}
       >
         افکت‌های آماده
