@@ -57,8 +57,11 @@ function CourseCard({ c, onOpen }: { c: Course; onOpen: () => void }) {
         <span className="rounded-md px-1.5 py-0.5 text-[10.5px]" style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}>
           {LEVEL_LABEL[c.level]}
         </span>
-        {/* text-muted, not text-faint: faint is for placeholder and disabled,
-            and at 11px it measures 3.31:1 — below AA for real content. */}
+        {/* text-muted, not text-faint — a semantic split, not a contrast one.
+            Faint was below AA when this was written; the token has since been
+            corrected and now measures 5.79:1 on this surface, so both would
+            pass. The distinction that remains is meaning: faint is for
+            placeholder and disabled, and a lesson count is neither. */}
         <span className="vg-numeric text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
           {n(c.lessons.length)} درس
         </span>
