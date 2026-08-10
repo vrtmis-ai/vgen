@@ -1,8 +1,7 @@
-import { Star, ImagesSquare, Wallet as WalletIcon, CaretLeft, ChatCircleDots, Info, Globe } from "@phosphor-icons/react";
+import { Star, ImagesSquare, Wallet as WalletIcon, CaretLeft, ChatCircleDots, Info, Globe, ArrowRight } from "@phosphor-icons/react";
 import { getFamily, type Family } from "../data/models";
 import type { Generation } from "../lib/gallery";
 import { useFavorites } from "../lib/favorites";
-import { CreditPill } from "../components/chrome";
 import { VendorMark } from "../components/VendorMark";
 import { useI18n } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
@@ -49,13 +48,23 @@ export default function Profile({
   const done = gens.filter((g) => g.status === "done").length;
 
   return (
-    <div className="relative z-10 px-4 pt-4">
-      {/* header */}
-      <div className="mb-6 flex items-center justify-between">
-        <span className="t-h1">{t("p_title")}</span>
-        <CreditPill coins={wallet.spendable} onClick={onWallet} />
-      </div>
+    /* Rebuilt for the top-bar shell: no title row with its own CreditPill in it,
+       which put a second balance under the one in the chrome. Two columns from
+       `md` — identity and stats on one side, the settings lists on the other —
+       because a single 640px column of six rows on a 1440px page is a phone
+       screenshot, not a desktop layout. */
+    <div className="relative z-10 mx-auto w-full max-w-[900px] px-4 pb-16 pt-5 md:px-8">
+      <button
+        onClick={onGallery}
+        className="mb-5 flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-semibold"
+        style={{ background: "var(--vg-surface)", color: "var(--vg-text-muted)", border: "1px solid var(--vg-border-subtle)" }}
+      >
+        <ArrowRight size={13} weight="bold" className="ltr:-scale-x-100" />
+        بازگشت
+      </button>
 
+      <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-start">
+      <div>
       {/* identity */}
       <div className="mb-6 flex items-center gap-4">
         <span
@@ -104,6 +113,9 @@ export default function Profile({
         </div>
       )}
 
+      </div>
+
+      <div>
       {/* menu */}
       <div className="mb-4 divide-y divide-line rounded-bezel border border-line bg-card">
         <Row icon={<WalletIcon size={18} weight="fill" />} label={t("p_wallet")} onClick={onWallet} />
@@ -120,6 +132,8 @@ export default function Profile({
         />
         <Row icon={<ChatCircleDots size={18} />} label={t("p_support")} value={t("p_soon")} />
         <Row icon={<Info size={18} />} label={t("p_about")} value="v0.1" />
+      </div>
+      </div>
       </div>
     </div>
   );

@@ -128,7 +128,11 @@ export default function Generate({
     price != null;
 
   return (
-    <div className="relative z-10 min-h-[100dvh] pb-32">
+    /* Every model link and every preset lands here, and it was still a 480px
+       phone column: the controls ran single-file down the middle of a 1440px
+       page with the CTA pinned to a 480px strip. It now runs a 1100px
+       container and splits into two columns from `md`. */
+    <div className="relative z-10 mx-auto min-h-[100dvh] w-full max-w-[1100px] pb-32 md:pb-10">
       {/* top bar */}
       <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/85 px-4 py-3 backdrop-blur-xl">
         <button onClick={onBack} aria-label={t("nav_home")} className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95">
@@ -146,7 +150,10 @@ export default function Generate({
         <VendorMark vendor={family.vendor} size={24} />
       </div>
 
-      <div className="flex flex-col gap-7 px-4 pt-5">
+      {/* Two columns from `md`: the settings stack does not get wider, it gets
+          shorter — a 1100px page of single-file controls is a phone screenshot
+          stretched, and the scroll it costs is the actual usability problem. */}
+      <div className="flex flex-col gap-7 px-4 pt-5 md:grid md:grid-cols-2 md:items-start md:gap-x-6 md:px-8">
         {/* variant selector — prominent */}
         {multiVariant && (
           <div className="rounded-bezel border border-line bg-card p-3.5">
@@ -255,8 +262,10 @@ export default function Generate({
         </div>
       </div>
 
-      {/* sticky CTA */}
-      <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-[480px] -translate-x-1/2 border-t border-line bg-surface/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-xl">
+      {/* The CTA. Fixed to the viewport floor on a phone, where the thumb is;
+          in flow at the end of the column on desktop, where a bar pinned to a
+          480px strip in the middle of the screen was just wrong. */}
+      <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-[480px] -translate-x-1/2 border-t border-line bg-surface/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-xl md:static md:mx-auto md:mt-8 md:max-w-[520px] md:translate-x-0 md:rounded-2xl md:border md:pb-4 md:backdrop-blur-none">
         <button
           onClick={() => onGenerate(prompt.trim(), input, variant, refImages)}
           disabled={!canGenerate}

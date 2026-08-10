@@ -149,7 +149,8 @@ export default function App() {
   }
   if (flow.s === "profile") {
     return (
-      <Shell>
+      // Uncapped: Profile lays out its own 900px two-column grid above `md`.
+      <Shell cap={false}>
         <Profile wallet={wallet} gens={gens} onWallet={openWallet} onGallery={goBack} onOpenModel={openModel} />
       </Shell>
     );
@@ -158,7 +159,8 @@ export default function App() {
     const family = getFamily(flow.familyId);
     if (!family) return null;
     return (
-      <Shell>
+      // Uncapped: Generate lays out its own 1100px two-column grid above `md`.
+      <Shell cap={false}>
         <Generate
           family={family}
           initialPrompt={flow.prompt}
