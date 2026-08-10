@@ -211,7 +211,7 @@ function EffectCard({ preset, onOpen, onGenerate }: { preset: Preset; onOpen: ()
           // screen reader would otherwise read out.
           aria-label={`ساختن با افکت ${preset.title}`}
           className="vg-tap pointer-events-auto mt-2.5 flex h-9 items-center gap-1.5 rounded-xl px-3 text-[12.5px] font-bold backdrop-blur-sm transition-colors"
-          style={{ background: "rgba(233,95,24,0.12)", color: "var(--vg-primary-soft)" }}
+          style={{ background: "var(--vg-primary-a14)", color: "var(--vg-primary-soft)" }}
         >
           <Sparkle size={13} weight="fill" />
           بساز
@@ -280,7 +280,7 @@ export default function Effects({ onOpen }: { onOpen: (familyId: string, prompt?
             aria-pressed={kind === k}
             className="h-9 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
             style={{
-              background: kind === k ? "rgba(233,95,24,0.14)" : "var(--vg-surface)",
+              background: kind === k ? "var(--vg-primary-a14)" : "var(--vg-surface)",
               color: kind === k ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
               border: "1px solid var(--vg-border-subtle)",
             }}
@@ -296,7 +296,7 @@ export default function Effects({ onOpen }: { onOpen: (familyId: string, prompt?
             aria-pressed={cat === c}
             className="h-9 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
             style={{
-              background: cat === c ? "rgba(233,95,24,0.14)" : "var(--vg-surface)",
+              background: cat === c ? "var(--vg-primary-a14)" : "var(--vg-surface)",
               color: cat === c ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
               border: "1px solid var(--vg-border-subtle)",
             }}

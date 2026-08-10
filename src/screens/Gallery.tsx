@@ -129,7 +129,7 @@ export default function Gallery({
                 aria-pressed={on}
                 className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
                 style={{
-                  background: on ? "rgba(233,95,24,0.14)" : "var(--vg-surface)",
+                  background: on ? "var(--vg-primary-a14)" : "var(--vg-surface)",
                   color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
                   border: "1px solid var(--vg-border-subtle)",
                 }}

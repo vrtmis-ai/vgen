@@ -97,7 +97,7 @@ export function PresetPicker({
               onClick={() => setCat(c)}
               className="h-9 shrink-0 rounded-lg px-3 text-[12px] font-semibold transition-colors"
               style={{
-                background: cat === c ? "rgba(233,95,24,0.14)" : "var(--vg-canvas)",
+                background: cat === c ? "var(--vg-primary-a14)" : "var(--vg-canvas)",
                 color: cat === c ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
                 border: "1px solid var(--vg-border-subtle)",
               }}

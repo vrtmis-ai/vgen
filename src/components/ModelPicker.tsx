@@ -60,7 +60,7 @@ function Row({
     <button
       onClick={onPick}
       className="flex h-[52px] w-full items-center gap-2.5 rounded-xl px-2.5 text-start transition-colors hover:bg-white/[0.06]"
-      style={selected ? { background: "rgba(233,95,24,0.12)" } : undefined}
+      style={selected ? { background: "var(--vg-primary-a14)" } : undefined}
     >
       <VendorMark vendor={family.vendor} size={22} />
 

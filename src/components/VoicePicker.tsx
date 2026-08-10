@@ -65,7 +65,7 @@ function VoiceCard({
     <div
       className="relative flex h-[108px] flex-col rounded-xl p-1 transition-colors"
       style={{
-        background: "#131416",
+        background: "var(--vg-deep)",
         outline: selected ? "2px solid var(--vg-primary)" : "1px solid var(--vg-border-subtle)",
         outlineOffset: selected ? "-2px" : "-1px",
       }}

@@ -299,7 +299,7 @@ export default function StudioImage({
                       onClick={() => s.set(c.key, !s.input[c.key])}
                       className="h-10 shrink-0 rounded-xl px-3 text-[13px] font-semibold"
                       style={{
-                        background: s.input[c.key] ? "rgba(233,95,24,0.16)" : "var(--vg-surface-overlay)",
+                        background: s.input[c.key] ? "var(--vg-primary-a18)" : "var(--vg-surface-overlay)",
                         color: s.input[c.key] ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
                       }}
                     >

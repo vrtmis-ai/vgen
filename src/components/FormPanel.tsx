@@ -58,7 +58,7 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
   return (
     <aside
       className="flex w-full shrink-0 flex-col md:sticky md:top-11 md:max-h-[calc(100dvh-2.75rem)] md:w-[var(--vg-form-panel)] md:self-start md:overflow-y-auto"
-      style={{ background: "var(--vg-deep, #131517)" }}
+      style={{ background: "var(--vg-deep)" }}
     >
       {children}
     </aside>
@@ -265,7 +265,7 @@ export function FormPanel({
                   onClick={() => set(c.key, !input[c.key])}
                   className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11.5px] font-medium"
                   style={{
-                    background: input[c.key] ? "rgba(233,95,24,0.14)" : "var(--vg-surface-overlay)",
+                    background: input[c.key] ? "var(--vg-primary-a14)" : "var(--vg-surface-overlay)",
                     color: input[c.key] ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
                   }}
                 >
@@ -307,7 +307,7 @@ export function FormPanel({
                     onClick={() => s.setVariant(v.id)}
                     className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold transition-colors"
                     style={{
-                      background: on ? "rgba(233,95,24,0.14)" : "transparent",
+                      background: on ? "var(--vg-primary-a14)" : "transparent",
                       color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
                     }}
                   >

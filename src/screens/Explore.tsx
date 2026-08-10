@@ -9,6 +9,7 @@ import { FAMILIES, getFamily } from "../data/models";
 import { VendorMark } from "../components/VendorMark";
 import { faNum } from "../lib/format";
 import type { NavKey } from "../components/TopBar";
+import { brandPhrase } from "../data/brand";
 
 /* ---------------------------------------------------------------------------
    Explore — the reference's signed-in feed, measured section by section.
@@ -357,7 +358,7 @@ export default function Explore({
                     <span
                       className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
                       style={{
-                        background: soon ? "var(--vg-surface-overlay)" : "rgba(233,95,24,0.16)",
+                        background: soon ? "var(--vg-surface-overlay)" : "var(--vg-primary-a18)",
                         color: soon ? "var(--vg-text-faint)" : "var(--vg-primary-soft)",
                       }}
                     >
@@ -402,7 +403,7 @@ export default function Explore({
             same question at two speeds: "I can't write a prompt" gets a card to
             click, then a course to watch. */}
         <Showcase
-          title="آکادمی VGen"
+          title={brandPhrase("آکادمی")}
           sub="دوره‌های کوتاه فارسی برای کار با مدل‌ها. از اولین ویدیو تا فروختن خروجی."
           cta="همهٔ دوره‌ها"
           onCta={() => onNav("academy")}
@@ -445,7 +446,7 @@ export default function Explore({
         {/* 8 — gift strip */}
         <div
           className="flex flex-col gap-4 rounded-2xl p-6 sm:flex-row sm:items-center sm:justify-between"
-          style={{ background: "linear-gradient(135deg, rgba(233,95,24,0.16), rgba(233,95,24,0.03))", border: "1px solid rgba(233,95,24,0.22)" }}
+          style={{ background: "linear-gradient(135deg, var(--vg-primary-a18), var(--vg-primary-a03))", border: "1px solid var(--vg-primary-a18)" }}
         >
           <div>
             <p className="text-[17px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>

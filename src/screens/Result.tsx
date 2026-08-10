@@ -74,8 +74,8 @@ export default function Result({
           // an aspect box that would otherwise render as a tall empty rectangle.
           style={
             gen.kind === "audio"
-              ? { height: 168, background: done ? gen.grad : "#161619" }
-              : { aspectRatio: `${ratio}`, background: done ? gen.grad : "#161619" }
+              ? { height: 168, background: done ? gen.grad : "var(--vg-surface)" }
+              : { aspectRatio: `${ratio}`, background: done ? gen.grad : "var(--vg-surface)" }
           }
         >
           {!done && <div className="shimmer absolute inset-0" />}

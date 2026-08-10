@@ -26,8 +26,13 @@ export interface Course extends ContentRecord {
   blurb: string;
   seed: string;
   level: CourseLevel;
-  /** Free courses carry no price; the rest cost coins like anything else. */
-  coins?: number | undefined;
+  /* There is deliberately no price field.
+     Courses are free, always — the owner's decision, and not a launch promotion
+     to be walked back later. This used to be `coins?: number` with five of the
+     six courses priced, which made "free" the exception rather than the rule and
+     left the screen carrying a buy button, a coin mark and a paid/free branch on
+     every card. Removing the field rather than zeroing it means the policy is in
+     the type: a priced course will not compile. */
   /** Which model family the course teaches, when it teaches one. */
   familyId?: string | undefined;
   lessons: Lesson[];
@@ -58,7 +63,7 @@ export const COURSES: Course[] = [
     id: "c-prompt", status: "published", order: 20, updatedAt: T,
     title: "پرامپت‌نویسی برای ویدیو",
     blurb: "نور، لنز، حرکت دوربین، ریتم برش. زبانی که مدل‌های ویدیو واقعاً می‌فهمند.",
-    seed: "vgen-course-prompt", level: "intermediate", coins: 120,
+    seed: "vgen-course-prompt", level: "intermediate",
     lessons: [
       { id: "l1", title: "ساختار یک پرامپت خوب", seconds: 730 },
       { id: "l2", title: "واژگان دوربین: دالی، تراک، کرین، هندهلد", seconds: 845 },
@@ -71,7 +76,7 @@ export const COURSES: Course[] = [
     id: "c-seedance", status: "published", order: 30, updatedAt: T,
     title: "Seedance از پایه",
     blurb: "قوی‌ترین مدل ویدیوی کاتالوگ. صدای همزمان، صحنهٔ کامل، و جایی که کم می‌آورد.",
-    seed: "vgen-course-seedance", level: "intermediate", familyId: "seedance", coins: 90,
+    seed: "vgen-course-seedance", level: "intermediate", familyId: "seedance",
     lessons: [
       { id: "l1", title: "تفاوت نسخه‌ها و اینکه کدام را کِی بزنی", seconds: 480 },
       { id: "l2", title: "صدای همزمان: چه وقت روشن، چه وقت خاموش", seconds: 615 },
@@ -82,7 +87,7 @@ export const COURSES: Course[] = [
     id: "c-image", status: "published", order: 40, updatedAt: T,
     title: "تصویر: از Nano Banana تا Seedream",
     blurb: "کدام مدل برای پرتره، کدام برای محصول، کدام برای متن فارسی درست.",
-    seed: "vgen-course-image", level: "beginner", coins: 60,
+    seed: "vgen-course-image", level: "beginner",
     lessons: [
       { id: "l1", title: "نقشهٔ مدل‌های تصویر", seconds: 520 },
       { id: "l2", title: "ویرایش با دستور متنی، بدون ماسک", seconds: 640 },
@@ -93,7 +98,7 @@ export const COURSES: Course[] = [
     id: "c-voice", status: "published", order: 50, updatedAt: T,
     title: "گویندگی فارسی که مصنوعی نباشد",
     blurb: "انتخاب صدا، سرعت، مکث. و کارهایی که موتور نمی‌کند و باید خودت در متن بنویسی.",
-    seed: "vgen-course-voice", level: "beginner", familyId: "elevenlabs", coins: 45,
+    seed: "vgen-course-voice", level: "beginner", familyId: "elevenlabs",
     lessons: [
       { id: "l1", title: "کدام صدا برای کدام کار", seconds: 430 },
       { id: "l2", title: "نقطه‌گذاری، مکث، و لحن", seconds: 560 },
@@ -103,7 +108,7 @@ export const COURSES: Course[] = [
     id: "c-money", status: "published", order: 60, updatedAt: T,
     title: "با محتوای AI درآمد بساز",
     blurb: "از خروجی تا مشتری: قیمت‌گذاری، نمونه‌کار، و کارهایی که سفارش‌دهنده‌ی ایرانی واقعاً می‌خرد.",
-    seed: "vgen-course-money", level: "advanced", coins: 180,
+    seed: "vgen-course-money", level: "advanced",
     lessons: [
       { id: "l1", title: "چه چیزی می‌فروشد و چه چیزی نه", seconds: 780 },
       { id: "l2", title: "قیمت‌گذاری وقتی هزینه‌ات سکه است", seconds: 690 },

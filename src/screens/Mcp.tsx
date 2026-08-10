@@ -6,6 +6,7 @@ import { published } from "../data/content";
 import { getFamily } from "../data/models";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
+import { BRAND } from "../data/brand";
 
 /* ---------------------------------------------------------------------------
    MCP & CLI, with Skills on the same page.
@@ -109,7 +110,7 @@ export default function Mcp({ onOpenModel }: { onOpenModel: (familyId: string, p
             <span style={{ color: "var(--vg-text)" }}>نه فقط از این سایت</span>
           </h1>
           <p className="mt-3 max-w-[54ch] text-[13px] leading-6" style={{ color: "var(--vg-text-secondary)" }}>
-            مدل‌های VGen را به‌عنوان ابزار به دستیار خودت وصل کن، یا جریان‌های چندمرحله‌ای را یک‌بار بنویس و هر بار با یک دستور اجرا کن.
+            {`مدل‌های ${BRAND.name} `}را به‌عنوان ابزار به دستیار خودت وصل کن، یا جریان‌های چندمرحله‌ای را یک‌بار بنویس و هر بار با یک دستور اجرا کن.
           </p>
         </div>
       </div>
@@ -130,7 +131,7 @@ export default function Mcp({ onOpenModel }: { onOpenModel: (familyId: string, p
           {[
             { t: "توکن بساز", d: "از پروفایل، یک توکن دسترسی بساز. توکن مثل رمز است — جایی نگذارش که دیگران ببینند." },
             { t: "به تنظیمات کلاد اضافه کن", d: "این بلوک را در فایل پیکربندی MCP بگذار و توکن را جایگزین کن." },
-            { t: "کلاد را دوباره باز کن", d: "ابزارهای VGen در فهرست ابزارهای کلاد ظاهر می‌شوند." },
+            { t: "کلاد را دوباره باز کن", d: `ابزارهای ${BRAND.name} در فهرست ابزارهای کلاد ظاهر می‌شوند.` },
           ].map((s, i) => (
             <li key={s.t} className="flex gap-3">
               <span

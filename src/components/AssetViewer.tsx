@@ -90,7 +90,7 @@ function Row({
         )}
       </span>
       {badge && (
-        <span className="rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "rgba(233,95,24,0.16)", color: "var(--vg-primary-soft)" }}>
+        <span className="rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "var(--vg-primary-a18)", color: "var(--vg-primary-soft)" }}>
           {badge}
         </span>
       )}

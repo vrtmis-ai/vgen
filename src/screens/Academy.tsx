@@ -5,8 +5,8 @@ import { COURSES, LEVEL_LABEL, courseMinutes, type Course } from "../data/academ
 import { FAMILIES } from "../data/models";
 import { PROMPT_BANK, BANK_LABEL, BANK_BLURB, type BankCategory } from "../data/promptBank";
 import { published } from "../data/content";
-import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
+import { brandPhrase } from "../data/brand";
 
 /* ---------------------------------------------------------------------------
    VGen Academy.
@@ -65,15 +65,10 @@ function CourseCard({ c, onOpen }: { c: Course; onOpen: () => void }) {
         <span className="vg-numeric text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
           {n(c.lessons.length)} درس
         </span>
-        <span className="ms-auto flex items-center gap-1 text-[11.5px] font-semibold" style={{ color: c.coins ? "var(--vg-text)" : "var(--vg-primary-soft)" }}>
-          {c.coins ? (
-            <>
-              <CoinMark size={11} />
-              <span className="vg-numeric">{n(c.coins)}</span>
-            </>
-          ) : (
-            "رایگان"
-          )}
+        {/* Every course, no exceptions — see data/academy. The branch that used
+            to be here made free look like a sale on five priced ones. */}
+        <span className="ms-auto text-[11.5px] font-semibold" style={{ color: "var(--vg-primary-soft)" }}>
+          رایگان
         </span>
       </div>
     </button>
@@ -130,7 +125,7 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
               aria-pressed={on}
               className="h-9 shrink-0 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
               style={{
-                background: on ? "rgba(233,95,24,0.14)" : "var(--vg-surface)",
+                background: on ? "var(--vg-primary-a14)" : "var(--vg-surface)",
                 color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
                 border: "1px solid var(--vg-border-subtle)",
               }}
@@ -212,7 +207,7 @@ export default function Academy({ onOpenModel }: { onOpenModel: (familyId: strin
         <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88), rgba(0,0,0,0.35) 70%)" }} />
         <div className="relative flex min-h-[300px] flex-col justify-end p-7 md:p-10">
           <p className="mb-2 text-[13px] font-bold" style={{ color: "var(--vg-text-secondary)" }}>
-            آکادمی VGen
+            {brandPhrase("آکادمی")}
           </p>
           <h1 className="text-[30px] font-extrabold leading-[1.2] md:text-[40px]" style={{ fontFamily: "var(--vg-font-display)" }}>
             <span style={{ color: "var(--vg-primary-soft)" }}>ساختن یاد بگیر،</span>
@@ -276,17 +271,7 @@ export default function Academy({ onOpenModel }: { onOpenModel: (familyId: strin
                 className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl text-[13.5px] font-bold"
                 style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
               >
-                {open.coins ? (
-                  <>
-                    خرید دوره
-                    <span className="flex items-center gap-1 text-[12px] opacity-90">
-                      <CoinMark size={11} />
-                      <span className="vg-numeric">{n(open.coins)}</span>
-                    </span>
-                  </>
-                ) : (
-                  "شروع رایگان"
-                )}
+                شروع دوره
               </button>
               {open.familyId && (
                 <button

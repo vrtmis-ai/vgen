@@ -10,6 +10,7 @@ import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { useI18n, type TKey } from "../lib/i18n";
 import { riseItem, riseParent } from "../lib/motion";
+import { BRAND } from "../data/brand";
 
 /* Built from stitch-export/desktop/vgen-persian-home-unified.html.
    Measured, not eyeballed: hero 48/700, section headings 30, section padding
@@ -71,7 +72,7 @@ function TopNav({ onSignIn }: { onSignIn: () => void }) {
     >
       <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-5 sm:px-8">
         <span className="text-[20px] font-extrabold tracking-tight" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
-          VGen
+          {BRAND.name}
         </span>
         <div className="flex items-center gap-2">
           <button onClick={onSignIn} className="rounded-md px-3.5 py-2 text-[13px] active:scale-95" style={{ color: "var(--vg-text-secondary)" }}>

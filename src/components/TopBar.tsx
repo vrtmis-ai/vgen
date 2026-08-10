@@ -1,6 +1,7 @@
 import { CoinMark } from "./chrome";
 import { useI18n } from "../lib/i18n";
 import { useEdgeFade } from "../lib/useEdgeFade";
+import { BRAND } from "../data/brand";
 
 /* ---------------------------------------------------------------------------
    The 44px bar, modelled on Higgsfield.
@@ -59,7 +60,7 @@ export function TopBar({
           className="shrink-0 text-[17px] font-extrabold tracking-tight"
           style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
         >
-          VGen
+          {BRAND.name}
         </button>
 
         {/* hide-scrollbar: the row is meant to scroll on narrow viewports, but a
@@ -87,7 +88,7 @@ export function TopBar({
                 className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-1 text-[13px] transition-colors"
                 style={{
                   color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
-                  background: on ? "rgba(233,95,24,0.10)" : "transparent",
+                  background: on ? "var(--vg-primary-a14)" : "transparent",
                 }}
               >
                 {label}

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { House, ImagesSquare, UsersThree, UserCircle, Plus } from "@phosphor-icons/react";
 import { useI18n } from "../lib/i18n";
+import { BRAND } from "../data/brand";
 
 /** Metaball "blob" brand mark. Gooey filter fuses the three circles. */
 export function Logo({ size = 26, animate = false }: { size?: number; animate?: boolean }) {
@@ -146,7 +147,7 @@ export function SideNav({
     >
       <div className="flex h-16 items-center px-5" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>
         <span className="text-[20px] font-extrabold tracking-tight" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
-          VGen
+          {BRAND.name}
         </span>
       </div>
 
