@@ -37,6 +37,7 @@ import {
 } from "../data/plans";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
+import { useEdgeFade } from "../lib/useEdgeFade";
 import type { Wallet } from "../data/wallet";
 
 const TAG_KEY = { test: "w_tag_test", gift: "w_tag_gift", popular: "w_tag_popular", best: "w_tag_best" } as const;
@@ -314,6 +315,10 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
   const kinds = (["video", "image", "audio"] as const).filter((k) => rows.some((b) => b.kind === k));
   const VISIBLE = 3;
 
+  // Is there still table past the edge? See lib/useEdgeFade — the RTL sign
+  // handling is the fiddly part and lives there now, shared with the nav row.
+  const { ref: scrollerRef, onScroll, more } = useEdgeFade();
+
   return (
     <section className="mt-12">
       <h2 className="text-[28px] font-extrabold leading-tight md:text-[36px]" style={{ fontFamily: "var(--vg-font-display)" }}>
@@ -323,8 +328,25 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
 
       {/* Scrolls sideways rather than collapsing: a comparison whose columns
           stack is no longer a comparison. The label column is sticky so the
-          model name stays put while the plans move under it. */}
-      <div className="hide-scrollbar mt-5 overflow-x-auto rounded-bezel border border-line">
+          model name stays put while the plans move under it.
+
+          This used to carry `hide-scrollbar`, and that was the bug: at 1425px
+          the table is 1270 wide in a 1036 box, so a quarter of the plans sat
+          off the edge with the scrollbar painted out and nothing else saying so.
+          A pricing table you cannot tell is incomplete is worse than one that
+          obviously overflows. Three affordances now, because one is easy to
+          miss: a real scrollbar, a fade on the edge there is more behind, and a
+          focusable region so it can be scrolled from the keyboard at all —
+          WCAG requires that of any scrolling container. */}
+      <div className="relative mt-5">
+        <div
+          ref={scrollerRef}
+          onScroll={onScroll}
+          role="region"
+          aria-label="جدول مقایسهٔ پلن‌ها"
+          tabIndex={0}
+          className="vg-xscroll overflow-x-auto rounded-bezel border border-line"
+        >
         {/* `border-separate`, not `collapse`: a collapsed table drops the
             borders of a position:sticky cell, so the pinned model column lost
             its edges and slid under the scrolling ones. */}
@@ -441,7 +463,22 @@ function ComparisonTable({ cycle, currentPlanId, account }: { cycle: Cycle; curr
             );
           })}
         </table>
+        </div>
+
+        {/* Only while there is something behind it — a permanent fade would
+            claim more columns exist after you have reached the last one. */}
+        {more && (
+          <span
+            aria-hidden
+            className="vg-xscroll-fade pointer-events-none absolute inset-y-0 w-16"
+            style={{ insetInlineEnd: 0 }}
+          />
+        )}
       </div>
+
+      {more && (
+        <p className="mt-2 text-[11px] text-ink3">برای دیدن بقیهٔ پلن‌ها جدول را بکش.</p>
+      )}
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink3">
         اعداد سقف‌اند: سکه‌ها بین مدل‌ها مشترک‌اند، پس اگر از چند مدل استفاده کنی تعدادها بین‌شان تقسیم می‌شود.

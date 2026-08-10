@@ -366,6 +366,41 @@ input.vg-density {
 .vg-density:focus-visible::-webkit-slider-thumb { box-shadow: var(--vg-glow-focus); background: var(--vg-text); }
 .vg-density:focus-visible::-moz-range-thumb     { box-shadow: var(--vg-glow-focus); background: var(--vg-text); }
 
+/* A horizontal scroller that admits it scrolls.
+   The opposite of `.hide-scrollbar`: for content where being able to see that
+   there is more is the whole point — a pricing comparison, say — the bar stays,
+   just slim and quiet enough not to sit on the design. */
+.vg-xscroll { scrollbar-width: thin; scrollbar-color: var(--color-line2) transparent; }
+.vg-xscroll::-webkit-scrollbar { height: 8px; }
+.vg-xscroll::-webkit-scrollbar-track { background: transparent; }
+.vg-xscroll::-webkit-scrollbar-thumb {
+  background: var(--color-line2); border-radius: 999px;
+  /* Inset via a transparent border so the thumb does not touch the table edge. */
+  border: 2px solid transparent; background-clip: padding-box;
+}
+.vg-xscroll::-webkit-scrollbar-thumb:hover { background: var(--vg-border-strong); background-clip: padding-box; }
+
+/* The fade over the edge that still has content behind it. Like the banner
+   fades below, a linear-gradient has no logical direction, so RTL needs its own
+   rule rather than inheriting a mirror. */
+.vg-xscroll-fade { background: linear-gradient(to right, var(--color-bg), transparent); }
+[dir="rtl"] .vg-xscroll-fade { background: linear-gradient(to left, var(--color-bg), transparent); }
+
+/* The same idea for a strip that cannot take an overlay — the nav row, where an
+   absolutely positioned gradient would have to match whatever the header is
+   painted with and would then have to be re-matched on every palette change.
+   `mask-image` cuts the element's own alpha instead, so it is correct over any
+   background and survives a re-theme untouched. Applied per-edge by the caller,
+   so the leading edge is not faded while sitting at the start of the row.
+
+   `mask` uses physical directions, hence the RTL pair. */
+.vg-fade-end { mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 100%); }
+.vg-fade-start { mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 100%); }
+.vg-fade-start.vg-fade-end { mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); }
+[dir="rtl"] .vg-fade-end { mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 100%); }
+[dir="rtl"] .vg-fade-start { mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 100%); }
+[dir="rtl"] .vg-fade-start.vg-fade-end { mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); }
+
 /* Banner media fade. A linear-gradient along the inline axis has no logical
    direction, so `dir="rtl"` will not mirror it — the flip has to be written. */
 .vg-banner-fade { background: linear-gradient(to right, var(--vg-surface), transparent 55%); }

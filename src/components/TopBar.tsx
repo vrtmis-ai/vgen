@@ -1,5 +1,6 @@
 import { CoinMark } from "./chrome";
 import { useI18n } from "../lib/i18n";
+import { useEdgeFade } from "../lib/useEdgeFade";
 
 /* ---------------------------------------------------------------------------
    The 44px bar, modelled on Higgsfield.
@@ -44,6 +45,7 @@ export function TopBar({
   onProfile: () => void;
 }) {
   const { n } = useI18n();
+  const edge = useEdgeFade<HTMLElement>();
   return (
     <header
       className="sticky top-0 z-40 w-full"
@@ -61,8 +63,20 @@ export function TopBar({
         </button>
 
         {/* hide-scrollbar: the row is meant to scroll on narrow viewports, but a
-            visible bar inside a 44px chrome element reads as a rendering fault. */}
-        <nav className="hide-scrollbar -mx-1 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto px-1">
+            visible bar inside a 44px chrome element reads as a rendering fault.
+
+            The bar staying hidden is fine; the row saying nothing was not. At
+            375px this strip gets 175px and holds three of seven destinations —
+            افکت‌ها, آکادمی and کارهای من were entirely off the edge with no hint
+            they existed. A mask fades whichever edge still has content behind
+            it, so the row reads as continuing rather than ending. */}
+        <nav
+          ref={edge.ref}
+          onScroll={edge.onScroll}
+          className={`hide-scrollbar -mx-1 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto px-1 ${
+            edge.more ? "vg-fade-end" : ""
+          } ${edge.atStart ? "vg-fade-start" : ""}`}
+        >
           {ITEMS.map(({ key, label, badge }) => {
             const on = active === key;
             return (
