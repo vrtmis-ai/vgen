@@ -22,6 +22,10 @@ export type ViewMode = "grid" | "list";
 export const DENSITY_STEPS = [3, 4, 5, 6, 7] as const;
 export type Density = number; // index into DENSITY_STEPS
 
+/** Target row height for a justified layout, per density step. Taken from the
+ *  reference, whose rows measured between roughly 185px and 481px. */
+export const ROW_HEIGHTS = [460, 360, 290, 230, 185] as const;
+
 const KEY = "vgen-view";
 
 export function useViewMode(scope: string, initial: { mode?: ViewMode; density?: Density } = {}) {
@@ -53,6 +57,7 @@ export function useViewMode(scope: string, initial: { mode?: ViewMode; density?:
     mode: state.mode,
     density: state.density,
     cols: DENSITY_STEPS[state.density]!,
+    rowHeight: ROW_HEIGHTS[state.density]!,
     setMode: (mode: ViewMode) => setState((s) => ({ ...s, mode })),
     setDensity: (density: Density) => setState((s) => ({ ...s, density: Math.max(0, Math.min(DENSITY_STEPS.length - 1, density)) })),
   };

@@ -9,6 +9,7 @@ import { CoinMark } from "../components/chrome";
 import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
+import { JustifiedRows } from "../components/JustifiedRows";
 import { ModelChip } from "../components/ModelPicker";
 import { useI18n } from "../lib/i18n";
 
@@ -112,6 +113,21 @@ export default function StudioImage({
       ? mine.map((g) => ({ id: g.id, url: g.outputUrl ?? art(g.id), prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h, createdAt: g.createdAt }))
       : EXPLORE.map((e) => ({ id: e.id, url: art(e.seed), prompt: e.prompt, familyId: e.familyId, w: 1152, h: 1536 }));
 
+  /* Mixed ratios on purpose: the wall is only worth a justified layout if the
+     items actually differ, and the seeded stand-ins were all one shape. Real
+     generations carry their own w/h. */
+  const RATIOS = [9 / 16, 3 / 4, 16 / 9, 1, 4 / 5];
+  const tiles = Array.from({ length: 42 }, (_, i) => {
+    const base = wall[i % wall.length]!;
+    const ratio = mine.length > 0 ? base.w / base.h : RATIOS[i % RATIOS.length]!;
+    const [w, h] = ratio >= 1 ? [1200, Math.round(1200 / ratio)] : [Math.round(900 * ratio), 900];
+    return {
+      key: `${base.id}-${i}`,
+      ratio,
+      asset: { ...base, w, h, url: art(`${base.id}-${i}`, w, h) } as ViewerAsset,
+    };
+  });
+
   // No blob, no fetch: the asset is a remote URL and `download` on an anchor is
   // the whole mechanism. It becomes a real save once outputs live in our own
   // storage and the response carries Content-Disposition.
@@ -136,23 +152,25 @@ export default function StudioImage({
       {/* Repeated to 42 so the wall reaches the fold on a desktop viewport. The
           dock floats over it, and a wall that stops halfway leaves the dock
           hanging in empty space, which is not what the layout is. */}
-      <div
-        className="grid gap-px pb-[280px]"
-        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(1600 / view.cols)}px, 1fr))` }}
-      >
-        {Array.from({ length: 42 }, (_, i) => wall[i % wall.length]!).map((w, i) => (
-          <div
-            key={`${w.id}-${i}`}
-            className="group relative block aspect-[3/4] overflow-hidden"
-            style={{ background: "var(--vg-surface)" }}
-          >
-            <button onClick={() => setViewing(w)} className="absolute inset-0" aria-label="باز کردن">
-              <img src={art(`${w.id}-${i}`)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-              <span className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.25)" }} />
-            </button>
-            <TileActions onOpen={() => setViewing(w)} onDownload={() => download(w)} />
-          </div>
-        ))}
+      {/* Justified rows, not a grid. Each image keeps its true aspect ratio and
+          the row's height is whatever makes its widths fill the container — so
+          nothing is cropped. A uniform cell would crop every 16:9 and 9:16 on
+          the one page whose job is letting you judge what you just paid for. */}
+      <div className="pb-[280px]">
+        <JustifiedRows
+          items={tiles}
+          targetHeight={view.rowHeight}
+          gap={2}
+          render={(t) => (
+            <div className="group relative size-full overflow-hidden" style={{ background: "var(--vg-surface)" }}>
+              <button onClick={() => setViewing(t.asset)} className="absolute inset-0" aria-label="باز کردن">
+                <img src={t.asset.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+                <span className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.25)" }} />
+              </button>
+              <TileActions onOpen={() => setViewing(t.asset)} onDownload={() => download(t.asset)} />
+            </div>
+          )}
+        />
       </div>
 
       {viewing && (
