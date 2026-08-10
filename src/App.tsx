@@ -6,7 +6,6 @@ import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/ga
 import { startKieRates } from "./lib/kieRates";
 import { useSwipeBack } from "./lib/useSwipeBack";
 import { pageFade } from "./lib/motion";
-import { Ambient } from "./components/chrome";
 import { TopBar, type NavKey } from "./components/TopBar";
 import Landing from "./screens/Landing";
 import Studio from "./screens/Studio";
@@ -138,9 +137,9 @@ export default function App() {
   // ---- full-screen flows (no bottom nav) ----
   if (flow.s === "wallet") {
     return (
-      // Uncapped: Plans lays out its own 1100px container and turns its plan
-      // rows into grids above `md`. Held in the phone column it was a strip.
-      <Shell cap={false}>
+      // Plans lays out its own 1100px container and turns its plan
+      // rows into grids above `md`.
+      <Shell>
         {/* currentPlanId stays null until the backend can answer it — the
             screen renders the honest not-subscribed state meanwhile. */}
         <Plans wallet={wallet} account={session.user} currentPlanId={null} onBack={goBack} />
@@ -149,8 +148,8 @@ export default function App() {
   }
   if (flow.s === "profile") {
     return (
-      // Uncapped: Profile lays out its own 900px two-column grid above `md`.
-      <Shell cap={false}>
+      // Profile lays out its own 900px two-column grid above `md`.
+      <Shell>
         <Profile wallet={wallet} gens={gens} onWallet={openWallet} onGallery={goBack} onOpenModel={openModel} />
       </Shell>
     );
@@ -159,8 +158,8 @@ export default function App() {
     const family = getFamily(flow.familyId);
     if (!family) return null;
     return (
-      // Uncapped: Generate lays out its own 1100px two-column grid above `md`.
-      <Shell cap={false}>
+      // Generate lays out its own 1100px two-column grid above `md`.
+      <Shell>
         <Generate
           family={family}
           initialPrompt={flow.prompt}
@@ -173,6 +172,7 @@ export default function App() {
   if (flow.s === "result") {
     const gen = flow.gen;
     return (
+      // Result puts the media beside its actions above `md`.
       <Shell>
         <Result
           key={gen.id}
@@ -191,7 +191,7 @@ export default function App() {
   // No sidebar and no bottom tab bar: one 44px row carries every destination,
   // and the same row serves phone and desktop. See components/TopBar.
   return (
-    <Shell cap={false}>
+    <Shell>
       <TopBar
         active={tab}
         onNav={setTab}
@@ -263,17 +263,15 @@ export default function App() {
  * screens set their own width, and the top bar has to span the viewport for the
  * layout to read as a desktop app at all.
  */
-function Shell({ children, cap = true }: { children: React.ReactNode; cap?: boolean }) {
-  return (
-    <div className="relative min-h-[100dvh] bg-surface">
-      {/* Ambient rides with the capped phone column only. Its drifting orange
-          blobs read as depth behind a 480px card; behind a full-width tool they
-          read as a smudge, and they are the single most off-register thing
-          against a reference whose background is flat to the pixel. */}
-      {cap && <Ambient />}
-      <div className={`relative min-h-[100dvh] w-full ${cap ? "mx-auto max-w-[480px] overflow-hidden" : ""}`}>
-        {children}
-      </div>
-    </div>
-  );
+/**
+ * The frame every screen sits in — now just a background.
+ *
+ * It used to carry a 480px cap and the Ambient blobs, both inherited from the
+ * phone-shaped app this grew out of. Every screen now lays out its own
+ * container, so the last `cap` call site rendered nothing and the prop was
+ * vestigial. Ambient went with it: drifting orange blobs read as depth behind a
+ * 480px card and as a smudge behind a full-width tool.
+ */
+function Shell({ children }: { children: React.ReactNode }) {
+  return <div className="relative min-h-[100dvh] w-full bg-surface">{children}</div>;
 }

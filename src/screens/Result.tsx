@@ -54,7 +54,11 @@ export default function Result({
   const ratio = gen.w / gen.h;
 
   return (
-    <div className="relative z-10 min-h-[100dvh] px-4 pt-4">
+    /* The media leads and the controls sit beside it from `md`. In a 480px
+       column a 16:9 result was 270px tall with its actions pushed below the
+       fold — the one screen where the thing the user just paid for should be
+       the biggest object on the page. */
+    <div className="relative z-10 mx-auto min-h-[100dvh] w-full max-w-[1100px] px-4 pb-16 pt-4 md:px-8">
       <div className="mb-4 flex items-center gap-3">
         <button onClick={onBack} aria-label={t("nav_home")} className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95">
           <ArrowRight size={18} weight="bold" className="ltr:-scale-x-100" />
@@ -62,6 +66,7 @@ export default function Result({
         <div className="text-[15px] font-medium">{done ? t("r_result") : t("r_making")}</div>
       </div>
 
+      <div className="md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:items-start md:gap-6">
       <div className="rounded-bezel border border-line bg-card p-1.5">
         <div
           className="relative w-full overflow-hidden rounded-[1.4rem]"
@@ -115,6 +120,9 @@ export default function Result({
         </div>
       </div>
 
+      {/* Meta and actions become the second column at md, so the media keeps
+          the width instead of being squeezed above a stack of buttons. */}
+      <div className="md:mt-0">
       <div className="mt-4 flex items-center gap-2 text-[12px] text-ink3">
         <span className="rounded-full bg-card2 px-2.5 py-1 text-ink2">{gen.name}</span>
         <span>·</span>
@@ -130,6 +138,8 @@ export default function Result({
         ) : (
           <ActionBtn icon={<ShareNetwork size={20} />} label={t("r_share")} onClick={() => {}} disabled={!done} />
         )}
+      </div>
+      </div>
       </div>
     </div>
   );
