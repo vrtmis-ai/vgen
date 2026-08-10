@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Play, Lock, Clock } from "@phosphor-icons/react";
+import { Play, Lock, Clock, Copy, Check, ArrowUpRight } from "@phosphor-icons/react";
 import { COURSES, LEVEL_LABEL, courseMinutes, type Course } from "../data/academy";
+import { FAMILIES } from "../data/models";
+import { PROMPT_BANK, BANK_LABEL, BANK_BLURB, type BankCategory } from "../data/promptBank";
 import { published } from "../data/content";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
@@ -75,6 +77,125 @@ function CourseCard({ c, onOpen }: { c: Course; onOpen: () => void }) {
   );
 }
 
+/* The prompt bank. Theirs sits under the courses and is the more useful half of
+   the page: a course teaches you to make one thing, the bank teaches you the
+   words. Grouped exactly as theirs is — a category heading, then the terms.
+
+   Copy is the primary action, not "open in studio". These are fragments that
+   compose — a camera move plus a lighting setup plus a lens is one shot — so
+   the user is assembling a sentence, not choosing a preset. Sending them to the
+   studio on every click would throw away the two fragments they already had. */
+function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?: string) => void }) {
+  const entries = useMemo(() => published(PROMPT_BANK), []);
+  const [cat, setCat] = useState<BankCategory>("camera");
+  const [copied, setCopied] = useState<string | null>(null);
+
+  // Taken from the catalog rather than written in. Every term here is a
+  // cinematography term, so video is the right destination — but naming one
+  // family in this file means the button dies silently the day that family is
+  // renamed or archived, and nothing would fail loudly enough to notice.
+  const videoFamily = useMemo(() => FAMILIES.find((f) => f.kind === "video") ?? null, []);
+
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(null), 1600);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  const cats = (["camera", "lighting", "lens", "motion", "grade"] as const).filter((c) =>
+    entries.some((x) => x.category === c),
+  );
+  const shown = entries.filter((x) => x.category === cat);
+
+  return (
+    <section className="mt-14">
+      <h2 className="text-[20px] font-extrabold md:text-[26px]" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+        بانک پرامپت
+      </h2>
+      <p className="mt-1 max-w-[62ch] text-[13px] leading-6" style={{ color: "var(--vg-text-muted)" }}>
+        واژه‌های حرفه‌ای برای توصیف یک نما. اینها تکه‌اند نه پرامپت کامل — کنار هم بچینشان. متن انگلیسی است چون
+        مدل‌ها با همین اصطلاح‌ها آموزش دیده‌اند.
+      </p>
+
+      <div className="hide-scrollbar -mx-4 mt-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
+        {cats.map((c) => {
+          const on = c === cat;
+          return (
+            <button
+              key={c}
+              onClick={() => setCat(c)}
+              aria-pressed={on}
+              className="h-9 shrink-0 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
+              style={{
+                background: on ? "rgba(233,95,24,0.14)" : "var(--vg-surface)",
+                color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                border: "1px solid var(--vg-border-subtle)",
+              }}
+            >
+              {BANK_LABEL[c]}
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="mt-3 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
+        {BANK_BLURB[cat]}
+      </p>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {shown.map((x) => (
+          <div
+            key={x.id}
+            className="rounded-xl p-3"
+            style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold" style={{ color: "var(--vg-text)" }}>
+                  {x.label}
+                </p>
+                <p className="mt-0.5 text-[11.5px] leading-5" style={{ color: "var(--vg-text-muted)" }}>
+                  {x.note}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(x.fragment).then(() => setCopied(x.id));
+                  }}
+                  aria-label={`کپی ${x.label}`}
+                  className="vg-tap grid size-8 place-items-center rounded-lg transition-colors hover:bg-white/[0.07]"
+                  style={{ color: copied === x.id ? "var(--vg-primary-soft)" : "var(--vg-text-muted)" }}
+                >
+                  {copied === x.id ? <Check size={14} weight="bold" /> : <Copy size={14} />}
+                </button>
+                {videoFamily && (
+                  <button
+                    onClick={() => onOpenModel(videoFamily.id, x.fragment)}
+                    aria-label={`ساخت با ${x.label}`}
+                    className="vg-tap grid size-8 place-items-center rounded-lg transition-colors hover:bg-white/[0.07]"
+                    style={{ color: "var(--vg-text-muted)" }}
+                  >
+                    <ArrowUpRight size={14} weight="bold" />
+                  </button>
+                )}
+              </div>
+            </div>
+            {/* The fragment itself, verbatim. Latin inside an RTL card, so it
+                carries its own direction or the comma lands on the wrong end. */}
+            <p
+              className="ltr mt-2 rounded-lg px-2 py-1.5 text-[11.5px] leading-5"
+              style={{ background: "var(--vg-canvas)", color: "var(--vg-text-secondary)" }}
+            >
+              {x.fragment}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function Academy({ onOpenModel }: { onOpenModel: (familyId: string, prompt?: string) => void }) {
   const { n } = useI18n();
   const courses = published(COURSES);
@@ -109,6 +230,8 @@ export default function Academy({ onOpenModel }: { onOpenModel: (familyId: strin
           <CourseCard key={c.id} c={c} onOpen={() => setOpen(c)} />
         ))}
       </div>
+
+      <BankSection onOpenModel={onOpenModel} />
 
       {open && (
         <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center" style={{ background: "rgba(9,9,9,0.9)" }} onClick={() => setOpen(null)}>
