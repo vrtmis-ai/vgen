@@ -55,7 +55,9 @@ function CourseCard({ c, onOpen }: { c: Course; onOpen: () => void }) {
         <span className="rounded-md px-1.5 py-0.5 text-[10.5px]" style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}>
           {LEVEL_LABEL[c.level]}
         </span>
-        <span className="vg-numeric text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+        {/* text-muted, not text-faint: faint is for placeholder and disabled,
+            and at 11px it measures 3.31:1 — below AA for real content. */}
+        <span className="vg-numeric text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
           {n(c.lessons.length)} درس
         </span>
         <span className="ms-auto flex items-center gap-1 text-[11.5px] font-semibold" style={{ color: c.coins ? "var(--vg-text)" : "var(--vg-primary-soft)" }}>

@@ -94,7 +94,8 @@ export function TopBar({
 
         <button
           onClick={onWallet}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 transition-colors"
+          aria-label={`موجودی: ${n(coins)} سکه — شارژ`}
+          className="vg-tap flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 transition-colors"
           style={{ background: "rgba(255,255,255,0.05)" }}
         >
           <CoinMark size={13} />
@@ -104,7 +105,7 @@ export function TopBar({
         <button
           onClick={onProfile}
           aria-label="پروفایل"
-          className="grid size-7 shrink-0 place-items-center rounded-full text-[11px] font-semibold"
+          className="vg-tap grid size-7 shrink-0 place-items-center rounded-full text-[11px] font-semibold"
           style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
         >
           م

@@ -40,8 +40,17 @@
   --vg-text:              #F5F3EF;  /* headings, primary content            */
   --vg-text-secondary:    #E5E2E1;  /* body copy                            */
   --vg-text-muted:        #A8A29E;  /* captions, metadata, placeholders     */
-  --vg-text-faint:        #6B6663;  /* disabled, timestamps                 */
-  --vg-text-on-primary:   #FFFFFF;  /* on the orange fill                   */
+  /* Lightened from #6B6663, which measured 2.77–3.31:1 wherever it was used —
+     below AA at every size. The name says "disabled", where WCAG exempts
+     contrast, but in practice it had spread to captions, counts and units:
+     real content. Rather than police every call site, the token now passes on
+     its own and genuinely disabled controls carry opacity instead. */
+  --vg-text-faint:        #948E8A;  /* captions, counts, units              */
+  /* Dark ink on the orange fill, not white. White on #E95F18 measures 3.43:1
+     and fails AA; #1A1A1A measures 4.97:1 and passes. The system's own prose
+     said #1A1A1A from the start — this token had drifted from it, and every
+     accent button and badge in the app inherited the failure. */
+  --vg-text-on-primary:   #1A1A1A;  /* on the orange fill                   */
 
   /* ---------------------------------------------------------------------
      3. BRAND — "the spark"

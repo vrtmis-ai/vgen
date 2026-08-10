@@ -99,7 +99,8 @@ function PresetCard({ family, preset, onChange }: { family: Family; preset: Pres
       <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78), transparent 62%)" }} />
       <button
         onClick={onChange}
-        className="absolute top-2 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold backdrop-blur-md"
+        aria-label="تغییر افکت"
+        className="vg-tap absolute top-2 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold backdrop-blur-md"
         style={{ insetInlineEnd: "0.5rem", background: "rgba(0,0,0,0.55)", color: "var(--vg-text)" }}
       >
         <PencilSimple size={11} weight="bold" />

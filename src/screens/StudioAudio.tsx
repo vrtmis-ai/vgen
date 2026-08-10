@@ -134,10 +134,19 @@ export default function StudioAudio({
         className="sticky top-11 hidden h-[calc(100dvh-2.75rem)] w-12 shrink-0 flex-col items-center gap-1 py-3 md:flex"
         style={{ borderInlineEnd: "1px solid var(--vg-border-subtle)" }}
       >
-        {[Waveform, SquaresFour].map((Icon, i) => (
+        {/* Icon-only controls need a name. Without one a screen reader reads
+            "button, button" and the rail is a dead end. `aria-current` carries
+            the selected state, which colour alone cannot. */}
+        {[
+          { Icon: Waveform, label: "نمای موج" },
+          { Icon: SquaresFour, label: "نمای شبکه‌ای" },
+        ].map(({ Icon, label }, i) => (
           <button
-            key={i}
-            className="grid size-9 place-items-center rounded-lg"
+            key={label}
+            aria-label={label}
+            title={label}
+            aria-current={i === 0 ? "true" : undefined}
+            className="vg-tap grid size-9 place-items-center rounded-lg"
             style={{ background: i === 0 ? "var(--vg-surface-overlay)" : "transparent", color: i === 0 ? "var(--vg-primary-soft)" : "var(--vg-text-muted)" }}
           >
             <Icon size={18} />

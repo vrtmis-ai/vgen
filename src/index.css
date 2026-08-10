@@ -279,12 +279,15 @@ textarea, input { font-family: inherit; }
 .tile-raised:active { transform: scale(0.97); }
 
 .btn-accent {
-  background: var(--color-accent2);
+  /* The brighter primary, not the pressed shade. Dark ink on #C94E10 measures
+     3.8:1 and fails; on #E95F18 it measures 4.97:1. The press shade belongs in
+     :active, which is where it now lives. */
+  background: var(--color-accent);
   color: var(--color-on-accent);
   box-shadow: var(--shadow-accent);
   transition: transform 0.18s var(--ease-out), filter 0.18s var(--ease-out);
 }
-.btn-accent:active { transform: scale(0.97); filter: brightness(1.05); }
+.btn-accent:active { transform: scale(0.97); background: var(--color-accent2); }
 /* a disabled accent button must not read as tappable — the "current plan"
    button on the subscription screen is the first one to need this */
 .btn-accent:disabled { background: var(--color-card2); color: var(--color-ink3); box-shadow: none; cursor: default; }
@@ -337,6 +340,27 @@ input[type="range"]::-webkit-slider-thumb {
    other way — and then flips again under RTL. */
 .vg-banner-fade-flip { background: linear-gradient(to left, var(--vg-surface), transparent 55%); }
 [dir="rtl"] .vg-banner-fade-flip { background: linear-gradient(to right, var(--vg-surface), transparent 55%); }
+
+/* Extends a small control's tap target to the 44px minimum without changing
+   what it paints. The chrome runs a 28px avatar and a 27px "change" pill —
+   correct visually against a 44px bar, and too small to hit on a phone. Applied
+   rather than resizing them, because the sizes are right and the hit area is
+   the thing that is wrong.
+
+   Scoped to coarse pointers so a mouse does not get invisible 44px boxes
+   overlapping neighbouring controls. */
+@media (pointer: coarse) {
+  .vg-tap { position: relative; }
+  .vg-tap::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+  }
+}
 
 /* A row that is meant to scroll sideways but must not show a bar doing it.
    The nav lives inside a 44px chrome element, where a scrollbar reads as a
