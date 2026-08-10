@@ -205,6 +205,11 @@ function EffectCard({ preset, onOpen, onGenerate }: { preset: Preset; onOpen: ()
             fill here would fight the artwork on all 120 tiles at once. */}
         <button
           onClick={onGenerate}
+          // Named for the effect, not just "بساز". The visible word stays short
+          // because the title is right above it; the accessible name cannot rely
+          // on that, and eighteen buttons called "بساز" in a row is what a
+          // screen reader would otherwise read out.
+          aria-label={`ساختن با افکت ${preset.title}`}
           className="vg-tap pointer-events-auto mt-2.5 flex h-9 items-center gap-1.5 rounded-xl px-3 text-[12.5px] font-bold backdrop-blur-sm transition-colors"
           style={{ background: "rgba(233,95,24,0.12)", color: "var(--vg-primary-soft)" }}
         >

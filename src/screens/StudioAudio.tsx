@@ -61,8 +61,11 @@ function WaveCard({ id, prompt, voice, seconds, list }: { id: string; prompt: st
   if (list) {
     return (
       <div className="group flex h-[74px] items-center gap-3 border-b px-2" style={{ borderColor: "var(--vg-border-subtle)" }}>
+        {/* Named for the clip. A history of six results is otherwise six
+            buttons all called "پخش", which on screen is unambiguous — each sits
+            in its own row — and in a screen reader's button list is not. */}
         <button
-          aria-label="پخش"
+          aria-label={`پخش — ${voice}`}
           className="grid size-10 shrink-0 place-items-center rounded-full transition-colors"
           style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
         >
@@ -99,7 +102,7 @@ function WaveCard({ id, prompt, voice, seconds, list }: { id: string; prompt: st
           ].map(({ Icon, label }) => (
             <button
               key={label}
-              aria-label={label}
+              aria-label={`${label} — ${voice}`}
               title={label}
               className="grid size-7 place-items-center rounded-lg"
               style={{ color: "var(--vg-text-muted)" }}
@@ -130,7 +133,7 @@ function WaveCard({ id, prompt, voice, seconds, list }: { id: string; prompt: st
       <button
         className="absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover:opacity-100"
         style={{ background: "rgba(0,0,0,0.35)" }}
-        aria-label="پخش"
+        aria-label={`پخش — ${voice}`}
       >
         <span className="grid size-11 place-items-center rounded-full" style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}>
           <Play size={17} weight="fill" />
@@ -309,7 +312,7 @@ export default function StudioAudio({
               <button
                 onClick={() => setBatch((b) => Math.max(1, b - 1))}
                 disabled={batch === 1}
-                aria-label="کمتر"
+                aria-label="کاهش تعداد خروجی"
                 className="grid size-7 place-items-center rounded-lg disabled:opacity-30"
                 style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
               >
@@ -321,7 +324,9 @@ export default function StudioAudio({
               <button
                 onClick={() => setBatch((b) => Math.min(4, b + 1))}
                 disabled={batch === 4}
-                aria-label="بیشتر"
+                // "بیشتر" alone collides with the row menus and says nothing
+                // about what it increases.
+                aria-label="افزایش تعداد خروجی"
                 className="grid size-7 place-items-center rounded-lg disabled:opacity-30"
                 style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
               >

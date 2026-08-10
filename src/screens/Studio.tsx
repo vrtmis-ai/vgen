@@ -228,7 +228,7 @@ export default function Studio({
                       onClick={() => onOpen(g)}
                       className="relative min-w-0 flex-1 overflow-hidden rounded-2xl"
                       style={{ aspectRatio: `${g.w} / ${g.h}`, background: g.grad, maxHeight: "70dvh" }}
-                      aria-label="باز کردن"
+                      aria-label={`باز کردن — ${g.prompt.trim() ? g.prompt.trim().slice(0, 60) : g.name}`}
                     >
                       {g.outputUrl &&
                         (isVideoUrl(g.outputUrl) ? (

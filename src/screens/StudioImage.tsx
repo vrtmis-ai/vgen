@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Plus, Minus, Sparkle, PencilSimple, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut } from "@phosphor-icons/react";
-import { FAMILIES, type Family, type Variant } from "../data/models";
+import { FAMILIES, getFamily, type Family, type Variant } from "../data/models";
 import type { InputMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
@@ -34,6 +34,36 @@ import { useI18n } from "../lib/i18n";
 
 const art = (seed: string, w = 600, h = 800) => `https://picsum.photos/seed/${seed}/${w}/${h}`;
 
+/**
+ * How each frame identifies itself to a screen reader.
+ *
+ * The prompt is the only thing that distinguishes one output from another, so
+ * it is the name, with the model as the fallback for an output that never
+ * carried one.
+ *
+ * The ordinal is not padding. Generating four images from one prompt is the
+ * ordinary case, and those four are then genuinely indistinguishable by text —
+ * "the second of four" is the only thing left to say about them. It is added
+ * only where a name actually repeats, so a wall of distinct prompts stays
+ * quiet rather than being numbered for no reason.
+ */
+function tileNames(assets: ViewerAsset[]): string[] {
+  const base = assets.map((a) => {
+    const p = a.prompt.trim();
+    if (p) return p.length > 60 ? `${p.slice(0, 60)}…` : p;
+    return getFamily(a.familyId)?.name ?? "خروجی";
+  });
+  const total = new Map<string, number>();
+  for (const b of base) total.set(b, (total.get(b) ?? 0) + 1);
+  const seen = new Map<string, number>();
+  return base.map((b) => {
+    if ((total.get(b) ?? 0) < 2) return b;
+    const nth = (seen.get(b) ?? 0) + 1;
+    seen.set(b, nth);
+    return `${b} (${nth} از ${total.get(b)})`;
+  });
+}
+
 /** Every chip in the dock. The menu goes through PopoverChip, which portals it
  *  to <body> — the chip row scrolls horizontally, and an overflow container
  *  clips on both axes, so an in-tree menu is cut to the row's 40px. */
@@ -51,7 +81,26 @@ function chipOptions(c: ChipControl) {
 /** The hover stack the reference puts on every tile: favourite, download,
  *  recreate, enlarge. Before this the tile did nothing at all — the thing the
  *  user paid for was a picture you could look at and not act on. */
-function TileActions({ onOpen, onDownload, inline }: { onOpen: () => void; onDownload: () => void; inline?: boolean }) {
+function TileActions({
+  onOpen,
+  onDownload,
+  inline,
+  of,
+}: {
+  onOpen: () => void;
+  onDownload: () => void;
+  inline?: boolean;
+  /**
+   * What this stack acts on, for the accessible name.
+   *
+   * Without it a wall of 42 frames is 42 buttons all called "دانلود". On screen
+   * that is unambiguous — the button is sitting on its picture — but a screen
+   * reader's button list is exactly that list, stripped of position, and it
+   * becomes four names repeated 42 times with no way to tell which is which.
+   * The visible tooltip stays the short verb; only the name carries the target.
+   */
+  of: string;
+}) {
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
     fn();
@@ -76,7 +125,7 @@ function TileActions({ onOpen, onDownload, inline }: { onOpen: () => void; onDow
       ].map(({ Icon, label, on }) => (
         <button
           key={label}
-          aria-label={label}
+          aria-label={`${label} — ${of}`}
           title={label}
           onClick={stop(on)}
           className="grid size-7 place-items-center rounded-lg backdrop-blur-md"
@@ -117,7 +166,7 @@ export default function StudioImage({
      items actually differ, and the seeded stand-ins were all one shape. Real
      generations carry their own w/h. */
   const RATIOS = [9 / 16, 3 / 4, 16 / 9, 1, 4 / 5];
-  const tiles = Array.from({ length: 42 }, (_, i) => {
+  const shaped = Array.from({ length: 42 }, (_, i) => {
     const base = wall[i % wall.length]!;
     const ratio = mine.length > 0 ? base.w / base.h : RATIOS[i % RATIOS.length]!;
     const [w, h] = ratio >= 1 ? [1200, Math.round(1200 / ratio)] : [Math.round(900 * ratio), 900];
@@ -127,6 +176,10 @@ export default function StudioImage({
       asset: { ...base, w, h, url: art(`${base.id}-${i}`, w, h) } as ViewerAsset,
     };
   });
+  // Named as a set, not one at a time: whether a name needs an ordinal is a
+  // fact about the whole wall, so it cannot be decided from inside one tile.
+  const names = tileNames(shaped.map((t) => t.asset));
+  const tiles = shaped.map((t, i) => ({ ...t, name: names[i]! }));
 
   // No blob, no fetch: the asset is a remote URL and `download` on an anchor is
   // the whole mechanism. It becomes a real save once outputs live in our own
@@ -163,11 +216,11 @@ export default function StudioImage({
           gap={2}
           render={(t) => (
             <div className="group relative size-full overflow-hidden" style={{ background: "var(--vg-surface)" }}>
-              <button onClick={() => setViewing(t.asset)} className="absolute inset-0" aria-label="باز کردن">
+              <button onClick={() => setViewing(t.asset)} className="absolute inset-0" aria-label={`باز کردن — ${t.name}`}>
                 <img src={t.asset.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
                 <span className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.25)" }} />
               </button>
-              <TileActions onOpen={() => setViewing(t.asset)} onDownload={() => download(t.asset)} />
+              <TileActions onOpen={() => setViewing(t.asset)} onDownload={() => download(t.asset)} of={t.name} />
             </div>
           )}
         />
@@ -261,13 +314,13 @@ export default function StudioImage({
                   className="flex h-10 shrink-0 items-center gap-1 rounded-xl px-1"
                   style={{ background: "var(--vg-surface-overlay)" }}
                 >
-                  <button onClick={() => setCount((c) => Math.max(1, c - 1))} className="grid size-7 place-items-center rounded-lg" aria-label="کمتر">
+                  <button onClick={() => setCount((c) => Math.max(1, c - 1))} className="grid size-7 place-items-center rounded-lg" aria-label="کاهش تعداد خروجی">
                     <Minus size={13} weight="bold" style={{ color: "var(--vg-text-muted)" }} />
                   </button>
                   <span className="vg-numeric w-8 text-center text-[13px]" style={{ color: "var(--vg-text)" }}>
                     {n(count)}
                   </span>
-                  <button onClick={() => setCount((c) => Math.min(4, c + 1))} className="grid size-7 place-items-center rounded-lg" aria-label="بیشتر">
+                  <button onClick={() => setCount((c) => Math.min(4, c + 1))} className="grid size-7 place-items-center rounded-lg" aria-label="افزایش تعداد خروجی">
                     <Plus size={13} weight="bold" style={{ color: "var(--vg-text-muted)" }} />
                   </button>
                 </div>
