@@ -44,9 +44,19 @@ function PostCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
   const recreatable = p.category !== "reel" && !!f;
 
   return (
-    <motion.div variants={riseItem} className="mb-3 block w-full break-inside-avoid overflow-hidden rounded-bezel border border-line">
+    // `group` + the slow scale below: this was the one card surface in the app
+    // that did not move under the cursor. Effects, Academy, Explore and MCP all
+    // do, so a wall of community work reading as inert was an inconsistency
+    // rather than a decision — and on a page whose whole content is other
+    // people's images, the image is the thing that should react.
+    <motion.div variants={riseItem} className="group mb-3 block w-full break-inside-avoid overflow-hidden rounded-bezel border border-line">
       <div className="relative w-full" style={{ aspectRatio: `${p.w}/${p.h}`, background: f?.grad }}>
-        <img src={art(p.seed)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+        <img
+          src={art(p.seed)}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+        />
         <div className="scrim-media" />
 
         <div className="absolute start-2.5 top-2.5 flex items-center gap-1.5">
