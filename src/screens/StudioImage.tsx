@@ -8,6 +8,7 @@ import { EXPLORE } from "../data/explore";
 import { CoinMark } from "../components/chrome";
 import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
+import { ViewControls, useViewMode } from "../components/ViewControls";
 import { ModelChip } from "../components/ModelPicker";
 import { useI18n } from "../lib/i18n";
 
@@ -49,15 +50,22 @@ function chipOptions(c: ChipControl) {
 /** The hover stack the reference puts on every tile: favourite, download,
  *  recreate, enlarge. Before this the tile did nothing at all — the thing the
  *  user paid for was a picture you could look at and not act on. */
-function TileActions({ onOpen, onDownload }: { onOpen: () => void; onDownload: () => void }) {
+function TileActions({ onOpen, onDownload, inline }: { onOpen: () => void; onDownload: () => void; inline?: boolean }) {
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
     fn();
   };
   return (
+    /* On the wall the stack overlays the image and appears on hover. In a list
+       row there is nothing to overlay, so it sits in the row and stays visible
+       — hidden-until-hover in a list is just a hidden control. */
     <div
-      className="absolute top-1.5 flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-      style={{ insetInlineEnd: "0.375rem" }}
+      className={
+        inline
+          ? "flex flex-row gap-1"
+          : "absolute top-1.5 flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+      }
+      style={inline ? undefined : { insetInlineEnd: "0.375rem" }}
     >
       {[
         { Icon: Heart, label: "پسندیدن", on: () => {} },
@@ -94,6 +102,7 @@ export default function StudioImage({
   const s = useCreateState(families);
   const [count, setCount] = useState(1);
   const [viewing, setViewing] = useState<ViewerAsset | null>(null);
+  const view = useViewMode("image", { mode: "grid", density: 4 });
 
   const mine = gens.filter((g) => g.kind === "image");
   // Until the user has a library, the seeded examples stand in for one — an
@@ -116,25 +125,64 @@ export default function StudioImage({
 
   return (
     <div className="relative">
+      {/* The controls float over the wall's top corner, as the reference puts
+          them — the wall is edge to edge, so there is no header to put them in. */}
+      <div className="sticky top-11 z-20 flex justify-start px-3 py-2">
+        <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
+      </div>
+
       {/* Edge to edge, no page margin, no gutter. The wall is the page. */}
       {/* Repeated to 42 so the wall reaches the fold on a desktop viewport. The
           dock floats over it, and a wall that stops halfway leaves the dock
           hanging in empty space, which is not what the layout is. */}
-      <div className="grid grid-cols-3 gap-px pb-[280px] sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
-        {Array.from({ length: 42 }, (_, i) => wall[i % wall.length]!).map((w, i) => (
-          <div
-            key={`${w.id}-${i}`}
-            className="group relative block aspect-[3/4] overflow-hidden"
-            style={{ background: "var(--vg-surface)" }}
-          >
-            <button onClick={() => setViewing(w)} className="absolute inset-0" aria-label="باز کردن">
-              <img src={art(`${w.id}-${i}`)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-              <span className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.25)" }} />
-            </button>
-            <TileActions onOpen={() => setViewing(w)} onDownload={() => download(w)} />
-          </div>
-        ))}
-      </div>
+      {view.mode === "grid" ? (
+        <div
+          className="grid gap-px pb-[280px]"
+          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(1600 / view.cols)}px, 1fr))` }}
+        >
+          {Array.from({ length: 42 }, (_, i) => wall[i % wall.length]!).map((w, i) => (
+            <div
+              key={`${w.id}-${i}`}
+              className="group relative block aspect-[3/4] overflow-hidden"
+              style={{ background: "var(--vg-surface)" }}
+            >
+              <button onClick={() => setViewing(w)} className="absolute inset-0" aria-label="باز کردن">
+                <img src={art(`${w.id}-${i}`)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+                <span className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.25)" }} />
+              </button>
+              <TileActions onOpen={() => setViewing(w)} onDownload={() => download(w)} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* List view earns its keep by showing the prompt, which the wall cannot:
+           a 3:4 thumbnail has nowhere to put a sentence. This is the view for
+           finding "the one where I asked for rain", not for scanning frames. */
+        <div className="flex flex-col gap-2 px-3 pb-[280px]">
+          {Array.from({ length: 14 }, (_, i) => wall[i % wall.length]!).map((w, i) => (
+            <div
+              key={`${w.id}-${i}`}
+              className="group flex items-center gap-3 rounded-xl p-2"
+              style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+            >
+              <button onClick={() => setViewing(w)} className="relative size-14 shrink-0 overflow-hidden rounded-lg" aria-label="باز کردن">
+                <img src={art(`${w.id}-${i}`)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+              </button>
+              <button onClick={() => setViewing(w)} className="min-w-0 flex-1 text-start">
+                <p className="ltr line-clamp-2 text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
+                  {w.prompt}
+                </p>
+                <span className="vg-numeric mt-1 block text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+                  {w.w}×{w.h}
+                </span>
+              </button>
+              <div className="relative shrink-0 opacity-100">
+                <TileActions onOpen={() => setViewing(w)} onDownload={() => download(w)} inline />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {viewing && (
         <AssetViewer

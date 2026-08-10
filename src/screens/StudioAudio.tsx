@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
-import { Waveform, Heart, SquaresFour, Sparkle, Play } from "@phosphor-icons/react";
+import { Heart, Sparkle, Play } from "@phosphor-icons/react";
 import { FAMILIES, type Family, type Variant } from "../data/models";
 import type { InputMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
 import { VOICES } from "../data/voices";
+import { VoicePicker } from "../components/VoicePicker";
+import { ViewControls, useViewMode } from "../components/ViewControls";
 import { CoinMark } from "../components/chrome";
 import { PopoverChip } from "../components/Popover";
 import { ModelChip } from "../components/ModelPicker";
@@ -45,10 +47,47 @@ function bars(seed: string, n = 56): number[] {
   });
 }
 
-function WaveCard({ id, prompt, voice, seconds }: { id: string; prompt: string; voice: string; seconds: number }) {
-  const data = useMemo(() => bars(id), [id]);
+function WaveCard({ id, prompt, voice, seconds, list }: { id: string; prompt: string; voice: string; seconds: number; list?: boolean }) {
+  const data = useMemo(() => bars(id, list ? 96 : 56), [id, list]);
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
+
+  /* List view is a different card, not a squashed one: the waveform becomes a
+     thin strip and the metadata runs beside it, which is the shape that lets
+     you read twelve prompts down a column. */
+  if (list) {
+    return (
+      <div
+        className="group relative flex items-center gap-4 overflow-hidden rounded-xl px-4 py-3"
+        style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+      >
+        <button
+          aria-label="پخش"
+          className="grid size-9 shrink-0 place-items-center rounded-full"
+          style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+        >
+          <Play size={14} weight="fill" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[12.5px]" style={{ color: "var(--vg-text)" }}>
+            {prompt}
+          </p>
+          <div className="mt-1.5 flex h-5 items-center gap-[1.5px]" aria-hidden>
+            {data.map((v, i) => (
+              <span key={i} className="flex-1 rounded-full" style={{ height: `${Math.round(v * 100)}%`, background: "var(--vg-border-strong)" }} />
+            ))}
+          </div>
+        </div>
+        <bdi className="vg-numeric hidden shrink-0 text-[12.5px] tracking-[0.12em] sm:block" style={{ color: "var(--vg-text-muted)" }}>
+          {voice}
+        </bdi>
+        <span className="vg-numeric shrink-0 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
+          {mm}:{ss}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div
       className="group relative flex flex-col justify-end overflow-hidden rounded-xl p-4"
@@ -115,6 +154,8 @@ export default function StudioAudio({
   const families = FAMILIES.filter((f) => f.kind === "audio");
   const s = useCreateState(families);
   const [tab, setTab] = useState<"all" | "liked">("all");
+  const [pickVoice, setPickVoice] = useState(false);
+  const view = useViewMode("audio", { mode: "grid", density: 1 });
 
   const mine = gens.filter((g) => g.kind === "audio");
   const clips =
@@ -127,33 +168,14 @@ export default function StudioAudio({
   const voice = VOICES.find((v) => v.id === voiceId);
 
   return (
+    /* The 48px rail is gone. It held two icons that switched nothing — a guess
+       at the reference's rail before the real view controls existed — and once
+       those landed the rail's "نمای شبکه‌ای" became a second control with the
+       same accessible name as the one that works. Two identically-named buttons
+       where only one does anything is worse than no rail: a screen-reader user
+       cannot tell them apart, and a sighted user picks the dead one half the
+       time. Removing it also gives the clip grid the full width. */
     <div className="flex">
-      {/* The rail. 48px of icons — this modality has two views and no settings
-          worth a column, so a panel would be 272px of nothing. */}
-      <aside
-        className="sticky top-11 hidden h-[calc(100dvh-2.75rem)] w-12 shrink-0 flex-col items-center gap-1 py-3 md:flex"
-        style={{ borderInlineEnd: "1px solid var(--vg-border-subtle)" }}
-      >
-        {/* Icon-only controls need a name. Without one a screen reader reads
-            "button, button" and the rail is a dead end. `aria-current` carries
-            the selected state, which colour alone cannot. */}
-        {[
-          { Icon: Waveform, label: "نمای موج" },
-          { Icon: SquaresFour, label: "نمای شبکه‌ای" },
-        ].map(({ Icon, label }, i) => (
-          <button
-            key={label}
-            aria-label={label}
-            title={label}
-            aria-current={i === 0 ? "true" : undefined}
-            className="vg-tap grid size-9 place-items-center rounded-lg"
-            style={{ background: i === 0 ? "var(--vg-surface-overlay)" : "transparent", color: i === 0 ? "var(--vg-primary-soft)" : "var(--vg-text-muted)" }}
-          >
-            <Icon size={18} />
-          </button>
-        ))}
-      </aside>
-
       <main className="min-w-0 flex-1">
         <div className="flex items-center gap-1 px-4 py-2.5" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>
           {([["all", "همه"], ["liked", "پسندیده"]] as const).map(([k, label]) => (
@@ -170,11 +192,17 @@ export default function StudioAudio({
               {label}
             </button>
           ))}
+          <div className="ms-auto">
+            <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
+          </div>
         </div>
 
-        <div className="grid gap-3 p-4 pb-[190px] sm:grid-cols-2 xl:grid-cols-3">
+        <div
+          className="grid gap-3 p-4 pb-[190px]"
+          style={{ gridTemplateColumns: view.mode === "list" ? "1fr" : `repeat(auto-fill, minmax(${Math.round(1100 / view.cols)}px, 1fr))` }}
+        >
           {(tab === "liked" ? clips.slice(0, 2) : clips).map((c) => (
-            <WaveCard key={c.id} {...c} />
+            <WaveCard key={c.id} {...c} list={view.mode === "list"} />
           ))}
         </div>
       </main>
@@ -242,32 +270,27 @@ export default function StudioAudio({
 
           {/* The voice preset card — the only part of their dial cluster that
               maps onto a control we actually have. */}
+          {/* Opens the voice browser instead of being a <select> of 46 names.
+              A voice is chosen by ear, and the catalog has always carried a
+              free preview URL for each one. */}
           {voiceControl && (
-            <div
-              className="hidden w-[168px] shrink-0 flex-col justify-center rounded-xl px-3 py-2 sm:flex"
+            <button
+              onClick={() => setPickVoice(true)}
+              className="hidden w-[168px] shrink-0 flex-col justify-center rounded-xl px-3 py-2 text-start transition-colors hover:bg-white/[0.04] sm:flex"
               style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
             >
-              <p className="text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+              <span className="text-[10.5px]" style={{ color: "var(--vg-text-muted)" }}>
                 صدا
-              </p>
-              <select
-                value={voiceId ?? ""}
-                onChange={(e) => s.set(voiceControl.key, e.target.value)}
-                className="vg-numeric w-full cursor-pointer appearance-none truncate bg-transparent text-[13px] tracking-[0.1em] outline-none"
-                style={{ color: "var(--vg-text)" }}
-              >
-                {VOICES.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-              <div className="mt-1 flex h-4 items-center gap-[1.5px]" aria-hidden>
+              </span>
+              <bdi className="vg-numeric block truncate text-[13px] tracking-[0.1em]" style={{ color: "var(--vg-text)" }}>
+                {voice?.name ?? "انتخاب کن"}
+              </bdi>
+              <span className="mt-1 flex h-4 items-center gap-[1.5px]" aria-hidden>
                 {bars(voice?.id ?? "x", 26).map((v, i) => (
                   <span key={i} className="flex-1 rounded-full" style={{ height: `${Math.round(v * 100)}%`, background: "var(--vg-primary-dim)" }} />
                 ))}
-              </div>
-            </div>
+              </span>
+            </button>
           )}
 
           <button
@@ -287,6 +310,14 @@ export default function StudioAudio({
           </button>
         </div>
       </div>
+
+      {pickVoice && voiceControl && (
+        <VoicePicker
+          selectedId={voiceId}
+          onPick={(v) => s.set(voiceControl.key, v.id)}
+          onClose={() => setPickVoice(false)}
+        />
+      )}
     </div>
   );
 }
