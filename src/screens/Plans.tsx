@@ -26,6 +26,8 @@ import {
   effectiveUsd,
   estImages,
   estVideos,
+  IMAGE_ANCHOR_NAME,
+  VIDEO_ANCHOR_NAME,
   buildBenchmarks,
   outputsPerMonth,
   UNIT_LABEL,
@@ -74,23 +76,31 @@ function Estimates({ plan, compact }: { plan: Plan; compact?: boolean }) {
   // rather than printing a figure derived from nothing — and if both are gone,
   // there is nothing honest left to say here.
   if (images == null && videos == null) return null;
+  // Named, and stacked rather than strung across one line — the way theirs
+  // reads. "≈۱٬۶۷۵ تصویر" is a number you have to take on faith; "۱٬۶۷۵ تصویر
+  // با GPT Image" is one you can go and check against the studio. On a catalog
+  // whose models differ by 50x that distinction is the whole value of the line.
+  //
+  // The model name is Latin inside an RTL sentence, so it needs `bdi` or the
+  // digits either side of it reorder around the wrong edge.
+  const rows: { icon: typeof ImageSquare; count: number; unit: string; model: string | null }[] = [];
+  if (images != null) rows.push({ icon: ImageSquare, count: images, unit: t("w_est_img"), model: IMAGE_ANCHOR_NAME });
+  if (videos != null) rows.push({ icon: VideoCamera, count: videos, unit: t("w_est_vid"), model: VIDEO_ANCHOR_NAME });
+
   return (
-    <div className={`flex items-center gap-3 ${compact ? "text-[11px]" : "text-[12px]"} text-ink2`}>
-      {images != null && (
-        <span className="flex items-center gap-1">
-          <ImageSquare size={compact ? 12 : 14} className="text-accent" />
-          {t("w_about")}
-          {n(images)} {t("w_est_img")}
+    <div className={`flex flex-col gap-1 ${compact ? "text-[11px]" : "text-[12px]"} text-ink2`}>
+      {rows.map(({ icon: Icon, count, unit, model }) => (
+        <span key={unit} className="flex items-center gap-1.5">
+          <Icon size={compact ? 12 : 14} className="shrink-0 text-accent" />
+          <span className="tabular-nums font-semibold text-ink">{n(count)}</span>
+          {unit}
+          {model && (
+            <span className="truncate text-ink3">
+              {t("w_est_with")} <bdi>{model}</bdi>
+            </span>
+          )}
         </span>
-      )}
-      {images != null && videos != null && <span className="text-ink3">{t("w_est_or")}</span>}
-      {videos != null && (
-        <span className="flex items-center gap-1">
-          <VideoCamera size={compact ? 12 : 14} className="text-accent" />
-          {t("w_about")}
-          {n(videos)} {t("w_est_vid")}
-        </span>
-      )}
+      ))}
     </div>
   );
 }

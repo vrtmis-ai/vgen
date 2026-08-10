@@ -279,8 +279,36 @@ function anchor(id: string, input: InputMap): number | null {
   return credits == null ? null : coinsForKieCredits(credits);
 }
 
-export const COST_PER_IMAGE = anchor("gpt-image-2", { resolution: "1K" });
-export const COST_PER_VIDEO5S = anchor("kling-3", { mode: "pro", duration: 5, sound: false });
+const IMAGE_ANCHOR_ID = "gpt-image-2";
+const VIDEO_ANCHOR_ID = "kling-3";
+
+export const COST_PER_IMAGE = anchor(IMAGE_ANCHOR_ID, { resolution: "1K" });
+export const COST_PER_VIDEO5S = anchor(VIDEO_ANCHOR_ID, { mode: "pro", duration: 5, sound: false });
+
+/**
+ * What the two headline estimates were priced against, by name.
+ *
+ * Theirs prints "= 600 Nano Banana Pro Generations" and "~ 53 Seedance 2.0
+ * videos" on the card — the model is named, not implied. That is the difference
+ * between a number a buyer can check and one they have to take on faith, and on
+ * a catalog whose models differ by 50x an unnamed "≈1,675 images" is closer to
+ * a guess than a quote.
+ *
+ * Resolved from the catalog rather than written down, so renaming a model or
+ * moving the anchor cannot leave the label pointing at the wrong thing.
+ */
+function anchorName(variantId: string): string | null {
+  for (const f of FAMILIES) {
+    const v = f.variants.find((x) => x.id === variantId);
+    // The family name alone where the variant is the family's only shape;
+    // otherwise both, because "Kling" and "Kling Pro" are different prices.
+    if (v) return f.variants.length > 1 ? `${f.name} ${v.label}` : f.name;
+  }
+  return null;
+}
+
+export const IMAGE_ANCHOR_NAME = anchorName(IMAGE_ANCHOR_ID);
+export const VIDEO_ANCHOR_NAME = anchorName(VIDEO_ANCHOR_ID);
 
 /** Images per month on this plan, or null if the anchor lost its rate. */
 export function estImages(plan: Plan): number | null {
