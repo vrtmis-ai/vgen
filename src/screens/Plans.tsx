@@ -30,8 +30,8 @@ import {
   VIDEO_ANCHOR_NAME,
   buildBenchmarks,
   outputsPerMonth,
-  UNIT_LABEL,
   KIND_LABEL,
+  type Benchmark,
   type Plan,
   type PricingAccount,
 } from "../data/plans";
@@ -40,6 +40,50 @@ import { useI18n } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
 
 const TAG_KEY = { test: "w_tag_test", gift: "w_tag_gift", popular: "w_tag_popular", best: "w_tag_best" } as const;
+
+/**
+ * Benchmark rows, grouped into their families, order preserved.
+ *
+ * The comparison lists variants, and a family can hold four of them. Ungrouped
+ * they read as four unrelated models — which is what made the table look like a
+ * jumble even though every row was correct. Grouping is also what makes
+ * "show fewer" honest: cutting at three ROWS can leave a family half-shown,
+ * which is worse than not showing it.
+ */
+interface VariantGroup {
+  id: string;
+  label: string;
+  rows: Benchmark[];
+}
+interface FamilyGroup {
+  id: string;
+  name: string;
+  variants: VariantGroup[];
+  /** Total benchmark rows under this family — what the row count is cut on. */
+  size: number;
+}
+
+function byFamily(rows: Benchmark[]): FamilyGroup[] {
+  const out: FamilyGroup[] = [];
+  for (const r of rows) {
+    // Adjacent-only, not a map lookup: buildBenchmarks already emits families
+    // and variants contiguously in catalog order, and this preserves that
+    // rather than imposing an order of its own.
+    let fam = out[out.length - 1];
+    if (!fam || fam.id !== r.familyId) {
+      fam = { id: r.familyId, name: r.family, variants: [], size: 0 };
+      out.push(fam);
+    }
+    let v = fam.variants[fam.variants.length - 1];
+    if (!v || v.id !== r.variantId) {
+      v = { id: r.variantId, label: r.variant, rows: [] };
+      fam.variants.push(v);
+    }
+    v.rows.push(r);
+    fam.size++;
+  }
+  return out;
+}
 
 type Cycle = "monthly" | "annual";
 
@@ -382,9 +426,10 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
           </thead>
 
           {kinds.map((kind) => {
-            const group = rows.filter((b) => b.kind === kind);
+            const fams = byFamily(rows.filter((b) => b.kind === kind));
             const open = expanded[kind] ?? false;
-            const shown = open ? group : group.slice(0, VISIBLE);
+            // Cut by family, never mid-family — see byFamily.
+            const shown = open ? fams : fams.slice(0, VISIBLE);
             return (
               <tbody key={kind}>
                 <tr>
@@ -392,50 +437,63 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                     {KIND_LABEL[kind]}
                   </td>
                 </tr>
-                {shown.map((b) => (
-                  <tr key={b.key}>
-                    <td className="sticky border-t border-line p-3 align-top" style={{ insetInlineStart: 0, background: "var(--color-bg)" }}>
-                      {/* Dotted underline, as the reference marks a term that
-                          carries detail — here the detail is the setting. */}
-                      <span className="text-[13px]" style={{ textDecoration: "underline dotted var(--color-line2)", textUnderlineOffset: "3px" }}>
-                        <bdi>{b.family}</bdi>
-                        <span className="text-ink2"> · </span>
-                        <bdi className="text-ink2">{b.variant}</bdi>
-                      </span>
-                      {/* The unit price belongs under the label, not in a column
-                          of its own where it competes with the plans. It is also
-                          what explains three image rows sharing a figure. */}
-                      {/* `at` is mixed — "720p · 5 ثانیه" — so it stays in the
-                          UI font. Only the coin figure is isolated numerals. */}
-                      {/* The unit moves here, where it is said once. It was
-                          printed inside all seven cells, and being constant for
-                          the whole row it added nothing but roughly 35px of
-                          width per column — which is most of what was pushing
-                          the table off the edge in the first place. */}
-                      <span className="mt-1 block text-[11px] text-ink3">
-                        {b.at} · <span className="vg-numeric">{n(b.coins!)}</span> سکه برای هر {UNIT_LABEL[b.kind]}
-                      </span>
-                    </td>
-                    {cols.map((p) => {
-                      const v = outputsPerMonth(p, b);
+                {shown.map((fam, fi) =>
+                  fam.variants.map((vg, vi) =>
+                    vg.rows.map((b, ri) => {
+                      const firstOfFamily = vi === 0 && ri === 0;
+                      const firstOfVariant = ri === 0;
+                      // Heavy rule at a family, hairline at a variant, nothing
+                      // between the quality steps of one variant. The grouping
+                      // has to be visible or it is not grouping.
+                      const rule = firstOfFamily
+                        ? fi === 0
+                          ? "none"
+                          : "2px solid var(--color-line2)"
+                        : firstOfVariant
+                          ? "1px solid var(--color-line)"
+                          : "none";
                       return (
-                        <td key={p.id} className="border-t border-line px-2 py-4 text-center align-top">
-                          {v == null || v === 0 ? (
-                            // A plan whose month does not buy even one is an ×,
-                            // not a zero. Zero reads as a number you could grow.
-                            <X size={13} className="mx-auto text-ink3" />
-                          ) : (
-                            // 15px, up from 13. These are the numbers the page
-                            // exists to show and they were the smallest thing on
-                            // it, in a font that could not draw them.
-                            <span className="vg-numeric text-[15px] font-semibold">{n(v)}</span>
-                          )}
-                        </td>
+                        <tr key={b.key}>
+                          <td className="sticky px-3 py-2 align-top" style={{ insetInlineStart: 0, background: "var(--color-bg)", borderTop: rule }}>
+                            {/* Three levels, each said once: family, then
+                                variant, then the setting. The table used to
+                                repeat "Seedance · نسخه ۲" on four consecutive
+                                rows that differed only in a resolution buried in
+                                the small print, which is what made it look like
+                                a jumble even though every row was correct. */}
+                            {firstOfFamily && <bdi className="block pb-0.5 text-[13.5px] font-bold">{fam.name}</bdi>}
+                            {firstOfVariant && (
+                              <bdi className="block text-[12.5px] font-semibold text-ink2" style={{ paddingInlineStart: "0.6rem" }}>
+                                {vg.label}
+                              </bdi>
+                            )}
+                            {/* `at` is mixed — "720p · 5 ثانیه" — so it stays in
+                                the UI font. Only the coin figure is isolated. */}
+                            <span className="block text-[11px] text-ink3" style={{ paddingInlineStart: "1.2rem" }}>
+                              {b.at} · <span className="vg-numeric">{n(b.coins!)}</span> سکه
+                            </span>
+                          </td>
+                          {cols.map((p) => {
+                            const v = outputsPerMonth(p, b);
+                            return (
+                              <td key={p.id} className="px-2 py-2 text-center align-bottom" style={{ borderTop: rule }}>
+                                {v == null || v === 0 ? (
+                                  // A plan whose month does not buy even one is
+                                  // an ×, not a zero. Zero reads as a number you
+                                  // could grow into.
+                                  <X size={13} className="mx-auto text-ink3" />
+                                ) : (
+                                  <span className="vg-numeric text-[15px] font-semibold">{n(v)}</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
                       );
-                    })}
-                  </tr>
-                ))}
-                {group.length > VISIBLE && (
+                    }),
+                  ),
+                )}
+                {fams.length > VISIBLE && (
                   <tr>
                     <td colSpan={cols.length + 1} className="border-t border-line p-3">
                       <button
@@ -443,7 +501,7 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                         className="flex items-center gap-1.5 text-[12.5px] text-ink2"
                       >
                         <CaretDown size={12} weight="bold" className={open ? "rotate-180" : ""} />
-                        {open ? "کمتر" : `${n(group.length - VISIBLE)} مدل دیگر`}
+                        {open ? "کمتر" : `${n(fams.length - VISIBLE)} مدل دیگر`}
                       </button>
                     </td>
                   </tr>
@@ -462,51 +520,63 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
           it is simply taller, which a phone already is. */}
       <div className="mt-5 flex flex-col gap-4 md:hidden">
         {kinds.map((kind) => {
-          const group = rows.filter((b) => b.kind === kind);
+          const fams = byFamily(rows.filter((b) => b.kind === kind));
           const open = expanded[kind] ?? false;
-          const shown = open ? group : group.slice(0, VISIBLE);
+          const shown = open ? fams : fams.slice(0, VISIBLE);
           return (
             <div key={kind}>
               <p className="mb-2 text-[15px] font-bold">{KIND_LABEL[kind]}</p>
               <div className="flex flex-col gap-2">
-                {shown.map((b) => (
-                  <div key={b.key} className="rounded-bezel border border-line p-3">
-                    <p className="text-[13px]">
-                      <bdi>{b.family}</bdi>
-                      <span className="text-ink2"> · </span>
-                      <bdi className="text-ink2">{b.variant}</bdi>
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-ink3">
-                      {b.at} · <span className="vg-numeric">{n(b.coins!)}</span> سکه برای هر {UNIT_LABEL[kind]}
-                    </p>
-                    <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1.5">
-                      {cols.map((p) => {
-                        const v = outputsPerMonth(p, b);
-                        const lead = p.popular || p.id === currentPlanId;
-                        return (
-                          <div key={p.id} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5">
-                            <bdi className="truncate text-[11.5px]" style={{ color: lead ? "var(--color-accent)" : "var(--color-ink2)" }}>
-                              {p.name}
-                            </bdi>
-                            {v == null || v === 0 ? (
-                              <X size={11} className="shrink-0 text-ink3" />
-                            ) : (
-                              <span className="vg-numeric shrink-0 text-[14px] font-semibold">{n(v)}</span>
-                            )}
-                          </div>
-                        );
-                      })}
+                {/* One card per FAMILY, its variants inside — the same grouping
+                    the table uses. A card per variant put four Nano Bananas in
+                    four separate boxes, which is the phone version of the same
+                    jumble. */}
+                {shown.map((fam) => (
+                  <div key={fam.id} className="rounded-bezel border border-line p-3">
+                    <bdi className="block text-[13.5px] font-bold">{fam.name}</bdi>
+                    {/* Same three levels as the table: family, variant, setting. */}
+                    <div className="mt-2 flex flex-col gap-4">
+                      {fam.variants.map((vg) => (
+                        <div key={vg.id}>
+                          <bdi className="block text-[12.5px] font-semibold text-ink2">{vg.label}</bdi>
+                          {vg.rows.map((b) => (
+                            <div key={b.key} className="mt-1.5">
+                              <p className="text-[11px] text-ink3">
+                                {b.at} · <span className="vg-numeric">{n(b.coins!)}</span> سکه
+                              </p>
+                              <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                                {cols.map((p) => {
+                                  const v = outputsPerMonth(p, b);
+                                  const lead = p.popular || p.id === currentPlanId;
+                                  return (
+                                    <div key={p.id} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5">
+                                      <bdi className="truncate text-[11.5px]" style={{ color: lead ? "var(--color-accent)" : "var(--color-ink2)" }}>
+                                        {p.name}
+                                      </bdi>
+                                      {v == null || v === 0 ? (
+                                        <X size={11} className="shrink-0 text-ink3" />
+                                      ) : (
+                                        <span className="vg-numeric shrink-0 text-[14px] font-semibold">{n(v)}</span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
               </div>
-              {group.length > VISIBLE && (
+              {fams.length > VISIBLE && (
                 <button
                   onClick={() => setExpanded((s) => ({ ...s, [kind]: !open }))}
                   className="mt-2 flex items-center gap-1.5 text-[12.5px] text-ink2"
                 >
                   <CaretDown size={12} weight="bold" className={open ? "rotate-180" : ""} />
-                  {open ? "کمتر" : `${n(group.length - VISIBLE)} مدل دیگر`}
+                  {open ? "کمتر" : `${n(fams.length - VISIBLE)} مدل دیگر`}
                 </button>
               )}
             </div>

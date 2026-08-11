@@ -341,6 +341,8 @@ export interface Benchmark {
   variantId: string;
   /** Family name, e.g. "Nano Banana". Latin, isolated when rendered. */
   family: string;
+  /** Family id, so consumers can group rows without matching on display text. */
+  familyId: string;
   /** Variant label, e.g. "Pro". A row named only by its family is a lie when
    *  the family holds variants that differ 4x in price. */
   variant: string;
@@ -419,6 +421,7 @@ export function buildBenchmarks(): Benchmark[] {
           key: `${variant.id}:${step?.value ?? "-"}`,
           variantId: variant.id,
           family: family.name,
+          familyId: family.id,
           variant: variant.label,
           at: parts.join(" · ") || "پیش‌فرض",
           kind: family.kind,
@@ -428,9 +431,21 @@ export function buildBenchmarks(): Benchmark[] {
     }
   }
 
-  // Cheapest first inside each kind: the table groups by kind anyway, and a
-  // price ladder is the order someone comparing actually reads in.
-  return out.sort((a, b) => (a.coins ?? 0) - (b.coins ?? 0));
+  /* Catalog order, deliberately unsorted.
+     This used to sort every row by price, which read as tidy and was in fact
+     the thing that made the table unreadable: four Nano Banana variants landed
+     in four different places with unrelated models between them, so a reader
+     comparing one model to another had to reassemble it from across the page.
+
+     The loop above walks FAMILIES and then each family's variants, and FAMILIES
+     is already the curated order the whole product uses — Nano Banana first
+     because it is the most used, Seedance leading video — so simply not
+     re-sorting gives grouped families in popularity order, and variants inside
+     a family in the order the catalog presents them.
+
+     Cost ordering is not lost: within a family the variants already run cheap
+     to dear, which is the ladder that was actually useful. */
+  return out;
 }
 
 /** How many of this output a plan's monthly coins buy. */
