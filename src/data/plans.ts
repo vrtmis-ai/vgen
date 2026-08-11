@@ -238,6 +238,11 @@ export const MODEL_MIN_TIER: Record<string, Tier> = {
   seedance: 2,
   kling: 2,
   "gemini-omni": 2, // 63–210 credits per video, in Kling's range
+  // 16 credits/s at 768p, 26 at 2K — so 80 to 390 per clip depending on length.
+  // That straddles Kling and Seedance rather than Veo, which is why it is 2 and
+  // not 3. check-combos.ts caught this being absent, and absent means LOCKED on
+  // every plan, which would have shipped a new flagship nobody could run.
+  "minimax-h3": 2,
   veo: 3,
 };
 

@@ -469,10 +469,46 @@ export const FAMILIES: Family[] = [
     ],
     controls: seedanceControls(["480p", "720p", "1080p", "4k"]),
     variants: [
+      /* 2.5 leads. It is the newest and it is what ByteDance and the reference
+         are both promoting, but the real reason it goes first is the duration:
+         it renders a native 30-second single shot, where every other variant
+         here tops out at 15 and gets longer only by stitching. That is a
+         different product, not a faster one, so it gets its own control rather
+         than inheriting seedanceControls' 4–15 slider.
+
+         480p / 720p only — those are the resolutions it offers and the only
+         two KIE prices. */
+      {
+        id: "seedance-2-5",
+        model: "bytedance/seedance-2-5",
+        label: "۲٫۵",
+        badge: "جدید",
+        controls: [
+          {
+            kind: "aspect",
+            key: "aspect_ratio",
+            label: "نسبت تصویر",
+            def: "16:9",
+            options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34, ratios.l219],
+          },
+          QUALITY("720p", ["480p", "720p"]),
+          { kind: "slider", key: "duration", label: "مدت", min: 4, max: 30, step: 1, def: 5, unit: "ثانیه" },
+          { kind: "toggle", key: "generate_audio", label: "تولید صدا", def: true },
+        ],
+      },
       { id: "seedance-2", model: "bytedance/seedance-2", label: "نسخه ۲", badge: "پرچم‌دار" },
       { id: "seedance-2-fast", model: "bytedance/seedance-2-fast", label: "سریع", controls: seedanceControls(["480p", "720p"]) },
-      // Seedance 2 Mini is priced in KIE's rate table but still shows "coming
-      // soon" on the service, so it can't actually run. Restore when it ships.
+      /* Mini was held back because KIE priced it while the service still said
+         "coming soon". It ships now — the endpoint is live — so it goes in. At
+         8.2 credits/second against Seedance 2's 41 it is the cheap seat of the
+         family, which is the whole point of it. */
+      {
+        id: "seedance-2-mini",
+        model: "bytedance/seedance-2-mini",
+        label: "۲ مینی",
+        badge: "ارزان",
+        controls: seedanceControls(["480p", "720p"]),
+      },
       {
         id: "seedance-1-5-pro",
         model: "bytedance/seedance-1.5-pro",
@@ -611,6 +647,54 @@ export const FAMILIES: Family[] = [
           { kind: "slider", key: "cfg_scale", label: "پایبندی به پرامپت", min: 0, max: 1, step: 0.1, def: 0.5, advanced: true },
         ],
       },
+    ],
+  },
+  /* MiniMax H3.
+     Its own family rather than a variant of Hailuo 2.3: 2.3 is image-to-video
+     only and this takes text, an image, or up to nine references plus motion
+     and audio clips, at 2K with synchronised sound. Same vendor, different
+     product — folding it in would put a frontier model behind a label that
+     says "2.3".
+
+     Third among the video families, not first. The catalog order is what the
+     comparison table reads as "most used", and a model released this month has
+     not earned that yet however loudly it is being promoted.
+
+     768p and 2K only. fal exposes a 4K tier, but KIE — the provider we actually
+     bill through — does not price it, and an option whose rate resolves to null
+     renders as "not supported" with a dead create button. Better to not offer
+     it until there is a number behind it. */
+  {
+    id: "minimax-h3",
+    name: "MiniMax H3",
+    maxPrompt: 5000,
+    vendor: "MiniMax",
+    kind: "video",
+    blurb: "یک مدل برای همه‌چیز: متن، عکس یا مرجع به ویدیوی ۲K با صدای همگام",
+    badge: "جدید",
+    grad: "linear-gradient(135deg,#f7734b,#f74b9b)",
+    refs: [
+      { key: "reference_image_urls", label: "تصاویر مرجع / سوژه (اختیاری)", max: 9, maxMb: 30 },
+      { key: "reference_video_urls", label: "ویدیوی مرجع برای حرکت (اختیاری)", max: 3, media: "video", maxMb: 50 },
+      { key: "reference_audio_urls", label: "صدای مرجع (اختیاری)", max: 3, media: "audio", maxMb: 15 },
+    ],
+    controls: [
+      {
+        kind: "aspect",
+        key: "aspect_ratio",
+        label: "نسبت تصویر",
+        def: "16:9",
+        options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34, ratios.l219],
+      },
+      QUALITY("2K", ["768p", "2K"]),
+      // 5–15s, per the model's own schema. No 4s floor like Seedance.
+      { kind: "slider", key: "duration", label: "مدت", min: 5, max: 15, step: 1, def: 5, unit: "ثانیه" },
+    ],
+    variants: [
+      // One variant: KIE prices text-to-video, image-to-video and
+      // reference-to-video identically, so splitting them would be three rows
+      // of the same number.
+      { id: "minimax-h3", model: "minimax-h3/text-to-video", label: "H3", badge: "جدید" },
     ],
   },
   {

@@ -462,7 +462,10 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                                 the small print, which is what made it look like
                                 a jumble even though every row was correct. */}
                             {firstOfFamily && <bdi className="block pb-0.5 text-[13.5px] font-bold">{fam.name}</bdi>}
-                            {firstOfVariant && (
+                            {/* A family with one variant does not get a variant
+                                line: MiniMax H3's sole shape is called "H3", so
+                                the label read "MiniMax H3 › H3". Say it once. */}
+                            {firstOfVariant && fam.variants.length > 1 && (
                               <bdi className="block text-[12.5px] font-semibold text-ink2" style={{ paddingInlineStart: "0.6rem" }}>
                                 {vg.label}
                               </bdi>
@@ -538,7 +541,9 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                     <div className="mt-2 flex flex-col gap-4">
                       {fam.variants.map((vg) => (
                         <div key={vg.id}>
-                          <bdi className="block text-[12.5px] font-semibold text-ink2">{vg.label}</bdi>
+                          {fam.variants.length > 1 && (
+                            <bdi className="block text-[12.5px] font-semibold text-ink2">{vg.label}</bdi>
+                          )}
                           {vg.rows.map((b) => (
                             <div key={b.key} className="mt-1.5">
                               <p className="text-[11px] text-ink3">

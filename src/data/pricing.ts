@@ -107,8 +107,16 @@ const RATES: Record<string, RateFn> = {
   "qwen-image": () => 4, // 4 credits per megapixel; outputs ≈ 1MP
   "z-image": () => 0.8,
 
+  // Read off KIE's live table on 2026-08-11, "no video" column — the same
+  // conservative upper bound the rest of the video block uses, since supplying
+  // a reference clip switches KIE to a cheaper rate and we do not re-quote.
+  "seedance-2-5": (i) => pick(i.resolution, { "480p": 28, "720p": 63 }, 63) * num(i.duration, 5),
   "seedance-2": (i) => pick(i.resolution, { "480p": 19, "720p": 41, "1080p": 102, "4k": 208 }, 41) * num(i.duration, 5),
   "seedance-2-fast": (i) => pick(i.resolution, { "480p": 15.5, "720p": 33 }, 33) * num(i.duration, 5),
+  "seedance-2-mini": (i) => pick(i.resolution, { "480p": 3.8, "720p": 8.2 }, 8.2) * num(i.duration, 5),
+  // 768p and 2K only; KIE does not price H3's 4K tier, so the catalog does not
+  // offer it. Text, image and reference all bill at the same per-second rate.
+  "minimax-h3": (i) => pick(i.resolution, { "768p": 16, "2k": 26 }, 26) * num(i.duration, 5),
   "kling-3": (i) => {
     const sound = Boolean(i.sound);
     // keyed by Kling 3.0's `mode`, not a resolution string
@@ -221,8 +229,13 @@ export const LIVE: Record<string, LiveFn> = {
   // ---- video ----
   // Seedance rows are per second, split by resolution; "no video input" = the
   // conservative text-to-video rate (image input is cheaper — settled after).
+  // "seedance-2-5", not "seedance-2.5": KIE's descriptions hyphenate the minor
+  // version. Matching on the dotted form finds nothing and silently falls back.
+  "seedance-2-5": (i) => perSec(findRate("bytedance/seedance-2-5,", `${res(i, "720p")} no video`), dur(i, 5)),
   "seedance-2": (i) => perSec(findRate("bytedance/seedance-2,", `${res(i, "720p")} no video`), dur(i, 5)),
   "seedance-2-fast": (i) => perSec(findRate("seedance-2 fast", `${res(i, "720p")} no video`), dur(i, 5)),
+  "seedance-2-mini": (i) => perSec(findRate("seedance-2-mini,", `${res(i, "720p")} no video`), dur(i, 5)),
+  "minimax-h3": (i) => perSec(findRate("minimax h3,", "text to video", res(i, "2k")), dur(i, 5)),
   "seedance-1-5-pro": (i) => perSec(findRate("seedance-1.5-pro", `${Boolean(i.generate_audio) ? "with" : "without"} audio-${res(i, "720p")}`), dur(i, 5)),
   // Rows are per second by audio + resolution, but the model's own parameter is
   // `mode`. std/pro aren't spelled out as 720p/1080p anywhere in the docs — the
