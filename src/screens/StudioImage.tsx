@@ -159,11 +159,18 @@ export default function StudioImage({
   const view = useViewMode("image", { mode: "grid", density: 4 });
 
   const mine = gens.filter((g) => g.kind === "image");
+  /* Jobs still running are held out of the wall and put in front of it.
+     The wall repeats its items to fill 42 tiles, and a running job repeated
+     forty-two times would be forty-two progress bars for one generation. It
+     also has no picture yet, so it cannot take part in a layout whose whole
+     job is arranging pictures. */
+  const running = mine.filter((g) => g.status === "running");
+  const finished = mine.filter((g) => g.status !== "running");
   // Until the user has a library, the seeded examples stand in for one — an
   // empty wall would leave the dock floating over nothing.
   const wall: ViewerAsset[] =
-    mine.length > 0
-      ? mine.map((g) => ({ id: g.id, url: g.outputUrl ?? art(g.id), prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h, createdAt: g.createdAt }))
+    finished.length > 0
+      ? finished.map((g) => ({ id: g.id, url: g.outputUrl ?? art(g.id), prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h, createdAt: g.createdAt }))
       : EXPLORE.map((e) => ({ id: e.id, url: art(e.seed), prompt: e.prompt, familyId: e.familyId, w: 1152, h: 1536 }));
 
   /* Mixed ratios on purpose: the wall is only worth a justified layout if the
@@ -172,18 +179,30 @@ export default function StudioImage({
   const RATIOS = [9 / 16, 3 / 4, 16 / 9, 1, 4 / 5];
   const shaped = Array.from({ length: 42 }, (_, i) => {
     const base = wall[i % wall.length]!;
-    const ratio = mine.length > 0 ? base.w / base.h : RATIOS[i % RATIOS.length]!;
+    const ratio = finished.length > 0 ? base.w / base.h : RATIOS[i % RATIOS.length]!;
     const [w, h] = ratio >= 1 ? [1200, Math.round(1200 / ratio)] : [Math.round(900 * ratio), 900];
     return {
       key: `${base.id}-${i}`,
       ratio,
       asset: { ...base, w, h, url: art(`${base.id}-${i}`, w, h) } as ViewerAsset,
+      pending: null as Generation | null,
     };
   });
   // Named as a set, not one at a time: whether a name needs an ordinal is a
   // fact about the whole wall, so it cannot be decided from inside one tile.
   const names = tileNames(shaped.map((t) => t.asset));
-  const tiles = shaped.map((t, i) => ({ ...t, name: names[i]! }));
+  // Running jobs first, newest at the head, so the thing the user just paid for
+  // is the thing they are looking at.
+  const tiles = [
+    ...running.map((g) => ({
+      key: g.id,
+      ratio: g.w / g.h,
+      asset: { id: g.id, url: "", prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h } as ViewerAsset,
+      pending: g,
+      name: g.prompt.trim().slice(0, 60) || g.name,
+    })),
+    ...shaped.map((t, i) => ({ ...t, name: names[i]! })),
+  ];
 
   // No blob, no fetch: the asset is a remote URL and `download` on an anchor is
   // the whole mechanism. It becomes a real save once outputs live in our own
@@ -229,15 +248,38 @@ export default function StudioImage({
           items={tiles}
           targetHeight={view.rowHeight}
           gap={2}
-          render={(t) => (
-            <div className="group relative size-full overflow-hidden" style={{ background: "var(--vg-surface)" }}>
-              <button onClick={() => setViewing(t.asset)} className="absolute inset-0" aria-label={`باز کردن — ${t.name}`}>
-                <img src={t.asset.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-                <span className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.25)" }} />
-              </button>
-              <TileActions onOpen={() => setViewing(t.asset)} onDownload={() => download(t.asset)} of={t.name} />
-            </div>
-          )}
+          render={(t) =>
+            /* A job with no picture yet: the tile holds its place in the wall
+               and shows the bar. Not clickable and no action stack — there is
+               nothing to open, download or recreate until it lands. */
+            t.pending ? (
+              <div
+                className="relative grid size-full place-items-center overflow-hidden"
+                style={{ background: t.pending.grad }}
+              >
+                <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
+                <div className="relative w-2/3 max-w-[180px]">
+                  <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
+                    <div
+                      className="h-full transition-[width] duration-200 ease-out"
+                      style={{ width: `${Math.round(t.pending.progress ?? 0)}%`, background: "var(--vg-primary)" }}
+                    />
+                  </div>
+                  <p className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
+                    در حال ساخت… <span className="vg-numeric">{Math.round(t.pending.progress ?? 0)}%</span>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="group relative size-full overflow-hidden" style={{ background: "var(--vg-surface)" }}>
+                <button onClick={() => setViewing(t.asset)} className="absolute inset-0" aria-label={`باز کردن — ${t.name}`}>
+                  <img src={t.asset.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+                  <span className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.25)" }} />
+                </button>
+                <TileActions onOpen={() => setViewing(t.asset)} onDownload={() => download(t.asset)} of={t.name} />
+              </div>
+            )
+          }
         />
       </div>
 

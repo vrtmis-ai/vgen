@@ -40,6 +40,19 @@ export interface Generation {
    */
   phash?: string | undefined;
   status: GenStatus;
+  /**
+   * 0–100 while `status` is "running", absent otherwise.
+   *
+   * On the generation itself rather than in whichever screen happens to be
+   * watching, because more than one now is: the job starts in the studio and
+   * renders in its canvas, and the same job can be opened full-screen at the
+   * same time. Two copies of a progress counter drift, and the one the user is
+   * not looking at is the one that keeps running after the job finishes.
+   *
+   * Simulated in App today. When the backend lands this is whatever the job
+   * poller last reported, and nothing that reads it has to change.
+   */
+  progress?: number | undefined;
   createdAt: number;
 }
 

@@ -51,6 +51,38 @@ export default function App() {
   useEffect(() => saveGenerations(gens), [gens]);
   useEffect(() => startKieRates(), []); // live KIE price table (cached 6h)
 
+  /* The job runner.
+     One ticker for every running generation, owned here because `gens` is owned
+     here. It used to live inside Result as local state, which worked only while
+     a job could be watched from exactly one screen — now the studio canvas shows
+     it too, and two independent counters would drift apart and keep running
+     after the job ended.
+
+     Simulated. `startGeneration` has no endpoint to call yet; when it does, this
+     becomes the poller and the shape of what it writes does not change.
+
+     `hasRunning` rather than `gens` in the dependency list: depending on the
+     array restarts the interval on every tick, because every tick replaces it. */
+  const hasRunning = gens.some((g) => g.status === "running");
+  useEffect(() => {
+    if (!hasRunning) return;
+    const id = setInterval(() => {
+      setGens((prev) => {
+        let touched = false;
+        const next = prev.map((g) => {
+          if (g.status !== "running") return g;
+          touched = true;
+          const pct = Math.min(100, (g.progress ?? 0) + Math.random() * 9 + 3);
+          return pct >= 100 ? { ...g, status: "done" as const, progress: 100 } : { ...g, progress: pct };
+        });
+        // Same array back when nothing moved, so React can skip the re-render
+        // and the localStorage write in the effect above.
+        return touched ? next : prev;
+      });
+    }, 220);
+    return () => clearInterval(id);
+  }, [hasRunning]);
+
   // ---- navigation: one source of truth for back ------------------------
   // Every sub-screen push adds a browser-history entry, so the on-screen
   // back button, the edge-swipe gesture, and the hardware/Telegram back
@@ -104,10 +136,16 @@ export default function App() {
       w: aspect.w,
       h: aspect.h,
       status: "running",
+      progress: 0,
       createdAt: Date.now(),
     };
+    /* No navigate. The job starts where it was asked for.
+       Pressing Generate used to push a full-screen Result, which took the user
+       off the surface they were working on to watch a progress bar — and to
+       start a second one they had to come back. The studios already render a
+       running card in their canvas, so the work appears at the top of the
+       history and the panel stays exactly as it was, prompt and all. */
     setGens((p) => [gen, ...p]);
-    navigate({ s: "result", gen, instant: false });
   }
 
   function regenerate(prev: Generation) {
@@ -181,7 +219,10 @@ export default function App() {
     );
   }
   if (flow.s === "result") {
-    const gen = flow.gen;
+    // The live row, not the snapshot the flow was pushed with. `flow.gen` is
+    // frozen at navigation time, so a job opened while running would sit at
+    // whatever percentage it happened to be at when the screen opened.
+    const gen = gens.find((g) => g.id === flow.gen.id) ?? flow.gen;
     return (
       // Result puts the media beside its actions above `md`.
       <Shell>

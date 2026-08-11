@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, DownloadSimple, ArrowsClockwise, FilmSlate, ShareNetwork } from "@phosphor-icons/react";
 import type { Generation } from "../lib/gallery";
@@ -23,25 +23,18 @@ export default function Result({
   onDone?: () => void;
 }) {
   const { t, n } = useI18n();
-  const [pct, setPct] = useState(instant ? 100 : 0);
-  const done = pct >= 100;
-  const firedDone = useRef(false);
+  /* Read, not simulated.
+     This screen used to run its own interval, which was fine while a job could
+     only be watched from here. It can now also be watched in the studio canvas
+     it started in, and two independent counters drift — the one you are not
+     looking at keeps ticking after the job is done. App drives the single
+     ticker and writes `progress` onto the generation; this reads it.
 
-  useEffect(() => {
-    if (instant) return;
-    setPct(0);
-    firedDone.current = false;
-    const id = setInterval(() => {
-      setPct((p) => {
-        if (p >= 100) {
-          clearInterval(id);
-          return 100;
-        }
-        return Math.min(100, p + Math.random() * 9 + 3);
-      });
-    }, 220);
-    return () => clearInterval(id);
-  }, [gen.id, instant]);
+     `instant` still means "opened from history", where there is nothing to
+     watch and the answer is simply 100. */
+  const pct = instant ? 100 : Math.round(gen.progress ?? (gen.status === "done" ? 100 : 0));
+  const done = gen.status === "done" || pct >= 100;
+  const firedDone = useRef(false);
 
   useEffect(() => {
     if (done && !instant && !firedDone.current) {

@@ -201,9 +201,13 @@ export default function StudioAudio({
   const view = useViewMode("audio", { mode: "list", density: 1 });
 
   const mine = gens.filter((g) => g.kind === "audio");
+  /* Running jobs stay out of the clip list and sit above it: a speech result is
+     a waveform and a duration, and a job that has not finished has neither. */
+  const running = mine.filter((g) => g.status === "running");
+  const finished = mine.filter((g) => g.status !== "running");
   const clips =
-    mine.length > 0
-      ? mine.map((g) => ({ id: g.id, prompt: g.prompt, voice: g.name.toUpperCase(), seconds: Math.round((g.durationMs ?? 12000) / 1000) }))
+    finished.length > 0
+      ? finished.map((g) => ({ id: g.id, prompt: g.prompt, voice: g.name.toUpperCase(), seconds: Math.round((g.durationMs ?? 12000) / 1000) }))
       : SEED_CLIPS;
 
   const voiceControl = s.controls.find((c) => c.kind === "voice");
@@ -469,6 +473,34 @@ export default function StudioAudio({
           className="grid gap-3 p-4 pb-16"
           style={{ gridTemplateColumns: view.mode === "list" ? "1fr" : `repeat(auto-fill, minmax(${Math.round(1100 / view.cols)}px, 1fr))` }}
         >
+          {/* Running first. A speech job has no waveform yet, so it gets a bar
+              rather than an empty card pretending to be a result. */}
+          {tab !== "liked" &&
+            running.map((g) => (
+              <div
+                key={g.id}
+                className="flex items-center gap-3 rounded-xl p-4"
+                style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+                    در حال ساخت…
+                  </p>
+                  <p className="mt-0.5 truncate text-[12.5px]" style={{ color: "var(--vg-text-secondary)" }}>
+                    {g.prompt || g.name}
+                  </p>
+                  <div className="mt-2 h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
+                    <div
+                      className="h-full transition-[width] duration-200 ease-out"
+                      style={{ width: `${Math.round(g.progress ?? 0)}%`, background: "var(--vg-primary)" }}
+                    />
+                  </div>
+                </div>
+                <span className="vg-numeric shrink-0 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
+                  {Math.round(g.progress ?? 0)}%
+                </span>
+              </div>
+            ))}
           {(tab === "liked" ? clips.slice(0, 2) : clips).map((c) => (
             <WaveCard key={c.id} {...c} list={view.mode === "list"} />
           ))}

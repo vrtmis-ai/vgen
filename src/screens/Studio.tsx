@@ -59,20 +59,19 @@ function OutputCard({ gen }: { gen: Generation }) {
       )}
 
       {running && (
-        // The one perpetual animation the system allows. A generation is money
-        // already spent, so it gets a real determinate bar, not a spinner.
+        /* A real determinate bar, driven by the job's own progress rather than
+           a fixed 18-second animation that finished whenever it felt like it.
+           A generation is money already spent, so it gets a number. */
         <div className="absolute inset-0 grid place-items-center" style={{ background: "rgba(0,0,0,0.45)" }}>
           <div className="w-2/3">
             <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
-              <motion.div
-                className="h-full"
-                style={{ background: "var(--vg-primary)" }}
-                animate={{ width: ["8%", "72%"] }}
-                transition={{ duration: 18, ease: "easeOut" }}
+              <div
+                className="h-full transition-[width] duration-200 ease-out"
+                style={{ width: `${Math.round(gen.progress ?? 0)}%`, background: "var(--vg-primary)" }}
               />
             </div>
             <p className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-              در حال ساخت…
+              در حال ساخت… <span className="vg-numeric">{Math.round(gen.progress ?? 0)}%</span>
             </p>
           </div>
         </div>
