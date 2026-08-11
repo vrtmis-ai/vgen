@@ -496,34 +496,6 @@ export const FAMILIES: Family[] = [
           { kind: "toggle", key: "generate_audio", label: "تولید صدا", def: true },
         ],
       },
-      /* 2.5 Edit — video in, edited video out.
-         The reference runs this as a whole third mode on its video page
-         (Create / Edit / Motion Control) under the name "Seedance 2.5 Edit",
-         and it is a different job from the others here: the prompt describes
-         what to CHANGE, not what to make, and the input clip is required rather
-         than optional. Same model id, KIE's cheaper "with video" tier — 38
-         credits a second at 720p against 63 for a fresh generation.
-
-         No aspect control: the output keeps the source clip's framing, so
-         offering one would be a setting that does nothing. Duration stays,
-         because we quote per second before the job runs and the clip's real
-         length is not known until it is uploaded — the user states it, and the
-         quote is honest. It can be read off the file once uploads are wired. */
-      {
-        id: "seedance-2-5-edit",
-        model: "bytedance/seedance-2-5",
-        label: "۲٫۵ ادیت",
-        badge: "جدید",
-        refs: [
-          { key: "reference_video_urls", label: "ویدیوی ورودی (الزامی)", max: 1, media: "video", required: true, maxMb: 100 },
-          { key: "reference_image_urls", label: "عناصر و مراجع (اختیاری)", max: 50, maxMb: 30 },
-          { key: "reference_audio_urls", label: "صدای مرجع (اختیاری)", max: 3, media: "audio", maxMb: 15 },
-        ],
-        controls: [
-          QUALITY("720p", ["480p", "720p"]),
-          { kind: "slider", key: "duration", label: "مدت ویدیوی ورودی", min: 4, max: 30, step: 1, def: 5, unit: "ثانیه" },
-        ],
-      },
       { id: "seedance-2", model: "bytedance/seedance-2", label: "نسخه ۲", badge: "پرچم‌دار" },
       { id: "seedance-2-fast", model: "bytedance/seedance-2-fast", label: "سریع", controls: seedanceControls(["480p", "720p"]) },
       /* Mini was held back because KIE priced it while the service still said
