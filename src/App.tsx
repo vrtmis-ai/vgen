@@ -6,6 +6,7 @@ import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/ga
 import { startKieRates } from "./lib/kieRates";
 import { useSwipeBack } from "./lib/useSwipeBack";
 import { pageFade } from "./lib/motion";
+import { AccessProvider } from "./lib/access";
 import { TopBar, type NavKey } from "./components/TopBar";
 import Landing from "./screens/Landing";
 import Studio from "./screens/Studio";
@@ -134,6 +135,16 @@ export default function App() {
     return <Landing onSignIn={() => {}} />;
   }
 
+  /* Everything below is signed in, so it all sits inside AccessProvider.
+     The tier gate is asked five levels down — a picker row, a dock chip, a
+     create button — and threading a plan id through Studio, FormPanel and every
+     dock to reach them would put a billing parameter on components with no
+     other interest in billing. See lib/access.
+
+     `planId` is null because the backend cannot answer it yet, and null reads
+     as tier 1, which is what a signup gift should buy. The day /me returns a
+     plan, this one line is the only thing that changes. */
+  const authed = () => {
   // ---- full-screen flows (no bottom nav) ----
   if (flow.s === "wallet") {
     return (
@@ -250,6 +261,13 @@ export default function App() {
         </motion.div>
       </div>
     </Shell>
+  );
+  };
+
+  return (
+    <AccessProvider planId={null} onUpgrade={openWallet}>
+      {authed()}
+    </AccessProvider>
   );
 }
 

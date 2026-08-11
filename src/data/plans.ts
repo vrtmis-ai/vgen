@@ -259,6 +259,37 @@ export function minTierFor(familyId: string): Tier {
   return MODEL_MIN_TIER[familyId] ?? 3;
 }
 
+/**
+ * The tier a user actually has.
+ *
+ * No plan is tier 1, not tier 0. A new account holds a 12-coin signup gift, and
+ * the cheapest tier-1 models cost about one coin — so tier 1 is what makes that
+ * gift a real trial rather than a number it cannot spend. Everything dearer is
+ * exactly what we want them to see and be unable to reach yet.
+ */
+export function tierForPlan(planId: string | null | undefined): Tier {
+  if (!planId) return 1;
+  return PLANS.find((p) => p.id === planId)?.tier ?? 1;
+}
+
+/** Can this account run this family at all? */
+export function familyUnlocked(familyId: string, planId: string | null | undefined): boolean {
+  return tierForPlan(planId) >= minTierFor(familyId);
+}
+
+/**
+ * The cheapest plan that unlocks this family — what the lock should point at.
+ *
+ * Cheapest rather than "the next tier up", because tiers are not a price ladder:
+ * Plus is tier 1 at $25 while Pro is tier 2 at $49, so naming a tier tells the
+ * user nothing about what to buy. Returns null only if nothing unlocks it,
+ * which check-combos.ts already prevents.
+ */
+export function cheapestPlanFor(familyId: string): Plan | null {
+  const need = minTierFor(familyId);
+  return [...PLANS].filter((p) => p.tier >= need).sort((a, b) => a.monthlyUsd - b.monthlyUsd)[0] ?? null;
+}
+
 /** Family display names newly unlocked AT this tier (not cumulative). */
 export function tierUnlockNames(tier: Tier): string[] {
   return FAMILIES.filter((f) => minTierFor(f.id) === tier)

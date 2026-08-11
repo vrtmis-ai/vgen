@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { CaretLeft, Image as ImageIcon, MusicNote, VideoCamera, Sparkle, PencilSimple } from "@phosphor-icons/react";
+import { CaretLeft, Image as ImageIcon, Lock, MusicNote, VideoCamera, Sparkle, PencilSimple } from "@phosphor-icons/react";
 import { type Family, type Variant } from "../data/models";
 import type { InputMap } from "./controls";
 import { useCreateState, valueLabel, rangeOf } from "../lib/useCreateState";
@@ -7,6 +7,7 @@ import { ModelPicker } from "./ModelPicker";
 import { PresetPicker } from "./PresetPicker";
 import type { Preset } from "../data/presets";
 import { useI18n } from "../lib/i18n";
+import { useAccess } from "../lib/access";
 import { CoinMark } from "./chrome";
 import { useImageFallback } from "../lib/useImageFallback";
 
@@ -187,6 +188,9 @@ export function FormPanel({
   // while the shared version moved on.
   const s = useCreateState(families);
   const { family, variant, chips, input, prompt, price, ready } = s;
+  const access = useAccess();
+  const locked = !access.can(family.id);
+  const need = locked ? access.needs(family.id) : null;
   const set = s.set;
   const setPrompt = s.setPrompt;
   const onFamily = s.setFamily;
@@ -401,19 +405,39 @@ export function FormPanel({
         className="sticky bottom-0 mt-auto p-3"
         style={{ background: "var(--vg-canvas)", borderBlockStart: "1px solid var(--vg-border-subtle)" }}
       >
-        <button
-          disabled={!ready}
-          onClick={() => onGenerate(family, variant, prompt.trim(), input)}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold transition-opacity disabled:opacity-35"
-          style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
-        >
-          <Sparkle size={15} weight="fill" />
-          بساز
-          <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
-            <CoinMark size={12} />
-            <span className="vg-numeric">{price === null ? "—" : n(price)}</span>
-          </span>
-        </button>
+        {/* A locked model gets an upgrade button, not a disabled create button.
+            Greying out the price would tell the user the job is unavailable
+            without saying it is their plan or what fixes it — and the moment
+            they are most likely to buy is the moment they wanted something. */}
+        {locked ? (
+          <button
+            onClick={access.onUpgrade}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold"
+            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
+          >
+            <Lock size={14} weight="fill" />
+            {need ? <>ارتقا به <bdi>{need.name}</bdi></> : "ارتقای پلن"}
+          </button>
+        ) : (
+          <button
+            disabled={!ready}
+            onClick={() => onGenerate(family, variant, prompt.trim(), input)}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold transition-opacity disabled:opacity-35"
+            style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+          >
+            <Sparkle size={15} weight="fill" />
+            بساز
+            <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
+              <CoinMark size={12} />
+              <span className="vg-numeric">{price === null ? "—" : n(price)}</span>
+            </span>
+          </button>
+        )}
+        {locked && (
+          <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+            <bdi>{family.name}</bdi> در پلن فعلی‌ات نیست.
+          </p>
+        )}
         {price === null && (
           <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
             این ترکیب قیمت‌گذاری نمی‌شود، پس فروخته نمی‌شود.

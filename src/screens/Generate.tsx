@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, CaretDown, Sparkle, Stack } from "@phosphor-icons/react";
+import { ArrowRight, CaretDown, Lock, Sparkle, Stack } from "@phosphor-icons/react";
 import {
   defaultInput,
   variantControls,
@@ -14,6 +14,7 @@ import { priceCoins } from "../data/pricing";
 import { CoinMark } from "../components/chrome";
 import { useKieRates } from "../lib/kieRates";
 import { useI18n } from "../lib/i18n";
+import { useAccess } from "../lib/access";
 import { ControlField, RefUpload, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
@@ -119,6 +120,10 @@ export default function Generate({
   // Upscalers and background removal transform a file and take no description,
   // so requiring a prompt would leave their button permanently disabled.
   const wantsPrompt = !family.noPrompt;
+  // Same gate as the studios. See the CTA below for why this screen needs it.
+  const access = useAccess();
+  const locked = !access.can(family.id);
+  const need = locked ? access.needs(family.id) : null;
   const canGenerate =
     (!wantsPrompt || prompt.trim().length > 0) &&
     !missingRequired &&
@@ -266,20 +271,35 @@ export default function Generate({
           in flow at the end of the column on desktop, where a bar pinned to a
           480px strip in the middle of the screen was just wrong. */}
       <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-[480px] -translate-x-1/2 border-t border-line bg-surface/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-xl md:static md:mx-auto md:mt-8 md:max-w-[520px] md:translate-x-0 md:rounded-2xl md:border md:pb-4 md:backdrop-blur-none">
-        <button
-          onClick={() => onGenerate(prompt.trim(), input, variant, refImages)}
-          disabled={!canGenerate}
-          className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
-        >
-          <Sparkle size={18} weight="fill" />
-          <span>{t("g_create")}</span>
-          {price != null && !clipUnreadable && (
-            <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
-              <CoinMark size={12} />
-              {n(price)}
-            </span>
-          )}
-        </button>
+        {/* This screen is reached from an effect tile, so the model is chosen
+            for the user by the preset rather than picked in a menu. It has to
+            carry the same gate as the studios — otherwise the one route where
+            the user never saw the picker is the one that skips the lock. */}
+        {locked ? (
+          <button
+            onClick={access.onUpgrade}
+            className="flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold"
+            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
+          >
+            <Lock size={16} weight="fill" />
+            {need ? <>ارتقا به <bdi>{need.name}</bdi></> : "ارتقای پلن"}
+          </button>
+        ) : (
+          <button
+            onClick={() => onGenerate(prompt.trim(), input, variant, refImages)}
+            disabled={!canGenerate}
+            className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
+          >
+            <Sparkle size={18} weight="fill" />
+            <span>{t("g_create")}</span>
+            {price != null && !clipUnreadable && (
+              <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
+                <CoinMark size={12} />
+                {n(price)}
+              </span>
+            )}
+          </button>
+        )}
         <div className="pt-1.5 text-center text-[10.5px] text-ink3">
           {missingRequired
             ? `${t("g_need_also")} ${missingRequired.label}`

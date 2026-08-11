@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Minus, Sparkle, PencilSimple, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut } from "@phosphor-icons/react";
+import { Plus, Minus, Sparkle, PencilSimple, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock } from "@phosphor-icons/react";
 import { FAMILIES, getFamily, type Family, type Variant } from "../data/models";
 import type { InputMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
@@ -12,6 +12,7 @@ import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
 import { ModelChip } from "../components/ModelPicker";
 import { useI18n } from "../lib/i18n";
+import { useAccess } from "../lib/access";
 
 /* ---------------------------------------------------------------------------
    The image studio.
@@ -150,6 +151,9 @@ export default function StudioImage({
   const { n } = useI18n();
   const families = FAMILIES.filter((f) => f.kind === "image");
   const s = useCreateState(families);
+  const access = useAccess();
+  const locked = !access.can(s.family.id);
+  const need = locked ? access.needs(s.family.id) : null;
   const [count, setCount] = useState(1);
   const [viewing, setViewing] = useState<ViewerAsset | null>(null);
   const view = useViewMode("image", { mode: "grid", density: 4 });
@@ -345,21 +349,34 @@ export default function StudioImage({
                 </button>
               </div>
 
-              <button
-                disabled={!s.ready}
-                onClick={() => onGenerate(s.family, s.variant, s.prompt.trim(), s.input)}
-                className="flex h-[52px] w-[132px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[13.5px] font-bold transition-opacity disabled:opacity-35"
-                style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
-              >
-                <span className="flex items-center gap-1.5">
-                  <Sparkle size={14} weight="fill" />
-                  بساز
-                </span>
-                <span className="flex items-center gap-1 text-[11.5px] font-semibold opacity-90">
-                  <CoinMark size={11} />
-                  <span className="vg-numeric">{s.price === null ? "—" : n(s.price * count)}</span>
-                </span>
-              </button>
+              {/* See FormPanel: a locked model buys an upgrade button, not a
+                  greyed-out price. */}
+              {locked ? (
+                <button
+                  onClick={access.onUpgrade}
+                  className="flex h-[52px] w-[132px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[12.5px] font-bold"
+                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
+                >
+                  <Lock size={14} weight="fill" />
+                  {need ? <bdi>ارتقا به {need.name}</bdi> : "ارتقای پلن"}
+                </button>
+              ) : (
+                <button
+                  disabled={!s.ready}
+                  onClick={() => onGenerate(s.family, s.variant, s.prompt.trim(), s.input)}
+                  className="flex h-[52px] w-[132px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[13.5px] font-bold transition-opacity disabled:opacity-35"
+                  style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Sparkle size={14} weight="fill" />
+                    بساز
+                  </span>
+                  <span className="flex items-center gap-1 text-[11.5px] font-semibold opacity-90">
+                    <CoinMark size={11} />
+                    <span className="vg-numeric">{s.price === null ? "—" : n(s.price * count)}</span>
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </div>

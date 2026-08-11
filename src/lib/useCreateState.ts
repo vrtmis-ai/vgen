@@ -6,6 +6,7 @@ import {
   type Family,
   type Variant,
 } from "../data/models";
+import { useAccess } from "./access";
 import type { InputMap } from "../components/controls";
 import { priceCoins } from "../data/pricing";
 
@@ -97,15 +98,34 @@ export function variantMeta(family: Family, variant: Variant): VariantMeta {
 }
 
 export function useCreateState(families: Family[]) {
-  const [family, setFamily] = useState<Family>(() => families[0]!);
-  const [variantId, setVariantId] = useState<string>(() => families[0]!.variants[0]!.id);
+  const access = useAccess();
+  /**
+   * Open on something the account can actually run.
+   *
+   * The catalog is ordered flagship-first, so `families[0]` for video is
+   * Seedance — tier 2. A new account is tier 1, so the studio's first frame was
+   * a locked model and an upgrade button: the product opening by telling you
+   * what you cannot have. Falling back to the first unlocked family means the
+   * gate sells on the models the user goes looking for instead of on the door.
+   *
+   * Still `families[0]` if nothing is unlocked, so the surface always has a
+   * model and the lock explains itself rather than rendering an empty panel.
+   */
+  const opening = (fs: Family[]) => fs.find((f) => access.can(f.id)) ?? fs[0]!;
+
+  const [family, setFamily] = useState<Family>(() => opening(families));
+  const [variantId, setVariantId] = useState<string>(() => opening(families).variants[0]!.id);
   const [prompt, setPrompt] = useState("");
 
   // A modality switch swaps the whole catalog, so the held family may no longer
   // belong to it.
   useEffect(() => {
-    if (!families.some((f) => f.id === family.id)) setFamily(families[0]!);
-  }, [families, family.id]);
+    if (!families.some((f) => f.id === family.id)) setFamily(opening(families));
+    // `opening` closes over access, which is stable per plan; re-running on a
+    // plan change is correct — an upgrade should not leave the panel parked on
+    // the fallback it picked while locked.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [families, family.id, access]);
 
   /**
    * The variant, not `variants[0]`.

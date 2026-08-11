@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Heart, Sparkle, Play, PencilSimple, CaretLeft, Plus, Minus, Copy, DownloadSimple, DotsThree, FolderSimple } from "@phosphor-icons/react";
+import { Heart, Sparkle, Play, PencilSimple, CaretLeft, Plus, Minus, Copy, DownloadSimple, DotsThree, FolderSimple, Lock } from "@phosphor-icons/react";
 import { FAMILIES, type Family, type Variant } from "../data/models";
 import type { InputMap } from "../components/controls";
 import { useCreateState, valueLabel } from "../lib/useCreateState";
@@ -11,6 +11,7 @@ import { CoinMark } from "../components/chrome";
 import { Card, PanelShell, PanelTabs } from "../components/FormPanel";
 import { ModelPicker } from "../components/ModelPicker";
 import { useI18n } from "../lib/i18n";
+import { useAccess } from "../lib/access";
 
 /* ---------------------------------------------------------------------------
    The audio studio.
@@ -187,6 +188,9 @@ export default function StudioAudio({
   const { n } = useI18n();
   const families = FAMILIES.filter((f) => f.kind === "audio");
   const s = useCreateState(families);
+  const access = useAccess();
+  const locked = !access.can(s.family.id);
+  const need = locked ? access.needs(s.family.id) : null;
   const [tab, setTab] = useState<"all" | "liked">("all");
   const [pickVoice, setPickVoice] = useState(false);
   const [pickModel, setPickModel] = useState(false);
@@ -398,6 +402,17 @@ export default function StudioAudio({
         </div>
 
         <div className="sticky bottom-0 mt-auto p-3" style={{ background: "var(--vg-deep)" }}>
+          {/* See FormPanel. */}
+          {locked ? (
+            <button
+              onClick={access.onUpgrade}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold"
+              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
+            >
+              <Lock size={14} weight="fill" />
+              {need ? <>ارتقا به <bdi>{need.name}</bdi></> : "ارتقای پلن"}
+            </button>
+          ) : (
           <button
             disabled={!s.ready}
             onClick={() => onGenerate(s.family, s.variant, s.prompt.trim(), s.input)}
@@ -411,6 +426,7 @@ export default function StudioAudio({
               <span className="vg-numeric">{s.price === null ? "—" : n(s.price * batch)}</span>
             </span>
           </button>
+          )}
         </div>
       </PanelShell>
 
