@@ -150,7 +150,10 @@ function Collection<T extends ContentRecord>({
             </span>
 
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px]" style={{ color: row.status === "published" ? "var(--vg-text)" : "var(--vg-text-muted)" }}>
+              <span
+                className="block truncate text-[13px]"
+                style={{ color: row.status === "published" ? "var(--vg-text)" : "var(--vg-text-muted)" }}
+              >
                 {label(row)}
               </span>
               {row.updatedBy && (
@@ -233,19 +236,23 @@ export default function Admin({ onBack }: { onBack: () => void }) {
   const overrides = useOverrideCount();
   const audit = useAudit();
 
-  const fmt = useMemo(
-    () => new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }),
-    [],
-  );
+  const fmt = useMemo(() => new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }), []);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto w-full max-w-[900px] px-4 pb-20 pt-5">
-      <button onClick={onBack} className="vg-tap mb-5 flex h-9 items-center gap-1.5 text-[12.5px] font-bold" style={{ color: "var(--vg-text-muted)" }}>
+      <button
+        onClick={onBack}
+        className="vg-tap mb-5 flex h-9 items-center gap-1.5 text-[12.5px] font-bold"
+        style={{ color: "var(--vg-text-muted)" }}
+      >
         <ArrowRight size={14} weight="bold" />
         بازگشت به سایت
       </button>
 
-      <h1 className="text-[30px] font-extrabold leading-tight md:text-[38px]" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+      <h1
+        className="text-[30px] font-extrabold leading-tight md:text-[38px]"
+        style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+      >
         پنل مدیریت <bdi>{BRAND.name}</bdi>
       </h1>
 
@@ -277,14 +284,19 @@ export default function Admin({ onBack }: { onBack: () => void }) {
 
       {overrides > 0 && (
         <p className="mt-3 text-[11.5px]" style={{ color: "var(--vg-text-faint)" }}>
-          <span className="vg-numeric">{n(overrides)}</span> رکورد نسبت به نسخهٔ منتشرشده تغییر کرده و در این مرورگر ذخیره شده است.
-          وقتی بک‌اند وصل شود همین تغییرات روی سرور می‌نشیند.
+          <span className="vg-numeric">{n(overrides)}</span> رکورد نسبت به نسخهٔ منتشرشده تغییر کرده و در این مرورگر ذخیره شده است. وقتی
+          بک‌اند وصل شود همین تغییرات روی سرور می‌نشیند.
         </p>
       )}
 
       {allowed.includes("content") ? (
         <>
-          <Collection title="افکت‌ها" note="هر افکت یک پرامپت کامل است. ترتیب همان چیزی است که در صفحهٔ افکت‌ها دیده می‌شود." rows={PRESETS} label={(p) => p.title} />
+          <Collection
+            title="افکت‌ها"
+            note="هر افکت یک پرامپت کامل است. ترتیب همان چیزی است که در صفحهٔ افکت‌ها دیده می‌شود."
+            rows={PRESETS}
+            label={(p) => p.title}
+          />
           <Collection title="دوره‌ها" note="همیشه رایگان — قیمت عمداً در مدل داده وجود ندارد." rows={COURSES} label={(c) => c.title} />
           <Collection title="قفسهٔ ویژهٔ اکسپلور" note="اولین چیزی که کاربر بعد از ورود می‌بیند." rows={FEATURED} label={(f) => f.title} />
           <Collection title="بانک پرامپت" note="واژه‌های حرفه‌ای برای توصیف نما، در آکادمی." rows={PROMPT_BANK} label={(x) => x.label} />

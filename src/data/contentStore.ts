@@ -130,9 +130,7 @@ export function resetRecord<T extends ContentRecord>(rows: T[], id: string) {
   const patch = patches[id];
   if (!patch) return;
   const shipped = rows.find((r) => r.id === id);
-  const collides =
-    shipped != null &&
-    Object.entries(patches).some(([otherId, other]) => otherId !== id && other.order === shipped.order);
+  const collides = shipped != null && Object.entries(patches).some(([otherId, other]) => otherId !== id && other.order === shipped.order);
 
   if (collides && patch.order != null) patches[id] = { order: patch.order };
   else delete patches[id];

@@ -15,15 +15,7 @@ export const GenerationIdempotencyKeySchema = z
   .regex(/^[a-zA-Z0-9_.:-]+$/);
 
 /** Mirrors the jobs_status_check constraint. */
-export const GenerationJobStatusSchema = z.enum([
-  "queued",
-  "submitted",
-  "running",
-  "succeeded",
-  "failed",
-  "cancelled",
-  "expired",
-]);
+export const GenerationJobStatusSchema = z.enum(["queued", "submitted", "running", "succeeded", "failed", "cancelled", "expired"]);
 
 export const QueuedGenerationJobSchema = z.object({
   id: z.uuid(),
