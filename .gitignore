@@ -22,3 +22,6 @@ scripts/spike-out/
 
 # local-only: Stitch reference screens, served for side-by-side comparison
 public/_ref/
+
+# Playwright run artifacts
+test-results/
