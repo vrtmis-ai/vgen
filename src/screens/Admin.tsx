@@ -187,7 +187,7 @@ function Collection<T extends ContentRecord>({
                 untouched row promises to change something and does nothing. */}
             {row.updatedBy && (
               <button
-                onClick={() => resetRecord(row.id)}
+                onClick={() => resetRecord(rows, row.id)}
                 aria-label={`بازگرداندن ${label(row)} به حالت اولیه`}
                 title="بازگرداندن"
                 className="vg-tap grid size-7 shrink-0 place-items-center rounded-lg"

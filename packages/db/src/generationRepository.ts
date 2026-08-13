@@ -12,9 +12,21 @@ export interface CreateQueuedJobInput {
   idempotencyKey: string;
 }
 
+/** Every state a job row can be in. Mirrors the jobs_status_check constraint. */
+export type GenerationJobStatus = "queued" | "submitted" | "running" | "succeeded" | "failed" | "cancelled" | "expired";
+
 export interface QueuedGenerationJob {
   id: string;
-  status: "queued";
+  /**
+   * The row's real status, not a literal.
+   *
+   * This was typed and returned as `"queued"` regardless of what the column
+   * said, which is fine for a freshly inserted job and wrong for the other
+   * caller: the idempotency replay path returns whatever row already exists. A
+   * client retrying a create after its job had finished — an ordinary network
+   * retry — got 202 with "queued" for a job that completed minutes earlier.
+   */
+  status: GenerationJobStatus;
   modelKey: string;
   quotedCredits: number;
   createdAt: number;
@@ -27,7 +39,7 @@ export type CreateQueuedJobResult =
 type JobRow = {
   id: string;
   quote_id: string;
-  status: "queued";
+  status: GenerationJobStatus;
   model_key: string;
   params_hash_hex: string;
   quoted_credits: string;
@@ -61,7 +73,7 @@ function safeCredits(value: string): number {
 function publicJob(row: JobRow): QueuedGenerationJob {
   return {
     id: row.id,
-    status: "queued",
+    status: row.status,
     modelKey: row.model_key,
     quotedCredits: safeCredits(row.quoted_credits),
     createdAt: row.created_at.getTime(),
@@ -176,7 +188,10 @@ export class PostgresGenerationRepository {
       select id, quote_id, status, model_key, encode(params_hash, 'hex') as params_hash_hex,
              quoted_credits::text as quoted_credits, created_at
       from jobs
-      where id = ${jobId} and user_id = ${userId} and status = 'queued'
+      -- No status filter. This read is how a caller asks "what happened to my
+      -- job", and restricting it to 'queued' made the answer null for every job
+      -- that had actually progressed — the states a poller most needs.
+      where id = ${jobId} and user_id = ${userId}
       limit 1
     `;
     return row ? publicJob(row) : null;

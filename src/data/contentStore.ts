@@ -111,9 +111,31 @@ export function moveRecord<T extends ContentRecord>(rows: T[], id: string, dir: 
   commit();
 }
 
-/** Drop every edit on one record, returning it to what shipped. */
-export function resetRecord(id: string) {
-  delete patches[id];
+/**
+ * Drop every edit on one record, returning it to what shipped.
+ *
+ * `order` is deliberately NOT dropped when some other record is patched to hold
+ * this one's shipped slot. Reverting used to delete the whole patch, so a record
+ * that had been swapped past a neighbour went back to its original order while
+ * the neighbour kept the value it was handed — both then claimed one slot, and
+ * `published()` sorts by order alone, so their relative position fell to sort
+ * stability rather than anyone's intent.
+ *
+ * Reverting the pair together would be wrong too: the admin asked to undo one
+ * row, not to move a second one they did not touch. So status and content go
+ * back and the position stays, which is the only reading that leaves the shelf
+ * looking like the panel.
+ */
+export function resetRecord<T extends ContentRecord>(rows: T[], id: string) {
+  const patch = patches[id];
+  if (!patch) return;
+  const shipped = rows.find((r) => r.id === id);
+  const collides =
+    shipped != null &&
+    Object.entries(patches).some(([otherId, other]) => otherId !== id && other.order === shipped.order);
+
+  if (collides && patch.order != null) patches[id] = { order: patch.order };
+  else delete patches[id];
   commit();
 }
 

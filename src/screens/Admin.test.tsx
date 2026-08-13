@@ -99,6 +99,25 @@ describe("Admin panel", () => {
     expect(screen.getByText("دفتر تغییرات مالی")).toBeInTheDocument();
   });
 
+  it("reverting a reordered row does not leave two records in one slot", async () => {
+    const user = userEvent.setup();
+    const before = liveEffectTitles();
+    const [firstTitle, secondTitle] = before;
+    if (!firstTitle || !secondTitle) throw new Error("Expected at least two published presets");
+
+    renderPanel();
+    // Move A past B, then revert A alone — A's shipped order is now the value B
+    // is patched to hold, so dropping A's patch outright would collide.
+    await user.click(screen.getByRole("button", { name: `پایین بردن ${firstTitle}` }));
+    await user.click(screen.getByRole("button", { name: `بازگرداندن ${firstTitle} به حالت اولیه` }));
+
+    const orders = withPatches(PRESETS).map((preset) => preset.order);
+    expect(new Set(orders).size).toBe(orders.length);
+    // And the swap the admin asked for is still in effect, since they reverted
+    // one row rather than asking to move a second one back.
+    expect(liveEffectTitles().slice(0, 2)).toEqual([secondTitle, firstTitle]);
+  });
+
   it("an edit survives a reload, because a panel that forgets is not one", async () => {
     const user = userEvent.setup();
     const first = published(PRESETS)[0];

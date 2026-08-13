@@ -14,9 +14,22 @@ export const GenerationIdempotencyKeySchema = z
   .max(128)
   .regex(/^[a-zA-Z0-9_.:-]+$/);
 
+/** Mirrors the jobs_status_check constraint. */
+export const GenerationJobStatusSchema = z.enum([
+  "queued",
+  "submitted",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "expired",
+]);
+
 export const QueuedGenerationJobSchema = z.object({
   id: z.uuid(),
-  status: z.literal("queued"),
+  // Was z.literal("queued"), which the replay path could not honour: it returns
+  // whatever job already exists for that idempotency key, in whatever state.
+  status: GenerationJobStatusSchema,
   modelKey: z.string().min(1),
   quotedCredits: z.number().int().nonnegative(),
   createdAt: z.number().int().nonnegative(),

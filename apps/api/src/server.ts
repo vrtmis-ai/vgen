@@ -31,8 +31,18 @@ function infrastructureSetting(name: string, localDefault: string): string {
 const databaseUrl = required("DATABASE_URL");
 const clerkSecretKey = required("CLERK_SECRET_KEY");
 const clerkPublishableKey = required("CLERK_PUBLISHABLE_KEY");
-const webOrigin = process.env.WEB_ORIGIN?.trim() || "http://127.0.0.1:5180";
-const trustProxy = process.env.TRUST_PROXY?.trim();
+// Through infrastructureSetting like every other one: this used to fall back to
+// the loopback origin unconditionally, so a production deploy that forgot it
+// booted healthy with CORS pinned to 127.0.0.1 and every browser request from
+// the real domain failed preflight. The API logs stay clean in that state
+// because the requests never arrive, which makes it expensive to diagnose.
+const webOrigin = infrastructureSetting("WEB_ORIGIN", "http://127.0.0.1:5180");
+// Same treatment. The telemetry limiter keys on request.ip, and without
+// trustProxy Fastify reports the socket peer — behind nginx or a CDN that is
+// the proxy, for everyone, so all users share one 20/min bucket and reports are
+// dropped with a 429 nothing surfaces. Must be the exact proxy IP or CIDR;
+// `true` on a public API lets a client forge X-Forwarded-For and skip the limit.
+const trustProxy = infrastructureSetting("TRUST_PROXY", "");
 const redisUrl = infrastructureSetting("REDIS_URL", "redis://127.0.0.1:6379");
 const rateLimitHashSecret = infrastructureSetting("RATE_LIMIT_HASH_SECRET", "deev-local-rate-limit-key");
 const objectStorageEndpoint = infrastructureSetting("OBJECT_STORAGE_ENDPOINT", "http://127.0.0.1:9000");
