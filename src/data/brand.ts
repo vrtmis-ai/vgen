@@ -20,7 +20,7 @@ export const BRAND = {
    * `bdi` around it — otherwise the bidi algorithm reorders the punctuation on
    * whichever side of it falls at a direction boundary.
    */
-  name: "VGen",
+  name: "DEEV",
 } as const;
 
 /** "آکادمی VGen" and friends — the name inside a Persian noun phrase. */

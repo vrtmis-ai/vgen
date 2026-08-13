@@ -169,8 +169,14 @@
    exists in English, on a Persian-first product. Either we find a Persian
    display face, or Persian headings need their own treatment (heavier weight,
    tighter measure) to carry the same presence. Not solved here. */
-* { box-sizing: border-box; }
-html, body, #root { height: 100%; }
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
 
 body {
   margin: 0;
@@ -183,9 +189,19 @@ body {
   overflow-x: hidden;
 }
 
-button { font-family: inherit; cursor: pointer; }
-img, video { display: block; max-width: 100%; }
-textarea, input { font-family: inherit; }
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+img,
+video {
+  display: block;
+  max-width: 100%;
+}
+textarea,
+input {
+  font-family: inherit;
+}
 
 /* Keyboard-only focus ring — invisible to pointer/touch, clear for a11y.
    Applies app-wide so every interactive control is reachable by keyboard. */
@@ -195,11 +211,21 @@ textarea, input { font-family: inherit; }
   border-radius: var(--radius-md);
 }
 
-.ltr { direction: ltr; text-align: left; }
-.font-display { font-family: var(--font-display); }
+.ltr {
+  direction: ltr;
+  text-align: left;
+}
+.font-display {
+  font-family: var(--font-display);
+}
 
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
 /* ---- typography system (apply, don't hardcode) ---------------
    THE LADDER: 30 / 22 / 17 / 15 / 13 / 11 — six sizes, minimum 2px apart, and
@@ -211,17 +237,46 @@ textarea, input { font-family: inherit; }
    These live in @layer components deliberately. Unlayered they outranked every
    Tailwind utility, so `t-title font-bold` silently did nothing. */
 @layer components {
-  .t-display { font-family: var(--font-display); font-weight: 700; font-size: 1.875rem; line-height: 1.15; letter-spacing: -0.03em; }
-  .t-h1 { font-weight: 700; font-size: 1.375rem; line-height: 1.35; letter-spacing: -0.02em; }
+  .t-display {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.875rem;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+  }
+  .t-h1 {
+    font-weight: 700;
+    font-size: 1.375rem;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+  }
   /* the section header — carries the presence higgsfield buys with uppercase
      Space Grotesk. 700 ONLY: 600 belongs to .t-title, so a section header and a
      card title can never be confused despite being 2px apart. The margins live
      on .section-head, not here — .t-h2 has live call sites that would silently
      gain 32px. */
-  .t-h2 { font-weight: 700; font-size: 1.0625rem; line-height: 1.35; letter-spacing: -0.015em; }
-  .t-title { font-weight: 600; font-size: 0.9375rem; line-height: 1.4; letter-spacing: -0.01em; }
-  .t-body { font-weight: 400; font-size: 0.9375rem; line-height: 1.6; }
-  .t-caption { font-weight: 400; font-size: 0.8125rem; line-height: 1.55; }
+  .t-h2 {
+    font-weight: 700;
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    letter-spacing: -0.015em;
+  }
+  .t-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+  }
+  .t-body {
+    font-weight: 400;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+  .t-caption {
+    font-weight: 400;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+  }
 
   /* The Latin ghost label — the app's typographic signature, and Persian's
      answer to "how does a section header get presence when the script has no
@@ -230,36 +285,89 @@ textarea, input { font-family: inherit; }
      a guard would strip the uppercase and tracking from 100% of instances.
      Full-strength ink3: Home applied opacity-70 on top of an already-dim token,
      which is what made it read as an afterthought instead of a device. */
-  .t-ghost { font-family: var(--font-display); font-weight: 700; font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-ink3); }
-  .t-label { font-family: var(--font-display); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.04em; } /* deprecated — migrate to .t-ghost */
+  .t-ghost {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink3);
+  }
+  .t-label {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  } /* deprecated — migrate to .t-ghost */
 
   /* Numerics split by script. Vazirmatn's Arabic-Indic digits are ALREADY
      fixed-width, and tabular-nums shifts them; Space Grotesk has no Persian
      digit coverage at all, so it must never wrap n() output in fa. */
-  .t-num { font-family: var(--font-display); font-weight: 600; font-size: 0.9375rem; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; direction: ltr; }
-  .t-num-fa { font-weight: 600; font-size: 0.9375rem; }
+  .t-num {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+    direction: ltr;
+  }
+  .t-num-fa {
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
 
   /* Persian guards, subject-scoped. Negative tracking pulls Vazirmatn's
      connecting strokes into each other and renders as broken kerning on Android
      WebView; the extra leading is because Vazirmatn's descenders and bowls look
      visibly cramped at Latin line-heights, which reads as low quality. */
-  .t-display:lang(fa) { font-family: var(--font-sans); letter-spacing: 0; }
-  .t-h1:lang(fa), .t-h2:lang(fa), .t-title:lang(fa) { letter-spacing: 0; }
-  .t-body:lang(fa) { line-height: 1.75; }
-  .t-caption:lang(fa) { line-height: 1.7; }
+  .t-display:lang(fa) {
+    font-family: var(--font-sans);
+    letter-spacing: 0;
+  }
+  .t-h1:lang(fa),
+  .t-h2:lang(fa),
+  .t-title:lang(fa) {
+    letter-spacing: 0;
+  }
+  .t-body:lang(fa) {
+    line-height: 1.75;
+  }
+  .t-caption:lang(fa) {
+    line-height: 1.7;
+  }
 }
 
 /* ---- primitives --------------------------------------------- */
-.hairline-t { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
-.hairline-b { box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06); }
+.hairline-t {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.hairline-b {
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
 
 /* The section rhythm. 32px above / 12px below is what a Persian header spends
    instead of uppercase — it owns whitespace rather than colour or case. */
-.section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block: 32px 12px; }
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block: 32px 12px;
+}
 
 /* Expand a small control to a 44px hit area without growing its visual box. */
-.tap44 { position: relative; }
-.tap44::after { content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+.tap44 {
+  position: relative;
+}
+.tap44::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
 
 /* One media scrim for every image/video tile (was three near-identical
    inline gradients). Darkens the bottom so captions stay legible. */
@@ -273,10 +381,16 @@ textarea, input { font-family: inherit; }
    border, so the three create actions read as buttons, not flat cards. */
 .tile-raised {
   background: linear-gradient(180deg, var(--color-raised), var(--color-card));
-  box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
+  box-shadow:
+    var(--shadow-soft),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition:
+    transform 0.18s var(--ease-out),
+    box-shadow 0.18s var(--ease-out);
 }
-.tile-raised:active { transform: scale(0.97); }
+.tile-raised:active {
+  transform: scale(0.97);
+}
 
 .btn-accent {
   /* The brighter primary, not the pressed shade. Dark ink on #C94E10 measures
@@ -285,13 +399,26 @@ textarea, input { font-family: inherit; }
   background: var(--color-accent);
   color: var(--color-on-accent);
   box-shadow: var(--shadow-accent);
-  transition: transform 0.18s var(--ease-out), filter 0.18s var(--ease-out);
+  transition:
+    transform 0.18s var(--ease-out),
+    filter 0.18s var(--ease-out);
 }
-.btn-accent:active { transform: scale(0.97); background: var(--color-accent2); }
+.btn-accent:active {
+  transform: scale(0.97);
+  background: var(--color-accent2);
+}
 /* a disabled accent button must not read as tappable — the "current plan"
    button on the subscription screen is the first one to need this */
-.btn-accent:disabled { background: var(--color-card2); color: var(--color-ink3); box-shadow: none; cursor: default; }
-.btn-accent:disabled:active { transform: none; filter: none; }
+.btn-accent:disabled {
+  background: var(--color-card2);
+  color: var(--color-ink3);
+  box-shadow: none;
+  cursor: default;
+}
+.btn-accent:disabled:active {
+  transform: none;
+  filter: none;
+}
 
 /* The secondary action, borrowed from the reference: an alpha wash of the SAME
    accent with accent-coloured type, rather than a grey button. It costs
@@ -303,16 +430,34 @@ textarea, input { font-family: inherit; }
      fails AA at body sizes, which is the rule the token exists for. The fill
      may be the accent; the letters may not. */
   color: var(--vg-primary-soft);
-  transition: transform 0.18s var(--ease-out), filter 0.18s var(--ease-out);
+  transition:
+    transform 0.18s var(--ease-out),
+    filter 0.18s var(--ease-out);
 }
-.btn-quiet:active { transform: scale(0.97); filter: brightness(1.12); }
-.btn-quiet:disabled { background: var(--color-card2); color: var(--color-ink3); cursor: default; }
+.btn-quiet:active {
+  transform: scale(0.97);
+  filter: brightness(1.12);
+}
+.btn-quiet:disabled {
+  background: var(--color-card2);
+  color: var(--color-ink3);
+  cursor: default;
+}
 
 /* ---- motion helpers ----------------------------------------- */
-@keyframes vg-shimmer { 100% { transform: translateX(100%); } }
-.shimmer { position: relative; overflow: hidden; }
+@keyframes vg-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
 .shimmer::after {
-  content: ""; position: absolute; inset: 0;
+  content: "";
+  position: absolute;
+  inset: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
   transform: translateX(-100%);
   animation: vg-shimmer 1.5s infinite;
@@ -320,13 +465,22 @@ textarea, input { font-family: inherit; }
 
 /* range slider — accent thumb, kept LTR for predictable dragging */
 input[type="range"] {
-  -webkit-appearance: none; appearance: none; direction: ltr;
-  height: 4px; border-radius: 999px; background: var(--color-line2); outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  direction: ltr;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-line2);
+  outline: none;
 }
 input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 20px; height: 20px; border-radius: 999px;
-  background: #fff; cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
   /* dropped the `0 0 0 4px var(--color-accent-soft)` halo — uncounted accent,
      and Generate renders several sliders at once */
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
@@ -343,8 +497,13 @@ input.vg-density {
   /* Deliberately NOT forced to ltr. That rule exists so dragging a value slider
      is predictable; here the control is bookended by a large and a small square
      and the minimum has to sit under the large one, so it must mirror. */
-  -webkit-appearance: none; appearance: none; direction: inherit;
-  height: 3px; border-radius: 999px; background: var(--color-line2); cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  direction: inherit;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--color-line2);
+  cursor: pointer;
 }
 /* `outline: none` only once there is something else to see.
    The app-wide ring is `:where(…):focus-visible`, whose zero-specificity
@@ -353,38 +512,71 @@ input.vg-density {
    the anti-pattern the ring exists to prevent. A 2px ring offset around a 3px
    track also reads as a box round nothing; the thumb is the part that moves,
    so the thumb is what lights up. Same trade `.vg-slider` already makes. */
-.vg-density:focus-visible { outline: none; }
+.vg-density:focus-visible {
+  outline: none;
+}
 .vg-density::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 12px; height: 12px; border-radius: 999px;
-  background: var(--vg-text-secondary); cursor: pointer; box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--vg-text-secondary);
+  cursor: pointer;
+  box-shadow: none;
 }
 .vg-density::-moz-range-thumb {
-  width: 12px; height: 12px; border: 0; border-radius: 999px;
-  background: var(--vg-text-secondary); cursor: pointer;
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--vg-text-secondary);
+  cursor: pointer;
 }
-.vg-density:focus-visible::-webkit-slider-thumb { box-shadow: var(--vg-glow-focus); background: var(--vg-text); }
-.vg-density:focus-visible::-moz-range-thumb     { box-shadow: var(--vg-glow-focus); background: var(--vg-text); }
+.vg-density:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--vg-glow-focus);
+  background: var(--vg-text);
+}
+.vg-density:focus-visible::-moz-range-thumb {
+  box-shadow: var(--vg-glow-focus);
+  background: var(--vg-text);
+}
 
 /* A horizontal scroller that admits it scrolls.
    The opposite of `.hide-scrollbar`: for content where being able to see that
    there is more is the whole point — a pricing comparison, say — the bar stays,
    just slim and quiet enough not to sit on the design. */
-.vg-xscroll { scrollbar-width: thin; scrollbar-color: var(--color-line2) transparent; }
-.vg-xscroll::-webkit-scrollbar { height: 8px; }
-.vg-xscroll::-webkit-scrollbar-track { background: transparent; }
-.vg-xscroll::-webkit-scrollbar-thumb {
-  background: var(--color-line2); border-radius: 999px;
-  /* Inset via a transparent border so the thumb does not touch the table edge. */
-  border: 2px solid transparent; background-clip: padding-box;
+.vg-xscroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line2) transparent;
 }
-.vg-xscroll::-webkit-scrollbar-thumb:hover { background: var(--vg-border-strong); background-clip: padding-box; }
+.vg-xscroll::-webkit-scrollbar {
+  height: 8px;
+}
+.vg-xscroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.vg-xscroll::-webkit-scrollbar-thumb {
+  background: var(--color-line2);
+  border-radius: 999px;
+  /* Inset via a transparent border so the thumb does not touch the table edge. */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.vg-xscroll::-webkit-scrollbar-thumb:hover {
+  background: var(--vg-border-strong);
+  background-clip: padding-box;
+}
 
 /* The fade over the edge that still has content behind it. Like the banner
    fades below, a linear-gradient has no logical direction, so RTL needs its own
    rule rather than inheriting a mirror. */
-.vg-xscroll-fade { background: linear-gradient(to right, var(--color-bg), transparent); }
-[dir="rtl"] .vg-xscroll-fade { background: linear-gradient(to left, var(--color-bg), transparent); }
+.vg-xscroll-fade {
+  background: linear-gradient(to right, var(--color-bg), transparent);
+}
+[dir="rtl"] .vg-xscroll-fade {
+  background: linear-gradient(to left, var(--color-bg), transparent);
+}
 
 /* The same idea for a strip that cannot take an overlay — the nav row, where an
    absolutely positioned gradient would have to match whatever the header is
@@ -394,21 +586,41 @@ input.vg-density {
    so the leading edge is not faded while sitting at the start of the row.
 
    `mask` uses physical directions, hence the RTL pair. */
-.vg-fade-end { mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 100%); }
-.vg-fade-start { mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 100%); }
-.vg-fade-start.vg-fade-end { mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); }
-[dir="rtl"] .vg-fade-end { mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 100%); }
-[dir="rtl"] .vg-fade-start { mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 100%); }
-[dir="rtl"] .vg-fade-start.vg-fade-end { mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); }
+.vg-fade-end {
+  mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 100%);
+}
+.vg-fade-start {
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 100%);
+}
+.vg-fade-start.vg-fade-end {
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+}
+[dir="rtl"] .vg-fade-end {
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 100%);
+}
+[dir="rtl"] .vg-fade-start {
+  mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 100%);
+}
+[dir="rtl"] .vg-fade-start.vg-fade-end {
+  mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+}
 
 /* Banner media fade. A linear-gradient along the inline axis has no logical
    direction, so `dir="rtl"` will not mirror it — the flip has to be written. */
-.vg-banner-fade { background: linear-gradient(to right, var(--vg-surface), transparent 55%); }
-[dir="rtl"] .vg-banner-fade { background: linear-gradient(to left, var(--vg-surface), transparent 55%); }
+.vg-banner-fade {
+  background: linear-gradient(to right, var(--vg-surface), transparent 55%);
+}
+[dir="rtl"] .vg-banner-fade {
+  background: linear-gradient(to left, var(--vg-surface), transparent 55%);
+}
 /* The mirrored banner puts its media on the other side, so its fade runs the
    other way — and then flips again under RTL. */
-.vg-banner-fade-flip { background: linear-gradient(to left, var(--vg-surface), transparent 55%); }
-[dir="rtl"] .vg-banner-fade-flip { background: linear-gradient(to right, var(--vg-surface), transparent 55%); }
+.vg-banner-fade-flip {
+  background: linear-gradient(to left, var(--vg-surface), transparent 55%);
+}
+[dir="rtl"] .vg-banner-fade-flip {
+  background: linear-gradient(to right, var(--vg-surface), transparent 55%);
+}
 
 /* Extends a small control's tap target to the 44px minimum without changing
    what it paints. The chrome runs a 28px avatar and a 27px "change" pill —
@@ -419,7 +631,9 @@ input.vg-density {
    Scoped to coarse pointers so a mouse does not get invisible 44px boxes
    overlapping neighbouring controls. */
 @media (pointer: coarse) {
-  .vg-tap { position: relative; }
+  .vg-tap {
+    position: relative;
+  }
   .vg-tap::after {
     content: "";
     position: absolute;
@@ -435,9 +649,19 @@ input.vg-density {
    The nav lives inside a 44px chrome element, where a scrollbar reads as a
    rendering fault rather than an affordance. Scrolling still works by wheel,
    trackpad, touch and keyboard — only the bar is hidden. */
-.hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
-.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

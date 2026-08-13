@@ -193,7 +193,12 @@ export default function Community({ onOpen }: { onOpen: (familyId: string, promp
 
       {/* Masonry widens with the viewport instead of staying at two phone
           columns on a 1440px window. */}
-      <motion.div variants={riseParent} initial="hidden" animate="show" className="[column-fill:_balance] columns-2 gap-3 md:columns-3 xl:columns-4">
+      <motion.div
+        variants={riseParent}
+        initial="hidden"
+        animate="show"
+        className="[column-fill:_balance] columns-2 gap-3 md:columns-3 xl:columns-4"
+      >
         {shown.map((p) => (
           <PostCard key={p.id} p={p} onOpen={() => onOpen(p.familyId, p.prompt)} />
         ))}

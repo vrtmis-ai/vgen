@@ -1,0 +1,23 @@
+{
+  "name": "@vgen/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:integration": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@clerk/fastify": "^3.1.64",
+    "@fastify/cors": "^11.3.0",
+    "@vgen/adapters": "workspace:*",
+    "@vgen/contracts": "workspace:*",
+    "@vgen/db": "workspace:*",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.6.0",
+    "postgres": "^3.4.9"
+  }
+}

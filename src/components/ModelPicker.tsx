@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, Lock, MagnifyingGlass } from "@phosphor-icons/react";
 import { type Family, type Variant } from "../data/models";
@@ -8,6 +8,7 @@ import { useAccess } from "../lib/access";
 import { VendorMark } from "./VendorMark";
 import { CoinMark } from "./chrome";
 import { useI18n } from "../lib/i18n";
+import { useFloatingDismiss, useFloatingPosition } from "./FloatingSurface";
 
 /* ---------------------------------------------------------------------------
    The model picker.
@@ -72,6 +73,8 @@ function Row({
 
   return (
     <button
+      data-model-option
+      aria-pressed={selected}
       onClick={onPick}
       className="flex h-[52px] w-full items-center gap-2.5 rounded-xl px-2.5 text-start transition-colors hover:bg-white/[0.06]"
       style={selected ? { background: "var(--vg-primary-a14)" } : undefined}
@@ -114,24 +117,22 @@ function Row({
       {/* The plan that unlocks it replaces the price. A coin figure on a model
           you cannot run is answering a question the user has not reached yet;
           the name of the plan is the only useful thing to say here. */}
-      {locked ? (
-        need && (
-          <span
-            className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold"
-            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-secondary)" }}
-          >
-            <Lock size={10} weight="fill" />
-            <bdi>{need.name}</bdi>
-          </span>
-        )
-      ) : (
-        coins != null && (
-          <span className="flex shrink-0 items-center gap-1 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
-            <CoinMark size={11} />
-            <span className="vg-numeric">{n(coins)}</span>
-          </span>
-        )
-      )}
+      {locked
+        ? need && (
+            <span
+              className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold"
+              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-secondary)" }}
+            >
+              <Lock size={10} weight="fill" />
+              <bdi>{need.name}</bdi>
+            </span>
+          )
+        : coins != null && (
+            <span className="flex shrink-0 items-center gap-1 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
+              <CoinMark size={11} />
+              <span className="vg-numeric">{n(coins)}</span>
+            </span>
+          )}
       {selected && !locked && <Check size={13} weight="bold" style={{ color: "var(--vg-primary-soft)" }} />}
     </button>
   );
@@ -166,7 +167,15 @@ export function ModelChip({
   const ref = useRef<HTMLButtonElement>(null);
   return (
     <>
-      <button ref={ref} type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="dialog" aria-expanded={open} className={className} style={style}>
+      <button
+        ref={ref}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className={className}
+        style={style}
+      >
         <VendorMark vendor={family.vendor} size={15} />
         <bdi>{family.variants.length > 1 ? `${family.name} ${variant.label}` : family.name}</bdi>
       </button>
@@ -203,47 +212,35 @@ export function ModelPicker({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const [q, setQ] = useState("");
   const access = useAccess();
-
-  useLayoutEffect(() => {
-    if (!anchor || !ref.current) return;
-    const a = anchor.getBoundingClientRect();
-    const m = ref.current.getBoundingClientRect();
-    // Prefer above — these hang off docks pinned to the bottom — then below,
-    // then clamp so a 640px panel never runs off a short viewport.
-    let top = a.top - m.height - 8;
-    if (top < 8) top = Math.min(a.bottom + 8, Math.max(8, window.innerHeight - m.height - 8));
-    const rtl = document.documentElement.dir === "rtl";
-    let left = rtl ? a.right - m.width : a.left;
-    left = Math.max(8, Math.min(left, window.innerWidth - m.width - 8));
-    setPos({ top, left });
-  }, [anchor, q]);
-
-  useEffect(() => {
-    const away = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (ref.current?.contains(t) || anchor?.contains(t)) return;
-      onClose();
-    };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", esc);
-    return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", esc);
-    };
-  }, [anchor, onClose]);
+  const pos = useFloatingPosition(anchor, ref, q);
+  useFloatingDismiss({ anchor, surfaceRef: ref, onClose });
 
   const match = (s: string) => s.toLowerCase().includes(q.trim().toLowerCase());
   const variants = family.variants.filter((v) => !q || match(`${family.name} ${v.label}`));
   const others = families.filter((f) => f.id !== family.id && (!q || match(f.name) || match(f.blurb)));
 
+  const moveFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const rows = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>("[data-model-option]") ?? []);
+    if (!rows.length) return;
+    const current = rows.indexOf(document.activeElement as HTMLButtonElement);
+    let next = current;
+    if (event.key === "ArrowDown") next = current < 0 ? 0 : (current + 1) % rows.length;
+    if (event.key === "ArrowUp") next = current < 0 ? rows.length - 1 : (current - 1 + rows.length) % rows.length;
+    if (event.key === "Home") next = 0;
+    if (event.key === "End") next = rows.length - 1;
+    event.preventDefault();
+    rows[next]?.focus();
+  };
+
   return createPortal(
     <div
       ref={ref}
       role="dialog"
+      aria-label="انتخاب مدل"
+      onKeyDown={moveFocus}
       className="fixed z-[80] flex max-h-[min(640px,80dvh)] w-[380px] flex-col overflow-hidden rounded-2xl"
       style={{
         top: pos?.top ?? -9999,

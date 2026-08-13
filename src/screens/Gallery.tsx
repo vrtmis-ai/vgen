@@ -32,7 +32,9 @@ function GenCard({ g, i, onOpen, list }: { g: Generation; i: number; onOpen: () 
           </span>
           <span className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
             <bdi>{g.name}</bdi>
-            <span className="vg-numeric">{g.w}×{g.h}</span>
+            <span className="vg-numeric">
+              {g.w}×{g.h}
+            </span>
             {running && (
               <span className="flex items-center gap-1" style={{ color: "var(--vg-primary-soft)" }}>
                 <CircleNotch size={10} className="animate-spin" />
@@ -63,7 +65,9 @@ function GenCard({ g, i, onOpen, list }: { g: Generation; i: number; onOpen: () 
               {t("gal_making")}
             </span>
           ) : (
-            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{t(g.kind === "video" ? "kind_video" : g.kind === "audio" ? "kind_audio" : "kind_image")}</span>
+            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
+              {t(g.kind === "video" ? "kind_video" : g.kind === "audio" ? "kind_audio" : "kind_image")}
+            </span>
           )}
         </div>
         <div className="absolute inset-x-2.5 bottom-2.5">
@@ -85,21 +89,17 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "running", label: "در حال ساخت" },
 ];
 
-export default function Gallery({
-  gens,
-  onOpen,
-  onBrowse,
-}: {
-  gens: Generation[];
-  onOpen: (g: Generation) => void;
-  onBrowse: () => void;
-}) {
+export default function Gallery({ gens, onOpen, onBrowse }: { gens: Generation[]; onOpen: (g: Generation) => void; onBrowse: () => void }) {
   const { t, n } = useI18n();
   const [filter, setFilter] = useState<Filter>("all");
   const view = useViewMode("gallery", { mode: "grid", density: 1 });
 
   const count = (f: Filter) =>
-    f === "all" ? gens.length : f === "running" ? gens.filter((g) => g.status === "running").length : gens.filter((g) => g.kind === f).length;
+    f === "all"
+      ? gens.length
+      : f === "running"
+        ? gens.filter((g) => g.status === "running").length
+        : gens.filter((g) => g.kind === f).length;
   const shown = gens.filter((g) => (filter === "all" ? true : filter === "running" ? g.status === "running" : g.kind === filter));
 
   return (

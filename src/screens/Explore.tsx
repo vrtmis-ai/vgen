@@ -5,11 +5,11 @@ import { COMMUNITY, type CommunityPost } from "../data/community";
 import { PRESETS } from "../data/presets";
 import { COURSES, courseMinutes, LEVEL_LABEL, type Course } from "../data/academy";
 import { published } from "../data/content";
-import { FAMILIES, getFamily } from "../data/models";
 import { VendorMark } from "../components/VendorMark";
 import { faNum } from "../lib/format";
 import type { NavKey } from "../components/TopBar";
 import { brandPhrase } from "../data/brand";
+import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 
 /* ---------------------------------------------------------------------------
    Explore — the reference's signed-in feed, measured section by section.
@@ -69,7 +69,10 @@ function Pill({
 function SectionHead({ title, sub }: { title: string; sub: string }) {
   return (
     <div className="mb-3">
-      <h2 className="text-[19px] font-extrabold leading-tight" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-primary-soft)" }}>
+      <h2
+        className="text-[19px] font-extrabold leading-tight"
+        style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-primary-soft)" }}
+      >
         {title}
       </h2>
       <p className="mt-0.5 text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
@@ -118,7 +121,10 @@ function Showcase({
               </div>
             ))}
           </div>
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[120px]" style={{ background: "linear-gradient(to bottom, transparent, var(--vg-canvas) 78%)" }} />
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[120px]"
+            style={{ background: "linear-gradient(to bottom, transparent, var(--vg-canvas) 78%)" }}
+          />
           <div className="absolute inset-x-0 bottom-0 flex justify-center">
             <Pill onClick={onCta} away>
               {cta}
@@ -153,13 +159,19 @@ function Banner({
   ctaDisabled?: boolean;
 }) {
   return (
-    <div className="grid overflow-hidden rounded-2xl md:grid-cols-2" style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}>
+    <div
+      className="grid overflow-hidden rounded-2xl md:grid-cols-2"
+      style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+    >
       <div className={`flex flex-col justify-center p-7 md:p-10 ${flip ? "md:order-2" : ""}`}>
         <p className="text-[14px] font-extrabold" style={{ color: "var(--vg-primary-soft)" }}>
           {eyebrow}
         </p>
         {/* h2: a banner is a section of the feed, ranked with the others. */}
-        <h2 className="mt-1 text-[28px] font-extrabold leading-[1.2]" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+        <h2
+          className="mt-1 text-[28px] font-extrabold leading-[1.2]"
+          style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+        >
           {title}
         </h2>
         <p className="mt-2.5 max-w-[46ch] text-[13px] leading-6" style={{ color: "var(--vg-text-muted)" }}>
@@ -218,6 +230,8 @@ export default function Explore({
   onNav: (k: NavKey) => void;
   onWallet: () => void;
 }) {
+  const families = useCatalogFamilies();
+  const getFamily = (id: string) => families.find((family) => family.id === id);
   const posts = COMMUNITY.filter((p) => p.status === "approved");
   // Read admin-editable collections through `published()` — never the raw array.
   // Drafts exist on purpose and must not leak onto a user surface.
@@ -259,7 +273,10 @@ export default function Explore({
             <span style={{ color: "var(--vg-text-muted)" }}> · </span>
             <bdi style={{ color: "var(--vg-text-muted)" }}>@{p.author}</bdi>
           </span>
-          <span className="vg-numeric shrink-0 rounded-md px-1.5 py-0.5 text-[10.5px]" style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}>
+          <span
+            className="vg-numeric shrink-0 rounded-md px-1.5 py-0.5 text-[10.5px]"
+            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+          >
             {faNum(p.likes.toLocaleString("en-US"))}
           </span>
         </div>
@@ -270,8 +287,17 @@ export default function Explore({
   /** Preset cards burn their label onto the art — the whole point is that you
    *  pick one without reading a model name or writing a prompt. */
   const presetCard = (p: (typeof PRESETS)[number]) => (
-    <button key={p.id} onClick={() => onOpen(p.familyId, p.prompt)} className="group relative block aspect-[3/4] w-full overflow-hidden rounded-xl text-start">
-      <img src={art(p.seed, 480, 640)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+    <button
+      key={p.id}
+      onClick={() => onOpen(p.familyId, p.prompt)}
+      className="group relative block aspect-[3/4] w-full overflow-hidden rounded-xl text-start"
+    >
+      <img
+        src={art(p.seed, 480, 640)}
+        alt=""
+        loading="lazy"
+        className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+      />
       <span className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.82), transparent 55%)" }} />
       <span className="absolute inset-x-3 bottom-2.5 block">
         <span className="block text-[14px] font-extrabold leading-tight" style={{ color: "var(--vg-text)" }}>
@@ -308,12 +334,16 @@ export default function Explore({
    *  bar already, and repeating them here is where the duplicate buttons came
    *  from in the first place. */
   const CLOUD = [
-    ...FAMILIES.map((f) => ({ label: f.name, go: () => onOpen(f.id) })),
+    ...families.map((f) => ({ label: f.name, go: () => onOpen(f.id) })),
     ...presets.map((p) => ({ label: p.title, go: () => onOpen(p.familyId, p.prompt) })),
   ];
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-20 pt-4">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-20 pt-4"
+    >
       {/* The feed opens on the hero carousel, so its first heading was an h2 and
           the document had no h1. Hidden rather than drawn: adding a visible
           title above the carousel would push the thing the page exists to show
@@ -328,11 +358,17 @@ export default function Explore({
 
         {/* 2 — promo split beside the surface tiles */}
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.9fr)]">
-          <div className="flex flex-col justify-center rounded-2xl p-7" style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}>
+          <div
+            className="flex flex-col justify-center rounded-2xl p-7"
+            style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+          >
             {/* h2, matching SectionHead. This is a top-level section of the
                 feed, and as an h3 directly under the page title it made the
                 outline skip a level. */}
-            <h2 className="text-[26px] font-extrabold leading-[1.25]" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+            <h2
+              className="text-[26px] font-extrabold leading-[1.25]"
+              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+            >
               همهٔ مدل‌ها، <span style={{ color: "var(--vg-primary-soft)" }}>یک حساب</span>
             </h2>
             <p className="mt-2 max-w-[42ch] text-[13px] leading-6" style={{ color: "var(--vg-text-muted)" }}>
@@ -446,7 +482,10 @@ export default function Explore({
         {/* 8 — gift strip */}
         <div
           className="flex flex-col gap-4 rounded-2xl p-6 sm:flex-row sm:items-center sm:justify-between"
-          style={{ background: "linear-gradient(135deg, var(--vg-primary-a18), var(--vg-primary-a03))", border: "1px solid var(--vg-primary-a18)" }}
+          style={{
+            background: "linear-gradient(135deg, var(--vg-primary-a18), var(--vg-primary-a03))",
+            border: "1px solid var(--vg-primary-a18)",
+          }}
         >
           <div>
             <p className="text-[17px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>

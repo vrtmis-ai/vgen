@@ -38,7 +38,10 @@ const CONFIG = `{
 function CodeBlock({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="relative overflow-hidden rounded-xl" style={{ background: "var(--vg-canvas)", border: "1px solid var(--vg-border-subtle)" }}>
+    <div
+      className="relative overflow-hidden rounded-xl"
+      style={{ background: "var(--vg-canvas)", border: "1px solid var(--vg-border-subtle)" }}
+    >
       <button
         onClick={() => {
           void navigator.clipboard?.writeText(code);
@@ -46,13 +49,21 @@ function CodeBlock({ code }: { code: string }) {
           setTimeout(() => setCopied(false), 1800);
         }}
         className="absolute top-2.5 flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11.5px] font-semibold"
-        style={{ insetInlineEnd: "0.625rem", background: "var(--vg-surface-overlay)", color: copied ? "var(--vg-primary-soft)" : "var(--vg-text-muted)" }}
+        style={{
+          insetInlineEnd: "0.625rem",
+          background: "var(--vg-surface-overlay)",
+          color: copied ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+        }}
       >
         {copied ? <Check size={12} weight="bold" /> : <Copy size={12} />}
         {copied ? "کپی شد" : "کپی"}
       </button>
       {/* dir=ltr: this is code. Persian layout must not reorder a JSON body. */}
-      <pre dir="ltr" className="hide-scrollbar overflow-x-auto p-4 text-start text-[12px] leading-6" style={{ color: "var(--vg-text-secondary)" }}>
+      <pre
+        dir="ltr"
+        className="hide-scrollbar overflow-x-auto p-4 text-start text-[12px] leading-6"
+        style={{ color: "var(--vg-text-secondary)" }}
+      >
         <code>{code}</code>
       </pre>
     </div>
@@ -64,7 +75,12 @@ function SkillCard({ skill, onOpen }: { skill: (typeof SKILLS)[number]; onOpen: 
   return (
     <button onClick={onOpen} className="group block w-full text-start">
       <div className="overflow-hidden rounded-xl" style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}>
-        <img src={art(skill.seed)} alt="" loading="lazy" className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+        <img
+          src={art(skill.seed)}
+          alt=""
+          loading="lazy"
+          className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+        />
       </div>
       <p className="mt-2.5 text-[14px] font-bold" style={{ color: "var(--vg-text)" }}>
         {skill.title}
@@ -73,7 +89,10 @@ function SkillCard({ skill, onOpen }: { skill: (typeof SKILLS)[number]; onOpen: 
         {skill.blurb}
       </p>
       <div className="mt-2 flex items-center gap-2">
-        <span className="rounded-md px-1.5 py-0.5 text-[10.5px]" style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}>
+        <span
+          className="rounded-md px-1.5 py-0.5 text-[10.5px]"
+          style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+        >
           <span className="vg-numeric">{n(skill.steps.length)}</span> مرحله
         </span>
         {skill.coins != null && (
@@ -110,7 +129,8 @@ export default function Mcp({ onOpenModel }: { onOpenModel: (familyId: string, p
             <span style={{ color: "var(--vg-text)" }}>نه فقط از این سایت</span>
           </h1>
           <p className="mt-3 max-w-[54ch] text-[13px] leading-6" style={{ color: "var(--vg-text-secondary)" }}>
-            {`مدل‌های ${BRAND.name} `}را به‌عنوان ابزار به دستیار خودت وصل کن، یا جریان‌های چندمرحله‌ای را یک‌بار بنویس و هر بار با یک دستور اجرا کن.
+            {`مدل‌های ${BRAND.name} `}را به‌عنوان ابزار به دستیار خودت وصل کن، یا جریان‌های چندمرحله‌ای را یک‌بار بنویس و هر بار با یک دستور
+            اجرا کن.
           </p>
         </div>
       </div>
@@ -124,7 +144,8 @@ export default function Mcp({ onOpenModel }: { onOpenModel: (familyId: string, p
           </h2>
         </div>
         <p className="mt-1 max-w-[62ch] text-[13px] leading-6" style={{ color: "var(--vg-text-muted)" }}>
-          سرور MCP، مدل‌های ما را به‌صورت ابزار در اختیار کلاد می‌گذارد. یعنی می‌توانی وسط یک گفتگو بگویی «این صحنه را بساز» و خروجی در همین حساب ساخته شود — با همان سکه‌ها و همان قیمت‌ها.
+          سرور MCP، مدل‌های ما را به‌صورت ابزار در اختیار کلاد می‌گذارد. یعنی می‌توانی وسط یک گفتگو بگویی «این صحنه را بساز» و خروجی در همین
+          حساب ساخته شود — با همان سکه‌ها و همان قیمت‌ها.
         </p>
 
         <ol className="mt-5 flex flex-col gap-3">
@@ -166,7 +187,8 @@ export default function Mcp({ onOpenModel }: { onOpenModel: (familyId: string, p
           </h2>
         </div>
         <p className="mt-1 max-w-[62ch] text-[13px] leading-6" style={{ color: "var(--vg-text-muted)" }}>
-          یک مهارت، چند مدل پشت سر هم است که یک‌بار چیده می‌شود و هر بار با یک ورودی اجرا می‌شود. هزینه‌اش جمع مراحلش است و قبل از اجرا نشان داده می‌شود.
+          یک مهارت، چند مدل پشت سر هم است که یک‌بار چیده می‌شود و هر بار با یک ورودی اجرا می‌شود. هزینه‌اش جمع مراحلش است و قبل از اجرا نشان
+          داده می‌شود.
         </p>
 
         <div className="mt-5 grid gap-x-4 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
@@ -177,7 +199,11 @@ export default function Mcp({ onOpenModel }: { onOpenModel: (familyId: string, p
       </section>
 
       {open && (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center" style={{ background: "rgba(9,9,9,0.9)" }} onClick={() => setOpen(null)}>
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center"
+          style={{ background: "rgba(9,9,9,0.9)" }}
+          onClick={() => setOpen(null)}
+        >
           <div
             className="max-h-[86dvh] w-full max-w-[520px] overflow-y-auto rounded-t-3xl p-5 sm:rounded-3xl"
             style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border)" }}

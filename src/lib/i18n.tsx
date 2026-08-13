@@ -3,10 +3,13 @@
    Persisted in localStorage; <html lang/dir> kept in sync so CSS and the
    swipe-back gesture mirror automatically. */
 import { createContext, useContext, useEffect, useState } from "react";
+import { z } from "zod";
+import { readStoredValue, writeStoredValue } from "../adapters/browser/storage";
 import { faNum } from "./format";
 
 export type Lang = "fa" | "en";
 const STORE_KEY = "vgen-lang";
+const LanguageSchema = z.enum(["fa", "en"]);
 
 const dict = {
   fa: {
@@ -36,13 +39,11 @@ const dict = {
     lp_login: "ورود",
     lp_signup: "شروع رایگان",
     lp_hero_title: "ایده‌هایت را به واقعیتِ سینمایی تبدیل کن",
-    lp_hero_sub:
-      "بهترین مدل‌های تصویر و ویدیوی دنیا، یک‌جا و به فارسی. بنویس چه می‌خواهی، بقیه‌اش با ما.",
+    lp_hero_sub: "بهترین مدل‌های تصویر و ویدیوی دنیا، یک‌جا و به فارسی. بنویس چه می‌خواهی، بقیه‌اش با ما.",
     lp_cta_start: "شروع کن",
     lp_gift_note: "{n} سکه هدیه، بدون نیاز به کارت",
     lp_models_title: "یک پلتفرم، تمام مدل‌ها",
-    lp_models_sub:
-      "به‌جای اشتراک جدا برای هرکدام، با یک حساب به همه‌شان دسترسی داری و فقط بابت چیزی که می‌سازی پول می‌دهی.",
+    lp_models_sub: "به‌جای اشتراک جدا برای هرکدام، با یک حساب به همه‌شان دسترسی داری و فقط بابت چیزی که می‌سازی پول می‌دهی.",
     lp_features_title: "برای خالقانِ فردا",
     lp_f1: "بدون فیلترشکن",
     lp_f1_d: "همه‌چیز از داخل ایران کار می‌کند و با تومان پرداخت می‌کنی. نه کارت خارجی لازم است، نه دردسر.",
@@ -63,18 +64,32 @@ const dict = {
     lp_faq1_a:
       "سکه واحد پرداخت داخل اپ است. هر ساخت بسته به مدل و تنظیماتش تعداد مشخصی سکه می‌برد و آن عدد را قبل از ساخت روی دکمه می‌بینی.",
     lp_faq2_q: "سکه‌های استفاده‌نشده چه می‌شوند؟",
-    lp_faq2_a:
-      "سکه‌های هر ماه آخر همان ماه منقضی می‌شوند و به ماه بعد منتقل نمی‌شوند. تاریخ انقضای هر بسته در کیف پولت نوشته شده.",
+    lp_faq2_a: "سکه‌های هر ماه آخر همان ماه منقضی می‌شوند و به ماه بعد منتقل نمی‌شوند. تاریخ انقضای هر بسته در کیف پولت نوشته شده.",
     lp_faq3_q: "پرداخت چطور است؟",
     lp_faq3_a: "با کارت بانکی ایرانی و از طریق درگاه، به تومان. نیازی به کارت یا حساب خارجی نیست.",
     lp_faq4_q: "خروجی‌ها مال چه کسی است؟",
-    lp_faq4_a:
-      "مال خودت. تا وقتی خودت منتشرشان نکنی خصوصی می‌مانند، و موقع انتشار دقیقاً گفته می‌شود چه چیزی عمومی خواهد شد.",
+    lp_faq4_a: "مال خودت. تا وقتی خودت منتشرشان نکنی خصوصی می‌مانند، و موقع انتشار دقیقاً گفته می‌شود چه چیزی عمومی خواهد شد.",
     lp_closing_title: "همین حالا شروع کن",
     lp_google: "ادامه با گوگل",
     lp_phone: "ادامه با شماره موبایل",
+    lp_email: "ادامه با ایمیل",
     lp_no_password: "بدون رمز عبور. فقط یک بار تأیید و تمام.",
     lp_footer: "ساخته‌شده برای فارسی‌زبان‌ها",
+    auth_title: "ورود به DEEV",
+    auth_email_hint: "ایمیلت را وارد کن؛ یک کد یک‌بارمصرف برایت می‌فرستیم.",
+    auth_email_label: "ایمیل",
+    auth_send_code: "ارسال کد ورود",
+    auth_sending: "در حال ارسال…",
+    auth_code_title: "کد ورود را وارد کن",
+    auth_code_sent: "کد ۶ رقمی به ایمیل شما ارسال شد.",
+    auth_code_label: "کد تأیید",
+    auth_verify: "تأیید و ورود",
+    auth_verifying: "در حال بررسی…",
+    auth_change_email: "تغییر ایمیل",
+    auth_close: "بستن",
+    auth_send_failed: "ارسال کد انجام نشد. کمی بعد دوباره تلاش کن.",
+    auth_verify_failed: "کد واردشده معتبر نیست یا منقضی شده است.",
+    p_logout: "خروج از حساب",
     home_more: "بیشتر",
     home_see_community: "دیدن همه در کامیونیتی",
     home_make: "بساز",
@@ -151,7 +166,7 @@ const dict = {
     p_lang: "زبان",
     p_support: "پشتیبانی",
     p_soon: "به‌زودی",
-    p_about: "درباره‌ی Vgen",
+    p_about: "درباره‌ی DEEV",
     // generate
     g_version: "نسخه‌ی مدل",
     g_versions: "نسخه",
@@ -220,13 +235,11 @@ const dict = {
     lp_login: "Log in",
     lp_signup: "Start free",
     lp_hero_title: "Turn your ideas into cinematic reality",
-    lp_hero_sub:
-      "The world's best image and video models, in one place. Describe what you want — we handle the rest.",
+    lp_hero_sub: "The world's best image and video models, in one place. Describe what you want — we handle the rest.",
     lp_cta_start: "Get started",
     lp_gift_note: "{n} free coins, no card needed",
     lp_models_title: "One platform, every model",
-    lp_models_sub:
-      "Instead of a separate subscription for each, one account reaches all of them and you pay only for what you make.",
+    lp_models_sub: "Instead of a separate subscription for each, one account reaches all of them and you pay only for what you make.",
     lp_features_title: "For tomorrow's creators",
     lp_f1: "No VPN needed",
     lp_f1_d: "Everything works from inside Iran and you pay in Toman. No foreign card, no workarounds.",
@@ -252,13 +265,28 @@ const dict = {
     lp_faq3_q: "How does payment work?",
     lp_faq3_a: "With an Iranian bank card through the gateway, in Toman. No foreign card or account required.",
     lp_faq4_q: "Who owns the output?",
-    lp_faq4_a:
-      "You do. It stays private until you publish it, and when you do, you are told exactly what becomes public.",
+    lp_faq4_a: "You do. It stays private until you publish it, and when you do, you are told exactly what becomes public.",
     lp_closing_title: "Start creating today",
     lp_google: "Continue with Google",
     lp_phone: "Continue with phone",
+    lp_email: "Continue with email",
     lp_no_password: "No password. One verification and you are in.",
     lp_footer: "Built for Persian speakers",
+    auth_title: "Sign in to DEEV",
+    auth_email_hint: "Enter your email and we'll send you a one-time code.",
+    auth_email_label: "Email",
+    auth_send_code: "Send sign-in code",
+    auth_sending: "Sending…",
+    auth_code_title: "Enter your sign-in code",
+    auth_code_sent: "A 6-digit code was sent to your email.",
+    auth_code_label: "Verification code",
+    auth_verify: "Verify and sign in",
+    auth_verifying: "Verifying…",
+    auth_change_email: "Change email",
+    auth_close: "Close",
+    auth_send_failed: "We couldn't send the code. Try again shortly.",
+    auth_verify_failed: "That code is invalid or has expired.",
+    p_logout: "Sign out",
     home_more: "More",
     home_see_community: "See all in Community",
     home_make: "Create",
@@ -331,7 +359,7 @@ const dict = {
     p_lang: "Language",
     p_support: "Support",
     p_soon: "Soon",
-    p_about: "About Vgen",
+    p_about: "About DEEV",
     g_version: "Model version",
     g_versions: "versions",
     g_inputs: "Input images",
@@ -390,18 +418,11 @@ const Ctx = createContext<I18n>({
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Lang>(() => {
-    try {
-      const saved = localStorage.getItem(STORE_KEY);
-      return saved === "en" ? "en" : "fa";
-    } catch {
-      return "fa";
-    }
-  });
+  const [lang, setLang] = useState<Lang>(() => readStoredValue(STORE_KEY, LanguageSchema, "fa"));
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORE_KEY, lang);
+      writeStoredValue(STORE_KEY, lang);
     } catch {
       // storage blocked — language just won't persist
     }

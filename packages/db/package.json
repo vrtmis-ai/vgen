@@ -1,0 +1,22 @@
+{
+  "name": "@vgen/db",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "migrate": "tsx src/migrate.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "migration:check": "vitest run --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@vgen/contracts": "workspace:*",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.44.0",
+    "postgres": "^3.4.0"
+  }
+}

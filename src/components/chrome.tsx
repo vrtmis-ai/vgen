@@ -146,7 +146,10 @@ export function SideNav({
       }}
     >
       <div className="flex h-16 items-center px-5" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>
-        <span className="text-[20px] font-extrabold tracking-tight" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+        <span
+          className="text-[20px] font-extrabold tracking-tight"
+          style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+        >
           {BRAND.name}
         </span>
       </div>

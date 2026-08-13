@@ -1,28 +1,22 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "@phosphor-icons/react";
-
-/* ---------------------------------------------------------------------------
-   A menu that cannot be clipped by its ancestors.
-
-   The docks put their option chips in a horizontally scrolling row. `overflow-x:
-   auto` computes `overflow-y: auto` as well — the spec does not allow one axis
-   to scroll while the other stays visible — so an absolutely positioned menu
-   inside that row is cut to the row's height. A 288px model list inside a 40px
-   chip row lost 248px of itself and `elementFromPoint` over it returned the
-   image behind the dock: invisible and unclickable, while the state underneath
-   worked perfectly.
-
-   A portal to <body> is the fix that survives any ancestor. Position is `fixed`
-   and measured from the trigger, so nothing above it in the tree can clip,
-   scroll or stack over it.
-   --------------------------------------------------------------------------- */
+import { useFloatingDismiss, useFloatingPosition } from "./FloatingSurface";
 
 export interface PopoverOption {
   value: string | number;
   label: string;
   hint?: string;
 }
+
+const surfaceStyle = (position: { top: number; left: number } | null): CSSProperties => ({
+  top: position?.top ?? -9999,
+  left: position?.left ?? -9999,
+  background: "var(--vg-surface-raised)",
+  border: "1px solid var(--vg-border)",
+  boxShadow: "0 16px 44px rgba(0,0,0,0.62)",
+  visibility: position ? "visible" : "hidden",
+});
 
 export function PopoverMenu({
   anchor,
@@ -34,80 +28,61 @@ export function PopoverMenu({
   anchor: HTMLElement | null;
   options: PopoverOption[];
   value: string;
-  onPick: (v: string | number) => void;
+  onPick: (value: string | number) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const position = useFloatingPosition(anchor, ref, String(options.length));
+  useFloatingDismiss({ anchor, surfaceRef: ref, onClose });
 
-  // Measure after paint but before the browser shows the frame, so the menu
-  // never appears at 0,0 for a tick and then jumps.
   useLayoutEffect(() => {
-    if (!anchor || !ref.current) return;
-    const a = anchor.getBoundingClientRect();
-    const m = ref.current.getBoundingClientRect();
-    const gap = 8;
-    // Above the trigger by default — these menus hang off docks pinned to the
-    // bottom of the viewport, where there is never room below.
-    let top = a.top - m.height - gap;
-    if (top < 8) top = Math.min(a.bottom + gap, window.innerHeight - m.height - 8);
-    // Align on the inline start: left edges in LTR, right edges in RTL.
-    const rtl = document.documentElement.dir === "rtl";
-    let left = rtl ? a.right - m.width : a.left;
-    left = Math.max(8, Math.min(left, window.innerWidth - m.width - 8));
-    setPos({ top, left });
-  }, [anchor, options.length]);
+    const choices = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>("[role='option']") ?? []);
+    (choices.find((choice) => choice.getAttribute("aria-selected") === "true") ?? choices[0])?.focus({ preventScroll: true });
+  }, []);
 
-  useEffect(() => {
-    const away = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (ref.current?.contains(t) || anchor?.contains(t)) return;
-      onClose();
-    };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", esc);
-    return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", esc);
-    };
-  }, [anchor, onClose]);
+  const moveFocus = (event: KeyboardEvent<HTMLDivElement>) => {
+    const choices = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>("[role='option']") ?? []);
+    if (!choices.length) return;
+    const current = Math.max(0, choices.indexOf(document.activeElement as HTMLButtonElement));
+    let next: number | null = null;
+    if (event.key === "ArrowDown") next = (current + 1) % choices.length;
+    if (event.key === "ArrowUp") next = (current - 1 + choices.length) % choices.length;
+    if (event.key === "Home") next = 0;
+    if (event.key === "End") next = choices.length - 1;
+    if (next === null) return;
+    event.preventDefault();
+    choices[next]?.focus();
+  };
 
   return createPortal(
     <div
       ref={ref}
       role="listbox"
+      onKeyDown={moveFocus}
       className="hide-scrollbar fixed z-[80] max-h-72 min-w-[180px] overflow-y-auto rounded-xl p-1"
-      style={{
-        top: pos?.top ?? -9999,
-        left: pos?.left ?? -9999,
-        background: "var(--vg-surface-raised)",
-        border: "1px solid var(--vg-border)",
-        boxShadow: "0 16px 44px rgba(0,0,0,0.62)",
-        visibility: pos ? "visible" : "hidden",
-      }}
+      style={surfaceStyle(position)}
     >
-      {options.map((o) => {
-        const on = String(o.value) === value;
+      {options.map((option) => {
+        const selected = String(option.value) === value;
         return (
           <button
-            key={String(o.value)}
+            key={String(option.value)}
             role="option"
-            aria-selected={on}
+            aria-selected={selected}
             onClick={() => {
-              onPick(o.value);
+              onPick(option.value);
               onClose();
             }}
             className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start text-[13px] transition-colors hover:bg-white/5"
-            style={{ color: on ? "var(--vg-primary-soft)" : "var(--vg-text)" }}
+            style={{ color: selected ? "var(--vg-primary-soft)" : "var(--vg-text)" }}
           >
-            <span className="flex-1 truncate">{o.label}</span>
-            {o.hint && (
+            <span className="flex-1 truncate">{option.label}</span>
+            {option.hint && (
               <span className="shrink-0 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-                {o.hint}
+                {option.hint}
               </span>
             )}
-            {on && <Check size={13} weight="bold" />}
+            {selected && <Check size={13} weight="bold" />}
           </button>
         );
       })}
@@ -116,14 +91,6 @@ export function PopoverMenu({
   );
 }
 
-/**
- * A continuous control, for the models that actually have one.
- *
- * Duration is a `slider` on Seedance (4–15s, step 1) and a fixed `segment` on
- * Kling 2.5 (5 or 10, nothing between). Rendering both as a list of options
- * threw away the range on one and would invent values on the other. The catalog
- * already draws the distinction; the UI just has to respect it.
- */
 export function PopoverSlider({
   anchor,
   label,
@@ -142,54 +109,17 @@ export function PopoverSlider({
   step: number;
   unit?: string | undefined;
   value: number;
-  onChange: (v: number) => void;
+  onChange: (value: number) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-
-  useLayoutEffect(() => {
-    if (!anchor || !ref.current) return;
-    const a = anchor.getBoundingClientRect();
-    const m = ref.current.getBoundingClientRect();
-    let top = a.top - m.height - 8;
-    if (top < 8) top = Math.min(a.bottom + 8, window.innerHeight - m.height - 8);
-    const rtl = document.documentElement.dir === "rtl";
-    let left = rtl ? a.right - m.width : a.left;
-    left = Math.max(8, Math.min(left, window.innerWidth - m.width - 8));
-    setPos({ top, left });
-  }, [anchor]);
-
-  useEffect(() => {
-    const away = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (ref.current?.contains(t) || anchor?.contains(t)) return;
-      onClose();
-    };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", esc);
-    return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", esc);
-    };
-  }, [anchor, onClose]);
-
+  const position = useFloatingPosition(anchor, ref);
+  useFloatingDismiss({ anchor, surfaceRef: ref, onClose });
+  useLayoutEffect(() => ref.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true }), []);
   const marks = [min, Math.round((min + max) / 2), max];
 
   return createPortal(
-    <div
-      ref={ref}
-      className="fixed z-[80] w-[248px] rounded-xl p-3.5"
-      style={{
-        top: pos?.top ?? -9999,
-        left: pos?.left ?? -9999,
-        background: "var(--vg-surface-raised)",
-        border: "1px solid var(--vg-border)",
-        boxShadow: "0 16px 44px rgba(0,0,0,0.62)",
-        visibility: pos ? "visible" : "hidden",
-      }}
-    >
+    <div ref={ref} role="dialog" aria-label={label} className="fixed z-[80] w-[248px] rounded-xl p-3.5" style={surfaceStyle(position)}>
       <div className="mb-2.5 flex items-baseline justify-between">
         <span className="text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
           {label}
@@ -199,31 +129,25 @@ export function PopoverSlider({
           {unit ? <span className="ms-1 text-[11px] font-normal">{unit}</span> : null}
         </span>
       </div>
-
-      {/* The browser already mirrors range inputs under `direction: rtl`; a
-          transform on top of that flips it a second time and paints the fill on
-          the wrong side of the thumb. Only the track gradient needs the RTL
-          rule, and that lives in index.css. */}
       <input
         type="range"
         min={min}
         max={max}
         step={step}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(event) => onChange(Number(event.target.value))}
         className="w-full"
         aria-label={label}
       />
-
       <div className="mt-1.5 flex justify-between">
-        {marks.map((m) => (
+        {marks.map((mark) => (
           <button
-            key={m}
-            onClick={() => onChange(m)}
+            key={mark}
+            onClick={() => onChange(mark)}
             className="vg-numeric text-[10.5px]"
-            style={{ color: m === value ? "var(--vg-primary-soft)" : "var(--vg-text-faint)" }}
+            style={{ color: mark === value ? "var(--vg-primary-soft)" : "var(--vg-text-faint)" }}
           >
-            {m}
+            {mark}
           </button>
         ))}
       </div>
@@ -232,8 +156,6 @@ export function PopoverSlider({
   );
 }
 
-/** Trigger + menu in one. The trigger holds its own ref so the menu can measure
- *  against it without the caller threading one through. */
 export function PopoverChip({
   label,
   options,
@@ -246,13 +168,10 @@ export function PopoverChip({
   label: string;
   options: PopoverOption[];
   value: string;
-  onPick: (v: string | number) => void;
-  /** Present when the control is a continuous range rather than a fixed set.
-   *  A model that offers 4–15 seconds gets a slider; one that offers 5 or 10
-   *  gets the list, because those are the only two numbers it will accept. */
+  onPick: (value: string | number) => void;
   range?: { min: number; max: number; step: number; unit?: string | undefined; title: string } | null | undefined;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
@@ -261,7 +180,7 @@ export function PopoverChip({
       <button
         ref={ref}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen((current) => !current)}
         aria-haspopup={range ? "dialog" : "listbox"}
         aria-expanded={open}
         className={className}

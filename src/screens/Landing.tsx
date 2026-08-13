@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, CaretDown, GoogleLogo, DeviceMobile, Sparkle } from "@phosphor-icons/react";
+import { ArrowLeft, Check, CaretDown, EnvelopeSimple, Sparkle } from "@phosphor-icons/react";
 import { FAMILIES, getFamily, type Family } from "../data/models";
 import { COMMUNITY } from "../data/community";
 import { PLANS, monthlyCoins, toman, annualDiscountPct, effectiveUsd, type Plan } from "../data/plans";
@@ -63,7 +63,7 @@ function Heading({ children }: { children: React.ReactNode }) {
 }
 
 /* ---------- nav ---------- */
-function TopNav({ onSignIn }: { onSignIn: () => void }) {
+function TopNav({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) {
   const { t } = useI18n();
   return (
     <header
@@ -71,15 +71,22 @@ function TopNav({ onSignIn }: { onSignIn: () => void }) {
       style={{ background: "var(--vg-glass)", backdropFilter: "blur(var(--vg-blur))", borderColor: "var(--vg-border-subtle)" }}
     >
       <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-5 sm:px-8">
-        <span className="text-[20px] font-extrabold tracking-tight" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+        <span
+          className="text-[20px] font-extrabold tracking-tight"
+          style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+        >
           {BRAND.name}
         </span>
         <div className="flex items-center gap-2">
-          <button onClick={onSignIn} className="rounded-md px-3.5 py-2 text-[13px] active:scale-95" style={{ color: "var(--vg-text-secondary)" }}>
+          <button
+            onClick={onSignIn}
+            className="rounded-md px-3.5 py-2 text-[13px] active:scale-95"
+            style={{ color: "var(--vg-text-secondary)" }}
+          >
             {t("lp_login")}
           </button>
           <button
-            onClick={onSignIn}
+            onClick={onSignUp}
             className="rounded-md px-4 py-2 text-[13px] font-semibold active:scale-95"
             style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)", boxShadow: "var(--vg-glow-primary)" }}
           >
@@ -152,11 +159,7 @@ function Hero({ onSignIn }: { onSignIn: () => void }) {
       <div className="relative mx-auto max-w-[1400px] px-5 pb-16 sm:px-8 md:pb-24">
         <div className="grid grid-cols-3 gap-2 md:grid-cols-6 md:gap-3">
           {showcase.map((p, i) => (
-            <div
-              key={p.id}
-              className="relative aspect-[3/4] overflow-hidden rounded-md"
-              style={{ opacity: i > 2 ? 0.55 : 1 }}
-            >
+            <div key={p.id} className="relative aspect-[3/4] overflow-hidden rounded-md" style={{ opacity: i > 2 ? 0.55 : 1 }}>
               <Art family={getFamily(p.familyId)} />
             </div>
           ))}
@@ -251,9 +254,7 @@ function Plans({ onSignIn }: { onSignIn: () => void }) {
               onClick={() => setAnnual(v)}
               className="rounded-pill px-4 py-2 text-[12.5px] font-medium transition-colors"
               style={
-                annual === v
-                  ? { background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }
-                  : { color: "var(--vg-text-muted)" }
+                annual === v ? { background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" } : { color: "var(--vg-text-muted)" }
               }
             >
               {v ? t("lp_annual") : t("lp_monthly")}
@@ -381,22 +382,19 @@ function Closing({ onSignIn }: { onSignIn: () => void }) {
       <h2 className="mx-auto max-w-[18ch] text-[28px] font-bold leading-[1.3] md:text-[48px]" style={{ color: "var(--vg-text)" }}>
         {t("lp_closing_title")}
       </h2>
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
+      <div className="mt-8 flex justify-center">
         <button
           onClick={onSignIn}
           className="flex items-center gap-2 rounded-md px-6 text-[14px] font-semibold active:scale-[0.98]"
-          style={{ height: "var(--vg-cta-height)", background: "var(--vg-primary)", color: "var(--vg-text-on-primary)", boxShadow: "var(--vg-glow-primary-lg)" }}
+          style={{
+            height: "var(--vg-cta-height)",
+            background: "var(--vg-primary)",
+            color: "var(--vg-text-on-primary)",
+            boxShadow: "var(--vg-glow-primary-lg)",
+          }}
         >
-          <GoogleLogo size={17} weight="bold" />
-          {t("lp_google")}
-        </button>
-        <button
-          onClick={onSignIn}
-          className="flex items-center gap-2 rounded-md px-6 text-[14px] font-semibold active:scale-[0.98]"
-          style={{ height: "var(--vg-cta-height)", background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-        >
-          <DeviceMobile size={17} />
-          {t("lp_phone")}
+          <EnvelopeSimple size={17} weight="bold" />
+          {t("lp_email")}
         </button>
       </div>
       <p className="mt-5 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
@@ -407,18 +405,21 @@ function Closing({ onSignIn }: { onSignIn: () => void }) {
 }
 
 /* ============================================================ */
-export default function Landing({ onSignIn }: { onSignIn: () => void }) {
+export default function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) {
   const { t } = useI18n();
   return (
     <div className="relative z-10 min-h-[100dvh]">
-      <TopNav onSignIn={onSignIn} />
-      <Hero onSignIn={onSignIn} />
+      <TopNav onSignIn={onSignIn} onSignUp={onSignUp} />
+      <Hero onSignIn={onSignUp} />
       <Models />
       <Features />
-      <Plans onSignIn={onSignIn} />
+      <Plans onSignIn={onSignUp} />
       <Faq />
-      <Closing onSignIn={onSignIn} />
-      <footer className="border-t px-5 py-8 text-center text-[12px] sm:px-8" style={{ borderColor: "var(--vg-border-subtle)", color: "var(--vg-text-faint)" }}>
+      <Closing onSignIn={onSignUp} />
+      <footer
+        className="border-t px-5 py-8 text-center text-[12px] sm:px-8"
+        style={{ borderColor: "var(--vg-border-subtle)", color: "var(--vg-text-faint)" }}
+      >
         <span className="inline-flex items-center gap-1.5">
           <Check size={13} weight="bold" />
           {t("lp_footer")}

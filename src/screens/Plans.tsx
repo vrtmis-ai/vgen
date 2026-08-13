@@ -16,7 +16,18 @@
    null today, so the screen honestly renders the no-plan case rather than
    inventing one. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, CalendarCheck, CaretDown, CheckCircle, Gift, ImageSquare, Lightning, Sparkle, VideoCamera, X } from "@phosphor-icons/react";
+import {
+  ArrowRight,
+  CalendarCheck,
+  CaretDown,
+  CheckCircle,
+  Gift,
+  ImageSquare,
+  Lightning,
+  Sparkle,
+  VideoCamera,
+  X,
+} from "@phosphor-icons/react";
 import {
   PLANS,
   toman,
@@ -213,25 +224,13 @@ function Price({ plan, cycle, account }: { plan: Plan; cycle: Cycle; account?: P
           {t("pl_today")}: {n(toman(total))} {t("w_toman")} ({t("pl_billed_annual")})
         </div>
       )}
-      {cycle === "annual" && plan.annualUsdPerMonth == null && (
-        <div className="mt-1 text-[10.5px] text-ink3">{t("pl_monthly_only")}</div>
-      )}
+      {cycle === "annual" && plan.annualUsdPerMonth == null && <div className="mt-1 text-[10.5px] text-ink3">{t("pl_monthly_only")}</div>}
     </>
   );
 }
 
 /** Big tiered plan — the money cards. */
-function PlanCard({
-  plan,
-  cycle,
-  current,
-  account,
-}: {
-  plan: Plan;
-  cycle: Cycle;
-  current: boolean;
-  account?: PricingAccount | undefined;
-}) {
+function PlanCard({ plan, cycle, current, account }: { plan: Plan; cycle: Cycle; current: boolean; account?: PricingAccount | undefined }) {
   const { t, n } = useI18n();
   return (
     <div
@@ -454,7 +453,10 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                           : "none";
                       return (
                         <tr key={b.key}>
-                          <td className="sticky px-3 py-2 align-top" style={{ insetInlineStart: 0, background: "var(--color-bg)", borderTop: rule }}>
+                          <td
+                            className="sticky px-3 py-2 align-top"
+                            style={{ insetInlineStart: 0, background: "var(--color-bg)", borderTop: rule }}
+                          >
                             {/* Three levels, each said once: family, then
                                 variant, then the setting. The table used to
                                 repeat "Seedance · نسخه ۲" on four consecutive
@@ -541,9 +543,7 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                     <div className="mt-2 flex flex-col gap-4">
                       {fam.variants.map((vg) => (
                         <div key={vg.id}>
-                          {fam.variants.length > 1 && (
-                            <bdi className="block text-[12.5px] font-semibold text-ink2">{vg.label}</bdi>
-                          )}
+                          {fam.variants.length > 1 && <bdi className="block text-[12.5px] font-semibold text-ink2">{vg.label}</bdi>}
                           {vg.rows.map((b) => (
                             <div key={b.key} className="mt-1.5">
                               <p className="text-[11px] text-ink3">
@@ -555,7 +555,10 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                                   const lead = p.popular || p.id === currentPlanId;
                                   return (
                                     <div key={p.id} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5">
-                                      <bdi className="truncate text-[11.5px]" style={{ color: lead ? "var(--color-accent)" : "var(--color-ink2)" }}>
+                                      <bdi
+                                        className="truncate text-[11.5px]"
+                                        style={{ color: lead ? "var(--color-accent)" : "var(--color-ink2)" }}
+                                      >
                                         {p.name}
                                       </bdi>
                                       {v == null || v === 0 ? (
@@ -643,7 +646,11 @@ export default function Plans({
        carousels become grids from `md`. */
     <div className="relative z-10 mx-auto min-h-[100dvh] w-full max-w-[1100px] px-4 pb-10 pt-4 md:px-8">
       <div className="mb-5 flex items-center gap-3">
-        <button onClick={onBack} aria-label={t("nav_home")} className="grid h-10 w-10 place-items-center rounded-full bg-card2 active:scale-95">
+        <button
+          onClick={onBack}
+          aria-label={t("nav_home")}
+          className="grid h-10 w-10 place-items-center rounded-full bg-card2 active:scale-95"
+        >
           <ArrowRight size={18} weight="bold" className="ltr:-scale-x-100" />
         </button>
         <div className="text-[15px] font-medium">{t("pl_title")}</div>
@@ -652,43 +659,46 @@ export default function Plans({
       {/* Balance and the not-subscribed notice sit side by side once there is
           room — they are two halves of the same "where you stand" statement. */}
       <div className="mb-6 grid gap-3 md:grid-cols-2 md:items-stretch">
-      <div className="rounded-bezel border border-line bg-card px-5 py-4">
-        <div className="flex items-center justify-between">
-          <span className="text-[12px] text-ink3">{current ? t("pl_this_month") : t("w_balance")}</span>
-          <span className="flex items-center gap-2">
-            <CoinMark size={17} className="text-ink2" />
-            <span className="text-[24px] font-semibold tabular-nums">{n(wallet.spendable)}</span>
-            <span className="text-[13px] text-ink2">{t("w_coins")}</span>
-          </span>
-        </div>
-        {(current || expiryLabel) && (
-          <div className="mt-2.5 flex items-center justify-between border-t border-line pt-2.5 text-[11px] text-ink2">
-            <span className="flex items-center gap-1.5">
-              {current && <CheckCircle size={12} weight="fill" className="text-accent" />}
-              {current?.name}
+        <div className="rounded-bezel border border-line bg-card px-5 py-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] text-ink3">{current ? t("pl_this_month") : t("w_balance")}</span>
+            <span className="flex items-center gap-2">
+              <CoinMark size={17} className="text-ink2" />
+              <span className="text-[24px] font-semibold tabular-nums">{n(wallet.spendable)}</span>
+              <span className="text-[13px] text-ink2">{t("w_coins")}</span>
             </span>
-            {expiryLabel && (
+          </div>
+          {(current || expiryLabel) && (
+            <div className="mt-2.5 flex items-center justify-between border-t border-line pt-2.5 text-[11px] text-ink2">
               <span className="flex items-center gap-1.5">
-                <CalendarCheck size={12} weight="fill" className="text-accent" />
-                {t("pl_expires")}: {expiryLabel}
+                {current && <CheckCircle size={12} weight="fill" className="text-accent" />}
+                {current?.name}
               </span>
-            )}
+              {expiryLabel && (
+                <span className="flex items-center gap-1.5">
+                  <CalendarCheck size={12} weight="fill" className="text-accent" />
+                  {t("pl_expires")}: {expiryLabel}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* not-subscribed state — the reason this screen exists for a new user */}
+        {!current && (
+          <div className="flex items-start gap-3 rounded-bezel border border-line2 bg-card2/70 px-4 py-3.5">
+            <span
+              className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-accent"
+              style={{ background: "var(--color-accent-soft)" }}
+            >
+              <Sparkle size={15} weight="fill" />
+            </span>
+            <div>
+              <div className="text-[13.5px] font-medium">{t("pl_no_plan_title")}</div>
+              <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink3">{t("pl_no_plan_sub")}</p>
+            </div>
           </div>
         )}
-      </div>
-
-      {/* not-subscribed state — the reason this screen exists for a new user */}
-      {!current && (
-        <div className="flex items-start gap-3 rounded-bezel border border-line2 bg-card2/70 px-4 py-3.5">
-          <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-accent" style={{ background: "var(--color-accent-soft)" }}>
-            <Sparkle size={15} weight="fill" />
-          </span>
-          <div>
-            <div className="text-[13.5px] font-medium">{t("pl_no_plan_title")}</div>
-            <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink3">{t("pl_no_plan_sub")}</p>
-          </div>
-        </div>
-      )}
       </div>
 
       <CycleToggle cycle={cycle} onChange={setCycle} />

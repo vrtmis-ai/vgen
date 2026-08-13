@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { getFamily, variantControls, type Variant } from "./data/models";
+import { lazy, Suspense } from "react";
+import { defaultInput, variantControls, type Variant } from "./data/models";
 import type { InputMap, RefMap } from "./components/controls";
 import { type Generation, loadGenerations, saveGenerations, uid } from "./lib/gallery";
 import { startKieRates } from "./lib/kieRates";
@@ -8,152 +9,166 @@ import { useSwipeBack } from "./lib/useSwipeBack";
 import { pageFade } from "./lib/motion";
 import { AccessProvider } from "./lib/access";
 import { TopBar, type NavKey } from "./components/TopBar";
-import Landing from "./screens/Landing";
-import Studio from "./screens/Studio";
-import StudioImage from "./screens/StudioImage";
-import StudioAudio from "./screens/StudioAudio";
-import Explore from "./screens/Explore";
-import Effects from "./screens/Effects";
-import Academy from "./screens/Academy";
-import Mcp from "./screens/Mcp";
-import Community from "./screens/Community";
-import Gallery from "./screens/Gallery";
-import Plans from "./screens/Plans";
-import Profile from "./screens/Profile";
-import Generate, { currentAspect } from "./screens/Generate";
-import Result from "./screens/Result";
-import { useSession } from "./lib/session";
-import { demoWallet } from "./data/wallet";
+import { currentAspect } from "./features/generation/aspect";
+import { Navigate, matchPath, useLocation, useNavigate } from "react-router-dom";
+import { navKeyFromPath, navPath } from "./app/router";
+import { useCatalog, useSession, useWallet } from "./features/session/useSession";
+import { useCreateGeneration, useGenerationJobs } from "./features/generation/useGeneration";
+import { validateGenerationInput } from "./features/generation/validation";
+import { CatalogProvider, toRuntimeFamilies } from "./features/catalog/CatalogProvider";
+import { SystemState } from "./components/SystemState";
+import { ApiError } from "./adapters/http/client";
+import { useOnlineStatus } from "./lib/useOnlineStatus";
+import { AppLoading } from "./components/AppLoading";
 
+const Landing = lazy(() => import("./screens/Landing"));
+const Studio = lazy(() => import("./screens/Studio"));
+const StudioImage = lazy(() => import("./screens/StudioImage"));
+const StudioAudio = lazy(() => import("./screens/StudioAudio"));
+const Explore = lazy(() => import("./screens/Explore"));
+const Effects = lazy(() => import("./screens/Effects"));
+const Academy = lazy(() => import("./screens/Academy"));
+const Mcp = lazy(() => import("./screens/Mcp"));
+const Community = lazy(() => import("./screens/Community"));
+const Gallery = lazy(() => import("./screens/Gallery"));
+const Plans = lazy(() => import("./screens/Plans"));
+const Profile = lazy(() => import("./screens/Profile"));
+const Generate = lazy(() => import("./screens/Generate"));
+const Result = lazy(() => import("./screens/Result"));
 
-type Flow =
-  | { s: "none" }
-  | { s: "wallet" }
-  | { s: "profile" }
-  // `| undefined` on an optional field is not redundant under
-  // exactOptionalPropertyTypes: it is the difference between "the key may be
-  // absent" and "the key may be present holding undefined". openModel passes an
-  // optional argument straight through, so this one is genuinely the latter.
-  | { s: "generate"; familyId: string; prompt?: string | undefined }
-  | { s: "result"; gen: Generation; instant: boolean };
+function isKnownProductPath(pathname: string): boolean {
+  return (
+    pathname === "/" ||
+    pathname === "/plans" ||
+    pathname === "/profile" ||
+    pathname.startsWith("/generate/") ||
+    pathname.startsWith("/result/") ||
+    navKeyFromPath(pathname) !== null
+  );
+}
 
-export default function App() {
-  const [tab, setTab] = useState<NavKey>("video");
-  const [flow, setFlow] = useState<Flow>({ s: "none" });
+export default function App({
+  onSignIn = () => {},
+  onSignUp = () => {},
+  onSignOut = () => {},
+}: {
+  onSignIn?: () => void;
+  onSignUp?: () => void;
+  onSignOut?: () => void;
+}) {
+  const location = useLocation();
+  const routeNavigate = useNavigate();
+  const online = useOnlineStatus();
+  const tab = navKeyFromPath(location.pathname) ?? "video";
+  const setTab = (next: NavKey) => routeNavigate(navPath(next));
   const [gens, setGens] = useState<Generation[]>(loadGenerations);
 
-  const session = useSession();
-  // Stand-in for GET /me. A wallet is grants, not a number — screens take the
-  // whole thing so that when the balance becomes real they read `spendable` and
-  // `nextExpiry` from the server instead of being rewired.
-  const wallet = useMemo(() => demoWallet(), []);
+  const sessionQuery = useSession();
+  const session = sessionQuery.data ?? { status: "loading" as const, host: "web" as const };
+  const authedSession = session.status === "authed";
+  const walletQuery = useWallet(authedSession);
+  const catalogQuery = useCatalog(authedSession);
+  const catalogFamilies = catalogQuery.data ? toRuntimeFamilies(catalogQuery.data.families) : [];
+  const wallet = walletQuery.data ?? null;
+  const createGeneration = useCreateGeneration();
+  const generationPendingRef = useRef(false);
+  const [operationError, setOperationError] = useState<Error | null>(null);
 
   useEffect(() => saveGenerations(gens), [gens]);
   useEffect(() => startKieRates(), []); // live KIE price table (cached 6h)
 
-  /* The job runner.
-     One ticker for every running generation, owned here because `gens` is owned
-     here. It used to live inside Result as local state, which worked only while
-     a job could be watched from exactly one screen — now the studio canvas shows
-     it too, and two independent counters would drift apart and keep running
-     after the job ended.
-
-     Simulated. `startGeneration` has no endpoint to call yet; when it does, this
-     becomes the poller and the shape of what it writes does not change.
-
-     `hasRunning` rather than `gens` in the dependency list: depending on the
-     array restarts the interval on every tick, because every tick replaces it. */
-  const hasRunning = gens.some((g) => g.status === "running");
+  const runningJobIds = useMemo(
+    () => gens.flatMap((generation) => (generation.status === "running" && generation.jobId ? [generation.jobId] : [])),
+    [gens],
+  );
+  const jobQueries = useGenerationJobs(runningJobIds);
+  const jobStateKey = jobQueries.jobs.map((job) => `${job.id}:${job.status}:${job.progress ?? ""}`).join("|");
   useEffect(() => {
-    if (!hasRunning) return;
-    const id = setInterval(() => {
-      setGens((prev) => {
-        let touched = false;
-        const next = prev.map((g) => {
-          if (g.status !== "running") return g;
-          touched = true;
-          const pct = Math.min(100, (g.progress ?? 0) + Math.random() * 9 + 3);
-          return pct >= 100 ? { ...g, status: "done" as const, progress: 100 } : { ...g, progress: pct };
-        });
-        // Same array back when nothing moved, so React can skip the re-render
-        // and the localStorage write in the effect above.
-        return touched ? next : prev;
-      });
-    }, 220);
-    return () => clearInterval(id);
-  }, [hasRunning]);
+    if (!jobStateKey) return;
+    const byId = new Map(jobQueries.jobs.map((job) => [job.id, job]));
+    setGens((previous) =>
+      previous.map((generation) => {
+        const job = generation.jobId ? byId.get(generation.jobId) : undefined;
+        if (!job) return generation;
+        return { ...generation, status: job.status === "done" ? "done" : "running", progress: job.progress };
+      }),
+    );
+  }, [jobQueries.jobs, jobStateKey]);
 
-  // ---- navigation: one source of truth for back ------------------------
-  // Every sub-screen push adds a browser-history entry, so the on-screen
-  // back button, the edge-swipe gesture, and the hardware/Telegram back
-  // button all travel the same stack and land in the same place.
-  const flowRef = useRef(flow);
-  flowRef.current = flow;
-  const stackRef = useRef<Flow[]>([]);
-
-  const navigate = useCallback((f: Flow) => {
-    stackRef.current.push(flowRef.current);
-    setFlow(f);
-    window.history.pushState({ vgen: stackRef.current.length }, "");
-  }, []);
-
+  const lastWorkspacePath = useRef(navPath("video"));
+  useEffect(() => {
+    if (navKeyFromPath(location.pathname)) lastWorkspacePath.current = location.pathname;
+  }, [location.pathname]);
   const goBack = useCallback(() => {
-    if (stackRef.current.length > 0) window.history.back();
-    else setFlow({ s: "none" });
-  }, []);
+    if (location.key === "default") routeNavigate(lastWorkspacePath.current, { replace: true });
+    else routeNavigate(-1);
+  }, [location.key, routeNavigate]);
 
-  useEffect(() => {
-    const onPop = () => setFlow(stackRef.current.pop() ?? { s: "none" });
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  const fullScreenRoute =
+    location.pathname === "/plans" ||
+    location.pathname === "/profile" ||
+    location.pathname.startsWith("/generate/") ||
+    location.pathname.startsWith("/result/");
+  useSwipeBack(fullScreenRoute ? goBack : undefined);
 
-  useSwipeBack(flow.s !== "none" ? goBack : undefined);
-
-  const openModel = (familyId: string, prompt?: string) => navigate({ s: "generate", familyId, prompt });
-  const openWallet = () => navigate({ s: "wallet" });
+  const openModel = (familyId: string, prompt?: string) => {
+    const query = new URLSearchParams();
+    if (prompt) query.set("prompt", prompt);
+    routeNavigate(`/generate/${encodeURIComponent(familyId)}${query.size ? `?${query.toString()}` : ""}`);
+  };
+  const openWallet = () => routeNavigate("/plans");
   const markDone = (id: string) => setGens((p) => p.map((g) => (g.id === id ? { ...g, status: "done" } : g)));
 
-  // `_refs` is deliberately unread — see the note below. Named with the
-  // underscore so the unused-parameter check stays on for everything else.
-  function startGeneration(familyId: string, prompt: string, input: InputMap, variant: Variant, _refs: RefMap) {
-    const family = getFamily(familyId);
-    if (!family) return;
+  async function startGeneration(familyId: string, prompt: string, input: InputMap, variant: Variant, _refs: RefMap) {
+    const family = catalogFamilies.find((candidate) => candidate.id === familyId);
+    const catalogVariant = family?.variants.find((candidate) => candidate.id === variant.id);
+    if (!family || !catalogVariant) return null;
+    if (!validateGenerationInput({ family, variant, prompt, input, refs: _refs }).valid) return null;
+    if (Object.values(_refs).some((files) => files.length > 0)) return null;
+    if (generationPendingRef.current) return null;
     const aspect = currentAspect(variantControls(family, variant), input);
     // TODO(backend): POST each File in `refs` to /uploads and send the returned URLs
     // with the generate request, keyed by slot (image_url, first_frame_url, …).
     // `refs` deliberately stops here — Files aren't serialisable, so it can't go
     // into the persisted Generation, and there is no upload endpoint yet.
-    const gen: Generation = {
-      id: uid(),
-      familyId: family.id,
-      variantId: variant.id,
-      name: family.name,
-      vendor: family.vendor,
-      grad: family.grad,
-      kind: family.kind,
-      prompt,
-      w: aspect.w,
-      h: aspect.h,
-      status: "running",
-      progress: 0,
-      createdAt: Date.now(),
-    };
-    /* No navigate. The job starts where it was asked for.
-       Pressing Generate used to push a full-screen Result, which took the user
-       off the surface they were working on to watch a progress bar — and to
-       start a second one they had to come back. The studios already render a
-       running card in their canvas, so the work appears at the top of the
-       history and the panel stays exactly as it was, prompt and all. */
-    setGens((p) => [gen, ...p]);
+    generationPendingRef.current = true;
+    try {
+      const { job, quote } = await createGeneration.mutateAsync({
+        quote: { familyId, variantId: variant.id, prompt, input, referenceAssetIds: {} },
+        idempotencyKey: `vgen-${uid()}-${uid()}`,
+      });
+      const gen: Generation = {
+        id: uid(),
+        jobId: job.id,
+        familyId: family.id,
+        variantId: variant.id,
+        name: family.name,
+        vendor: family.vendor,
+        grad: family.grad,
+        kind: family.kind,
+        prompt,
+        w: aspect.w,
+        h: aspect.h,
+        status: "running",
+        progress: job.progress ?? 0,
+        createdAt: job.createdAt,
+      };
+      setGens((previous) => [gen, ...previous]);
+      return { generation: gen, quote };
+    } finally {
+      generationPendingRef.current = false;
+    }
   }
 
-  function regenerate(prev: Generation) {
-    const gen: Generation = { ...prev, id: uid(), status: "running", createdAt: Date.now() };
-    setGens((p) => [gen, ...p]);
+  async function regenerate(prev: Generation) {
+    const family = catalogFamilies.find((candidate) => candidate.id === prev.familyId);
+    const variant = family?.variants.find((candidate) => candidate.id === prev.variantId);
+    if (!family || !variant) return;
+    const started = await startGeneration(family.id, prev.prompt, defaultInput(variantControls(family, variant)), variant, {});
+    if (!started) return;
     // replace-in-place: back from the new result returns to where the user
     // was before the previous result, not to a chain of stale results
-    setFlow({ s: "result", gen, instant: false });
+    routeNavigate(`/result/${encodeURIComponent(started.generation.id)}`, { replace: true, state: { instant: false } });
   }
 
   // ---- signed-out and unknown ----
@@ -162,16 +177,83 @@ export default function App() {
   // page at someone who is in fact signed in. The app had no concept of any of
   // this: it rendered Home unconditionally and handed every screen a constant
   // balance, so a visitor with no identity got the full product.
+  if (!online) {
+    return <SystemState kind="offline" onPrimary={() => window.dispatchEvent(new Event(navigator.onLine ? "online" : "offline"))} />;
+  }
+  if (operationError) {
+    return (
+      <SystemState
+        kind="service"
+        title="ساخت شروع نشد"
+        description="درخواست ساخت کامل نشد و اعتباری در این صفحه کسر نشده است. به فضای کار برگرد و دوباره تلاش کن."
+        primaryLabel="بازگشت به فضای کار"
+        onPrimary={() => setOperationError(null)}
+        requestId={operationError instanceof ApiError ? operationError.requestId : undefined}
+      />
+    );
+  }
+  if (sessionQuery.error) {
+    return (
+      <SystemState
+        kind="service"
+        onPrimary={() => void sessionQuery.refetch()}
+        requestId={sessionQuery.error instanceof ApiError ? sessionQuery.error.requestId : undefined}
+        busy={sessionQuery.isFetching}
+      />
+    );
+  }
+  if (walletQuery.error) {
+    return (
+      <SystemState
+        kind="service"
+        title="کیف پول بارگذاری نشد"
+        description="موجودی و اعتبارها دریافت نشدند. برای جلوگیری از نمایش عدد اشتباه، فضای ساخت تا دریافت دوباره کیف پول متوقف شده است."
+        onPrimary={() => void walletQuery.refetch()}
+        requestId={walletQuery.error instanceof ApiError ? walletQuery.error.requestId : undefined}
+        busy={walletQuery.isFetching}
+      />
+    );
+  }
+  if (catalogQuery.error) {
+    return (
+      <SystemState
+        kind="service"
+        title="کاتالوگ مدل‌ها بارگذاری نشد"
+        description="فهرست مدل‌ها و قیمت‌های منتشرشده در دسترس نیست. تا دریافت نسخه معتبر، امکان ساخت غیرفعال می‌ماند."
+        onPrimary={() => void catalogQuery.refetch()}
+        requestId={catalogQuery.error instanceof ApiError ? catalogQuery.error.requestId : undefined}
+        busy={catalogQuery.isFetching}
+      />
+    );
+  }
+  if (jobQueries.error) {
+    return (
+      <SystemState
+        kind="service"
+        title="وضعیت خروجی‌ها به‌روز نشد"
+        description="ارتباط با صف پردازش موقتاً قطع شده است. خود job حذف نشده؛ دوباره وضعیتش را دریافت کن."
+        onPrimary={() => void jobQueries.retry()}
+        requestId={jobQueries.error instanceof ApiError ? jobQueries.error.requestId : undefined}
+        busy={jobQueries.isFetching}
+      />
+    );
+  }
   if (session.status === "loading") {
-    return <Shell>{null}</Shell>;
+    return <AppLoading label="در حال بررسی نشست کاربری…" />;
+  }
+  if (!isKnownProductPath(location.pathname)) {
+    return <SystemState kind="not-found" onPrimary={() => routeNavigate(navPath("video"), { replace: true })} onSecondary={goBack} />;
   }
   if (session.status === "anonymous") {
     // Not wrapped in Shell: the landing page is the one surface that is
     // desktop-first and full-width, so it must not inherit the phone-shaped cap.
-    // onSignIn is a no-op stub until /auth/google and /auth/phone exist — the
-    // page is complete, the endpoints behind its buttons are not.
-    return <Landing onSignIn={() => {}} />;
+    return (
+      <Suspense fallback={<ScreenFallback />}>
+        <Landing onSignIn={onSignIn} onSignUp={onSignUp} />
+      </Suspense>
+    );
   }
+  if (!wallet || !catalogQuery.data) return <AppLoading />;
 
   /* Everything below is signed in, so it all sits inside AccessProvider.
      The tier gate is asked five levels down — a picker row, a dock chip, a
@@ -183,133 +265,161 @@ export default function App() {
      as tier 1, which is what a signup gift should buy. The day /me returns a
      plan, this one line is the only thing that changes. */
   const authed = () => {
-  // ---- full-screen flows (no bottom nav) ----
-  if (flow.s === "wallet") {
-    return (
-      // Plans lays out its own 1100px container and turns its plan
-      // rows into grids above `md`.
-      <Shell>
-        {/* currentPlanId stays null until the backend can answer it — the
+    if (location.pathname === "/") return <Navigate to={navPath("video")} replace />;
+    // ---- full-screen flows (no bottom nav) ----
+    if (location.pathname === "/plans") {
+      return (
+        // Plans lays out its own 1100px container and turns its plan
+        // rows into grids above `md`.
+        <Shell>
+          {/* currentPlanId stays null until the backend can answer it — the
             screen renders the honest not-subscribed state meanwhile. */}
-        <Plans wallet={wallet} account={session.user} currentPlanId={null} onBack={goBack} />
-      </Shell>
-    );
-  }
-  if (flow.s === "profile") {
-    return (
-      // Profile lays out its own 900px two-column grid above `md`.
-      <Shell>
-        <Profile wallet={wallet} gens={gens} onWallet={openWallet} onGallery={goBack} onOpenModel={openModel} />
-      </Shell>
-    );
-  }
-  if (flow.s === "generate") {
-    const family = getFamily(flow.familyId);
-    if (!family) return null;
-    return (
-      // Generate lays out its own 1100px two-column grid above `md`.
-      <Shell>
-        <Generate
-          family={family}
-          initialPrompt={flow.prompt}
-          onBack={goBack}
-          onGenerate={(prompt, input, variant, refs) => startGeneration(family.id, prompt, input, variant, refs)}
-        />
-      </Shell>
-    );
-  }
-  if (flow.s === "result") {
-    // The live row, not the snapshot the flow was pushed with. `flow.gen` is
-    // frozen at navigation time, so a job opened while running would sit at
-    // whatever percentage it happened to be at when the screen opened.
-    const gen = gens.find((g) => g.id === flow.gen.id) ?? flow.gen;
-    return (
-      // Result puts the media beside its actions above `md`.
-      <Shell>
-        <Result
-          key={gen.id}
-          gen={gen}
-          instant={flow.instant}
-          onBack={goBack}
-          onRegenerate={() => regenerate(gen)}
-          onToVideo={() => openModel("seedance")}
-          onDone={() => markDone(gen.id)}
-        />
-      </Shell>
-    );
-  }
+          <Plans wallet={wallet} account={session.user} currentPlanId={null} onBack={goBack} />
+        </Shell>
+      );
+    }
+    if (location.pathname === "/profile") {
+      return (
+        // Profile lays out its own 900px two-column grid above `md`.
+        <Shell>
+          <Profile
+            account={session.user}
+            wallet={wallet}
+            gens={gens}
+            onWallet={openWallet}
+            onGallery={goBack}
+            onOpenModel={openModel}
+            onSignOut={onSignOut}
+          />
+        </Shell>
+      );
+    }
+    const generateRoute = matchPath("/generate/:familyId", location.pathname);
+    if (generateRoute) {
+      const family = catalogFamilies.find((candidate) => candidate.id === decodeURIComponent(generateRoute.params.familyId ?? ""));
+      if (!family) return <Navigate to={navPath("video")} replace />;
+      const initialPrompt = new URLSearchParams(location.search).get("prompt") ?? undefined;
+      return (
+        // Generate lays out its own 1100px two-column grid above `md`.
+        <Shell>
+          <Generate
+            family={family}
+            initialPrompt={initialPrompt}
+            onBack={goBack}
+            onGenerate={async (prompt, input, variant, refs) => {
+              const started = await startGeneration(family.id, prompt, input, variant, refs);
+              return started ? { coins: started.quote.coins, expiresAt: started.quote.expiresAt } : null;
+            }}
+          />
+        </Shell>
+      );
+    }
+    const resultRoute = matchPath("/result/:generationId", location.pathname);
+    if (resultRoute) {
+      const gen = gens.find((generation) => generation.id === decodeURIComponent(resultRoute.params.generationId ?? ""));
+      if (!gen) return <Navigate to="/gallery" replace />;
+      const instant = Boolean((location.state as { instant?: boolean } | null)?.instant);
+      return (
+        // Result puts the media beside its actions above `md`.
+        <Shell>
+          <Result
+            key={gen.id}
+            gen={gen}
+            instant={instant}
+            onBack={goBack}
+            onRegenerate={() =>
+              void regenerate(gen).catch((error: unknown) => setOperationError(error instanceof Error ? error : new Error(String(error))))
+            }
+            onToVideo={() => openModel("seedance")}
+            onDone={() => markDone(gen.id)}
+          />
+        </Shell>
+      );
+    }
 
-  // ---- the nav'd area ----
-  // No sidebar and no bottom tab bar: one 44px row carries every destination,
-  // and the same row serves phone and desktop. See components/TopBar.
-  return (
-    <Shell>
-      <TopBar
-        active={tab}
-        onNav={setTab}
-        coins={wallet.spendable}
-        onWallet={openWallet}
-        onProfile={() => navigate({ s: "profile" })}
-      />
-      {/* No AnimatePresence and no exit animation on the tab area.
+    // ---- the nav'd area ----
+    // No sidebar and no bottom tab bar: one 44px row carries every destination,
+    // and the same row serves phone and desktop. See components/TopBar.
+    return (
+      <Shell>
+        <TopBar active={tab} onNav={setTab} coins={wallet.spendable} onWallet={openWallet} onProfile={() => routeNavigate("/profile")} />
+        {/* No AnimatePresence and no exit animation on the tab area.
           `mode="wait"` holds the outgoing screen mounted until its exit
           animation reports completion, and that report rides on
           requestAnimationFrame — which the browser throttles to nothing in a
           backgrounded or non-compositing tab. The next screen then never
           mounts and the app looks frozen on the old one. A keyed enter-only
           fade gives the same read with nothing to wait on. */}
-      <div key={tab}>
-        <motion.div initial={pageFade.initial} animate={pageFade.animate} transition={pageFade.transition}>
-          {/* One screen per modality, not one screen parameterised by modality.
+        <div key={tab}>
+          <motion.div initial={pageFade.initial} animate={pageFade.animate} transition={pageFade.transition}>
+            {/* One screen per modality, not one screen parameterised by modality.
               The reference gives image, video and audio genuinely different
               architectures — a full-bleed wall under a floating glass dock, a
               320px side panel, and an icon rail over waveform cards — because
               the three kinds of output are shaped differently. They share the
               token layer and `useCreateState`, and nothing else. */}
-          {tab === "video" && (
-            <Studio
-              kind="video"
-              gens={gens}
-              onGenerate={(family, variant, prompt, input) => startGeneration(family.id, prompt, input, variant, {})}
-              onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
-            />
-          )}
-          {tab === "image" && (
-            <StudioImage
-              gens={gens}
-              onGenerate={(family, variant, prompt, input) => startGeneration(family.id, prompt, input, variant, {})}
-              onOpenModel={openModel}
-            />
-          )}
-          {tab === "audio" && (
-            <StudioAudio
-              gens={gens}
-              onGenerate={(family, variant, prompt, input) => startGeneration(family.id, prompt, input, variant, {})}
-            />
-          )}
-          {tab === "explore" && <Explore onOpen={openModel} onNav={setTab} onWallet={openWallet} />}
-          {tab === "effects" && <Effects onOpen={openModel} />}
-          {tab === "academy" && <Academy onOpenModel={openModel} />}
-          {tab === "mcp" && <Mcp onOpenModel={openModel} />}
-          {tab === "community" && <Community onOpen={openModel} />}
-          {tab === "gallery" && (
-            <Gallery
-              gens={gens}
-              onOpen={(g) => navigate({ s: "result", gen: { ...g, status: "done" }, instant: true })}
-              onBrowse={() => setTab("video")}
-            />
-          )}
-        </motion.div>
-      </div>
-    </Shell>
-  );
+            {tab === "video" && (
+              <Studio
+                kind="video"
+                gens={gens}
+                onGenerate={(family, variant, prompt, input) => {
+                  void startGeneration(family.id, prompt, input, variant, {}).catch((error: unknown) =>
+                    setOperationError(error instanceof Error ? error : new Error(String(error))),
+                  );
+                }}
+                onOpen={(g) => routeNavigate(`/result/${encodeURIComponent(g.id)}`, { state: { instant: true } })}
+              />
+            )}
+            {tab === "image" && (
+              <StudioImage
+                gens={gens}
+                onGenerate={(family, variant, prompt, input) => {
+                  void startGeneration(family.id, prompt, input, variant, {}).catch((error: unknown) =>
+                    setOperationError(error instanceof Error ? error : new Error(String(error))),
+                  );
+                }}
+                onOpenModel={openModel}
+              />
+            )}
+            {tab === "audio" && (
+              <StudioAudio
+                gens={gens}
+                onGenerate={(family, variant, prompt, input) => {
+                  void startGeneration(family.id, prompt, input, variant, {}).catch((error: unknown) =>
+                    setOperationError(error instanceof Error ? error : new Error(String(error))),
+                  );
+                }}
+              />
+            )}
+            {tab === "explore" && <Explore onOpen={openModel} onNav={setTab} onWallet={openWallet} />}
+            {tab === "effects" && <Effects onOpen={openModel} />}
+            {tab === "academy" && <Academy onOpenModel={openModel} />}
+            {tab === "mcp" && <Mcp onOpenModel={openModel} />}
+            {tab === "community" && <Community onOpen={openModel} />}
+            {tab === "gallery" && (
+              <Gallery
+                gens={gens}
+                onOpen={(g) => routeNavigate(`/result/${encodeURIComponent(g.id)}`, { state: { instant: true } })}
+                onBrowse={() => setTab("video")}
+              />
+            )}
+          </motion.div>
+        </div>
+      </Shell>
+    );
   };
 
   return (
     <AccessProvider planId={null} onUpgrade={openWallet}>
-      {authed()}
+      <CatalogProvider families={catalogQuery.data.families}>
+        <Suspense fallback={<ScreenFallback />}>{authed()}</Suspense>
+      </CatalogProvider>
     </AccessProvider>
   );
+}
+
+function ScreenFallback() {
+  return <AppLoading label="در حال بارگذاری صفحه…" />;
 }
 
 /**

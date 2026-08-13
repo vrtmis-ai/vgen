@@ -83,10 +83,7 @@ export function JustifiedRows<T extends JustifiedItem>({
     return () => ro.disconnect();
   }, []);
 
-  const rows = useMemo(
-    () => (width > 0 ? layout(items, width, targetHeight, gap) : []),
-    [items, width, targetHeight, gap],
-  );
+  const rows = useMemo(() => (width > 0 ? layout(items, width, targetHeight, gap) : []), [items, width, targetHeight, gap]);
 
   return (
     <div ref={host} className="flex flex-col" style={{ gap }}>

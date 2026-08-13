@@ -23,10 +23,24 @@
   padding-block-end: calc(var(--vg-nav-height) + var(--vg-space-6) + env(safe-area-inset-bottom));
 }
 
-.vg-section    { margin-block: var(--vg-space-12); }
-.vg-stack-sm   { display: flex; flex-direction: column; gap: var(--vg-space-2); }
-.vg-stack      { display: flex; flex-direction: column; gap: var(--vg-space-4); }
-.vg-stack-lg   { display: flex; flex-direction: column; gap: var(--vg-space-6); }
+.vg-section {
+  margin-block: var(--vg-space-12);
+}
+.vg-stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-2);
+}
+.vg-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-4);
+}
+.vg-stack-lg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-6);
+}
 
 /* Horizontal scroller — segmented controls, model carousels, chip rows. */
 .vg-rail {
@@ -38,8 +52,13 @@
   margin-inline: calc(var(--vg-page-margin) * -1);
   scrollbar-width: none;
 }
-.vg-rail::-webkit-scrollbar { display: none; }
-.vg-rail > * { scroll-snap-align: start; flex: 0 0 auto; }
+.vg-rail::-webkit-scrollbar {
+  display: none;
+}
+.vg-rail > * {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}
 
 /* --------------------------------------------------------------------------
    Typography
@@ -81,9 +100,17 @@
   margin: 0;
 }
 
-.vg-body      { font-size: var(--vg-body-size);    line-height: var(--vg-body-lh); }
-.vg-body-lg   { font-size: var(--vg-body-lg-size); line-height: var(--vg-body-lg-lh); }
-.vg-muted     { color: var(--vg-text-muted); }
+.vg-body {
+  font-size: var(--vg-body-size);
+  line-height: var(--vg-body-lh);
+}
+.vg-body-lg {
+  font-size: var(--vg-body-lg-size);
+  line-height: var(--vg-body-lg-lh);
+}
+.vg-muted {
+  color: var(--vg-text-muted);
+}
 
 .vg-label {
   font-size: var(--vg-label-size);
@@ -152,11 +179,13 @@
   user-select: none;
   transition:
     background-color var(--vg-dur) var(--vg-ease),
-    box-shadow       var(--vg-dur) var(--vg-ease),
-    transform        var(--vg-dur-fast) var(--vg-ease);
+    box-shadow var(--vg-dur) var(--vg-ease),
+    transform var(--vg-dur-fast) var(--vg-ease);
 }
 
-.vg-btn:active         { transform: scale(0.97); }
+.vg-btn:active {
+  transform: scale(0.97);
+}
 .vg-btn:disabled,
 .vg-btn[aria-disabled="true"] {
   opacity: 0.4;
@@ -169,8 +198,13 @@
   color: var(--vg-text-on-primary);
   box-shadow: var(--vg-glow-primary);
 }
-.vg-btn--primary:hover { background: var(--vg-primary-hover); box-shadow: var(--vg-glow-primary-lg); }
-.vg-btn--primary:active{ background: var(--vg-primary-press); }
+.vg-btn--primary:hover {
+  background: var(--vg-primary-hover);
+  box-shadow: var(--vg-glow-primary-lg);
+}
+.vg-btn--primary:active {
+  background: var(--vg-primary-press);
+}
 
 /* Full-width CTA at the bottom of a form or sheet. */
 .vg-btn--cta {
@@ -184,10 +218,19 @@
   color: var(--vg-text);
   border-color: var(--vg-border);
 }
-.vg-btn--secondary:hover { background: var(--vg-surface-bright); border-color: var(--vg-border-strong); }
+.vg-btn--secondary:hover {
+  background: var(--vg-surface-bright);
+  border-color: var(--vg-border-strong);
+}
 
-.vg-btn--ghost { background: transparent; color: var(--vg-text-secondary); }
-.vg-btn--ghost:hover { background: var(--vg-glass-light); color: var(--vg-text); }
+.vg-btn--ghost {
+  background: transparent;
+  color: var(--vg-text-secondary);
+}
+.vg-btn--ghost:hover {
+  background: var(--vg-glass-light);
+  color: var(--vg-text);
+}
 
 /* Icon-only — keeps the 44px target while looking compact. */
 .vg-btn--icon {
@@ -231,7 +274,7 @@
   overflow: hidden;
 }
 .vg-card--lit::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: var(--vg-light-leak);
@@ -240,12 +283,14 @@
 }
 
 /* Cool variant — model detail, specs, anything informational. */
-.vg-card--cool::before { background: var(--vg-cool-leak); }
+.vg-card--cool::before {
+  background: var(--vg-cool-leak);
+}
 
 .vg-card--interactive {
   cursor: pointer;
   transition:
-    transform    var(--vg-dur) var(--vg-ease),
+    transform var(--vg-dur) var(--vg-ease),
     border-color var(--vg-dur) var(--vg-ease);
 }
 .vg-card--interactive:hover {
@@ -278,7 +323,7 @@
 .vg-glass--tag {
   padding: 2px var(--vg-space-2);
   border-radius: var(--vg-radius-sm);
-  background: rgb(0 0 0 / 0.60);
+  background: rgb(0 0 0 / 0.6);
   backdrop-filter: blur(var(--vg-blur-sm));
   -webkit-backdrop-filter: blur(var(--vg-blur-sm));
   border: none;
@@ -295,9 +340,15 @@
 /* No backdrop-filter support (older Firefox, some embedded webviews):
    fall back to an opaque surface rather than a see-through unreadable panel. */
 @supports not (backdrop-filter: blur(1px)) {
-  .vg-glass          { background: var(--vg-surface-raised); }
-  .vg-glass--docked  { background: var(--vg-surface); }
-  .vg-glass--tag     { background: rgb(0 0 0 / 0.85); }
+  .vg-glass {
+    background: var(--vg-surface-raised);
+  }
+  .vg-glass--docked {
+    background: var(--vg-surface);
+  }
+  .vg-glass--tag {
+    background: rgb(0 0 0 / 0.85);
+  }
 }
 
 /* Media card — edge-to-edge artwork with type over a bottom-up scrim. */
@@ -338,12 +389,15 @@
   font-family: var(--vg-font-ui);
   font-size: var(--vg-body-size);
   line-height: var(--vg-body-lh);
-  transition: border-color var(--vg-dur) var(--vg-ease),
-              box-shadow   var(--vg-dur) var(--vg-ease);
+  transition:
+    border-color var(--vg-dur) var(--vg-ease),
+    box-shadow var(--vg-dur) var(--vg-ease);
 }
 
 .vg-input::placeholder,
-.vg-textarea::placeholder { color: var(--vg-text-faint); }
+.vg-textarea::placeholder {
+  color: var(--vg-text-faint);
+}
 
 .vg-input:focus,
 .vg-textarea:focus {
@@ -352,9 +406,14 @@
   box-shadow: 0 0 0 2px var(--vg-primary-a20);
 }
 
-.vg-textarea { min-block-size: 120px; resize: vertical; }
+.vg-textarea {
+  min-block-size: 120px;
+  resize: vertical;
+}
 
-.vg-input[aria-invalid="true"] { border-color: var(--vg-danger); }
+.vg-input[aria-invalid="true"] {
+  border-color: var(--vg-danger);
+}
 
 /* Chip — AI tags, categories, filters. */
 .vg-chip {
@@ -373,7 +432,9 @@
   cursor: pointer;
   transition: background-color var(--vg-dur) var(--vg-ease);
 }
-.vg-chip:hover { background: var(--vg-surface-overlay); }
+.vg-chip:hover {
+  background: var(--vg-surface-overlay);
+}
 .vg-chip[aria-pressed="true"],
 .vg-chip[data-selected] {
   background: var(--vg-primary);
@@ -413,8 +474,9 @@
   font-size: var(--vg-label-size);
   font-weight: var(--vg-weight-medium);
   cursor: pointer;
-  transition: background-color var(--vg-dur) var(--vg-ease),
-              color            var(--vg-dur) var(--vg-ease);
+  transition:
+    background-color var(--vg-dur) var(--vg-ease),
+    color var(--vg-dur) var(--vg-ease);
 }
 .vg-segmented__item[aria-selected="true"] {
   background: var(--vg-surface-overlay);
@@ -438,7 +500,8 @@
     var(--vg-primary) 0%,
     var(--vg-primary) var(--vg-slider-fill, 50%),
     var(--vg-surface-overlay) var(--vg-slider-fill, 50%),
-    var(--vg-surface-overlay) 100%);
+    var(--vg-surface-overlay) 100%
+  );
   cursor: pointer;
 }
 [dir="rtl"] .vg-slider {
@@ -447,7 +510,8 @@
     var(--vg-primary) 0%,
     var(--vg-primary) var(--vg-slider-fill, 50%),
     var(--vg-surface-overlay) var(--vg-slider-fill, 50%),
-    var(--vg-surface-overlay) 100%);
+    var(--vg-surface-overlay) 100%
+  );
 }
 
 .vg-slider::-webkit-slider-thumb {
@@ -466,14 +530,24 @@
   background: var(--vg-text);
 }
 
-.vg-slider:focus-visible { outline: none; }
-.vg-slider:focus-visible::-webkit-slider-thumb { box-shadow: var(--vg-glow-focus); }
-.vg-slider:focus-visible::-moz-range-thumb     { box-shadow: var(--vg-glow-focus); }
+.vg-slider:focus-visible {
+  outline: none;
+}
+.vg-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--vg-glow-focus);
+}
+.vg-slider:focus-visible::-moz-range-thumb {
+  box-shadow: var(--vg-glow-focus);
+}
 
 /* Stepped slider — for values that are a short list, not a continuum:
    video duration, quality tiers, frame rate. The ticks tell the user the
    handle snaps, before they drag it and find out. */
-.vg-slider-group { display: flex; flex-direction: column; gap: var(--vg-space-2); }
+.vg-slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vg-space-2);
+}
 
 .vg-slider-group__head {
   display: flex;
@@ -505,11 +579,20 @@
   direction: ltr;
   unicode-bidi: isolate;
 }
-[dir="rtl"] .vg-slider-group__ticks { flex-direction: row-reverse; }
+[dir="rtl"] .vg-slider-group__ticks {
+  flex-direction: row-reverse;
+}
 
-.vg-slider-group__ticks > span { flex: 1 1 0; text-align: center; }
-.vg-slider-group__ticks > span:first-child { text-align: start; }
-.vg-slider-group__ticks > span:last-child  { text-align: end; }
+.vg-slider-group__ticks > span {
+  flex: 1 1 0;
+  text-align: center;
+}
+.vg-slider-group__ticks > span:first-child {
+  text-align: start;
+}
+.vg-slider-group__ticks > span:last-child {
+  text-align: end;
+}
 .vg-slider-group__ticks > span[data-active] {
   color: var(--vg-primary-soft);
   font-weight: var(--vg-weight-semibold);
@@ -548,7 +631,9 @@
   cursor: pointer;
   transition: color var(--vg-dur) var(--vg-ease);
 }
-.vg-nav__item[aria-current="page"] { color: var(--vg-primary); }
+.vg-nav__item[aria-current="page"] {
+  color: var(--vg-primary);
+}
 
 /* --------------------------------------------------------------------------
    Bottom sheet — the primary container for prompts and settings
@@ -569,8 +654,7 @@
   z-index: var(--vg-z-sheet);
   max-block-size: 88vh;
   overflow-y: auto;
-  padding: var(--vg-space-4) var(--vg-page-margin)
-           calc(var(--vg-space-6) + env(safe-area-inset-bottom));
+  padding: var(--vg-space-4) var(--vg-page-margin) calc(var(--vg-space-6) + env(safe-area-inset-bottom));
   background: var(--vg-surface-raised);
   border-start-start-radius: var(--vg-radius-xl);
   border-start-end-radius: var(--vg-radius-xl);
@@ -589,8 +673,12 @@
 }
 
 @keyframes vg-sheet-in {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -648,7 +736,7 @@
 /* The sweep — a soft highlight travelling across, not a colour cycle. Reads as
    light moving over a surface, which is the metaphor the whole system uses. */
 .vg-skeleton::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -657,23 +745,36 @@
     var(--vg-glass-light) 45%,
     rgb(255 255 255 / 0.08) 50%,
     var(--vg-glass-light) 55%,
-    transparent 100%);
+    transparent 100%
+  );
   transform: translateX(-100%);
   animation: vg-sweep 1.8s var(--vg-ease) infinite;
 }
 
 /* RTL: light travels the other way, matching the reading direction. */
-[dir="rtl"] .vg-skeleton::after { animation-name: vg-sweep-rtl; }
+[dir="rtl"] .vg-skeleton::after {
+  animation-name: vg-sweep-rtl;
+}
 
-@keyframes vg-sweep     { to { transform: translateX(100%);  } }
-@keyframes vg-sweep-rtl { to { transform: translateX(-200%); } }
+@keyframes vg-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes vg-sweep-rtl {
+  to {
+    transform: translateX(-200%);
+  }
+}
 
 .vg-skeleton--text {
   block-size: 0.75em;
   border-radius: var(--vg-radius-sm);
   margin-block: 0.25em;
 }
-.vg-skeleton--text:last-child { inline-size: 60%; }
+.vg-skeleton--text:last-child {
+  inline-size: 60%;
+}
 
 /* Generating tile — the real loading state for a queued or streaming render.
    Same chrome as .vg-media so the layout never shifts when the result lands. */
@@ -682,7 +783,7 @@
   overflow: hidden;
   display: grid;
   place-items: center;
-  align-content: center;   /* group the children, don't distribute the rows */
+  align-content: center; /* group the children, don't distribute the rows */
   gap: var(--vg-space-3);
   border-radius: var(--vg-radius-lg);
   border: 1px solid var(--vg-border-subtle);
@@ -697,17 +798,24 @@
    the one place orange may fill an area, because it is the subject of the
    screen and it is under 12% opacity. */
 .vg-generating::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(0deg, var(--vg-primary-a10) 0%, transparent 60%);
   animation: vg-breathe 2.8s var(--vg-ease) infinite;
 }
-.vg-generating > * { position: relative; }
+.vg-generating > * {
+  position: relative;
+}
 
 @keyframes vg-breathe {
-  0%, 100% { opacity: 0.35; }
-  50%      { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* Indeterminate bar for the tile — distinct from .vg-progress, which needs a
@@ -721,7 +829,7 @@
   overflow: hidden;
 }
 .vg-generating__bar::after {
-  content: '';
+  content: "";
   position: absolute;
   inset-block: 0;
   inline-size: 40%;
@@ -731,8 +839,12 @@
 }
 
 @keyframes vg-indeterminate {
-  from { inset-inline-start: -40%; }
-  to   { inset-inline-start: 100%; }
+  from {
+    inset-inline-start: -40%;
+  }
+  to {
+    inset-inline-start: 100%;
+  }
 }
 
 /* Reduced motion: the token file collapses transition *durations*, but looping
@@ -740,8 +852,15 @@
    hide them — the user still needs to know something is loading. Each falls
    back to a static state that still reads as "in progress". */
 @media (prefers-reduced-motion: reduce) {
-  .vg-skeleton::after { animation: none; transform: none; opacity: 0.5; }
-  .vg-generating::before { animation: none; opacity: 0.6; }
+  .vg-skeleton::after {
+    animation: none;
+    transform: none;
+    opacity: 0.5;
+  }
+  .vg-generating::before {
+    animation: none;
+    opacity: 0.6;
+  }
   .vg-generating__bar::after {
     animation: none;
     inset-inline-start: 0;
@@ -781,7 +900,10 @@
   color: var(--vg-text-secondary);
   font-size: var(--vg-body-size);
 }
-.vg-note__icon { color: var(--vg-accent); flex: 0 0 auto; }
+.vg-note__icon {
+  color: var(--vg-accent);
+  flex: 0 0 auto;
+}
 
 /* Inline link. */
 .vg-link {
@@ -789,7 +911,9 @@
   text-decoration-color: var(--vg-accent-a40);
   text-underline-offset: 3px;
 }
-.vg-link:hover { text-decoration-color: currentColor; }
+.vg-link:hover {
+  text-decoration-color: currentColor;
+}
 
 .vg-divider {
   block-size: 1px;
@@ -801,11 +925,20 @@
 /* --------------------------------------------------------------------------
    Utilities
    -------------------------------------------------------------------------- */
-.vg-glow      { box-shadow: var(--vg-glow-primary); }
-.vg-glow-lg   { box-shadow: var(--vg-glow-primary-lg); }
+.vg-glow {
+  box-shadow: var(--vg-glow-primary);
+}
+.vg-glow-lg {
+  box-shadow: var(--vg-glow-primary-lg);
+}
 
-.vg-scroll-hidden { scrollbar-width: none; -ms-overflow-style: none; }
-.vg-scroll-hidden::-webkit-scrollbar { display: none; }
+.vg-scroll-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.vg-scroll-hidden::-webkit-scrollbar {
+  display: none;
+}
 
 .vg-sr-only {
   position: absolute;

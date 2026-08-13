@@ -103,26 +103,13 @@ export function PanelTabs<T extends string>({
 
 /** A full-width row that opens something: label on the start, value + caret on
  *  the end. Used for model and for any control with too many options to chip. */
-function RowSelect({
-  label,
-  value,
-  accent,
-  onClick,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-  onClick: () => void;
-}) {
+function RowSelect({ label, value, accent, onClick }: { label: string; value: string; accent?: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} className="flex w-full items-center gap-2 px-3 py-2.5 text-start">
       <span className="flex-1 truncate text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
         {label}
       </span>
-      <span
-        className="truncate text-[12.5px] font-semibold"
-        style={{ color: accent ? "var(--vg-primary-soft)" : "var(--vg-text)" }}
-      >
+      <span className="truncate text-[12.5px] font-semibold" style={{ color: accent ? "var(--vg-primary-soft)" : "var(--vg-text)" }}>
         {value}
       </span>
       {/* CaretLeft, not Right: in RTL "forward" points to the left. */}
@@ -187,7 +174,7 @@ export function FormPanel({
   // family/controls/input/price, which is how it ended up pinned to variants[0]
   // while the shared version moved on.
   const s = useCreateState(families);
-  const { family, variant, chips, input, prompt, price, ready } = s;
+  const { family, variant, chips, input, prompt, price, ready, validation, isSubmitting } = s;
   const access = useAccess();
   const locked = !access.can(family.id);
   const need = locked ? access.needs(family.id) : null;
@@ -317,7 +304,10 @@ export function FormPanel({
                   >
                     {v.label}
                     {v.badge && (
-                      <span className="rounded px-1 py-0.5 text-[9.5px]" style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-faint)" }}>
+                      <span
+                        className="rounded px-1 py-0.5 text-[9.5px]"
+                        style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-faint)" }}
+                      >
                         {v.badge}
                       </span>
                     )}
@@ -416,7 +406,13 @@ export function FormPanel({
             style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
           >
             <Lock size={14} weight="fill" />
-            {need ? <>ارتقا به <bdi>{need.name}</bdi></> : "ارتقای پلن"}
+            {need ? (
+              <>
+                ارتقا به <bdi>{need.name}</bdi>
+              </>
+            ) : (
+              "ارتقای پلن"
+            )}
           </button>
         ) : (
           <button
@@ -426,7 +422,7 @@ export function FormPanel({
             style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
           >
             <Sparkle size={15} weight="fill" />
-            بساز
+            {isSubmitting ? "در حال ثبت…" : "بساز"}
             <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
               <CoinMark size={12} />
               <span className="vg-numeric">{price === null ? "—" : n(price)}</span>
@@ -441,6 +437,11 @@ export function FormPanel({
         {price === null && (
           <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
             این ترکیب قیمت‌گذاری نمی‌شود، پس فروخته نمی‌شود.
+          </p>
+        )}
+        {price !== null && validation.issues[0] && (
+          <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+            {validation.issues[0].message}
           </p>
         )}
       </div>

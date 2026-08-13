@@ -128,7 +128,7 @@ const RATES: Record<string, RateFn> = {
   "seedream-5-lite": () => 5.5,
   "gpt-image-1-5": (i) => pick(i.quality, { medium: 4, high: 22 }, 4),
   "flux-2-flex": (i) => pick(i.resolution, { "1K": 14, "2K": 24 }, 14),
-  "grok-image": (i) => (Boolean(i.enable_pro) ? 5 : 4),
+  "grok-image": (i) => (i.enable_pro ? 5 : 4),
   "seedance-1-5-pro": (i) => {
     const a = Boolean(i.generate_audio);
     return (
@@ -137,10 +137,14 @@ const RATES: Record<string, RateFn> = {
     );
   },
   "kling-3-turbo": (i) => pick(i.resolution, { "720p": 18, "1080p": 22.5 }, 18) * num(i.duration, 5),
-  "kling-2-6": (i) => pick(`${i.duration}`, Boolean(i.sound) ? { "5": 110, "10": 220 } : { "5": 55, "10": 110 }, 55),
+  "kling-2-6": (i) => pick(`${i.duration}`, i.sound ? { "5": 110, "10": 220 } : { "5": 55, "10": 110 }, 55),
   "kling-2-5-turbo": (i) => pick(`${i.duration}`, { "5": 42, "10": 84 }, 42),
   "wan-2-6": (i) =>
-    pick(`${i.resolution}-${i.duration}`, { "720p-5": 70, "720p-10": 140, "720p-15": 210, "1080p-5": 104.5, "1080p-10": 209.5, "1080p-15": 315 }, 104.5),
+    pick(
+      `${i.resolution}-${i.duration}`,
+      { "720p-5": 70, "720p-10": 140, "720p-15": 210, "1080p-5": 104.5, "1080p-10": 209.5, "1080p-15": 315 },
+      104.5,
+    ),
   "wan-2-7": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
   "wan-2-7-r2v": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
   // Billed per second of output. duration 0 means "keep the whole source clip",
@@ -156,10 +160,18 @@ const RATES: Record<string, RateFn> = {
   // Flat per-video by duration; 720p and 1080p are billed identically.
   "gemini-omni-video": (i) =>
     only(`${i.resolution}-${i.duration}`, {
-      "720p-4": 63, "1080p-4": 63, "4k-4": 147,
-      "720p-6": 84, "1080p-6": 84, "4k-6": 168,
-      "720p-8": 105, "1080p-8": 105, "4k-8": 189,
-      "720p-10": 126, "1080p-10": 126, "4k-10": 210,
+      "720p-4": 63,
+      "1080p-4": 63,
+      "4k-4": 147,
+      "720p-6": 84,
+      "1080p-6": 84,
+      "4k-6": 168,
+      "720p-8": 105,
+      "1080p-8": 105,
+      "4k-8": 189,
+      "720p-10": 126,
+      "1080p-10": 126,
+      "4k-10": 210,
     }),
   // Motion Control bills per second — there is no duration setting, the length
   // comes from the clip the user attaches. With no clip there is nothing to
@@ -178,8 +190,7 @@ const RATES: Record<string, RateFn> = {
   "recraft-crisp-upscale": () => 0.5,
   "recraft-remove-bg": () => 1,
   // Per second of the source clip. 1x and 2x share one rate row.
-  "topaz-video-upscale": (i, c) =>
-    c.clipSeconds > 0 ? pick(`${i.upscale_factor}`, { "1": 8, "2": 8, "4": 14 }, 8) * c.clipSeconds : null,
+  "topaz-video-upscale": (i, c) => (c.clipSeconds > 0 ? pick(`${i.upscale_factor}`, { "1": 8, "2": 8, "4": 14 }, 8) * c.clipSeconds : null),
   // Text-to-speech: settings don't move the price, the text's length does.
   "eleven-turbo": (_i, c) => perKChars(6, c.chars),
   "eleven-multilingual": (_i, c) => perKChars(12, c.chars),
@@ -196,8 +207,7 @@ const RATES: Record<string, RateFn> = {
 type LiveFn = (i: InputMap, c: PriceCtx) => number | null;
 
 /** KIE bills text-to-speech per 1000 characters, rounded up, minimum one block. */
-const perKChars = (rate: number | null, chars: number) =>
-  rate == null ? null : rate * Math.max(1, Math.ceil(chars / 1000));
+const perKChars = (rate: number | null, chars: number) => (rate == null ? null : rate * Math.max(1, Math.ceil(chars / 1000)));
 
 const dur = (i: InputMap, fb: number) => num(i.duration, fb);
 /** per-second row × duration (null passes through). */
@@ -224,7 +234,8 @@ export const LIVE: Record<string, LiveFn> = {
   "ideogram-v3": (i) => findRate("ideogram v3,", "text-to-image", String(i.rendering_speed ?? "BALANCED")),
   "qwen-image": () => findRate("qwen image", "text-to-image", "!edit"), // per megapixel; outputs ≈ 1MP
   "z-image": () => findRate("qwen z-image", "text-to-image"),
-  "grok-image": (i) => (Boolean(i.enable_pro) ? findRate("grok-imagine", "text-to-image(quality)") : findRate("grok-imagine,", "text-to-image", "!quality")),
+  "grok-image": (i) =>
+    i.enable_pro ? findRate("grok-imagine", "text-to-image(quality)") : findRate("grok-imagine,", "text-to-image", "!quality"),
 
   // ---- video ----
   // Seedance rows are per second, split by resolution; "no video input" = the
@@ -236,7 +247,8 @@ export const LIVE: Record<string, LiveFn> = {
   "seedance-2-fast": (i) => perSec(findRate("seedance-2 fast", `${res(i, "720p")} no video`), dur(i, 5)),
   "seedance-2-mini": (i) => perSec(findRate("seedance-2-mini,", `${res(i, "720p")} no video`), dur(i, 5)),
   "minimax-h3": (i) => perSec(findRate("minimax h3,", "text to video", res(i, "2k")), dur(i, 5)),
-  "seedance-1-5-pro": (i) => perSec(findRate("seedance-1.5-pro", `${Boolean(i.generate_audio) ? "with" : "without"} audio-${res(i, "720p")}`), dur(i, 5)),
+  "seedance-1-5-pro": (i) =>
+    perSec(findRate("seedance-1.5-pro", `${i.generate_audio ? "with" : "without"} audio-${res(i, "720p")}`), dur(i, 5)),
   // Rows are per second by audio + resolution, but the model's own parameter is
   // `mode`. std/pro aren't spelled out as 720p/1080p anywhere in the docs — the
   // mapping comes from "std has standard resolution, pro has higher resolution"
@@ -244,12 +256,12 @@ export const LIVE: Record<string, LiveFn> = {
   // real job's creditsConsumed.
   "kling-3": (i) => {
     const r = KLING3_MODE_RES[String(i.mode ?? "pro")] ?? "1080p";
-    return perSec(findRate("kling 3.0, video", `${Boolean(i.sound) ? "with" : "without"} audio-${r}`), dur(i, 5));
+    return perSec(findRate("kling 3.0, video", `${i.sound ? "with" : "without"} audio-${r}`), dur(i, 5));
   },
   // Per second by resolution, no audio tier. The text-to-video and image-to-video
   // rows carry the same rate, so matching either one prices both entry points.
   "kling-3-turbo": (i) => perSec(findRate("kling 3.0 turbo", "text-to-video", res(i, "720p")), dur(i, 5)),
-  "kling-2-6": (i) => findRate("kling 2.6", "text-to-video", `${Boolean(i.sound) ? "with" : "without"} audio-${dur(i, 5)}.0s`),
+  "kling-2-6": (i) => findRate("kling 2.6", "text-to-video", `${i.sound ? "with" : "without"} audio-${dur(i, 5)}.0s`),
   "kling-2-5-turbo": (i) => findRate("kling 2.5 turbo", "text-to-video", `turbo pro-${dur(i, 5)}.0s`),
   "wan-2-5": (i) => findRate("wan 2.5", "text-to-video", `default-${dur(i, 5)}.0s-${res(i, "720p")}`),
   "wan-2-6": (i) => findRate("wan 2.6", "text to video", `, ${dur(i, 5)}.0s-${res(i, "1080p")}`), // leading ", " so 5.0s can't match 15.0s
@@ -278,9 +290,7 @@ export const LIVE: Record<string, LiveFn> = {
   "recraft-remove-bg": () => findRate("recraft remove background", "image to image"),
   // Rows read "upscale factor 1x/2x" and "upscale factor 4x".
   "topaz-video-upscale": (i, c) =>
-    c.clipSeconds > 0
-      ? perSec(findRate("topaz video upscaler", String(i.upscale_factor) === "4" ? "4x" : "1x/2x"), c.clipSeconds)
-      : null,
+    c.clipSeconds > 0 ? perSec(findRate("topaz video upscaler", String(i.upscale_factor) === "4" ? "4x" : "1x/2x"), c.clipSeconds) : null,
   "eleven-turbo": (_i, c) => perKChars(findRate("elevenlabs text to speech", "turbo 2.5"), c.chars),
   "eleven-multilingual": (_i, c) => perKChars(findRate("elevenlabs text to speech", "multilingual v2"), c.chars),
   "veo-quality": (i) => findRate("google veo 3.1", "text-to-video", `quality-${res(i, "720p")}`),

@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  defaultInput,
-  variantControls,
-  type Control,
-  type Family,
-  type Variant,
-} from "../data/models";
+import { defaultInput, variantControls, type Control, type Family, type Variant } from "../data/models";
 import { useAccess } from "./access";
 import type { InputMap } from "../components/controls";
 import { priceCoins } from "../data/pricing";
+import { validateGenerationInput } from "../features/generation/validation";
+import { useIsMutating } from "@tanstack/react-query";
+import { CREATE_GENERATION_MUTATION_KEY } from "../features/generation/useGeneration";
 
 /* The state every create surface needs, and nothing else.
    The three studios look nothing alike — a side panel, a floating glass bar, a
@@ -23,8 +20,7 @@ export type ChipControl = Extract<Control, { kind: "aspect" | "segment" | "toggl
 export function chipControls(controls: Control[]): ChipControl[] {
   return controls.filter(
     (c): c is ChipControl =>
-      !("advanced" in c && c.advanced) &&
-      (c.kind === "aspect" || c.kind === "segment" || c.kind === "toggle" || c.kind === "slider"),
+      !("advanced" in c && c.advanced) && (c.kind === "aspect" || c.kind === "segment" || c.kind === "toggle" || c.kind === "slider"),
   );
 }
 
@@ -55,9 +51,7 @@ export function sliderSteps(c: Extract<Control, { kind: "slider" }>): number[] {
  * 10 and nothing else. One deserves a bar you drag; the other must stay a list,
  * because a slider there would offer seven values the provider rejects.
  */
-export function rangeOf(
-  c: ChipControl,
-): { min: number; max: number; step: number; unit?: string | undefined; title: string } | null {
+export function rangeOf(c: ChipControl): { min: number; max: number; step: number; unit?: string | undefined; title: string } | null {
   if (c.kind !== "slider") return null;
   return { min: c.min, max: c.max, step: c.step, unit: c.unit, title: c.label };
 }
@@ -99,6 +93,7 @@ export function variantMeta(family: Family, variant: Variant): VariantMeta {
 
 export function useCreateState(families: Family[]) {
   const access = useAccess();
+  const isSubmitting = useIsMutating({ mutationKey: CREATE_GENERATION_MUTATION_KEY }) > 0;
   /**
    * Open on something the account can actually run.
    *
@@ -153,7 +148,8 @@ export function useCreateState(families: Family[]) {
   useEffect(() => setInput(defaultInput(controls)), [controls]);
 
   const price = priceCoins(variant, input, { chars: prompt.length, clipSeconds: 0 });
-  const ready = (family.noPrompt || prompt.trim().length > 0) && price !== null;
+  const validation = validateGenerationInput({ family, variant, prompt, input, refs: {} });
+  const ready = validation.valid && price !== null && !isSubmitting;
 
   return {
     family,
@@ -170,5 +166,7 @@ export function useCreateState(families: Family[]) {
     setPrompt,
     price,
     ready,
+    validation,
+    isSubmitting,
   };
 }

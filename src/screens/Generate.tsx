@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, CaretDown, Lock, Sparkle, Stack } from "@phosphor-icons/react";
-import {
-  defaultInput,
-  variantControls,
-  variantRefs,
-  variantMaxPrompt,
-  type Control,
-  type Family,
-  type Variant,
-} from "../data/models";
+import { defaultInput, variantControls, variantRefs, variantMaxPrompt, type Family, type Variant } from "../data/models";
 import { priceCoins } from "../data/pricing";
 import { CoinMark } from "../components/chrome";
 import { useKieRates } from "../lib/kieRates";
@@ -19,18 +11,15 @@ import { ControlField, RefUpload, type InputMap, type InputValue, type RefFile, 
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
-
-export function currentAspect(controls: Control[], input: InputMap): { w: number; h: number } {
-  const ac = controls.find((c) => c.kind === "aspect");
-  if (ac && ac.kind === "aspect") {
-    const opt = ac.options.find((o) => o.value === input[ac.key]) ?? ac.options[0];
-    if (opt) return { w: opt.w, h: opt.h };
-  }
-  return { w: 16, h: 9 };
-}
+import { generationErrorMessage, validateGenerationInput } from "../features/generation/validation";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <div className="text-[12px] font-medium text-ink2">{children}</div>;
+}
+
+export interface GenerationReceipt {
+  coins: number;
+  expiresAt: number;
 }
 
 export default function Generate({
@@ -44,7 +33,7 @@ export default function Generate({
   initialVariantId?: string | undefined;
   initialPrompt?: string | undefined;
   onBack: () => void;
-  onGenerate: (prompt: string, input: InputMap, variant: Variant, refs: RefMap) => void;
+  onGenerate: (prompt: string, input: InputMap, variant: Variant, refs: RefMap) => Promise<GenerationReceipt | null>;
 }) {
   const firstVariant = family.variants.find((v) => v.id === initialVariantId) ?? family.variants[0]!;
   const [variant, setVariant] = useState<Variant>(firstVariant);
@@ -52,6 +41,9 @@ export default function Generate({
   const [input, setInput] = useState<InputMap>(() => defaultInput(variantControls(family, firstVariant)));
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [refImages, setRefImages] = useState<RefMap>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [receipt, setReceipt] = useState<GenerationReceipt | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Object URLs are process-wide; without this every picked image leaks until reload.
   const liveRefs = useRef<RefMap>(refImages);
@@ -116,7 +108,6 @@ export default function Generate({
   // maxLength on the textarea only stops typing and pasting, so the length is
   // checked again here. The backend has to check a third time — nothing the
   // client says about length can be trusted once money is attached.
-  const promptTooLong = maxPrompt != null && prompt.trim().length > maxPrompt;
   // Upscalers and background removal transform a file and take no description,
   // so requiring a prompt would leave their button permanently disabled.
   const wantsPrompt = !family.noPrompt;
@@ -124,13 +115,24 @@ export default function Generate({
   const access = useAccess();
   const locked = !access.can(family.id);
   const need = locked ? access.needs(family.id) : null;
-  const canGenerate =
-    (!wantsPrompt || prompt.trim().length > 0) &&
-    !missingRequired &&
-    !orphan &&
-    !promptTooLong &&
-    !clipUnreadable &&
-    price != null;
+  const validation = validateGenerationInput({ family, variant, prompt, input, refs: refImages });
+  const hasReferenceFiles = Object.values(refImages).some((files) => files.length > 0);
+  const canGenerate = validation.valid && !clipUnreadable && !hasReferenceFiles && price != null;
+
+  async function submit() {
+    if (!canGenerate || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const nextReceipt = await onGenerate(prompt.trim(), input, variant, refImages);
+      if (nextReceipt) setReceipt(nextReceipt);
+      else setSubmitError("درخواست ساخته نشد؛ ورودی‌ها را دوباره بررسی کنید.");
+    } catch (error: unknown) {
+      setSubmitError(generationErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     /* Every model link and every preset lands here, and it was still a 480px
@@ -140,7 +142,11 @@ export default function Generate({
     <div className="relative z-10 mx-auto min-h-[100dvh] w-full max-w-[1100px] pb-32 md:pb-10">
       {/* top bar */}
       <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/85 px-4 py-3 backdrop-blur-xl">
-        <button onClick={onBack} aria-label={t("nav_home")} className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95">
+        <button
+          onClick={onBack}
+          aria-label={t("nav_home")}
+          className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95"
+        >
           <ArrowRight size={18} weight="bold" className="ltr:-scale-x-100" />
         </button>
         <span className="relative h-9 w-9 overflow-hidden rounded-xl" style={{ background: family.grad }}>
@@ -165,7 +171,9 @@ export default function Generate({
             <div className="mb-3 flex items-center gap-1.5">
               <Stack size={15} weight="fill" className="text-ink2" />
               <span className="text-[12.5px] font-medium">{t("g_version")}</span>
-              <span className="text-[11px] text-ink3">({n(family.variants.length)} {t("g_versions")})</span>
+              <span className="text-[11px] text-ink3">
+                ({n(family.variants.length)} {t("g_versions")})
+              </span>
             </div>
             <div className="-mx-1 flex gap-2 overflow-x-auto px-1 no-scrollbar">
               {family.variants.map((v) => {
@@ -182,7 +190,14 @@ export default function Generate({
                     }
                   >
                     <span className="text-[13px] font-medium">{v.label}</span>
-                    {v.badge && <span className="text-[10px]" style={{ color: on ? "color-mix(in srgb, var(--color-on-accent) 70%, transparent)" : "var(--color-ink3)" }}>{v.badge}</span>}
+                    {v.badge && (
+                      <span
+                        className="text-[10px]"
+                        style={{ color: on ? "color-mix(in srgb, var(--color-on-accent) 70%, transparent)" : "var(--color-ink3)" }}
+                      >
+                        {v.badge}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -207,28 +222,28 @@ export default function Generate({
 
         {/* prompt */}
         {wantsPrompt && (
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-center justify-between">
-            <SectionLabel>{t("g_prompt")}</SectionLabel>
-            {/* The count only appears near the ceiling — Wan 2.5 stops at 800,
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <SectionLabel>{t("g_prompt")}</SectionLabel>
+              {/* The count only appears near the ceiling — Wan 2.5 stops at 800,
                 so on that model it matters; on a 20000 one it never shows. */}
-            {maxPrompt != null && prompt.length > maxPrompt * 0.8 ? (
-              <span className="text-[11px] tabular-nums text-ink3">
-                {n(prompt.length)} / {n(maxPrompt)}
-              </span>
-            ) : (
-              <span className="text-[11px] text-ink3">{t("g_prompt_hint")}</span>
-            )}
+              {maxPrompt != null && prompt.length > maxPrompt * 0.8 ? (
+                <span className="text-[11px] tabular-nums text-ink3">
+                  {n(prompt.length)} / {n(maxPrompt)}
+                </span>
+              ) : (
+                <span className="text-[11px] text-ink3">{t("g_prompt_hint")}</span>
+              )}
+            </div>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Describe what you want to create…"
+              rows={4}
+              maxLength={maxPrompt ?? undefined}
+              className="ltr w-full resize-none rounded-bezel border border-line bg-card p-4 text-[14px] leading-relaxed text-ink placeholder:text-ink3 focus:border-accent focus:outline-none"
+            />
           </div>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe what you want to create…"
-            rows={4}
-            maxLength={maxPrompt ?? undefined}
-            className="ltr w-full resize-none rounded-bezel border border-line bg-card p-4 text-[14px] leading-relaxed text-ink placeholder:text-ink3 focus:border-accent focus:outline-none"
-          />
-        </div>
         )}
 
         {/* settings */}
@@ -282,16 +297,22 @@ export default function Generate({
             style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
           >
             <Lock size={16} weight="fill" />
-            {need ? <>ارتقا به <bdi>{need.name}</bdi></> : "ارتقای پلن"}
+            {need ? (
+              <>
+                ارتقا به <bdi>{need.name}</bdi>
+              </>
+            ) : (
+              "ارتقای پلن"
+            )}
           </button>
         ) : (
           <button
-            onClick={() => onGenerate(prompt.trim(), input, variant, refImages)}
-            disabled={!canGenerate}
+            onClick={() => void submit()}
+            disabled={!canGenerate || submitting}
             className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
           >
             <Sparkle size={18} weight="fill" />
-            <span>{t("g_create")}</span>
+            <span>{submitting ? "در حال ثبت…" : t("g_create")}</span>
             {price != null && !clipUnreadable && (
               <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
                 <CoinMark size={12} />
@@ -301,15 +322,23 @@ export default function Generate({
           </button>
         )}
         <div className="pt-1.5 text-center text-[10.5px] text-ink3">
-          {missingRequired
-            ? `${t("g_need_also")} ${missingRequired.label}`
-            : orphanNeeds
-              ? `${t("g_need_also")} ${orphanNeeds.label}`
-              : clipUnreadable
-                ? t("g_clip_unreadable")
-                : price != null
-                  ? `≈ ${n(price)} ${t("g_est_for")}`
-                  : t("g_no_rate")}
+          {submitError
+            ? submitError
+            : receipt
+              ? `هزینهٔ نهایی سرور: ${n(receipt.coins)} · اعتبار قیمت تا ${new Date(receipt.expiresAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}`
+              : missingRequired
+                ? `${t("g_need_also")} ${missingRequired.label}`
+                : orphanNeeds
+                  ? `${t("g_need_also")} ${orphanNeeds.label}`
+                  : clipUnreadable
+                    ? t("g_clip_unreadable")
+                    : hasReferenceFiles
+                      ? "آپلود فایل مرجع پس از اتصال سرویس آپلود فعال می‌شود؛ فعلاً هزینه‌ای کسر نمی‌شود."
+                      : validation.issues[0]
+                        ? validation.issues[0].message
+                        : price != null
+                          ? `≈ ${n(price)} ${t("g_est_for")}`
+                          : t("g_no_rate")}
         </div>
       </div>
     </div>

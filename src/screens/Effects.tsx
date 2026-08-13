@@ -51,7 +51,11 @@ function EffectDetail({ preset, onGenerate, onBack }: { preset: Preset; onGenera
   }, [copied]);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-20 pt-6">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-20 pt-6"
+    >
       <button
         onClick={onBack}
         className="mb-6 flex h-9 items-center gap-1.5 rounded-lg px-2 text-[12.5px] font-semibold transition-colors hover:bg-white/[0.06]"
@@ -103,13 +107,7 @@ function EffectDetail({ preset, onGenerate, onBack }: { preset: Preset; onGenera
               className="aspect-[3/4] w-full rounded-2xl object-cover sm:col-span-2 sm:aspect-[16/9]"
             />
             {[1, 2, 3, 4].map((n) => (
-              <img
-                key={n}
-                src={art(preset.seed, n)}
-                alt=""
-                loading="lazy"
-                className="aspect-[3/4] w-full rounded-xl object-cover"
-              />
+              <img key={n} src={art(preset.seed, n)} alt="" loading="lazy" className="aspect-[3/4] w-full rounded-xl object-cover" />
             ))}
           </div>
         </div>
@@ -150,9 +148,7 @@ function EffectDetail({ preset, onGenerate, onBack }: { preset: Preset; onGenera
             </div>
             <p className="ltr mt-2 text-[12px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
               {preset.prompt}
-              {preset.openEnded && (
-                <span style={{ color: "var(--vg-text-faint)" }}> [سوژه‌ی تو]</span>
-              )}
+              {preset.openEnded && <span style={{ color: "var(--vg-text-faint)" }}> [سوژه‌ی تو]</span>}
             </p>
           </div>
         </div>
@@ -171,7 +167,10 @@ function EffectCard({ preset, onOpen, onGenerate }: { preset: Preset; onOpen: ()
         loading="lazy"
         className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
       />
-      <span className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.86), rgba(0,0,0,0.15) 48%, transparent 72%)" }} />
+      <span
+        className="absolute inset-0"
+        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.86), rgba(0,0,0,0.15) 48%, transparent 72%)" }}
+      />
 
       {/* The whole tile is the link to the detail page. It sits under the
           Generate button in the stack, so Generate wins its own 112x40 and the
@@ -230,17 +229,15 @@ export default function Effects({ onOpen }: { onOpen: (familyId: string, prompt?
   const shown = all.filter((p) => (cat === "all" || p.category === cat) && (kind === "all" || p.kind === kind));
 
   if (detail) {
-    return (
-      <EffectDetail
-        preset={detail}
-        onBack={() => setDetail(null)}
-        onGenerate={() => onOpen(detail.familyId, detail.prompt)}
-      />
-    );
+    return <EffectDetail preset={detail} onBack={() => setDetail(null)} onGenerate={() => onOpen(detail.familyId, detail.prompt)} />;
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-20 pt-8">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-20 pt-8"
+    >
       {/* 72px with -0.05em tracking on theirs, in the accent. The negative
           tracking is what stops a word that size reading as a mistake. */}
       <h1
@@ -273,7 +270,13 @@ export default function Effects({ onOpen }: { onOpen: (familyId: string, prompt?
       </div>
 
       <div className="mt-8 flex flex-wrap items-center gap-1.5">
-        {([["all", "همه"], ["video", "ویدیو"], ["image", "تصویر"]] as const).map(([k, label]) => (
+        {(
+          [
+            ["all", "همه"],
+            ["video", "ویدیو"],
+            ["image", "تصویر"],
+          ] as const
+        ).map(([k, label]) => (
           <button
             key={k}
             onClick={() => setKind(k)}

@@ -138,10 +138,7 @@ function ToggleRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <button
-      onClick={() => onChange(!value)}
-      className="flex w-full items-center justify-between active:scale-[0.99]"
-    >
+    <button onClick={() => onChange(!value)} className="flex w-full items-center justify-between active:scale-[0.99]">
       <span className="text-[13px] text-ink">{control.label}</span>
       <span className={`relative h-[26px] w-[44px] rounded-full transition-colors ${value ? "bg-accent" : "bg-card2"}`}>
         <span
@@ -194,11 +191,7 @@ export function ControlField({
       return <Segmented control={control} value={String(value)} onChange={(v) => onChange(control.key, v)} />;
     case "slider":
       return (
-        <SliderControl
-          control={control}
-          value={Number(value)}
-          onChange={(v) => onChange(control.key, control.asString ? String(v) : v)}
-        />
+        <SliderControl control={control} value={Number(value)} onChange={(v) => onChange(control.key, control.asString ? String(v) : v)} />
       );
     case "toggle":
       return <ToggleRow control={control} value={Boolean(value)} onChange={(v) => onChange(control.key, v)} />;
@@ -318,7 +311,6 @@ function readDuration(url: string, media: SlotMedia): Promise<number | undefined
   if (media === "image") return Promise.resolve(undefined);
   return new Promise((resolve) => {
     const el = document.createElement(media === "video" ? "video" : "audio");
-    let timer: ReturnType<typeof setTimeout> | undefined;
     let settled = false;
     const done = (d?: number) => {
       if (settled) return;
@@ -328,7 +320,7 @@ function readDuration(url: string, media: SlotMedia): Promise<number | undefined
       el.removeAttribute("src");
       resolve(d);
     };
-    timer = setTimeout(() => done(undefined), DURATION_TIMEOUT_MS);
+    const timer = setTimeout(() => done(undefined), DURATION_TIMEOUT_MS);
     el.preload = "metadata";
     el.onloadedmetadata = () => done(Number.isFinite(el.duration) ? el.duration : undefined);
     el.onerror = () => done(undefined);

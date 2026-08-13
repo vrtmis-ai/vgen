@@ -177,12 +177,26 @@ function seedanceControls(res: string[]): Control[] {
 // Hailuo 2.3 Pro and Standard take the same input schema — only the model id and
 // the price differ. `duration` is a string on this API, so the values are strings.
 const hailuo23Controls: Control[] = [
-  { kind: "segment", key: "resolution", label: "کیفیت", def: "768P", options: [
-    { value: "768P", label: "768p" }, { value: "1080P", label: "1080p" },
-  ] },
-  { kind: "segment", key: "duration", label: "مدت", def: "6", options: [
-    { value: "6", label: "۶ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
-  ] },
+  {
+    kind: "segment",
+    key: "resolution",
+    label: "کیفیت",
+    def: "768P",
+    options: [
+      { value: "768P", label: "768p" },
+      { value: "1080P", label: "1080p" },
+    ],
+  },
+  {
+    kind: "segment",
+    key: "duration",
+    label: "مدت",
+    def: "6",
+    options: [
+      { value: "6", label: "۶ ثانیه" },
+      { value: "10", label: "۱۰ ثانیه" },
+    ],
+  },
 ];
 
 // ElevenLabs TTS. Shared by both speech models — language_code is deliberately
@@ -203,12 +217,26 @@ const elevenCommonControls: Control[] = [
 // 720p/1080p. character_orientation caps the output length: 10s from the image's
 // orientation, 30s from the video's.
 const motionControlControls: Control[] = [
-  { kind: "segment", key: "mode", label: "کیفیت", def: "720p", options: [
-    { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
-  ] },
-  { kind: "segment", key: "character_orientation", label: "جهت شخصیت", def: "video", options: [
-    { value: "video", label: "از ویدیو (تا ۳۰ ثانیه)" }, { value: "image", label: "از عکس (تا ۱۰ ثانیه)" },
-  ] },
+  {
+    kind: "segment",
+    key: "mode",
+    label: "کیفیت",
+    def: "720p",
+    options: [
+      { value: "720p", label: "720p" },
+      { value: "1080p", label: "1080p" },
+    ],
+  },
+  {
+    kind: "segment",
+    key: "character_orientation",
+    label: "جهت شخصیت",
+    def: "video",
+    options: [
+      { value: "video", label: "از ویدیو (تا ۳۰ ثانیه)" },
+      { value: "image", label: "از عکس (تا ۱۰ ثانیه)" },
+    ],
+  },
 ];
 
 // ---- families ---------------------------------------------------------------
@@ -231,12 +259,32 @@ export const FAMILIES: Family[] = [
         key: "aspect_ratio",
         label: "نسبت تصویر",
         def: "1:1",
-        options: [ratios.sq, ratios.l169, ratios.p916, ratios.l43, ratios.p34, ratios.l32, ratios.p23, ratios.l54, ratios.p45, ratios.l219, ratios.auto],
+        options: [
+          ratios.sq,
+          ratios.l169,
+          ratios.p916,
+          ratios.l43,
+          ratios.p34,
+          ratios.l32,
+          ratios.p23,
+          ratios.l54,
+          ratios.p45,
+          ratios.l219,
+          ratios.auto,
+        ],
       },
       QUALITY("1K", ["1K", "2K", "4K"]),
-      { kind: "segment", key: "output_format", label: "فرمت خروجی", def: "png", advanced: true, options: [
-        { value: "png", label: "PNG" }, { value: "jpg", label: "JPG" },
-      ] },
+      {
+        kind: "segment",
+        key: "output_format",
+        label: "فرمت خروجی",
+        def: "png",
+        advanced: true,
+        options: [
+          { value: "png", label: "PNG" },
+          { value: "jpg", label: "JPG" },
+        ],
+      },
     ],
     variants: [
       {
@@ -260,9 +308,17 @@ export const FAMILIES: Family[] = [
             options: [ratios.auto, ratios.sq, ratios.l169, ratios.p916, ratios.l43, ratios.p34, ratios.l32, ratios.p23, ratios.l219],
           },
           QUALITY("1K", ["1K", "2K", "4K"]),
-          { kind: "segment", key: "output_format", label: "فرمت خروجی", def: "jpg", advanced: true, options: [
-            { value: "jpg", label: "JPG" }, { value: "png", label: "PNG" },
-          ] },
+          {
+            kind: "segment",
+            key: "output_format",
+            label: "فرمت خروجی",
+            def: "jpg",
+            advanced: true,
+            options: [
+              { value: "jpg", label: "JPG" },
+              { value: "png", label: "PNG" },
+            ],
+          },
         ],
       },
     ],
@@ -284,9 +340,16 @@ export const FAMILIES: Family[] = [
         def: "1:1",
         options: [ratios.sq, ratios.l169, ratios.p916, ratios.l43, ratios.p34, ratios.l32, ratios.p23, ratios.l219],
       },
-      { kind: "segment", key: "quality", label: "کیفیت", def: "basic", options: [
-        { value: "basic", label: "2K" }, { value: "high", label: "4K" },
-      ] },
+      {
+        kind: "segment",
+        key: "quality",
+        label: "کیفیت",
+        def: "basic",
+        options: [
+          { value: "basic", label: "2K" },
+          { value: "high", label: "4K" },
+        ],
+      },
     ],
     variants: [
       { id: "seedream-4-5", model: "seedream/4.5-text-to-image", label: "۴٫۵" },
@@ -308,7 +371,19 @@ export const FAMILIES: Family[] = [
         key: "aspect_ratio",
         label: "نسبت تصویر",
         def: "auto",
-        options: [ratios.auto, ratios.sq, ratios.l32, ratios.p23, ratios.l43, ratios.p34, ratios.l54, ratios.p45, ratios.l169, ratios.p916, ratios.l219],
+        options: [
+          ratios.auto,
+          ratios.sq,
+          ratios.l32,
+          ratios.p23,
+          ratios.l43,
+          ratios.p34,
+          ratios.l54,
+          ratios.p45,
+          ratios.l169,
+          ratios.p916,
+          ratios.l219,
+        ],
       },
       QUALITY("1K", ["1K", "2K", "4K"]),
     ],
@@ -320,9 +395,16 @@ export const FAMILIES: Family[] = [
         label: "۱٫۵",
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "1:1", options: [ratios.sq, ratios.p23, ratios.l32] },
-          { kind: "segment", key: "quality", label: "کیفیت", def: "medium", options: [
-            { value: "medium", label: "متعادل" }, { value: "high", label: "بالا" },
-          ] },
+          {
+            kind: "segment",
+            key: "quality",
+            label: "کیفیت",
+            def: "medium",
+            options: [
+              { value: "medium", label: "متعادل" },
+              { value: "high", label: "بالا" },
+            ],
+          },
         ],
       },
     ],
@@ -390,12 +472,29 @@ export const FAMILIES: Family[] = [
         def: "square_hd",
         options: [sizes.square_hd, sizes.l169, sizes.p169, sizes.l43, sizes.p43],
       },
-      { kind: "segment", key: "rendering_speed", label: "حالت", def: "BALANCED", options: [
-        { value: "TURBO", label: "سریع" }, { value: "BALANCED", label: "متعادل" }, { value: "QUALITY", label: "کیفیت" },
-      ] },
-      { kind: "segment", key: "style", label: "سبک", def: "AUTO", options: [
-        { value: "AUTO", label: "خودکار" }, { value: "GENERAL", label: "عمومی" }, { value: "REALISTIC", label: "واقع‌گرا" }, { value: "DESIGN", label: "طراحی" },
-      ] },
+      {
+        kind: "segment",
+        key: "rendering_speed",
+        label: "حالت",
+        def: "BALANCED",
+        options: [
+          { value: "TURBO", label: "سریع" },
+          { value: "BALANCED", label: "متعادل" },
+          { value: "QUALITY", label: "کیفیت" },
+        ],
+      },
+      {
+        kind: "segment",
+        key: "style",
+        label: "سبک",
+        def: "AUTO",
+        options: [
+          { value: "AUTO", label: "خودکار" },
+          { value: "GENERAL", label: "عمومی" },
+          { value: "REALISTIC", label: "واقع‌گرا" },
+          { value: "DESIGN", label: "طراحی" },
+        ],
+      },
       { kind: "toggle", key: "expand_prompt", label: "گسترش خودکار پرامپت", def: false, advanced: true },
       { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
     ],
@@ -418,9 +517,18 @@ export const FAMILIES: Family[] = [
         def: "square_hd",
         options: [sizes.square_hd, sizes.l169, sizes.p169, sizes.l43, sizes.p43],
       },
-      { kind: "segment", key: "acceleration", label: "سرعت", def: "none", advanced: true, options: [
-        { value: "none", label: "عادی" }, { value: "regular", label: "تند" }, { value: "high", label: "خیلی تند" },
-      ] },
+      {
+        kind: "segment",
+        key: "acceleration",
+        label: "سرعت",
+        def: "none",
+        advanced: true,
+        options: [
+          { value: "none", label: "عادی" },
+          { value: "regular", label: "تند" },
+          { value: "high", label: "خیلی تند" },
+        ],
+      },
       { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
     ],
     variants: [{ id: "qwen-image", model: "qwen/text-to-image", label: "Image" }],
@@ -515,7 +623,13 @@ export const FAMILIES: Family[] = [
         label: "۱٫۵ Pro",
         refs: [{ key: "input_urls", label: "تصاویر ورودی (اختیاری)", max: 2 }],
         controls: [
-          { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34, ratios.l219] },
+          {
+            kind: "aspect",
+            key: "aspect_ratio",
+            label: "نسبت تصویر",
+            def: "16:9",
+            options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34, ratios.l219],
+          },
           QUALITY("720p", ["480p", "720p", "1080p"]),
           // 1.5 Pro moves in 2s steps (4/6/8/10/12), unlike Seedance 2's 1s.
           // The old slider stepped by 1 and defaulted to 5, which isn't a legal value.
@@ -550,9 +664,17 @@ export const FAMILIES: Family[] = [
       },
       // Kling 3.0 has no `resolution` field. It takes a required `mode` of
       // std | pro | 4K, which the rate table lists as 720P / 1080P / 4K.
-      { kind: "segment", key: "mode", label: "کیفیت", def: "pro", options: [
-        { value: "std", label: "720p" }, { value: "pro", label: "1080p" }, { value: "4K", label: "4K" },
-      ] },
+      {
+        kind: "segment",
+        key: "mode",
+        label: "کیفیت",
+        def: "pro",
+        options: [
+          { value: "std", label: "720p" },
+          { value: "pro", label: "1080p" },
+          { value: "4K", label: "4K" },
+        ],
+      },
       // There is no top-level duration or prompt on this model — both are
       // serialised into the `shots` JSON string ({"prompt": …, "duration": …}).
       // The control stays because duration still drives the per-second price and
@@ -578,9 +700,16 @@ export const FAMILIES: Family[] = [
         refs: [{ key: "image_urls", label: "تصویر ورودی (اختیاری)", max: 1 }],
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
-          { kind: "segment", key: "resolution", label: "کیفیت", def: "720p", options: [
-            { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
-          ] },
+          {
+            kind: "segment",
+            key: "resolution",
+            label: "کیفیت",
+            def: "720p",
+            options: [
+              { value: "720p", label: "720p" },
+              { value: "1080p", label: "1080p" },
+            ],
+          },
           { kind: "slider", key: "duration", label: "مدت", min: 3, max: 15, step: 1, def: 5, unit: "ثانیه" },
         ],
       },
@@ -595,9 +724,16 @@ export const FAMILIES: Family[] = [
         refs: [{ key: "image_urls", label: "تصویر ورودی (اختیاری)", max: 1 }],
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
-          { kind: "segment", key: "duration", label: "مدت", def: "5", options: [
-            { value: "5", label: "۵ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
-          ] },
+          {
+            kind: "segment",
+            key: "duration",
+            label: "مدت",
+            def: "5",
+            options: [
+              { value: "5", label: "۵ ثانیه" },
+              { value: "10", label: "۱۰ ثانیه" },
+            ],
+          },
           { kind: "toggle", key: "sound", label: "تولید صدا", def: false },
         ],
       },
@@ -640,9 +776,16 @@ export const FAMILIES: Family[] = [
         ],
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
-          { kind: "segment", key: "duration", label: "مدت", def: "5", options: [
-            { value: "5", label: "۵ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
-          ] },
+          {
+            kind: "segment",
+            key: "duration",
+            label: "مدت",
+            def: "5",
+            options: [
+              { value: "5", label: "۵ ثانیه" },
+              { value: "10", label: "۱۰ ثانیه" },
+            ],
+          },
           { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
           { kind: "slider", key: "cfg_scale", label: "پایبندی به پرامپت", min: 0, max: 1, step: 0.1, def: 0.5, advanced: true },
         ],
@@ -715,12 +858,26 @@ export const FAMILIES: Family[] = [
         def: "16:9",
         options: [ratios.l169, ratios.p916, ratios.sq],
       },
-      { kind: "segment", key: "resolution", label: "کیفیت", def: "720p", options: [
-        { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
-      ] },
-      { kind: "segment", key: "duration", label: "مدت", def: "5", options: [
-        { value: "5", label: "۵ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
-      ] },
+      {
+        kind: "segment",
+        key: "resolution",
+        label: "کیفیت",
+        def: "720p",
+        options: [
+          { value: "720p", label: "720p" },
+          { value: "1080p", label: "1080p" },
+        ],
+      },
+      {
+        kind: "segment",
+        key: "duration",
+        label: "مدت",
+        def: "5",
+        options: [
+          { value: "5", label: "۵ ثانیه" },
+          { value: "10", label: "۱۰ ثانیه" },
+        ],
+      },
       { kind: "toggle", key: "enable_prompt_expansion", label: "گسترش خودکار پرامپت", def: false, advanced: true },
       { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
     ],
@@ -748,12 +905,27 @@ export const FAMILIES: Family[] = [
         // which left its image-to-video model unreachable.
         refs: [{ key: "image_urls", label: "تصویر ورودی (اختیاری)", max: 1 }],
         controls: [
-          { kind: "segment", key: "resolution", label: "کیفیت", def: "1080p", options: [
-            { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
-          ] },
-          { kind: "segment", key: "duration", label: "مدت", def: "5", options: [
-            { value: "5", label: "۵ ثانیه" }, { value: "10", label: "۱۰ ثانیه" }, { value: "15", label: "۱۵ ثانیه" },
-          ] },
+          {
+            kind: "segment",
+            key: "resolution",
+            label: "کیفیت",
+            def: "1080p",
+            options: [
+              { value: "720p", label: "720p" },
+              { value: "1080p", label: "1080p" },
+            ],
+          },
+          {
+            kind: "segment",
+            key: "duration",
+            label: "مدت",
+            def: "5",
+            options: [
+              { value: "5", label: "۵ ثانیه" },
+              { value: "10", label: "۱۰ ثانیه" },
+              { value: "15", label: "۱۵ ثانیه" },
+            ],
+          },
           { kind: "toggle", key: "multi_shots", label: "چندنما (روایت چندبخشی)", def: false, advanced: true },
         ],
       },
@@ -772,10 +944,23 @@ export const FAMILIES: Family[] = [
           { key: "driving_audio_url", label: "صدای هدایت‌گر (اختیاری)", max: 1, media: "audio", maxMb: 50 },
         ],
         controls: [
-          { kind: "aspect", key: "ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34] },
-          { kind: "segment", key: "resolution", label: "کیفیت", def: "1080p", options: [
-            { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
-          ] },
+          {
+            kind: "aspect",
+            key: "ratio",
+            label: "نسبت تصویر",
+            def: "16:9",
+            options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34],
+          },
+          {
+            kind: "segment",
+            key: "resolution",
+            label: "کیفیت",
+            def: "1080p",
+            options: [
+              { value: "720p", label: "720p" },
+              { value: "1080p", label: "1080p" },
+            ],
+          },
           { kind: "slider", key: "duration", label: "مدت", min: 2, max: 15, step: 1, def: 5, unit: "ثانیه" },
           { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
           // API default is true; kept on to match, but now visible and switchable.
@@ -801,18 +986,48 @@ export const FAMILIES: Family[] = [
           { key: "reference_image", label: "تصویر مرجع (اختیاری)", max: 1, maxMb: 30 },
         ],
         controls: [
-          { kind: "segment", key: "resolution", label: "کیفیت", def: "720p", options: [
-            { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
-          ] },
+          {
+            kind: "segment",
+            key: "resolution",
+            label: "کیفیت",
+            def: "720p",
+            options: [
+              { value: "720p", label: "720p" },
+              { value: "1080p", label: "1080p" },
+            ],
+          },
           // Sent as a number by the backend, unlike the string durations elsewhere.
-          { kind: "segment", key: "duration", label: "مدت خروجی", def: "0", options: [
-            { value: "0", label: "کل ویدیو" }, { value: "2", label: "۲ ثانیه" }, { value: "4", label: "۴ ثانیه" },
-            { value: "6", label: "۶ ثانیه" }, { value: "8", label: "۸ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
-          ] },
-          { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34] },
-          { kind: "segment", key: "audio_setting", label: "صدا", def: "auto", options: [
-            { value: "auto", label: "خودکار" }, { value: "origin", label: "حفظ صدای اصلی" },
-          ] },
+          {
+            kind: "segment",
+            key: "duration",
+            label: "مدت خروجی",
+            def: "0",
+            options: [
+              { value: "0", label: "کل ویدیو" },
+              { value: "2", label: "۲ ثانیه" },
+              { value: "4", label: "۴ ثانیه" },
+              { value: "6", label: "۶ ثانیه" },
+              { value: "8", label: "۸ ثانیه" },
+              { value: "10", label: "۱۰ ثانیه" },
+            ],
+          },
+          {
+            kind: "aspect",
+            key: "aspect_ratio",
+            label: "نسبت تصویر",
+            def: "16:9",
+            options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34],
+          },
+          {
+            kind: "segment",
+            key: "audio_setting",
+            label: "صدا",
+            def: "auto",
+            options: [
+              { value: "auto", label: "خودکار" },
+              { value: "origin", label: "حفظ صدای اصلی" },
+            ],
+          },
           { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
           { kind: "toggle", key: "prompt_extend", label: "گسترش خودکار پرامپت", def: true, advanced: true },
           { kind: "toggle", key: "watermark", label: "واترمارک", def: false, advanced: true },
@@ -833,10 +1048,23 @@ export const FAMILIES: Family[] = [
           { key: "first_frame", label: "فریم شروع (اختیاری)", max: 1 },
         ],
         controls: [
-          { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34] },
-          { kind: "segment", key: "resolution", label: "کیفیت", def: "1080p", options: [
-            { value: "720p", label: "720p" }, { value: "1080p", label: "1080p" },
-          ] },
+          {
+            kind: "aspect",
+            key: "aspect_ratio",
+            label: "نسبت تصویر",
+            def: "16:9",
+            options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34],
+          },
+          {
+            kind: "segment",
+            key: "resolution",
+            label: "کیفیت",
+            def: "1080p",
+            options: [
+              { value: "720p", label: "720p" },
+              { value: "1080p", label: "1080p" },
+            ],
+          },
           // The doc contradicts itself — prose says the default is 5, the Default
           // Value field says 9. Taking 5: cheaper, and it matches every other Wan.
           { kind: "slider", key: "duration", label: "مدت", min: 2, max: 10, step: 1, def: 5, unit: "ثانیه" },
@@ -898,10 +1126,18 @@ export const FAMILIES: Family[] = [
       // 720p and 1080p cost exactly the same at every duration, so 720p is
       // strictly worse for the user. Defaulting to 1080p; KIE's own default is 720p.
       QUALITY("1080p", ["720p", "1080p", "4k"]),
-      { kind: "segment", key: "duration", label: "مدت", def: "8", options: [
-        { value: "4", label: "۴ ثانیه" }, { value: "6", label: "۶ ثانیه" },
-        { value: "8", label: "۸ ثانیه" }, { value: "10", label: "۱۰ ثانیه" },
-      ] },
+      {
+        kind: "segment",
+        key: "duration",
+        label: "مدت",
+        def: "8",
+        options: [
+          { value: "4", label: "۴ ثانیه" },
+          { value: "6", label: "۶ ثانیه" },
+          { value: "8", label: "۸ ثانیه" },
+          { value: "10", label: "۱۰ ثانیه" },
+        ],
+      },
     ],
     variants: [{ id: "gemini-omni-video", model: "gemini-omni-video", label: "Omni" }],
   },
@@ -931,9 +1167,17 @@ export const FAMILIES: Family[] = [
     controls: [
       { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916] },
       QUALITY("720p", ["720p", "1080p", "4k"]),
-      { kind: "segment", key: "duration", label: "مدت", def: "8", options: [
-        { value: "4", label: "۴ ثانیه" }, { value: "6", label: "۶ ثانیه" }, { value: "8", label: "۸ ثانیه" },
-      ] },
+      {
+        kind: "segment",
+        key: "duration",
+        label: "مدت",
+        def: "8",
+        options: [
+          { value: "4", label: "۴ ثانیه" },
+          { value: "6", label: "۶ ثانیه" },
+          { value: "8", label: "۸ ثانیه" },
+        ],
+      },
     ],
     variants: [
       { id: "veo-fast", model: "veo3_fast", label: "سریع", badge: "ارزان" },
@@ -950,7 +1194,13 @@ export const FAMILIES: Family[] = [
     badge: "xAI",
     grad: "linear-gradient(135deg,#3b3f46,#1c1f24)",
     controls: [
-      { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "1:1", options: [ratios.sq, ratios.p23, ratios.l32, ratios.l169, ratios.p916] },
+      {
+        kind: "aspect",
+        key: "aspect_ratio",
+        label: "نسبت تصویر",
+        def: "1:1",
+        options: [ratios.sq, ratios.p23, ratios.l32, ratios.l169, ratios.p916],
+      },
       { kind: "toggle", key: "enable_pro", label: "حالت کیفیت", def: false },
     ],
     variants: [{ id: "grok-image", model: "grok-imagine/text-to-image", label: "Imagine" }],
@@ -979,9 +1229,19 @@ export const FAMILIES: Family[] = [
         badge: "ارزان",
         controls: [
           ...elevenCommonControls,
-          { kind: "segment", key: "language_code", label: "زبان", def: "", advanced: true, options: [
-            { value: "", label: "خودکار" }, { value: "fa", label: "فارسی" }, { value: "en", label: "انگلیسی" }, { value: "ar", label: "عربی" },
-          ] },
+          {
+            kind: "segment",
+            key: "language_code",
+            label: "زبان",
+            def: "",
+            advanced: true,
+            options: [
+              { value: "", label: "خودکار" },
+              { value: "fa", label: "فارسی" },
+              { value: "en", label: "انگلیسی" },
+              { value: "ar", label: "عربی" },
+            ],
+          },
         ],
       },
       { id: "eleven-multilingual", model: "elevenlabs/text-to-speech-multilingual-v2", label: "چندزبانه", badge: "کیفیت" },
@@ -1006,9 +1266,17 @@ export const FAMILIES: Family[] = [
       // for 1x — so 1x is left out rather than sold at a made-up price. Which
       // factor lands in which tier is inferred from the numbers lining up;
       // confirm against a real job's creditsConsumed before it matters.
-      { kind: "segment", key: "upscale_factor", label: "بزرگ‌نمایی", def: "2", options: [
-        { value: "2", label: "۲ برابر" }, { value: "4", label: "۴ برابر" }, { value: "8", label: "۸ برابر" },
-      ] },
+      {
+        kind: "segment",
+        key: "upscale_factor",
+        label: "بزرگ‌نمایی",
+        def: "2",
+        options: [
+          { value: "2", label: "۲ برابر" },
+          { value: "4", label: "۴ برابر" },
+          { value: "8", label: "۸ برابر" },
+        ],
+      },
     ],
     variants: [
       { id: "topaz-image-upscale", model: "topaz/image-upscale", label: "بزرگ‌نمایی" },
@@ -1020,9 +1288,17 @@ export const FAMILIES: Family[] = [
         label: "ویدیو",
         refs: [{ key: "video_url", label: "ویدیوی ورودی (الزامی)", max: 1, required: true, media: "video", maxMb: 50 }],
         controls: [
-          { kind: "segment", key: "upscale_factor", label: "بزرگ‌نمایی", def: "2", options: [
-            { value: "1", label: "۱ برابر" }, { value: "2", label: "۲ برابر" }, { value: "4", label: "۴ برابر" },
-          ] },
+          {
+            kind: "segment",
+            key: "upscale_factor",
+            label: "بزرگ‌نمایی",
+            def: "2",
+            options: [
+              { value: "1", label: "۱ برابر" },
+              { value: "2", label: "۲ برابر" },
+              { value: "4", label: "۴ برابر" },
+            ],
+          },
         ],
       },
     ],

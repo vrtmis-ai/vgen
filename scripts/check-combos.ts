@@ -22,12 +22,19 @@ import type { InputMap, InputValue } from "../src/components/controls";
 
 // keys that select a rate row; varying anything else can't change the price
 const PRICE_KEYS = new Set([
-  "resolution", "quality", "mode", "rendering_speed", "duration",
-  "sound", "generate_audio", "enable_pro",
+  "resolution",
+  "quality",
+  "mode",
+  "rendering_speed",
+  "duration",
+  "sound",
+  "generate_audio",
+  "enable_pro",
   // Both of these select a rate and both were missing, so the Topaz tiers and
   // Motion Control's output cap were never in the cross product at all — the
   // run printed one row per Topaz variant and called itself exhaustive.
-  "upscale_factor", "character_orientation",
+  "upscale_factor",
+  "character_orientation",
 ]);
 
 const MAX_SLIDER_STEPS = 20;
@@ -37,10 +44,7 @@ function valuesFor(c: Control): InputValue[] {
   if (c.kind === "toggle") return [false, true];
   if (c.kind === "slider") {
     const steps = Math.floor((c.max - c.min) / c.step) + 1;
-    const raw =
-      steps <= MAX_SLIDER_STEPS
-        ? Array.from({ length: steps }, (_, k) => c.min + k * c.step)
-        : [c.min, c.def, c.max];
+    const raw = steps <= MAX_SLIDER_STEPS ? Array.from({ length: steps }, (_, k) => c.min + k * c.step) : [c.min, c.def, c.max];
     return raw.map((v) => (c.asString ? String(v) : v));
   }
   return [""];

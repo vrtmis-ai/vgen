@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, MagnifyingGlass, Play, Pause, SpinnerGap, Sparkle } from "@phosphor-icons/react";
 import { VOICES, voicePreviewUrl, type Voice } from "../data/voices";
+import { useModalSurface } from "./FloatingSurface";
 
 /* ---------------------------------------------------------------------------
    The voice picker.
@@ -70,7 +71,12 @@ function VoiceCard({
         outlineOffset: selected ? "-2px" : "-1px",
       }}
     >
-      <button onClick={onPick} className="flex flex-1 items-center gap-2.5 rounded-lg p-2 text-start">
+      <button
+        data-voice-option
+        aria-pressed={selected}
+        onClick={onPick}
+        className="flex flex-1 items-center gap-2.5 rounded-lg p-2 text-start"
+      >
         <span className="size-[42px] shrink-0 rounded-full" style={{ background: orb(voice.id) }} aria-hidden />
         <span className="min-w-0">
           <bdi
@@ -96,7 +102,13 @@ function VoiceCard({
             color: playing ? "var(--vg-text-on-primary)" : "var(--vg-text)",
           }}
         >
-          {loading ? <SpinnerGap size={11} className="animate-spin" /> : playing ? <Pause size={10} weight="fill" /> : <Play size={10} weight="fill" />}
+          {loading ? (
+            <SpinnerGap size={11} className="animate-spin" />
+          ) : playing ? (
+            <Pause size={10} weight="fill" />
+          ) : (
+            <Play size={10} weight="fill" />
+          )}
         </button>
         <span className="flex h-4 flex-1 items-center gap-[1.5px]" aria-hidden>
           {wave.map((v, i) => (
@@ -127,6 +139,9 @@ export function VoicePicker({
   const [q, setQ] = useState("");
   const [load, setLoad] = useState<Load>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  useModalSurface({ surfaceRef: dialogRef, onClose, initialFocusRef: searchRef });
 
   useEffect(() => {
     const el = new Audio();
@@ -147,12 +162,6 @@ export function VoicePicker({
     };
   }, []);
 
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", esc);
-    return () => document.removeEventListener("keydown", esc);
-  }, [onClose]);
-
   const preview = (v: Voice) => {
     const el = audio.current;
     if (!el) return;
@@ -172,9 +181,37 @@ export function VoicePicker({
     return s ? VOICES.filter((v) => v.name.toLowerCase().includes(s) || v.note.includes(q.trim())) : VOICES;
   }, [q]);
 
+  const moveFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const cards = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>("[data-voice-option]") ?? []);
+    if (!cards.length) return;
+    const current = cards.indexOf(document.activeElement as HTMLButtonElement);
+    const rtl = document.documentElement.dir === "rtl";
+    let next = current;
+    if (event.key === "ArrowDown") next = current < 0 ? 0 : Math.min(cards.length - 1, current + 3);
+    if (event.key === "ArrowUp") next = current < 0 ? 0 : Math.max(0, current - 3);
+    if (event.key === "ArrowRight") next = current < 0 ? 0 : (current + (rtl ? -1 : 1) + cards.length) % cards.length;
+    if (event.key === "ArrowLeft") next = current < 0 ? 0 : (current + (rtl ? 1 : -1) + cards.length) % cards.length;
+    if (event.key === "Home") next = 0;
+    if (event.key === "End") next = cards.length - 1;
+    event.preventDefault();
+    cards[next]?.focus();
+  };
+
   return createPortal(
-    <div className="fixed inset-0 z-[85] flex items-end justify-center sm:items-center" style={{ background: "rgba(9,9,9,0.9)" }} onClick={onClose}>
+    <div
+      data-modal-root
+      className="fixed inset-0 z-[85] flex items-end justify-center sm:items-center"
+      style={{ background: "rgba(9,9,9,0.9)" }}
+      onClick={onClose}
+    >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="voice-picker-title"
+        tabIndex={-1}
+        onKeyDown={moveFocus}
         className="flex max-h-[88dvh] w-full max-w-[680px] flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl"
         style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border)" }}
         onClick={(e) => e.stopPropagation()}
@@ -183,7 +220,11 @@ export function VoicePicker({
             that is not "pick an existing voice". */}
         <div className="relative flex items-start gap-4 p-5" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>
           <div className="min-w-0 flex-1">
-            <h2 className="text-[21px] font-extrabold leading-tight" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+            <h2
+              id="voice-picker-title"
+              className="text-[21px] font-extrabold leading-tight"
+              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+            >
               یک صدا انتخاب کن
             </h2>
             <p className="mt-1 max-w-[46ch] text-[12.5px] leading-5" style={{ color: "var(--vg-text-muted)" }}>
@@ -201,7 +242,12 @@ export function VoicePicker({
               ساخت صدای اختصاصی — به‌زودی
             </button>
           </div>
-          <button onClick={onClose} aria-label="بستن" className="grid size-9 shrink-0 place-items-center rounded-lg" style={{ color: "var(--vg-text-muted)" }}>
+          <button
+            onClick={onClose}
+            aria-label="بستن"
+            className="grid size-9 shrink-0 place-items-center rounded-lg"
+            style={{ color: "var(--vg-text-muted)" }}
+          >
             <X size={16} weight="bold" />
           </button>
         </div>
@@ -219,6 +265,7 @@ export function VoicePicker({
           >
             <MagnifyingGlass size={12} style={{ color: "var(--vg-text-muted)" }} />
             <input
+              ref={searchRef}
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="جستجو"

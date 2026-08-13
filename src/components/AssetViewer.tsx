@@ -1,11 +1,29 @@
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import {
-  X, Info, PencilSimple, ChatCircle, Copy, CaretDown, CaretLeft, CaretUp,
-  DownloadSimple, Heart, ShareNetwork, DotsThree, VideoCamera, ArrowsClockwise, Image as ImageIcon,
-  ArrowsOut, MagicWand, Selection, Sun, FrameCorners,
+  X,
+  Info,
+  PencilSimple,
+  ChatCircle,
+  Copy,
+  CaretDown,
+  CaretLeft,
+  CaretUp,
+  DownloadSimple,
+  Heart,
+  ShareNetwork,
+  DotsThree,
+  VideoCamera,
+  ArrowsClockwise,
+  Image as ImageIcon,
+  ArrowsOut,
+  MagicWand,
+  Selection,
+  Sun,
+  FrameCorners,
 } from "@phosphor-icons/react";
 import { getFamily } from "../data/models";
 import { useI18n } from "../lib/i18n";
+import { useModalSurface } from "./FloatingSurface";
 
 /* ---------------------------------------------------------------------------
    The asset viewer — the reference's image detail overlay.
@@ -90,7 +108,10 @@ function Row({
         )}
       </span>
       {badge && (
-        <span className="rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "var(--vg-primary-a18)", color: "var(--vg-primary-soft)" }}>
+        <span
+          className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+          style={{ background: "var(--vg-primary-a18)", color: "var(--vg-primary-soft)" }}
+        >
           {badge}
         </span>
       )}
@@ -118,11 +139,9 @@ export function AssetViewer({
 
   // Escape closes. Without it the only way out is the ×, and a full-screen
   // overlay that traps the keyboard is the classic lightbox complaint.
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", k);
-    return () => document.removeEventListener("keydown", k);
-  }, [onClose]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useModalSurface({ surfaceRef: dialogRef, onClose, initialFocusRef: closeRef });
 
   const copyPrompt = () => {
     void navigator.clipboard?.writeText(asset.prompt);
@@ -135,7 +154,16 @@ export function AssetViewer({
     : "—";
 
   return (
-    <div className="fixed inset-0 z-[70] flex" style={{ background: "rgba(9,9,9,0.94)" }}>
+    <div
+      ref={dialogRef}
+      data-modal-root
+      role="dialog"
+      aria-modal="true"
+      aria-label="نمایش دارایی"
+      tabIndex={-1}
+      className="fixed inset-0 z-[70] flex"
+      style={{ background: "rgba(9,9,9,0.94)" }}
+    >
       <div className="relative flex min-w-0 flex-1 items-center justify-center p-6">
         <img
           src={asset.url}
@@ -160,7 +188,10 @@ export function AssetViewer({
         style={{ background: "var(--vg-surface)", borderInlineStart: "1px solid var(--vg-border-subtle)" }}
       >
         <div className="flex items-center gap-2.5 p-3.5">
-          <span className="grid size-8 place-items-center rounded-full text-[11px] font-bold" style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}>
+          <span
+            className="grid size-8 place-items-center rounded-full text-[11px] font-bold"
+            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+          >
             {(asset.author ?? "من").slice(0, 2)}
           </span>
           <div className="min-w-0 flex-1">
@@ -171,13 +202,25 @@ export function AssetViewer({
               سازنده
             </p>
           </div>
-          <button onClick={onClose} aria-label="بستن" className="grid size-8 place-items-center rounded-lg" style={{ color: "var(--vg-text-muted)" }}>
+          <button
+            ref={closeRef}
+            onClick={onClose}
+            aria-label="بستن"
+            className="grid size-8 place-items-center rounded-lg"
+            style={{ color: "var(--vg-text-muted)" }}
+          >
             <X size={16} weight="bold" />
           </button>
         </div>
 
         <div className="mx-3 flex gap-1 rounded-xl p-1" style={{ background: "var(--vg-canvas)" }}>
-          {([["info", "اطلاعات", Info], ["tools", "ابزارها", PencilSimple], ["comments", "نظرها", ChatCircle]] as const).map(([k, label, Icon]) => (
+          {(
+            [
+              ["info", "اطلاعات", Info],
+              ["tools", "ابزارها", PencilSimple],
+              ["comments", "نظرها", ChatCircle],
+            ] as const
+          ).map(([k, label, Icon]) => (
             <button
               key={k}
               onClick={() => setTab(k)}
@@ -200,7 +243,11 @@ export function AssetViewer({
                 <span className="text-[11px] font-semibold tracking-wide" style={{ color: "var(--vg-text-faint)" }}>
                   پرامپت
                 </span>
-                <button onClick={copyPrompt} className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px]" style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}>
+                <button
+                  onClick={copyPrompt}
+                  className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px]"
+                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+                >
                   <Copy size={11} />
                   {copied ? "کپی شد" : "کپی"}
                 </button>
@@ -222,9 +269,17 @@ export function AssetViewer({
                   ["ابعاد", `${asset.w}×${asset.h}`],
                   ["ساخته‌شده", created],
                 ].map(([k, v]) => (
-                  <div key={k} className="flex items-center justify-between border-b py-2 last:border-0" style={{ borderColor: "var(--vg-border-subtle)" }}>
-                    <dt className="text-[12px]" style={{ color: "var(--vg-text-muted)" }}>{k}</dt>
-                    <dd className="vg-numeric text-[12px]" style={{ color: "var(--vg-text)" }}>{v}</dd>
+                  <div
+                    key={k}
+                    className="flex items-center justify-between border-b py-2 last:border-0"
+                    style={{ borderColor: "var(--vg-border-subtle)" }}
+                  >
+                    <dt className="text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
+                      {k}
+                    </dt>
+                    <dd className="vg-numeric text-[12px]" style={{ color: "var(--vg-text)" }}>
+                      {v}
+                    </dd>
                   </div>
                 ))}
               </dl>
@@ -294,7 +349,11 @@ export function AssetViewer({
               دانلود
             </button>
             {[Heart, ShareNetwork, DotsThree].map((Icon, i) => (
-              <button key={i} className="grid size-10 place-items-center rounded-xl" style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}>
+              <button
+                key={i}
+                className="grid size-10 place-items-center rounded-xl"
+                style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+              >
                 <Icon size={15} />
               </button>
             ))}

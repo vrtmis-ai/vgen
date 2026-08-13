@@ -70,7 +70,18 @@ export const PLANS: Plan[] = [
   { id: "basic", name: "Basic", coinsPerMonth: 80, bonus: 0, tier: 1, monthlyUsd: 4, group: "entry" },
   { id: "flow", name: "Flow", coinsPerMonth: 150, bonus: 0, tier: 1, monthlyUsd: 7.5, group: "entry" },
   { id: "plus", name: "Plus", coinsPerMonth: 500, bonus: 25, tier: 1, monthlyUsd: 25, group: "entry", tag: "gift" },
-  { id: "pro", name: "Pro", coinsPerMonth: 1000, bonus: 100, tier: 2, monthlyUsd: 49, annualUsdPerMonth: 39, group: "main", tag: "popular", popular: true },
+  {
+    id: "pro",
+    name: "Pro",
+    coinsPerMonth: 1000,
+    bonus: 100,
+    tier: 2,
+    monthlyUsd: 49,
+    annualUsdPerMonth: 39,
+    group: "main",
+    tag: "popular",
+    popular: true,
+  },
   // bonus raised 200 → 300: at 200 this plan gave FEWER coins per Toman than Pro
   // (22.22 vs 22.45), so doubling your spend bought you less. See assertLadder().
   { id: "studio", name: "Studio", coinsPerMonth: 2000, bonus: 300, tier: 3, monthlyUsd: 99, annualUsdPerMonth: 80, group: "main" },
@@ -80,7 +91,17 @@ export const PLANS: Plan[] = [
   // over raising the annual price because that would have pushed the single
   // ZarinPal transaction from 222M to 230M Toman, and whether the gateway even
   // accepts 222M is still an open question (HANDOFF §6).
-  { id: "creator", name: "Creator", coinsPerMonth: 3000, bonus: 350, tier: 3, monthlyUsd: 139, annualUsdPerMonth: 109, group: "main", tag: "best" },
+  {
+    id: "creator",
+    name: "Creator",
+    coinsPerMonth: 3000,
+    bonus: 350,
+    tier: 3,
+    monthlyUsd: 139,
+    annualUsdPerMonth: 109,
+    group: "main",
+    tag: "best",
+  },
 ];
 
 /** Total coins a plan grants each month. */
@@ -438,8 +459,7 @@ export function buildBenchmarks(): Benchmark[] {
       }
 
       const axis = controls.find((c) => c.kind === "segment" && QUALITY_KEYS.includes(c.key));
-      const steps =
-        axis?.kind === "segment" ? axis.options.map((o) => ({ value: o.value, label: o.label })) : [null];
+      const steps = axis?.kind === "segment" ? axis.options.map((o) => ({ value: o.value, label: o.label })) : [null];
 
       for (const step of steps) {
         const input: InputMap = axis && step ? { ...base, [axis.key]: step.value } : base;

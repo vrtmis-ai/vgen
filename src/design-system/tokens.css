@@ -16,45 +16,45 @@
      In near-black, shadows are invisible; elevation is expressed as surface
      lightness. Each step is a real level, not decoration.
      --------------------------------------------------------------------- */
-  --vg-canvas:            #090909;  /* level 0 — page background, OLED-true  */
+  --vg-canvas: #090909; /* level 0 — page background, OLED-true  */
   /* The create panel's own ground. Measured off their audio panel: it sits a
      step above the canvas so the column reads as a separate surface without a
      divider doing the work. */
-  --vg-deep:              #131517;  /* level 0.5 — the create panel column   */
-  --vg-surface:           #121212;  /* level 1 — cards, inputs, content      */
-  --vg-surface-raised:    #191919;  /* level 2 — sheets, menus, popovers     */
-  --vg-surface-overlay:   #232323;  /* level 3 — active pills, hovered rows  */
-  --vg-surface-bright:    #353534;  /* level 4 — highest, rare               */
+  --vg-deep: #131517; /* level 0.5 — the create panel column   */
+  --vg-surface: #121212; /* level 1 — cards, inputs, content      */
+  --vg-surface-raised: #191919; /* level 2 — sheets, menus, popovers     */
+  --vg-surface-overlay: #232323; /* level 3 — active pills, hovered rows  */
+  --vg-surface-bright: #353534; /* level 4 — highest, rare               */
 
   /* Translucent surfaces (glass). Pair with --vg-blur-*.
      Two levels, as the Stitch screens had: docked chrome sits at 0.80 because
      content scrolls *under* it and must not distract; a floating panel sits at
      0.70 so you can actually see the blur doing its job. Above ~0.85 the
      backdrop-filter is invisible and you have just built an opaque card. */
-  --vg-glass:             rgb(18 18 18 / 0.80);  /* docked: header, nav, sheet */
-  --vg-glass-panel:       rgb(18 18 18 / 0.70);  /* floating panel over media  */
-  --vg-glass-light:       rgb(255 255 255 / 0.05);
-  --vg-glass-faint:       rgb(255 255 255 / 0.02);
-  --vg-scrim:             rgb(0 0 0 / 0.60);
+  --vg-glass: rgb(18 18 18 / 0.8); /* docked: header, nav, sheet */
+  --vg-glass-panel: rgb(18 18 18 / 0.7); /* floating panel over media  */
+  --vg-glass-light: rgb(255 255 255 / 0.05);
+  --vg-glass-faint: rgb(255 255 255 / 0.02);
+  --vg-scrim: rgb(0 0 0 / 0.6);
 
   /* ---------------------------------------------------------------------
      2. CONTENT — text and icons
      Off-white, never pure #fff: less eye strain in a dark room.
      --------------------------------------------------------------------- */
-  --vg-text:              #F5F3EF;  /* headings, primary content            */
-  --vg-text-secondary:    #E5E2E1;  /* body copy                            */
-  --vg-text-muted:        #A8A29E;  /* captions, metadata, placeholders     */
+  --vg-text: #f5f3ef; /* headings, primary content            */
+  --vg-text-secondary: #e5e2e1; /* body copy                            */
+  --vg-text-muted: #a8a29e; /* captions, metadata, placeholders     */
   /* Lightened from #6B6663, which measured 2.77–3.31:1 wherever it was used —
      below AA at every size. The name says "disabled", where WCAG exempts
      contrast, but in practice it had spread to captions, counts and units:
      real content. Rather than police every call site, the token now passes on
      its own and genuinely disabled controls carry opacity instead. */
-  --vg-text-faint:        #948E8A;  /* captions, counts, units              */
+  --vg-text-faint: #948e8a; /* captions, counts, units              */
   /* Dark ink on the orange fill, not white. White on #E95F18 measures 3.43:1
      and fails AA; #1A1A1A measures 4.97:1 and passes. The system's own prose
      said #1A1A1A from the start — this token had drifted from it, and every
      accent button and badge in the app inherited the failure. */
-  --vg-text-on-primary:   #1A1A1A;  /* on the orange fill                   */
+  --vg-text-on-primary: #1a1a1a; /* on the orange fill                   */
 
   /* ---------------------------------------------------------------------
      3. BRAND — "the spark"
@@ -85,28 +85,28 @@
           derived light enough for that here, but a very dark or desaturated
           brand may need the derivation loosened.
      ====================================================================== */
-  --vg-primary-rgb:       233 95 24;
-  --vg-primary:           rgb(var(--vg-primary-rgb));
+  --vg-primary-rgb: 233 95 24;
+  --vg-primary: rgb(var(--vg-primary-rgb));
 
   /* Derived ramp. oklab keeps the mix perceptually even, so a blue or green
      brand lands at the same visual distance from its base as orange does —
      an sRGB mix would go grey through the middle on some hues. */
-  --vg-primary-hover:     color-mix(in oklab, var(--vg-primary), white 16%);
-  --vg-primary-press:     color-mix(in oklab, var(--vg-primary), black 16%);
-  --vg-primary-soft:      color-mix(in oklab, var(--vg-primary), white 52%);
-  --vg-primary-dim:       color-mix(in oklab, var(--vg-primary), black 32%);
+  --vg-primary-hover: color-mix(in oklab, var(--vg-primary), white 16%);
+  --vg-primary-press: color-mix(in oklab, var(--vg-primary), black 16%);
+  --vg-primary-soft: color-mix(in oklab, var(--vg-primary), white 52%);
+  --vg-primary-dim: color-mix(in oklab, var(--vg-primary), black 32%);
 
   /* Tinted washes — for glows, focus rings, subtle fills. Alpha only, so these
      follow the brand automatically. a14/a18 are the two fill steps components
      use; the three near-identical values that were inline (0.10, 0.12, 0.14)
      were drift rather than design and collapse to one. */
-  --vg-primary-a03:       rgb(var(--vg-primary-rgb) / 0.03);
-  --vg-primary-a05:       rgb(var(--vg-primary-rgb) / 0.05);
-  --vg-primary-a10:       rgb(var(--vg-primary-rgb) / 0.10);
-  --vg-primary-a14:       rgb(var(--vg-primary-rgb) / 0.14);
-  --vg-primary-a18:       rgb(var(--vg-primary-rgb) / 0.18);
-  --vg-primary-a20:       rgb(var(--vg-primary-rgb) / 0.20);
-  --vg-primary-a40:       rgb(var(--vg-primary-rgb) / 0.40);
+  --vg-primary-a03: rgb(var(--vg-primary-rgb) / 0.03);
+  --vg-primary-a05: rgb(var(--vg-primary-rgb) / 0.05);
+  --vg-primary-a10: rgb(var(--vg-primary-rgb) / 0.1);
+  --vg-primary-a14: rgb(var(--vg-primary-rgb) / 0.14);
+  --vg-primary-a18: rgb(var(--vg-primary-rgb) / 0.18);
+  --vg-primary-a20: rgb(var(--vg-primary-rgb) / 0.2);
+  --vg-primary-a40: rgb(var(--vg-primary-rgb) / 0.4);
 
   /* ---------------------------------------------------------------------
      3b. ACCENT — the cool counterweight
@@ -122,33 +122,33 @@
      Never for: the primary CTA, destructive actions, or anything that
      competes with orange for "the action on this screen".
      --------------------------------------------------------------------- */
-  --vg-accent:            #9DCAFF;  /* blue *text* and icons on dark — AA   */
-  --vg-accent-strong:     #1995F1;  /* fills, active blue chips             */
-  --vg-accent-deep:       #002440;  /* text on an --vg-accent-strong fill.
+  --vg-accent: #9dcaff; /* blue *text* and icons on dark — AA   */
+  --vg-accent-strong: #1995f1; /* fills, active blue chips             */
+  --vg-accent-deep: #002440; /* text on an --vg-accent-strong fill.
                                        Stitch shipped #003257 here, but that
                                        is 4.15:1 on the blue — it fails AA at
                                        the 12px chip size. Darkened to 4.98:1. */
-  --vg-accent-a10:        rgb(25 149 241 / 0.10);
-  --vg-accent-a20:        rgb(25 149 241 / 0.20);
-  --vg-accent-a40:        rgb(25 149 241 / 0.40);
+  --vg-accent-a10: rgb(25 149 241 / 0.1);
+  --vg-accent-a20: rgb(25 149 241 / 0.2);
+  --vg-accent-a40: rgb(25 149 241 / 0.4);
 
   /* ---------------------------------------------------------------------
      4. STATUS
      --------------------------------------------------------------------- */
-  --vg-success:           #4ADE80;
-  --vg-warning:           #FBBF24;
-  --vg-danger:            #FFB4AB;
-  --vg-danger-bg:         #93000A;
-  --vg-info:              var(--vg-accent);
+  --vg-success: #4ade80;
+  --vg-warning: #fbbf24;
+  --vg-danger: #ffb4ab;
+  --vg-danger-bg: #93000a;
+  --vg-info: var(--vg-accent);
 
   /* ---------------------------------------------------------------------
      5. BORDERS — depth through fine lines, not shadows
      Higher z-index gets a brighter edge. This is the "hardware" look.
      --------------------------------------------------------------------- */
-  --vg-border:            rgb(255 255 255 / 0.10);  /* default              */
-  --vg-border-subtle:     rgb(255 255 255 / 0.05);  /* dividers, inner rows */
-  --vg-border-strong:     rgb(255 255 255 / 0.15);  /* elevated elements    */
-  --vg-border-primary:    var(--vg-primary);        /* focus, selected      */
+  --vg-border: rgb(255 255 255 / 0.1); /* default              */
+  --vg-border-subtle: rgb(255 255 255 / 0.05); /* dividers, inner rows */
+  --vg-border-strong: rgb(255 255 255 / 0.15); /* elevated elements    */
+  --vg-border-primary: var(--vg-primary); /* focus, selected      */
 
   /* ---------------------------------------------------------------------
      6. TYPOGRAPHY
@@ -158,124 +158,124 @@
        Vazirmatn — Persian UI and body. Also covers Latin digits acceptably.
      `--vg-font-ui` flips per document direction; see [dir="rtl"] below.
      --------------------------------------------------------------------- */
-  --vg-font-display:  'Syne', 'Vazirmatn', sans-serif;
-  --vg-font-latin:    'Inter', system-ui, sans-serif;
-  --vg-font-farsi:    'Vazirmatn', 'Noto Sans Arabic', sans-serif;
-  --vg-font-mono:     'Geist Mono', ui-monospace, 'SF Mono', monospace;
-  --vg-font-ui:       var(--vg-font-latin);
+  --vg-font-display: "Syne", "Vazirmatn", sans-serif;
+  --vg-font-latin: "Inter", system-ui, sans-serif;
+  --vg-font-farsi: "Vazirmatn", "Noto Sans Arabic", sans-serif;
+  --vg-font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+  --vg-font-ui: var(--vg-font-latin);
 
   /* Type scale — mobile-first values; see @media below for desktop bumps. */
-  --vg-display-size:      40px;   --vg-display-lh:    1.15;  --vg-display-ls: -0.03em;
-  --vg-headline-size:     28px;   --vg-headline-lh:   1.25;  --vg-headline-ls: -0.02em;
-  --vg-title-size:        20px;   --vg-title-lh:      1.35;
-  --vg-body-lg-size:      16px;   --vg-body-lg-lh:    1.6;
-  --vg-body-size:         14px;   --vg-body-lh:       1.55;
-  --vg-label-size:        12px;   --vg-label-lh:      1.4;   --vg-label-ls:  0.02em;
-  --vg-caps-size:         11px;   --vg-caps-lh:       1;     --vg-caps-ls:   0.08em;
+  --vg-display-size: 40px;
+  --vg-display-lh: 1.15;
+  --vg-display-ls: -0.03em;
+  --vg-headline-size: 28px;
+  --vg-headline-lh: 1.25;
+  --vg-headline-ls: -0.02em;
+  --vg-title-size: 20px;
+  --vg-title-lh: 1.35;
+  --vg-body-lg-size: 16px;
+  --vg-body-lg-lh: 1.6;
+  --vg-body-size: 14px;
+  --vg-body-lh: 1.55;
+  --vg-label-size: 12px;
+  --vg-label-lh: 1.4;
+  --vg-label-ls: 0.02em;
+  --vg-caps-size: 11px;
+  --vg-caps-lh: 1;
+  --vg-caps-ls: 0.08em;
 
-  --vg-weight-regular:    400;
-  --vg-weight-medium:     500;
-  --vg-weight-semibold:   600;
-  --vg-weight-bold:       700;
-  --vg-weight-black:      800;
+  --vg-weight-regular: 400;
+  --vg-weight-medium: 500;
+  --vg-weight-semibold: 600;
+  --vg-weight-bold: 700;
+  --vg-weight-black: 800;
 
   /* ---------------------------------------------------------------------
      7. SPACING — 4px base unit
      --------------------------------------------------------------------- */
-  --vg-space-1:   4px;
-  --vg-space-2:   8px;    /* stack-sm — tightly packed control panels       */
-  --vg-space-3:  12px;    /* gutter (mobile grid / gallery)                 */
-  --vg-space-4:  16px;    /* stack-md — the default rhythm                  */
-  --vg-space-6:  24px;    /* stack-lg                                       */
-  --vg-space-8:  32px;
+  --vg-space-1: 4px;
+  --vg-space-2: 8px; /* stack-sm — tightly packed control panels       */
+  --vg-space-3: 12px; /* gutter (mobile grid / gallery)                 */
+  --vg-space-4: 16px; /* stack-md — the default rhythm                  */
+  --vg-space-6: 24px; /* stack-lg                                       */
+  --vg-space-8: 32px;
   --vg-space-12: 48px;
   --vg-space-20: 80px;
-  --vg-space-30: 120px;   /* section-gap on desktop editorial pages         */
+  --vg-space-30: 120px; /* section-gap on desktop editorial pages         */
 
   /* Page margin — steps up with viewport. Overridden in @media below. */
   --vg-page-margin: 16px;
   --vg-container-max: 1440px;
 
   /* Fixed dimensions the design depends on. */
-  --vg-cta-height:      54px;   /* primary CTA — thumb-friendly              */
-  --vg-touch-min:       44px;   /* minimum tap target                        */
-  --vg-chip-height:     32px;
-  --vg-icon:            24px;
-  --vg-nav-height:      64px;
-  --vg-sidebar-width:  280px;
-  --vg-top-bar:         44px;   /* the whole chrome — one row, no rail       */
-  --vg-form-panel:     342px;   /* the create panel; canvas takes the rest   */
+  --vg-cta-height: 54px; /* primary CTA — thumb-friendly              */
+  --vg-touch-min: 44px; /* minimum tap target                        */
+  --vg-chip-height: 32px;
+  --vg-icon: 24px;
+  --vg-nav-height: 64px;
+  --vg-sidebar-width: 280px;
+  --vg-top-bar: 44px; /* the whole chrome — one row, no rail       */
+  --vg-form-panel: 342px; /* the create panel; canvas takes the rest   */
 
   /* ---------------------------------------------------------------------
      8. SHAPE — "soft-modern"
      --------------------------------------------------------------------- */
-  --vg-radius-sm:   0.25rem;  /*  4px — tags, tiny controls                 */
-  --vg-radius:      0.5rem;   /*  8px — default, precise                    */
-  --vg-radius-md:   0.75rem;  /* 12px — inputs, small cards                 */
-  --vg-radius-lg:   1rem;     /* 16px — cards, buttons, nav bar             */
-  --vg-radius-xl:   1.5rem;   /* 24px — bottom sheets (top corners only)    */
-  --vg-radius-full: 9999px;   /* chips, avatars, FAB                        */
+  --vg-radius-sm: 0.25rem; /*  4px — tags, tiny controls                 */
+  --vg-radius: 0.5rem; /*  8px — default, precise                    */
+  --vg-radius-md: 0.75rem; /* 12px — inputs, small cards                 */
+  --vg-radius-lg: 1rem; /* 16px — cards, buttons, nav bar             */
+  --vg-radius-xl: 1.5rem; /* 24px — bottom sheets (top corners only)    */
+  --vg-radius-full: 9999px; /* chips, avatars, FAB                        */
 
   /* ---------------------------------------------------------------------
      9. ELEVATION & LIGHT
      --------------------------------------------------------------------- */
-  --vg-blur-sm:  12px;
-  --vg-blur:     20px;   /* the standard glass blur                         */
-  --vg-blur-lg:  40px;
+  --vg-blur-sm: 12px;
+  --vg-blur: 20px; /* the standard glass blur                         */
+  --vg-blur-lg: 40px;
 
   /* Cinematic glow: outer bloom + a 1px inner top highlight, so the button
      reads as a lit physical surface rather than a flat rectangle. */
-  --vg-glow-primary:
-    0 0 20px var(--vg-primary-a20),
-    inset 0 1px 0 rgb(255 255 255 / 0.20);
-  --vg-glow-primary-lg:
-    0 0 40px -10px var(--vg-primary-a40),
-    inset 0 1px 0 rgb(255 255 255 / 0.20);
-  --vg-glow-focus:
-    0 0 0 2px var(--vg-canvas),
-    0 0 0 4px var(--vg-primary-a40);
+  --vg-glow-primary: 0 0 20px var(--vg-primary-a20), inset 0 1px 0 rgb(255 255 255 / 0.2);
+  --vg-glow-primary-lg: 0 0 40px -10px var(--vg-primary-a40), inset 0 1px 0 rgb(255 255 255 / 0.2);
+  --vg-glow-focus: 0 0 0 2px var(--vg-canvas), 0 0 0 4px var(--vg-primary-a40);
 
-  --vg-shadow-sheet:  0 -8px 40px rgb(0 0 0 / 0.60);
-  --vg-shadow-modal:  0 40px 100px -20px rgb(0 0 0 / 0.80);
+  --vg-shadow-sheet: 0 -8px 40px rgb(0 0 0 / 0.6);
+  --vg-shadow-modal: 0 40px 100px -20px rgb(0 0 0 / 0.8);
 
-  --vg-glow-accent:
-    0 0 20px var(--vg-accent-a20),
-    inset 0 1px 0 rgb(255 255 255 / 0.20);
+  --vg-glow-accent: 0 0 20px var(--vg-accent-a20), inset 0 1px 0 rgb(255 255 255 / 0.2);
 
   /* Ambient blue cast under floating chrome — the nav bar in the desktop
      screens used this (`shadow-tertiary/10`). Reads as cold room light. */
   --vg-shadow-ambient: 0 24px 60px -20px var(--vg-accent-a20);
 
   /* Light leak — a faint orange reflection in the top corner of hero cards. */
-  --vg-light-leak: radial-gradient(
-    circle at 0% 0%, var(--vg-primary-a10) 0%, transparent 55%);
+  --vg-light-leak: radial-gradient(circle at 0% 0%, var(--vg-primary-a10) 0%, transparent 55%);
 
   /* Cool leak — the blue counterpart, for informational or model-detail
      panels that should read as machine rather than action. */
-  --vg-cool-leak: radial-gradient(
-    circle at 100% 0%, var(--vg-accent-a10) 0%, transparent 55%);
+  --vg-cool-leak: radial-gradient(circle at 100% 0%, var(--vg-accent-a10) 0%, transparent 55%);
 
   /* Media scrim — bottom-up fade so white type sits legibly over artwork. */
-  --vg-media-scrim: linear-gradient(
-    to top, rgb(0 0 0 / 0.85) 0%, rgb(0 0 0 / 0.35) 45%, transparent 100%);
+  --vg-media-scrim: linear-gradient(to top, rgb(0 0 0 / 0.85) 0%, rgb(0 0 0 / 0.35) 45%, transparent 100%);
 
   /* ---------------------------------------------------------------------
      10. MOTION
      --------------------------------------------------------------------- */
-  --vg-ease:        cubic-bezier(0.32, 0.72, 0, 1);   /* the house curve    */
-  --vg-ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
-  --vg-dur-fast:    120ms;
-  --vg-dur:         220ms;
-  --vg-dur-slow:    420ms;   /* sheet enter/exit                            */
+  --vg-ease: cubic-bezier(0.32, 0.72, 0, 1); /* the house curve    */
+  --vg-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --vg-dur-fast: 120ms;
+  --vg-dur: 220ms;
+  --vg-dur-slow: 420ms; /* sheet enter/exit                            */
 
   /* ---------------------------------------------------------------------
      11. Z-INDEX
      --------------------------------------------------------------------- */
-  --vg-z-nav:       50;
-  --vg-z-sticky:    60;
-  --vg-z-scrim:     80;
-  --vg-z-sheet:     90;
-  --vg-z-toast:    100;
+  --vg-z-nav: 50;
+  --vg-z-sticky: 60;
+  --vg-z-scrim: 80;
+  --vg-z-sheet: 90;
+  --vg-z-toast: 100;
 }
 
 /* --------------------------------------------------------------------------
@@ -285,11 +285,11 @@
    -------------------------------------------------------------------------- */
 [dir="rtl"],
 :root:lang(fa) {
-  --vg-font-ui:       var(--vg-font-farsi);
-  --vg-body-lh:       1.75;
-  --vg-body-lg-lh:    1.85;
-  --vg-headline-ls:   0;      /* negative tracking damages Persian joins    */
-  --vg-display-ls:    0;
+  --vg-font-ui: var(--vg-font-farsi);
+  --vg-body-lh: 1.75;
+  --vg-body-lg-lh: 1.85;
+  --vg-headline-ls: 0; /* negative tracking damages Persian joins    */
+  --vg-display-ls: 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -297,26 +297,26 @@
    -------------------------------------------------------------------------- */
 @media (min-width: 768px) {
   :root {
-    --vg-page-margin:    24px;
-    --vg-display-size:   56px;
-    --vg-headline-size:  36px;
-    --vg-title-size:     22px;
+    --vg-page-margin: 24px;
+    --vg-display-size: 56px;
+    --vg-headline-size: 36px;
+    --vg-title-size: 22px;
   }
 }
 
 @media (min-width: 1280px) {
   :root {
-    --vg-page-margin:    64px;
-    --vg-display-size:   80px;
-    --vg-headline-size:  48px;
-    --vg-body-lg-size:   18px;
+    --vg-page-margin: 64px;
+    --vg-display-size: 80px;
+    --vg-headline-size: 48px;
+    --vg-body-lg-size: 18px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
     --vg-dur-fast: 1ms;
-    --vg-dur:      1ms;
+    --vg-dur: 1ms;
     --vg-dur-slow: 1ms;
   }
 }

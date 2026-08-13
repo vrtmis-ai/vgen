@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Play, Lock, Clock, Copy, Check, ArrowUpRight } from "@phosphor-icons/react";
 import { COURSES, LEVEL_LABEL, courseMinutes, type Course } from "../data/academy";
-import { FAMILIES } from "../data/models";
+import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { PROMPT_BANK, BANK_LABEL, BANK_BLURB, type BankCategory } from "../data/promptBank";
 import { published } from "../data/content";
 import { useI18n } from "../lib/i18n";
@@ -32,9 +32,20 @@ function CourseCard({ c, onOpen }: { c: Course; onOpen: () => void }) {
   return (
     <button onClick={onOpen} className="group block w-full text-start">
       <div className="relative overflow-hidden rounded-xl" style={{ background: "var(--vg-surface)" }}>
-        <img src={art(c.seed)} alt="" loading="lazy" className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
-        <span className="absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.35)" }}>
-          <span className="grid size-11 place-items-center rounded-full" style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}>
+        <img
+          src={art(c.seed)}
+          alt=""
+          loading="lazy"
+          className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+        />
+        <span
+          className="absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover:opacity-100"
+          style={{ background: "rgba(0,0,0,0.35)" }}
+        >
+          <span
+            className="grid size-11 place-items-center rounded-full"
+            style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+          >
             <Play size={17} weight="fill" />
           </span>
         </span>
@@ -54,7 +65,10 @@ function CourseCard({ c, onOpen }: { c: Course; onOpen: () => void }) {
         {c.blurb}
       </p>
       <div className="mt-2 flex items-center gap-2">
-        <span className="rounded-md px-1.5 py-0.5 text-[10.5px]" style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}>
+        <span
+          className="rounded-md px-1.5 py-0.5 text-[10.5px]"
+          style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+        >
           {LEVEL_LABEL[c.level]}
         </span>
         {/* text-muted, not text-faint — a semantic split, not a contrast one.
@@ -84,6 +98,7 @@ function CourseCard({ c, onOpen }: { c: Course; onOpen: () => void }) {
    the user is assembling a sentence, not choosing a preset. Sending them to the
    studio on every click would throw away the two fragments they already had. */
 function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?: string) => void }) {
+  const families = useCatalogFamilies();
   const entries = useMemo(() => published(PROMPT_BANK), []);
   const [cat, setCat] = useState<BankCategory>("camera");
   const [copied, setCopied] = useState<string | null>(null);
@@ -92,7 +107,7 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
   // cinematography term, so video is the right destination — but naming one
   // family in this file means the button dies silently the day that family is
   // renamed or archived, and nothing would fail loudly enough to notice.
-  const videoFamily = useMemo(() => FAMILIES.find((f) => f.kind === "video") ?? null, []);
+  const videoFamily = useMemo(() => families.find((f) => f.kind === "video") ?? null, [families]);
 
   useEffect(() => {
     if (!copied) return;
@@ -100,9 +115,7 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
     return () => clearTimeout(t);
   }, [copied]);
 
-  const cats = (["camera", "lighting", "lens", "motion", "grade"] as const).filter((c) =>
-    entries.some((x) => x.category === c),
-  );
+  const cats = (["camera", "lighting", "lens", "motion", "grade"] as const).filter((c) => entries.some((x) => x.category === c));
   const shown = entries.filter((x) => x.category === cat);
 
   return (
@@ -111,8 +124,8 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
         بانک پرامپت
       </h2>
       <p className="mt-1 max-w-[62ch] text-[13px] leading-6" style={{ color: "var(--vg-text-muted)" }}>
-        واژه‌های حرفه‌ای برای توصیف یک نما. اینها تکه‌اند نه پرامپت کامل — کنار هم بچینشان. متن انگلیسی است چون
-        مدل‌ها با همین اصطلاح‌ها آموزش دیده‌اند.
+        واژه‌های حرفه‌ای برای توصیف یک نما. اینها تکه‌اند نه پرامپت کامل — کنار هم بچینشان. متن انگلیسی است چون مدل‌ها با همین اصطلاح‌ها
+        آموزش دیده‌اند.
       </p>
 
       <div className="hide-scrollbar -mx-4 mt-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -232,7 +245,11 @@ export default function Academy({ onOpenModel }: { onOpenModel: (familyId: strin
       <BankSection onOpenModel={onOpenModel} />
 
       {open && (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center" style={{ background: "rgba(9,9,9,0.9)" }} onClick={() => setOpen(null)}>
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center"
+          style={{ background: "rgba(9,9,9,0.9)" }}
+          onClick={() => setOpen(null)}
+        >
           <div
             className="max-h-[86dvh] w-full max-w-[560px] overflow-y-auto rounded-t-3xl p-5 sm:rounded-3xl"
             style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border)" }}
@@ -248,14 +265,22 @@ export default function Academy({ onOpenModel }: { onOpenModel: (familyId: strin
 
             <div className="mt-4 flex flex-col">
               {open.lessons.map((l, i) => (
-                <div key={l.id} className="flex items-center gap-3 border-b py-2.5 last:border-0" style={{ borderColor: "var(--vg-border-subtle)" }}>
+                <div
+                  key={l.id}
+                  className="flex items-center gap-3 border-b py-2.5 last:border-0"
+                  style={{ borderColor: "var(--vg-border-subtle)" }}
+                >
                   <span className="vg-numeric w-5 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
                     {n(i + 1)}
                   </span>
                   {/* A lesson with no video yet is listed and greyed, not
                       hidden — the syllabus is the promise, and hiding the gap
                       hides it from us too. */}
-                  {l.videoUrl ? <Play size={13} weight="fill" style={{ color: "var(--vg-primary-soft)" }} /> : <Lock size={13} style={{ color: "var(--vg-text-faint)" }} />}
+                  {l.videoUrl ? (
+                    <Play size={13} weight="fill" style={{ color: "var(--vg-primary-soft)" }} />
+                  ) : (
+                    <Lock size={13} style={{ color: "var(--vg-text-faint)" }} />
+                  )}
                   <span className="flex-1 text-[13px]" style={{ color: l.videoUrl ? "var(--vg-text)" : "var(--vg-text-muted)" }}>
                     {l.title}
                   </span>

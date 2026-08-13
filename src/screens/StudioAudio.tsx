@@ -1,6 +1,20 @@
 import { useMemo, useRef, useState } from "react";
-import { Heart, Sparkle, Play, PencilSimple, CaretLeft, Plus, Minus, Copy, DownloadSimple, DotsThree, FolderSimple, Lock } from "@phosphor-icons/react";
-import { FAMILIES, type Family, type Variant } from "../data/models";
+import {
+  Heart,
+  Sparkle,
+  Play,
+  PencilSimple,
+  CaretLeft,
+  Plus,
+  Minus,
+  Copy,
+  DownloadSimple,
+  DotsThree,
+  FolderSimple,
+  Lock,
+} from "@phosphor-icons/react";
+import { type Family, type Variant } from "../data/models";
+import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import type { InputMap } from "../components/controls";
 import { useCreateState, valueLabel } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
@@ -86,7 +100,11 @@ function WaveCard({ id, prompt, voice, seconds, list }: { id: string; prompt: st
 
         <span className="flex h-9 min-w-0 flex-1 items-center gap-[1.5px]" aria-hidden>
           {data.map((v, i) => (
-            <span key={i} className="flex-1 rounded-full" style={{ height: `${Math.round(v * 100)}%`, background: "var(--vg-border-strong)" }} />
+            <span
+              key={i}
+              className="flex-1 rounded-full"
+              style={{ height: `${Math.round(v * 100)}%`, background: "var(--vg-border-strong)" }}
+            />
           ))}
         </span>
 
@@ -144,7 +162,10 @@ function WaveCard({ id, prompt, voice, seconds, list }: { id: string; prompt: st
         style={{ background: "rgba(0,0,0,0.35)" }}
         aria-label={`پخش — ${voice}`}
       >
-        <span className="grid size-11 place-items-center rounded-full" style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}>
+        <span
+          className="grid size-11 place-items-center rounded-full"
+          style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+        >
           <Play size={17} weight="fill" />
         </span>
       </button>
@@ -168,7 +189,6 @@ function WaveCard({ id, prompt, voice, seconds, list }: { id: string; prompt: st
   );
 }
 
-
 const SEED_CLIPS = [
   { id: "a1", prompt: "یک دو سه داستانت رو عمودی روایت کن", voice: "ARIA", seconds: 9 },
   { id: "a2", prompt: "خوش آمدید به اولین قسمت از پادکست ما", voice: "ROMAN", seconds: 119 },
@@ -186,7 +206,8 @@ export default function StudioAudio({
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
 }) {
   const { n } = useI18n();
-  const families = FAMILIES.filter((f) => f.kind === "audio");
+  const catalogFamilies = useCatalogFamilies();
+  const families = catalogFamilies.filter((f) => f.kind === "audio");
   const s = useCreateState(families);
   const access = useAccess();
   const locked = !access.can(s.family.id);
@@ -207,7 +228,12 @@ export default function StudioAudio({
   const finished = mine.filter((g) => g.status !== "running");
   const clips =
     finished.length > 0
-      ? finished.map((g) => ({ id: g.id, prompt: g.prompt, voice: g.name.toUpperCase(), seconds: Math.round((g.durationMs ?? 12000) / 1000) }))
+      ? finished.map((g) => ({
+          id: g.id,
+          prompt: g.prompt,
+          voice: g.name.toUpperCase(),
+          seconds: Math.round((g.durationMs ?? 12000) / 1000),
+        }))
       : SEED_CLIPS;
 
   const voiceControl = s.controls.find((c) => c.kind === "voice");
@@ -360,7 +386,10 @@ export default function StudioAudio({
 
           {s.chips.length > 0 && (
             <details className="group">
-              <summary className="flex cursor-pointer list-none items-center gap-1.5 px-1 py-1.5 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
+              <summary
+                className="flex cursor-pointer list-none items-center gap-1.5 px-1 py-1.5 text-[12px]"
+                style={{ color: "var(--vg-text-muted)" }}
+              >
                 <CaretLeft size={12} weight="bold" className="transition-transform group-open:-rotate-90" />
                 تنظیمات پیشرفته
               </summary>
@@ -414,22 +443,28 @@ export default function StudioAudio({
               style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
             >
               <Lock size={14} weight="fill" />
-              {need ? <>ارتقا به <bdi>{need.name}</bdi></> : "ارتقای پلن"}
+              {need ? (
+                <>
+                  ارتقا به <bdi>{need.name}</bdi>
+                </>
+              ) : (
+                "ارتقای پلن"
+              )}
             </button>
           ) : (
-          <button
-            disabled={!s.ready}
-            onClick={() => onGenerate(s.family, s.variant, s.prompt.trim(), s.input)}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold transition-opacity disabled:opacity-35"
-            style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
-          >
-            <Sparkle size={15} weight="fill" />
-            بساز
-            <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
-              <CoinMark size={12} />
-              <span className="vg-numeric">{s.price === null ? "—" : n(s.price * batch)}</span>
-            </span>
-          </button>
+            <button
+              disabled={!s.ready}
+              onClick={() => onGenerate(s.family, s.variant, s.prompt.trim(), s.input)}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold transition-opacity disabled:opacity-35"
+              style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+            >
+              <Sparkle size={15} weight="fill" />
+              بساز
+              <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
+                <CoinMark size={12} />
+                <span className="vg-numeric">{s.price === null ? "—" : n(s.price * batch)}</span>
+              </span>
+            </button>
           )}
         </div>
       </PanelShell>
@@ -446,10 +481,10 @@ export default function StudioAudio({
         {/* Their canvas header: History / How it works on the leading side, a
             Filters control on the trailing side. */}
         <div className="flex items-center gap-1 px-4 py-2.5" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>
-          {([
+          {[
             { k: "all" as const, Icon: FolderSimple, label: "تاریخچه" },
             { k: "liked" as const, Icon: Heart, label: "پسندیده" },
-          ]).map(({ k, Icon, label }) => (
+          ].map(({ k, Icon, label }) => (
             <button
               key={k}
               onClick={() => setTab(k)}
@@ -471,7 +506,9 @@ export default function StudioAudio({
 
         <div
           className="grid gap-3 p-4 pb-16"
-          style={{ gridTemplateColumns: view.mode === "list" ? "1fr" : `repeat(auto-fill, minmax(${Math.round(1100 / view.cols)}px, 1fr))` }}
+          style={{
+            gridTemplateColumns: view.mode === "list" ? "1fr" : `repeat(auto-fill, minmax(${Math.round(1100 / view.cols)}px, 1fr))`,
+          }}
         >
           {/* Running first. A speech job has no waveform yet, so it gets a bar
               rather than an empty card pretending to be a result. */}
@@ -522,4 +559,3 @@ function voiceGradient(id: string): string {
   const a = h % 360;
   return `linear-gradient(140deg, hsl(${a} 45% 22%), hsl(${(a + 48) % 360} 40% 12%))`;
 }
-

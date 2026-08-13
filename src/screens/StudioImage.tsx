@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Minus, Sparkle, PencilSimple, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock } from "@phosphor-icons/react";
-import { FAMILIES, getFamily, type Family, type Variant } from "../data/models";
+import { type Family, type Variant } from "../data/models";
+import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import type { InputMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
@@ -48,11 +49,11 @@ const art = (seed: string, w = 600, h = 800) => `https://picsum.photos/seed/${se
  * only where a name actually repeats, so a wall of distinct prompts stays
  * quiet rather than being numbered for no reason.
  */
-function tileNames(assets: ViewerAsset[]): string[] {
+function tileNames(assets: ViewerAsset[], familyName: (familyId: string) => string | undefined): string[] {
   const base = assets.map((a) => {
     const p = a.prompt.trim();
     if (p) return p.length > 60 ? `${p.slice(0, 60)}…` : p;
-    return getFamily(a.familyId)?.name ?? "خروجی";
+    return familyName(a.familyId) ?? "خروجی";
   });
   const total = new Map<string, number>();
   for (const b of base) total.set(b, (total.get(b) ?? 0) + 1);
@@ -149,7 +150,8 @@ export default function StudioImage({
   onOpenModel: (familyId: string, prompt?: string) => void;
 }) {
   const { n } = useI18n();
-  const families = FAMILIES.filter((f) => f.kind === "image");
+  const catalogFamilies = useCatalogFamilies();
+  const families = catalogFamilies.filter((f) => f.kind === "image");
   const s = useCreateState(families);
   const access = useAccess();
   const locked = !access.can(s.family.id);
@@ -170,7 +172,15 @@ export default function StudioImage({
   // empty wall would leave the dock floating over nothing.
   const wall: ViewerAsset[] =
     finished.length > 0
-      ? finished.map((g) => ({ id: g.id, url: g.outputUrl ?? art(g.id), prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h, createdAt: g.createdAt }))
+      ? finished.map((g) => ({
+          id: g.id,
+          url: g.outputUrl ?? art(g.id),
+          prompt: g.prompt,
+          familyId: g.familyId,
+          w: g.w,
+          h: g.h,
+          createdAt: g.createdAt,
+        }))
       : EXPLORE.map((e) => ({ id: e.id, url: art(e.seed), prompt: e.prompt, familyId: e.familyId, w: 1152, h: 1536 }));
 
   /* Mixed ratios on purpose: the wall is only worth a justified layout if the
@@ -190,7 +200,10 @@ export default function StudioImage({
   });
   // Named as a set, not one at a time: whether a name needs an ordinal is a
   // fact about the whole wall, so it cannot be decided from inside one tile.
-  const names = tileNames(shaped.map((t) => t.asset));
+  const names = tileNames(
+    shaped.map((t) => t.asset),
+    (familyId) => catalogFamilies.find((family) => family.id === familyId)?.name,
+  );
   // Running jobs first, newest at the head, so the thing the user just paid for
   // is the thing they are looking at.
   const tiles = [
@@ -253,10 +266,7 @@ export default function StudioImage({
                and shows the bar. Not clickable and no action stack — there is
                nothing to open, download or recreate until it lands. */
             t.pending ? (
-              <div
-                className="relative grid size-full place-items-center overflow-hidden"
-                style={{ background: t.pending.grad }}
-              >
+              <div className="relative grid size-full place-items-center overflow-hidden" style={{ background: t.pending.grad }}>
                 <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
                 <div className="relative w-2/3 max-w-[180px]">
                   <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
@@ -274,7 +284,10 @@ export default function StudioImage({
               <div className="group relative size-full overflow-hidden" style={{ background: "var(--vg-surface)" }}>
                 <button onClick={() => setViewing(t.asset)} className="absolute inset-0" aria-label={`باز کردن — ${t.name}`}>
                   <img src={t.asset.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-                  <span className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "rgba(0,0,0,0.25)" }} />
+                  <span
+                    className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100"
+                    style={{ background: "rgba(0,0,0,0.25)" }}
+                  />
                 </button>
                 <TileActions onOpen={() => setViewing(t.asset)} onDownload={() => download(t.asset)} of={t.name} />
               </div>
@@ -297,14 +310,8 @@ export default function StudioImage({
 
       {/* The dock. Fixed, centred, glass. */}
       <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-3">
-        <div
-          className="pointer-events-auto w-full max-w-[1120px] rounded-[26px] p-[2px]"
-          style={{ background: "var(--vg-border)" }}
-        >
-          <div
-            className="rounded-3xl p-4 md:p-5"
-            style={{ background: "rgba(18,18,18,0.96)", backdropFilter: "blur(11px)" }}
-          >
+        <div className="pointer-events-auto w-full max-w-[1120px] rounded-[26px] p-[2px]" style={{ background: "var(--vg-border)" }}>
+          <div className="rounded-3xl p-4 md:p-5" style={{ background: "rgba(18,18,18,0.96)", backdropFilter: "blur(11px)" }}>
             <div className="flex items-start gap-3">
               <button
                 aria-label="افزودن تصویر مرجع"
@@ -367,17 +374,22 @@ export default function StudioImage({
 
                 {/* The count stepper. Images are cheap enough to want four at a
                     time; video never is, which is why only this studio has it. */}
-                <div
-                  className="flex h-10 shrink-0 items-center gap-1 rounded-xl px-1"
-                  style={{ background: "var(--vg-surface-overlay)" }}
-                >
-                  <button onClick={() => setCount((c) => Math.max(1, c - 1))} className="grid size-7 place-items-center rounded-lg" aria-label="کاهش تعداد خروجی">
+                <div className="flex h-10 shrink-0 items-center gap-1 rounded-xl px-1" style={{ background: "var(--vg-surface-overlay)" }}>
+                  <button
+                    onClick={() => setCount((c) => Math.max(1, c - 1))}
+                    className="grid size-7 place-items-center rounded-lg"
+                    aria-label="کاهش تعداد خروجی"
+                  >
                     <Minus size={13} weight="bold" style={{ color: "var(--vg-text-muted)" }} />
                   </button>
                   <span className="vg-numeric w-8 text-center text-[13px]" style={{ color: "var(--vg-text)" }}>
                     {n(count)}
                   </span>
-                  <button onClick={() => setCount((c) => Math.min(4, c + 1))} className="grid size-7 place-items-center rounded-lg" aria-label="افزایش تعداد خروجی">
+                  <button
+                    onClick={() => setCount((c) => Math.min(4, c + 1))}
+                    className="grid size-7 place-items-center rounded-lg"
+                    aria-label="افزایش تعداد خروجی"
+                  >
                     <Plus size={13} weight="bold" style={{ color: "var(--vg-text-muted)" }} />
                   </button>
                 </div>

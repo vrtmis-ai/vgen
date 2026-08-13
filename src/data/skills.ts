@@ -29,10 +29,14 @@ const T = Date.UTC(2026, 7, 1);
 
 export const SKILLS: Skill[] = [
   {
-    id: "s-ugc", status: "published", order: 10, updatedAt: T,
+    id: "s-ugc",
+    status: "published",
+    order: 10,
+    updatedAt: T,
     title: "ویدیوی معرفی محصول",
     blurb: "از یک عکس محصول تا یک ویدیوی کوتاه با گویندهٔ فارسی — سه مرحله، یک دکمه.",
-    seed: "vgen-skill-ugc", coins: 210,
+    seed: "vgen-skill-ugc",
+    coins: 210,
     steps: [
       { label: "پاک‌کردن پس‌زمینهٔ عکس محصول", familyId: "recraft" },
       { label: "ساخت صحنه‌ی استودیویی دور محصول", familyId: "seedream" },
@@ -41,10 +45,14 @@ export const SKILLS: Skill[] = [
     ],
   },
   {
-    id: "s-reel", status: "published", order: 20, updatedAt: T,
+    id: "s-reel",
+    status: "published",
+    order: 20,
+    updatedAt: T,
     title: "ریلز از یک متن",
     blurb: "متن را بده؛ سه پلان، گویندگی و زیرنویس فارسی بیرون می‌آید.",
-    seed: "vgen-skill-reel", coins: 340,
+    seed: "vgen-skill-reel",
+    coins: 340,
     steps: [
       { label: "تقسیم متن به سه پلان" },
       { label: "ساخت هر پلان", familyId: "seedance" },
@@ -52,17 +60,24 @@ export const SKILLS: Skill[] = [
     ],
   },
   {
-    id: "s-portrait", status: "published", order: 30, updatedAt: T,
+    id: "s-portrait",
+    status: "published",
+    order: 30,
+    updatedAt: T,
     title: "پرتره‌ی حرفه‌ای",
     blurb: "یک سلفی بده، ده پرتره‌ی استودیویی با نور و زاویه‌های مختلف بگیر.",
-    seed: "vgen-skill-portrait", coins: 90,
+    seed: "vgen-skill-portrait",
+    coins: 90,
     steps: [
       { label: "پاک‌سازی و بزرگ‌نمایی ورودی", familyId: "topaz" },
       { label: "ساخت ده نسخه با نورپردازی‌های متفاوت", familyId: "nano-banana" },
     ],
   },
   {
-    id: "s-ad", status: "draft", order: 40, updatedAt: T,
+    id: "s-ad",
+    status: "draft",
+    order: 40,
+    updatedAt: T,
     title: "تیزر تبلیغاتی ۱۵ ثانیه‌ای",
     blurb: "بریف را بده، تیزر با موسیقی تحویل بگیر.",
     seed: "vgen-skill-ad",

@@ -50,6 +50,12 @@ const KEY = loadKey();
 const auth = { Authorization: `Bearer ${KEY}` };
 let step = 0;
 
+function dataOf(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const data = (value as Record<string, unknown>).data;
+  return data && typeof data === "object" ? (data as Record<string, unknown>) : undefined;
+}
+
 function save(name: string, data: unknown) {
   mkdirSync(OUT, { recursive: true });
   const file = join(OUT, `${String(++step).padStart(2, "0")}-${name}.json`);
@@ -135,7 +141,7 @@ async function upload(png: Buffer): Promise<{ host: string; url: string; raw: un
       const res = await fetch(`${host}/api/file-stream-upload`, { method: "POST", headers: auth, body: form });
       const body = await res.json().catch(async () => ({ nonJson: await res.text() }));
       attempts[host] = { status: res.status, body };
-      const url = (body as any)?.data?.downloadUrl;
+      const url = dataOf(body)?.downloadUrl;
       if (res.ok && typeof url === "string") {
         save("upload", attempts);
         return { host, url, raw: body };
@@ -157,9 +163,9 @@ async function createTask(model: string, input: Record<string, unknown>): Promis
   const body = await res.json().catch(async () => ({ nonJson: await res.text() }));
   save(`createTask-${model.replace(/\W+/g, "-")}`, { status: res.status, body });
   // The docs put a `code` inside a 200 body, so HTTP status alone is not the answer.
-  const taskId = (body as any)?.data?.taskId;
-  if (!taskId) die(`createTask rejected ${model}`, body);
-  return taskId as string;
+  const taskId = dataOf(body)?.taskId;
+  if (typeof taskId !== "string" || !taskId) die(`createTask rejected ${model}`, body);
+  return taskId;
 }
 
 interface Record_ {
@@ -179,7 +185,7 @@ async function poll(model: string, taskId: string): Promise<{ rec: Record_; stat
     await sleep(delay);
     const res = await fetch(`${API}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, { headers: auth });
     const body = await res.json().catch(async () => ({ nonJson: await res.text() }));
-    const rec = (body as any)?.data as Record_ | undefined;
+    const rec = dataOf(body) as Record_ | undefined;
     if (!rec) die("recordInfo returned no data", body);
     if (rec.state !== states[states.length - 1]) {
       states.push(rec.state);
@@ -220,8 +226,14 @@ async function runJob(label: string, model: string, input: Record<string, unknow
   await sleep(2500);
   const after = await balance();
 
-  let parsed: any = null;
-  try { parsed = rec.resultJson ? JSON.parse(rec.resultJson) : null; } catch { /* keep raw */ }
+  let parsed: unknown = null;
+  try {
+    parsed = rec.resultJson ? JSON.parse(rec.resultJson) : null;
+  } catch {
+    /* keep raw */
+  }
+  const parsedRecord = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : undefined;
+  const resultUrls = Array.isArray(parsedRecord?.resultUrls) ? parsedRecord.resultUrls : [];
 
   return {
     label,
@@ -231,8 +243,8 @@ async function runJob(label: string, model: string, input: Record<string, unknow
     creditsConsumed: typeof rec.creditsConsumed === "number" ? rec.creditsConsumed : "ABSENT",
     states,
     seconds: Math.round(waitedMs / 1000),
-    resultShape: parsed ? Object.keys(parsed).join(", ") : String(rec.resultJson).slice(0, 60),
-    resultUrl: parsed?.resultUrls?.[0],
+    resultShape: parsedRecord ? Object.keys(parsedRecord).join(", ") : String(rec.resultJson).slice(0, 60),
+    ...(typeof resultUrls[0] === "string" ? { resultUrl: resultUrls[0] } : {}),
   };
 }
 
@@ -278,9 +290,11 @@ async function main() {
   const topaz = results.find((r) => r.model.includes("topaz"));
   if (topaz) {
     const ok = Math.abs(topaz.balanceDelta - 10) < 0.51;
-    console.log(ok
-      ? "✓ Topaz 2x cost ~10 — the factor→tier inference in pricing.ts holds."
-      : `✗ Topaz 2x cost ${topaz.balanceDelta}, not 10 — the factor→tier mapping in pricing.ts is WRONG.`);
+    console.log(
+      ok
+        ? "✓ Topaz 2x cost ~10 — the factor→tier inference in pricing.ts holds."
+        : `✗ Topaz 2x cost ${topaz.balanceDelta}, not 10 — the factor→tier mapping in pricing.ts is WRONG.`,
+    );
   }
   if (results.some((r) => r.creditsConsumed === "ABSENT")) {
     console.log("✗ creditsConsumed missing on at least one job — settlement cannot rely on it.");

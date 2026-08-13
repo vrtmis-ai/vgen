@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { SquaresFour, Rows } from "@phosphor-icons/react";
+import { z } from "zod";
+import { readStoredValue, writeStoredValue } from "../adapters/browser/storage";
 
 /* ---------------------------------------------------------------------------
    How the output canvas is laid out: grid or list, and how big.
@@ -27,30 +29,23 @@ export type Density = number; // index into DENSITY_STEPS
 export const ROW_HEIGHTS = [460, 360, 290, 230, 185] as const;
 
 const KEY = "vgen-view";
+const ViewPreferenceSchema = z.object({
+  mode: z.enum(["grid", "list"]),
+  density: z
+    .number()
+    .int()
+    .min(0)
+    .max(DENSITY_STEPS.length - 1),
+});
 
 export function useViewMode(scope: string, initial: { mode?: ViewMode; density?: Density } = {}) {
   const storeKey = `${KEY}:${scope}`;
-  const [state, setState] = useState<{ mode: ViewMode; density: Density }>(() => {
-    // localStorage throws in private mode on some browsers; a layout preference
-    // is never worth taking the screen down for.
-    try {
-      const raw = localStorage.getItem(storeKey);
-      if (raw) {
-        const p = JSON.parse(raw) as { mode: ViewMode; density: Density };
-        if ((p.mode === "grid" || p.mode === "list") && p.density >= 0 && p.density < DENSITY_STEPS.length) return p;
-      }
-    } catch {
-      /* fall through to the default */
-    }
-    return { mode: initial.mode ?? "grid", density: initial.density ?? 2 };
-  });
+  const [state, setState] = useState<{ mode: ViewMode; density: Density }>(() =>
+    readStoredValue(storeKey, ViewPreferenceSchema, { mode: initial.mode ?? "grid", density: initial.density ?? 2 }),
+  );
 
   useEffect(() => {
-    try {
-      localStorage.setItem(storeKey, JSON.stringify(state));
-    } catch {
-      /* not worth surfacing */
-    }
+    writeStoredValue(storeKey, state);
   }, [storeKey, state]);
 
   return {
@@ -131,10 +126,10 @@ export function ViewControls({
           {/* Labelled, as theirs are — 61x32 "List" and 66x32 "Grid" at radius
               8. Two abstract icons side by side make the user guess which is
               which; the word costs 30px and removes the guess. */}
-          {([
+          {[
             { m: "list" as const, Icon: Rows, label: "فهرست" },
             { m: "grid" as const, Icon: SquaresFour, label: "شبکه" },
-          ]).map(({ m, Icon, label }) => (
+          ].map(({ m, Icon, label }) => (
             <button
               key={m}
               onClick={() => onMode(m)}

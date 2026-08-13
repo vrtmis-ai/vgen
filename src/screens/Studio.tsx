@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { FolderSimple, BookOpen } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
-import { FAMILIES, type Family, type ModelKind, type Variant } from "../data/models";
+import { type Family, type ModelKind, type Variant } from "../data/models";
+import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { VendorMark } from "../components/VendorMark";
 import type { InputMap } from "../components/controls";
 import { FormPanel } from "../components/FormPanel";
@@ -50,13 +51,13 @@ function OutputCard({ gen }: { gen: Generation }) {
         border: "1px solid var(--vg-border-subtle)",
       }}
     >
-      {url && !failed && (
-        isVideoUrl(url) ? (
+      {url &&
+        !failed &&
+        (isVideoUrl(url) ? (
           <video src={url} muted loop playsInline className="absolute inset-0 size-full object-cover" />
         ) : (
           <img src={url} alt={gen.prompt} onError={onError} className="absolute inset-0 size-full object-cover" />
-        )
-      )}
+        ))}
 
       {running && (
         /* A real determinate bar, driven by the job's own progress rather than
@@ -103,7 +104,8 @@ export default function Studio({
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
   onOpen: (g: Generation) => void;
 }) {
-  const families = useMemo(() => FAMILIES.filter((f) => f.kind === kind), [kind]);
+  const catalogFamilies = useCatalogFamilies();
+  const families = useMemo(() => catalogFamilies.filter((f) => f.kind === kind), [catalogFamilies, kind]);
   const [family, setFamily] = useState<Family>(() => families[0]!);
   const view = useViewMode("video", { mode: "grid", density: 1 });
   const [canvasTab, setCanvasTab] = useState<"history" | "how">("history");
@@ -137,10 +139,10 @@ export default function Studio({
         {mine.length > 0 && (
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-1">
-              {([
+              {[
                 { k: "history" as const, Icon: FolderSimple, label: "تاریخچه" },
                 { k: "how" as const, Icon: BookOpen, label: "چطور کار می‌کند" },
-              ]).map(({ k, Icon, label }) => (
+              ].map(({ k, Icon, label }) => (
                 <button
                   key={k}
                   onClick={() => setCanvasTab(k)}
@@ -262,20 +264,20 @@ export default function Studio({
                         {g.prompt || "—"}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-1.5">
-                        {[`${g.w}×${g.h}`, g.durationMs ? `${Math.round(g.durationMs / 1000)}s` : null]
-                          .filter(Boolean)
-                          .map((t) => (
-                            <span
-                              key={t as string}
-                              className="vg-numeric rounded-md px-1.5 py-0.5 text-[10.5px]"
-                              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
-                            >
-                              {t}
-                            </span>
-                          ))}
+                        {[`${g.w}×${g.h}`, g.durationMs ? `${Math.round(g.durationMs / 1000)}s` : null].filter(Boolean).map((t) => (
+                          <span
+                            key={t as string}
+                            className="vg-numeric rounded-md px-1.5 py-0.5 text-[10.5px]"
+                            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+                          >
+                            {t}
+                          </span>
+                        ))}
                       </div>
                       <p className="mt-auto pt-3 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-                        {new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(g.createdAt)}
+                        {new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(
+                          g.createdAt,
+                        )}
                       </p>
                     </div>
                   </div>

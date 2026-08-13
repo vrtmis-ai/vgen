@@ -53,86 +53,95 @@ export default function Result({
        the biggest object on the page. */
     <div className="relative z-10 mx-auto min-h-[100dvh] w-full max-w-[1100px] px-4 pb-16 pt-4 md:px-8">
       <div className="mb-4 flex items-center gap-3">
-        <button onClick={onBack} aria-label={t("nav_home")} className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95">
+        <button
+          onClick={onBack}
+          aria-label={t("nav_home")}
+          className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95"
+        >
           <ArrowRight size={18} weight="bold" className="ltr:-scale-x-100" />
         </button>
         <div className="text-[15px] font-medium">{done ? t("r_result") : t("r_making")}</div>
       </div>
 
       <div className="md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:items-start md:gap-6">
-      <div className="rounded-bezel border border-line bg-card p-1.5">
-        <div
-          className="relative w-full overflow-hidden rounded-[1.4rem]"
-          // Audio has no frame to fill, so it gets a short fixed band instead of
-          // an aspect box that would otherwise render as a tall empty rectangle.
-          style={
-            gen.kind === "audio"
-              ? { height: 168, background: done ? gen.grad : "var(--vg-surface)" }
-              : { aspectRatio: `${ratio}`, background: done ? gen.grad : "var(--vg-surface)" }
-          }
-        >
-          {!done && <div className="shimmer absolute inset-0" />}
-          <AnimatePresence>
-            {!done && (
-              <motion.div exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-ink">
-                <Logo size={48} animate />
-                <div className="text-[12.5px] text-ink2">{stage}</div>
-                <div className="h-1 w-40 overflow-hidden rounded-full bg-line2">
-                  <motion.div className="h-full" style={{ background: "var(--color-accent)" }} animate={{ width: `${pct}%` }} transition={{ ease: "easeOut" }} />
+        <div className="rounded-bezel border border-line bg-card p-1.5">
+          <div
+            className="relative w-full overflow-hidden rounded-[1.4rem]"
+            // Audio has no frame to fill, so it gets a short fixed band instead of
+            // an aspect box that would otherwise render as a tall empty rectangle.
+            style={
+              gen.kind === "audio"
+                ? { height: 168, background: done ? gen.grad : "var(--vg-surface)" }
+                : { aspectRatio: `${ratio}`, background: done ? gen.grad : "var(--vg-surface)" }
+            }
+          >
+            {!done && <div className="shimmer absolute inset-0" />}
+            <AnimatePresence>
+              {!done && (
+                <motion.div exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-ink">
+                  <Logo size={48} animate />
+                  <div className="text-[12.5px] text-ink2">{stage}</div>
+                  <div className="h-1 w-40 overflow-hidden rounded-full bg-line2">
+                    <motion.div
+                      className="h-full"
+                      style={{ background: "var(--color-accent)" }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ ease: "easeOut" }}
+                    />
+                  </div>
+                  <div className="text-[11px] tabular-nums text-ink3">{n(Math.floor(pct))}٪</div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {done && (
+              <motion.div
+                initial={instant ? false : { opacity: 0, scale: 1.04, filter: "blur(8px)" }}
+                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute inset-0"
+              >
+                <div className="absolute inset-0" style={{ background: gen.grad }} />
+                {gen.kind === "audio" && (
+                  // Placeholder bars until a real file exists to play — the mock has
+                  // no audio to feed an <audio> element.
+                  <div className="absolute inset-0 flex items-center justify-center gap-[3px] px-8">
+                    {Array.from({ length: 32 }, (_, k) => (
+                      <span
+                        key={k}
+                        className="w-[3px] rounded-full bg-bg/45"
+                        style={{ height: `${18 + Math.abs(Math.sin(k * 0.9)) * 54}%` }}
+                      />
+                    ))}
+                  </div>
+                )}
+                <div className="absolute start-2 top-2 rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
+                  {t("r_sample")}
                 </div>
-                <div className="text-[11px] tabular-nums text-ink3">{n(Math.floor(pct))}٪</div>
               </motion.div>
             )}
-          </AnimatePresence>
-          {done && (
-            <motion.div
-              initial={instant ? false : { opacity: 0, scale: 1.04, filter: "blur(8px)" }}
-              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="absolute inset-0"
-            >
-              <div className="absolute inset-0" style={{ background: gen.grad }} />
-              {gen.kind === "audio" && (
-                // Placeholder bars until a real file exists to play — the mock has
-                // no audio to feed an <audio> element.
-                <div className="absolute inset-0 flex items-center justify-center gap-[3px] px-8">
-                  {Array.from({ length: 32 }, (_, k) => (
-                    <span
-                      key={k}
-                      className="w-[3px] rounded-full bg-bg/45"
-                      style={{ height: `${18 + Math.abs(Math.sin(k * 0.9)) * 54}%` }}
-                    />
-                  ))}
-                </div>
-              )}
-              <div className="absolute start-2 top-2 rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
-                {t("r_sample")}
-              </div>
-            </motion.div>
-          )}
+          </div>
         </div>
-      </div>
 
-      {/* Meta and actions become the second column at md, so the media keeps
+        {/* Meta and actions become the second column at md, so the media keeps
           the width instead of being squeezed above a stack of buttons. */}
-      <div className="md:mt-0">
-      <div className="mt-4 flex items-center gap-2 text-[12px] text-ink3">
-        <span className="rounded-full bg-card2 px-2.5 py-1 text-ink2">{gen.name}</span>
-        <span>·</span>
-        <span>{gen.vendor}</span>
-      </div>
-      {gen.prompt && <p className="ltr mt-2 line-clamp-2 text-[12.5px] text-ink2">{gen.prompt}</p>}
+        <div className="md:mt-0">
+          <div className="mt-4 flex items-center gap-2 text-[12px] text-ink3">
+            <span className="rounded-full bg-card2 px-2.5 py-1 text-ink2">{gen.name}</span>
+            <span>·</span>
+            <span>{gen.vendor}</span>
+          </div>
+          {gen.prompt && <p className="ltr mt-2 line-clamp-2 text-[12.5px] text-ink2">{gen.prompt}</p>}
 
-      <div className="mt-5 grid grid-cols-3 gap-2.5">
-        <ActionBtn icon={<DownloadSimple size={20} />} label={t("r_download")} onClick={() => {}} disabled={!done} />
-        <ActionBtn icon={<ArrowsClockwise size={20} />} label={t("r_regen")} onClick={onRegenerate} disabled={!done} />
-        {gen.kind === "image" ? (
-          <ActionBtn icon={<FilmSlate size={20} />} label={t("r_to_video")} onClick={onToVideo} disabled={!done} highlight />
-        ) : (
-          <ActionBtn icon={<ShareNetwork size={20} />} label={t("r_share")} onClick={() => {}} disabled={!done} />
-        )}
-      </div>
-      </div>
+          <div className="mt-5 grid grid-cols-3 gap-2.5">
+            <ActionBtn icon={<DownloadSimple size={20} />} label={t("r_download")} onClick={() => {}} disabled={!done} />
+            <ActionBtn icon={<ArrowsClockwise size={20} />} label={t("r_regen")} onClick={onRegenerate} disabled={!done} />
+            {gen.kind === "image" ? (
+              <ActionBtn icon={<FilmSlate size={20} />} label={t("r_to_video")} onClick={onToVideo} disabled={!done} highlight />
+            ) : (
+              <ActionBtn icon={<ShareNetwork size={20} />} label={t("r_share")} onClick={() => {}} disabled={!done} />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
