@@ -33,6 +33,7 @@ const Community = lazy(() => import("./screens/Community"));
 const Gallery = lazy(() => import("./screens/Gallery"));
 const Plans = lazy(() => import("./screens/Plans"));
 const Profile = lazy(() => import("./screens/Profile"));
+const Admin = lazy(() => import("./screens/Admin"));
 const Generate = lazy(() => import("./screens/Generate"));
 const Result = lazy(() => import("./screens/Result"));
 
@@ -41,6 +42,7 @@ function isKnownProductPath(pathname: string): boolean {
     pathname === "/" ||
     pathname === "/plans" ||
     pathname === "/profile" ||
+    pathname === "/admin" ||
     pathname.startsWith("/generate/") ||
     pathname.startsWith("/result/") ||
     navKeyFromPath(pathname) !== null
@@ -291,6 +293,18 @@ export default function App({
             onOpenModel={openModel}
             onSignOut={onSignOut}
           />
+        </Shell>
+      );
+    }
+    if (location.pathname === "/admin") {
+      /* Not in the top bar, and that is deliberate — it is staff furniture, and
+         a nav item for it would sit in front of every customer forever to save
+         four people one bookmark. Reached by typing /admin. Once admin auth
+         exists this route checks it; today it is unauthenticated, which is safe
+         only because every write lands in the operator's own localStorage. */
+      return (
+        <Shell>
+          <Admin onBack={goBack} />
         </Shell>
       );
     }
