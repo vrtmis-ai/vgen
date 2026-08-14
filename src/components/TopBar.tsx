@@ -57,7 +57,7 @@ export function TopBar({
             where the reference puts it in LTR — the same position, mirrored. */}
         <button
           onClick={() => onNav("explore")}
-          className="shrink-0 text-[17px] font-extrabold tracking-tight"
+          className="shrink-0 text-[17px] font-light tracking-[0.34em]"
           style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
         >
           {BRAND.name}

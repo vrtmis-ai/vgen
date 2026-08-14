@@ -665,3 +665,44 @@ input.vg-density {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   DEEV motion + surface language.
+
+   One easing curve for the whole product. A landing page whose nav, buttons and
+   cards each ease differently reads as several sites stitched together; the
+   consistency is what makes motion feel like a material rather than an effect.
+   --------------------------------------------------------------------------- */
+.vg-ease {
+  transition-property: transform, background-color, color, border-color, opacity, box-shadow;
+  transition-duration: 420ms;
+  /* Heavy out, no bounce — mass without cartoon. */
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The double bezel: a plate sitting in a tray, not a card lying on a page.
+   The inner radius is the outer minus the padding, which is what makes the two
+   curves concentric — mismatch it and the corner reads as a mistake even when
+   nobody can say why. */
+.vg-bezel {
+  padding: 6px;
+  border-radius: 1.75rem;
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid var(--vg-border-subtle);
+}
+.vg-bezel > * {
+  border-radius: calc(1.75rem - 6px);
+  overflow: hidden;
+}
+
+/* The vein.
+   Taken from the mascot rather than invented: black stone with light running
+   through the cracks. A hairline that is mostly invisible and glows only where
+   it passes the middle, so an edge reads as lit rather than drawn. Used on
+   section seams — never as a border round everything, which would turn a
+   signature into wallpaper. */
+.vg-vein {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(to right, transparent, rgb(var(--vg-primary-rgb) / 0.55) 50%, transparent);
+}

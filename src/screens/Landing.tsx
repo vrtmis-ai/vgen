@@ -66,29 +66,51 @@ function Heading({ children }: { children: React.ReactNode }) {
 function TopNav({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) {
   const { t } = useI18n();
   return (
-    <header
-      className="sticky top-0 z-30 border-b"
-      style={{ background: "var(--vg-glass)", backdropFilter: "blur(var(--vg-blur))", borderColor: "var(--vg-border-subtle)" }}
-    >
-      <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-5 sm:px-8">
-        <span
-          className="text-[20px] font-extrabold tracking-tight"
-          style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-        >
-          {BRAND.name}
+    /* A floating island, not a bar glued to the top edge.
+       The glass reads as glass when there is something visible behind and
+       around it; edge-to-edge it just looks like a lighter strip. The blur
+       stays here rather than on any scrolling surface — a backdrop-filter over
+       moving content repaints every frame and is the usual cause of a landing
+       page that stutters on a phone. */
+    <header className="sticky top-0 z-30 px-4 pt-4 sm:px-6">
+      <div
+        className="mx-auto flex h-16 w-full max-w-[1180px] items-center justify-between rounded-[1.75rem] pe-2 ps-6"
+        style={{
+          background: "var(--vg-glass)",
+          backdropFilter: "blur(var(--vg-blur))",
+          border: "1px solid var(--vg-border-subtle)",
+        }}
+      >
+        {/* Wordmark over tagline, as the brand sheet sets it. Light weight and
+            wide tracking, not the extrabold/tight it was — the logo is the one
+            piece of type whose treatment is not ours to choose. */}
+        <span className="flex flex-col leading-none">
+          <span
+            className="text-[20px] font-light tracking-[0.34em]"
+            style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+          >
+            {BRAND.name}
+          </span>
+          <span
+            className="mt-1.5 hidden text-[9.5px] font-medium uppercase tracking-[0.2em] sm:block"
+            style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-latin)" }}
+            lang="en"
+          >
+            {BRAND.tagline}
+          </span>
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={onSignIn}
-            className="rounded-md px-3.5 py-2 text-[13px] active:scale-95"
+            className="vg-ease rounded-full px-4 py-2.5 text-[13px] hover:text-[color:var(--vg-text)] active:scale-[0.98]"
             style={{ color: "var(--vg-text-secondary)" }}
           >
             {t("lp_login")}
           </button>
           <button
             onClick={onSignUp}
-            className="rounded-md px-4 py-2 text-[13px] font-semibold active:scale-95"
-            style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)", boxShadow: "var(--vg-glow-primary)" }}
+            className="vg-ease rounded-full px-5 py-2.5 text-[13px] font-semibold active:scale-[0.98]"
+            style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
           >
             {t("lp_signup")}
           </button>
@@ -163,13 +185,23 @@ function Hero({ onSignIn }: { onSignIn: () => void }) {
             </motion.p>
 
             <motion.div variants={riseItem} className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3">
+              {/* The arrow sits in its own well rather than floating beside the
+                  label, and the well is what moves on hover — the button stays
+                  put and something inside it leans toward the click. Cheaper to
+                  read than a whole element sliding, and it survives RTL because
+                  the translate is written per direction rather than mirrored. */}
               <button
                 onClick={onSignIn}
-                className="flex items-center gap-2 rounded-xl px-7 text-[14.5px] font-bold transition-transform active:scale-[0.98]"
+                className="vg-ease group flex items-center gap-3 rounded-full ps-7 pe-2 text-[14.5px] font-bold active:scale-[0.98]"
                 style={{ height: "var(--vg-cta-height)", background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
               >
                 {t("lp_cta_start")}
-                <ArrowLeft size={16} weight="bold" className="ltr:-scale-x-100" />
+                <span
+                  className="vg-ease grid size-9 place-items-center rounded-full group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5"
+                  style={{ background: "rgb(0 0 0 / 0.14)" }}
+                >
+                  <ArrowLeft size={15} weight="bold" className="ltr:-scale-x-100" />
+                </span>
               </button>
               {/* The objection this answers is "what does it cost to find out",
                   so it sits on the button rather than in a footnote. */}
@@ -179,19 +211,25 @@ function Hero({ onSignIn }: { onSignIn: () => void }) {
             </motion.div>
           </div>
 
-          {/* Work. Two columns, offset, so the eye reads a wall rather than a row. */}
+          {/* Work. Two columns, offset, so the eye reads a wall rather than a
+              row — and each frame sits in a bezel so it reads as a plate in a
+              tray rather than an image dropped on the page. */}
           <motion.div variants={riseItem} className="grid grid-cols-2 gap-3" aria-hidden>
             <div className="flex flex-col gap-3 pt-8">
               {showcase.slice(0, 2).map((p) => (
-                <div key={p.id} className="relative aspect-[3/4] overflow-hidden rounded-2xl">
-                  <Art family={getFamily(p.familyId)} />
+                <div key={p.id} className="vg-bezel">
+                  <div className="relative aspect-[3/4]">
+                    <Art family={getFamily(p.familyId)} />
+                  </div>
                 </div>
               ))}
             </div>
             <div className="flex flex-col gap-3">
               {showcase.slice(2, 5).map((p, i) => (
-                <div key={p.id} className={`relative overflow-hidden rounded-2xl ${i === 1 ? "aspect-square" : "aspect-[3/4]"}`}>
-                  <Art family={getFamily(p.familyId)} />
+                <div key={p.id} className="vg-bezel">
+                  <div className={`relative ${i === 1 ? "aspect-square" : "aspect-[3/4]"}`}>
+                    <Art family={getFamily(p.familyId)} />
+                  </div>
                 </div>
               ))}
             </div>

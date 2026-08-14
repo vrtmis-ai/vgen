@@ -85,7 +85,7 @@
           derived light enough for that here, but a very dark or desaturated
           brand may need the derivation loosened.
      ====================================================================== */
-  --vg-primary-rgb: 0 145 255;
+  --vg-primary-rgb: 0 180 255;
   --vg-primary: rgb(var(--vg-primary-rgb));
 
   /* Derived ramp. oklab keeps the mix perceptually even, so a blue or green

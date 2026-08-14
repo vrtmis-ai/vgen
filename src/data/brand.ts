@@ -21,7 +21,15 @@ export const BRAND = {
    * whichever side of it falls at a direction boundary.
    */
   name: "DEEV",
+  /**
+   * From the brand sheet. Deliberately English and deliberately not translated:
+   * it is set as part of the logo lockup, in Latin caps under the wordmark, and
+   * a Persian rendering would be a different mark rather than the same one.
+   * Anywhere it appears it is `lang="en"` so a screen reader does not read it
+   * with Persian phonetics.
+   */
+  tagline: "TECHNOLOGY WITH EMPATHY",
 } as const;
 
-/** "آکادمی VGen" and friends — the name inside a Persian noun phrase. */
+/** "آکادمی DEEV" and friends — the name inside a Persian noun phrase. */
 export const brandPhrase = (persianNoun: string) => `${persianNoun} ${BRAND.name}`;
