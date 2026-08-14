@@ -49,16 +49,46 @@ function Art({ family }: { family?: Family | undefined }) {
 }
 
 /** Section shell. 96/32 on desktop, tighter on a phone — the export's rhythm
-    would waste a third of a small screen on empty space. */
-function Section({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <section className={`mx-auto w-full max-w-[1200px] px-5 py-14 sm:px-8 md:py-24 ${className ?? ""}`}>{children}</section>;
+    would waste a third of a small screen on empty space.
+
+    `light` puts a soft key behind the section, alternating side down the page.
+    Without it the body below the hero goes flat grey and the shot ends up
+    looking like a hat on a spreadsheet. */
+function Section({ children, className, light }: { children: React.ReactNode; className?: string; light?: "start" | "end" }) {
+  const lit = light ? `vg-lit ${light === "end" ? "vg-lit-end" : ""}` : "";
+  return (
+    <section className={`relative mx-auto w-full max-w-[1200px] px-5 py-14 sm:px-8 md:py-24 ${lit} ${className ?? ""}`}>{children}</section>
+  );
 }
 
-function Heading({ children }: { children: React.ReactNode }) {
+/** A title card, not an `h2`.
+    Centred headings stacked down a page are the SaaS pattern this redesign is
+    trying to get out of. A chapter mark and a rule running off to the side is
+    how a film labels a section, and it also does something the centred version
+    could not: it tells the reader where they are in the page. */
+function Heading({ index, children, sub }: { index: string; children: React.ReactNode; sub?: string }) {
   return (
-    <h2 className="text-center text-[24px] font-bold leading-tight md:text-[30px]" style={{ color: "var(--vg-text)" }}>
-      {children}
-    </h2>
+    <div className="mb-9 md:mb-12">
+      <div className="flex items-center gap-4">
+        <span className="vg-chapter shrink-0 text-[11px] font-semibold" style={{ color: "var(--vg-primary)" }} lang="en">
+          {index}
+        </span>
+        {/* The rule reaches away from the mark toward the far edge, so the eye
+            is pulled across the section rather than parked on the number. */}
+        <hr className="vg-vein min-w-0 flex-1" aria-hidden />
+      </div>
+      <h2
+        className="mt-4 max-w-[22ch] text-[26px] font-bold leading-[1.25] md:text-[34px]"
+        style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+      >
+        {children}
+      </h2>
+      {sub && (
+        <p className="mt-3 max-w-[54ch] text-[13.5px] leading-[1.9]" style={{ color: "var(--vg-text-muted)" }}>
+          {sub}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -313,18 +343,17 @@ function Models() {
   const { t, n } = useI18n();
   const shown = FAMILIES.slice(0, 12);
   return (
-    <Section>
-      <Heading>{t("lp_models_title")}</Heading>
-      <p className="mx-auto mt-3 max-w-[52ch] text-center text-[13.5px] leading-[1.9]" style={{ color: "var(--vg-text-muted)" }}>
-        {t("lp_models_sub")}
-      </p>
-      <div className="mt-9 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6">
+    <Section light="start">
+      <Heading index="01" sub={t("lp_models_sub")}>
+        {t("lp_models_title")}
+      </Heading>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6">
         {shown.map((f) => {
           const p = minCoinsForFamily(f);
           return (
             <div
               key={f.id}
-              className="flex flex-col items-center gap-2 rounded-md p-3.5 text-center"
+              className="vg-ease flex flex-col items-center gap-2 rounded-xl p-3.5 text-center hover:-translate-y-0.5"
               style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
             >
               <VendorMark vendor={f.vendor} size={26} />
@@ -351,15 +380,19 @@ function Features() {
     { k: "lp_f3", d: "lp_f3_d" },
   ];
   return (
-    <Section>
-      <Heading>{t("lp_features_title")}</Heading>
-      <div className="mt-9 grid gap-3 md:grid-cols-3">
+    <Section light="end">
+      <Heading index="02">{t("lp_features_title")}</Heading>
+      <div className="grid gap-3 md:grid-cols-3">
         {items.map(({ k, d }) => (
           <div
             key={k}
-            className="rounded-md p-6"
+            className="vg-ease relative overflow-hidden rounded-2xl p-6 hover:-translate-y-0.5"
             style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)", backgroundImage: "var(--vg-cool-leak)" }}
           >
+            {/* The crack again, one per card, at the top edge — the same mark
+                the seams use, so the cards belong to the same object as the
+                rest of the page. */}
+            <hr className="vg-vein absolute inset-x-0 top-0" aria-hidden />
             <h3 className="text-[17px] font-bold" style={{ color: "var(--vg-text)" }}>
               {t(k)}
             </h3>
@@ -382,16 +415,26 @@ function Plans({ onSignIn }: { onSignIn: () => void }) {
   const [annual, setAnnual] = useState(false);
   const main = PLANS.filter((p) => p.group === "main").slice(0, 2);
   return (
-    <Section>
-      <Heading>{t("lp_plans_title")}</Heading>
-
-      <div className="mt-6 flex justify-center">
-        <div className="inline-flex rounded-pill p-1" style={{ background: "var(--vg-surface-raised)" }}>
+    <Section light="start">
+      {/* Heading and billing switch on one row at desktop. Stacked and centred,
+          the switch read as a third heading; beside the title it reads as the
+          control for what is underneath it, which is what it is. */}
+      <div className="mb-9 flex flex-col gap-5 md:mb-12 md:flex-row md:items-end md:justify-between">
+        <div className="min-w-0 flex-1">
+          <Heading index="03">{t("lp_plans_title")}</Heading>
+        </div>
+        <div
+          className="inline-flex shrink-0 self-start rounded-pill p-1 md:mb-12 md:self-end"
+          style={{ background: "var(--vg-surface-raised)" }}
+          role="group"
+          aria-label={t("lp_plans_title")}
+        >
           {([false, true] as const).map((v) => (
             <button
               key={String(v)}
               onClick={() => setAnnual(v)}
-              className="rounded-pill px-4 py-2 text-[12.5px] font-medium transition-colors"
+              aria-pressed={annual === v}
+              className="vg-ease rounded-pill px-4 py-2 text-[12.5px] font-medium"
               style={
                 annual === v ? { background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" } : { color: "var(--vg-text-muted)" }
               }
@@ -402,7 +445,7 @@ function Plans({ onSignIn }: { onSignIn: () => void }) {
         </div>
       </div>
 
-      <div className="mx-auto mt-8 grid max-w-[840px] gap-3 md:grid-cols-2">
+      <div className="mx-auto grid max-w-[840px] gap-3 md:grid-cols-2">
         {main.map((plan) => (
           <PlanCard key={plan.id} plan={plan} annual={annual} onSignIn={onSignIn} />
         ))}
@@ -478,33 +521,48 @@ function Faq() {
   const { t } = useI18n();
   const [open, setOpen] = useState<number | null>(0);
   return (
-    <Section>
-      <Heading>{t("lp_faq_title")}</Heading>
-      <div className="mx-auto mt-8 flex max-w-[720px] flex-col gap-2">
+    <Section light="end">
+      <Heading index="04">{t("lp_faq_title")}</Heading>
+      <div className="mx-auto flex max-w-[720px] flex-col gap-2">
         {FAQ_KEYS.map(({ q, a }, i) => {
           const on = open === i;
           return (
-            <div key={q} className="rounded-md" style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}>
+            <div
+              key={q}
+              className="vg-ease overflow-hidden rounded-2xl"
+              style={{
+                background: "var(--vg-surface)",
+                border: `1px solid ${on ? "var(--vg-primary-a20)" : "var(--vg-border-subtle)"}`,
+              }}
+            >
               <button
                 onClick={() => setOpen(on ? null : i)}
                 aria-expanded={on}
                 className="flex w-full items-center justify-between gap-4 p-4 text-start"
               >
-                <span className="text-[14px] font-medium" style={{ color: "var(--vg-text)" }}>
+                <span className="text-[14px] font-medium" style={{ color: on ? "var(--vg-text)" : "var(--vg-text-secondary)" }}>
                   {t(q)}
                 </span>
                 <CaretDown
                   size={16}
                   weight="bold"
-                  className={`shrink-0 transition-transform ${on ? "rotate-180" : ""}`}
-                  style={{ color: "var(--vg-text-muted)" }}
+                  className={`vg-ease shrink-0 ${on ? "rotate-180" : ""}`}
+                  style={{ color: on ? "var(--vg-primary)" : "var(--vg-text-muted)" }}
                 />
               </button>
-              {on && (
-                <p className="px-4 pb-4 text-[13px] leading-[1.9]" style={{ color: "var(--vg-text-muted)" }}>
-                  {t(a)}
-                </p>
-              )}
+              {/* The answer grows instead of appearing. A `0fr → 1fr` grid row
+                  is the one way to animate to content height without measuring
+                  it in JS, and it stays out of the way of `height: auto`, which
+                  cannot be transitioned at all. The child keeps
+                  `min-height: 0` — without it a grid item refuses to shrink
+                  below its content and the row never closes. */}
+              <div className="vg-ease grid" style={{ gridTemplateRows: on ? "1fr" : "0fr" }}>
+                <div className="min-h-0 overflow-hidden">
+                  <p className="px-4 pb-4 text-[13px] leading-[1.9]" style={{ color: "var(--vg-text-muted)" }}>
+                    {t(a)}
+                  </p>
+                </div>
+              </div>
             </div>
           );
         })}
@@ -517,29 +575,41 @@ function Faq() {
 function Closing({ onSignIn }: { onSignIn: () => void }) {
   const { t } = useI18n();
   return (
-    <Section className="text-center">
-      <h2 className="mx-auto max-w-[18ch] text-[28px] font-bold leading-[1.3] md:text-[48px]" style={{ color: "var(--vg-text)" }}>
-        {t("lp_closing_title")}
-      </h2>
-      <div className="mt-8 flex justify-center">
-        <button
-          onClick={onSignIn}
-          className="flex items-center gap-2 rounded-md px-6 text-[14px] font-semibold active:scale-[0.98]"
-          style={{
-            height: "var(--vg-cta-height)",
-            background: "var(--vg-primary)",
-            color: "var(--vg-text-on-primary)",
-            boxShadow: "var(--vg-glow-primary-lg)",
-          }}
+    /* The end card. Deliberately the one section that comes back to the hero's
+       language — key light, vignette, centred type — because a film's last frame
+       rhymes with its first. Everything between the two is a page; these two are
+       the frame around it. */
+    <div className="relative isolate overflow-hidden">
+      <div className="vg-bloom pointer-events-none absolute inset-0 opacity-70" aria-hidden />
+      <div className="vg-vignette pointer-events-none absolute inset-0" aria-hidden />
+      <hr className="vg-vein absolute inset-x-0 top-0" aria-hidden />
+      <Section className="relative z-[1] text-center">
+        <h2
+          className="mx-auto max-w-[18ch] text-[clamp(1.9rem,5vw,3.25rem)] font-extrabold leading-[1.2]"
+          style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
         >
-          <EnvelopeSimple size={17} weight="bold" />
-          {t("lp_email")}
-        </button>
-      </div>
-      <p className="mt-5 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
-        {t("lp_no_password")}
-      </p>
-    </Section>
+          {t("lp_closing_title")}
+        </h2>
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={onSignIn}
+            className="vg-ease flex items-center gap-2 rounded-pill px-7 text-[14px] font-semibold active:scale-[0.98]"
+            style={{
+              height: "var(--vg-cta-height)",
+              background: "var(--vg-primary)",
+              color: "var(--vg-text-on-primary)",
+              boxShadow: "0 0 48px rgb(var(--vg-primary-rgb) / 0.35)",
+            }}
+          >
+            <EnvelopeSimple size={17} weight="bold" />
+            {t("lp_email")}
+          </button>
+        </div>
+        <p className="mt-5 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
+          {t("lp_no_password")}
+        </p>
+      </Section>
+    </div>
   );
 }
 
@@ -547,7 +617,13 @@ function Closing({ onSignIn }: { onSignIn: () => void }) {
 export default function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) {
   const { t } = useI18n();
   return (
-    <div className="relative z-10 min-h-[100dvh]">
+    /* `overflow-x: clip`, not `hidden`. The section lights are meant to spill
+       past their section — that overhang is what stops them looking like boxes
+       — so something has to stop the spill widening the document. `hidden`
+       would do it and would also silently kill the sticky nav, because an
+       ancestor with `overflow: hidden` makes `position: sticky` scroll away.
+       `clip` trims the paint without creating a scroll container. */
+    <div className="relative z-10 min-h-[100dvh] [overflow-x:clip]">
       <TopNav onSignIn={onSignIn} onSignUp={onSignUp} />
       <Hero onSignIn={onSignUp} />
       <Reel />
