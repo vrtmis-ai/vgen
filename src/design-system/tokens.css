@@ -41,15 +41,15 @@
      2. CONTENT — text and icons
      Off-white, never pure #fff: less eye strain in a dark room.
      --------------------------------------------------------------------- */
-  --vg-text: #f5f3ef; /* headings, primary content            */
-  --vg-text-secondary: #e5e2e1; /* body copy                            */
-  --vg-text-muted: #a8a29e; /* captions, metadata, placeholders     */
+  --vg-text: #f4f5f7; /* headings, primary content            */
+  --vg-text-secondary: #e3e5e9; /* body copy                            */
+  --vg-text-muted: #9fa4ad; /* captions, metadata, placeholders     */
   /* Lightened from #6B6663, which measured 2.77–3.31:1 wherever it was used —
      below AA at every size. The name says "disabled", where WCAG exempts
      contrast, but in practice it had spread to captions, counts and units:
      real content. Rather than police every call site, the token now passes on
      its own and genuinely disabled controls carry opacity instead. */
-  --vg-text-faint: #948e8a; /* captions, counts, units              */
+  --vg-text-faint: #8c919b; /* captions, counts, units              */
   /* Dark ink on the orange fill, not white. White on #E95F18 measures 3.43:1
      and fails AA; #1A1A1A measures 4.97:1 and passes. The system's own prose
      said #1A1A1A from the start — this token had drifted from it, and every
@@ -85,7 +85,7 @@
           derived light enough for that here, but a very dark or desaturated
           brand may need the derivation loosened.
      ====================================================================== */
-  --vg-primary-rgb: 233 95 24;
+  --vg-primary-rgb: 0 145 255;
   --vg-primary: rgb(var(--vg-primary-rgb));
 
   /* Derived ramp. oklab keeps the mix perceptually even, so a blue or green

@@ -99,72 +99,105 @@ function TopNav({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => 
 }
 
 /* ---------- hero ---------- */
+/* ---------------------------------------------------------------------------
+   The hero, rebuilt for DEEV.
+
+   Three things changed and each is a decision rather than a repaint.
+
+   It is no longer centred. A centred column with a 48px headline and a strip of
+   thumbnails under it spent the whole first screen saying very little, and it is
+   the layout every AI tool has. Split asymmetrically, the type gets to be large
+   and the work gets to be large, and neither is competing for the middle.
+
+   The headline is roughly twice the size it was, on a clamp so it scales rather
+   than snapping at a breakpoint. At this size Persian needs its tracking left
+   alone — negative tracking pulls Vazirmatn's connecting strokes into each
+   other — so the weight does the work instead.
+
+   The accent appears exactly once above the fold: on the button. Black, white
+   and one blue only means something if the blue is rationed; an eyebrow pill, a
+   glow and a CTA in the same colour is three ways of saying the same thing.
+   --------------------------------------------------------------------------- */
 function Hero({ onSignIn }: { onSignIn: () => void }) {
   const { t, n } = useI18n();
-  const showcase = [...COMMUNITY].sort((a, b) => b.likes - a.likes).slice(0, 6);
+  /* Five, in two columns of unequal height. Six equal thumbnails read as a
+     contact sheet; a staggered pair reads as work. */
+  const showcase = [...COMMUNITY].sort((a, b) => b.likes - a.likes).slice(0, 5);
   return (
     <div className="relative overflow-hidden">
-      {/* the light leak the system defines for hero surfaces */}
       <div className="pointer-events-none absolute inset-0" style={{ background: "var(--vg-light-leak)" }} aria-hidden />
-      <Section className="!pb-8 text-center md:!pb-10">
-        <motion.div variants={riseParent} initial="hidden" animate="show">
-          <motion.span
-            variants={riseItem}
-            className="inline-flex items-center gap-1.5 rounded-pill px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em]"
-            style={{ background: "var(--vg-primary-a10)", color: "var(--vg-primary-soft)", fontFamily: "var(--vg-font-latin)" }}
-            lang="en"
-          >
-            <Sparkle size={12} weight="fill" />
-            Artificial Intelligence
-          </motion.span>
 
-          <motion.h1
-            variants={riseItem}
-            className="mx-auto mt-6 max-w-[16ch] text-[34px] font-bold leading-[1.25] md:text-[48px]"
-            style={{ color: "var(--vg-text)" }}
-          >
-            {t("lp_hero_title")}
-          </motion.h1>
-
-          <motion.p
-            variants={riseItem}
-            className="mx-auto mt-4 max-w-[46ch] text-[14px] leading-[1.9] md:text-[16px]"
-            style={{ color: "var(--vg-text-muted)" }}
-          >
-            {t("lp_hero_sub")}
-          </motion.p>
-
-          <motion.div variants={riseItem} className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <button
-              onClick={onSignIn}
-              className="flex items-center gap-2 rounded-md px-6 text-[14px] font-semibold active:scale-[0.98]"
-              style={{
-                height: "var(--vg-cta-height)",
-                background: "var(--vg-primary)",
-                color: "var(--vg-text-on-primary)",
-                boxShadow: "var(--vg-glow-primary-lg)",
-              }}
+      <Section className="!py-12 md:!py-20">
+        <motion.div
+          variants={riseParent}
+          initial="hidden"
+          animate="show"
+          className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-14"
+        >
+          {/* Copy. First in the DOM and, under RTL, first on the screen. */}
+          <div className="min-w-0">
+            <motion.span
+              variants={riseItem}
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
+              style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-latin)" }}
+              lang="en"
             >
-              {t("lp_cta_start")}
-              <ArrowLeft size={16} weight="bold" className="ltr:-scale-x-100" />
-            </button>
-            <span className="text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
-              {t("lp_gift_note").replace("{n}", n(12))}
-            </span>
+              <Sparkle size={11} weight="fill" />
+              Artificial Intelligence
+            </motion.span>
+
+            <motion.h1
+              variants={riseItem}
+              className="mt-4 text-[clamp(2.5rem,6vw,4.5rem)] font-extrabold leading-[1.12]"
+              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+            >
+              {t("lp_hero_title")}
+            </motion.h1>
+
+            <motion.p
+              variants={riseItem}
+              className="mt-5 max-w-[44ch] text-[14.5px] leading-[1.95] md:text-[16px]"
+              style={{ color: "var(--vg-text-muted)" }}
+            >
+              {t("lp_hero_sub")}
+            </motion.p>
+
+            <motion.div variants={riseItem} className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3">
+              <button
+                onClick={onSignIn}
+                className="flex items-center gap-2 rounded-xl px-7 text-[14.5px] font-bold transition-transform active:scale-[0.98]"
+                style={{ height: "var(--vg-cta-height)", background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+              >
+                {t("lp_cta_start")}
+                <ArrowLeft size={16} weight="bold" className="ltr:-scale-x-100" />
+              </button>
+              {/* The objection this answers is "what does it cost to find out",
+                  so it sits on the button rather than in a footnote. */}
+              <span className="text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
+                {t("lp_gift_note").replace("{n}", n(12))}
+              </span>
+            </motion.div>
+          </div>
+
+          {/* Work. Two columns, offset, so the eye reads a wall rather than a row. */}
+          <motion.div variants={riseItem} className="grid grid-cols-2 gap-3" aria-hidden>
+            <div className="flex flex-col gap-3 pt-8">
+              {showcase.slice(0, 2).map((p) => (
+                <div key={p.id} className="relative aspect-[3/4] overflow-hidden rounded-2xl">
+                  <Art family={getFamily(p.familyId)} />
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3">
+              {showcase.slice(2, 5).map((p, i) => (
+                <div key={p.id} className={`relative overflow-hidden rounded-2xl ${i === 1 ? "aspect-square" : "aspect-[3/4]"}`}>
+                  <Art family={getFamily(p.familyId)} />
+                </div>
+              ))}
+            </div>
           </motion.div>
         </motion.div>
       </Section>
-
-      {/* a strip of real work, bleeding off both edges */}
-      <div className="relative mx-auto max-w-[1400px] px-5 pb-16 sm:px-8 md:pb-24">
-        <div className="grid grid-cols-3 gap-2 md:grid-cols-6 md:gap-3">
-          {showcase.map((p, i) => (
-            <div key={p.id} className="relative aspect-[3/4] overflow-hidden rounded-md" style={{ opacity: i > 2 ? 0.55 : 1 }}>
-              <Art family={getFamily(p.familyId)} />
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
