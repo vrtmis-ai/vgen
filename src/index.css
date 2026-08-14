@@ -706,3 +706,57 @@ input.vg-density {
   border: 0;
   background: linear-gradient(to right, transparent, rgb(var(--vg-primary-rgb) / 0.55) 50%, transparent);
 }
+
+/* ---------------------------------------------------------------------------
+   Cinematic surface.
+
+   What makes a frame read as a shot rather than a section is not the content —
+   it is that a shot has ONE light source, falls off into darkness at the edges,
+   and sits on film rather than on glass. Three layers do all of it, and all
+   three are pure paint: no layout, no reflow, nothing that can jank a scroll.
+   --------------------------------------------------------------------------- */
+
+/* The key light. An ellipse rather than a circle because a wide frame lit by a
+   circle looks like a spotlight on a stage; an ellipse looks like depth. */
+.vg-bloom {
+  background:
+    radial-gradient(60% 45% at 50% 42%, rgb(var(--vg-primary-rgb) / 0.16), transparent 70%),
+    radial-gradient(45% 35% at 50% 38%, rgb(255 255 255 / 0.05), transparent 70%);
+}
+
+/* Falloff. The corners go to the canvas colour, not to black — on an OLED-true
+   canvas those are the same, but the moment anyone lightens the page this stays
+   correct instead of ringing the frame in a darker box. */
+.vg-vignette {
+  background: radial-gradient(75% 65% at 50% 45%, transparent 40%, var(--vg-canvas) 100%);
+}
+
+/* Film grain. Fixed and pointer-events-none, per the performance rule: attached
+   to a scrolling container it repaints every frame and costs more than the
+   whole rest of the page. */
+.vg-grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* The subject's own light — the mascot's veins bleeding into the air around it.
+   Sits behind the figure, never on it, so a PNG with a clean alpha edge still
+   reads as lit from within rather than cut out and pasted. */
+.vg-subject-glow {
+  background: radial-gradient(50% 40% at 50% 55%, rgb(var(--vg-primary-rgb) / 0.28), transparent 72%);
+  filter: blur(28px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The parallax is the one thing here that moves. Grain and glow are static
+     paint and can stay — removing them would change the design, not the motion. */
+  .vg-parallax {
+    transform: none !important;
+  }
+}

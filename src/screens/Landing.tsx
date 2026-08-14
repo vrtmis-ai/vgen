@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useRef, useState } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowLeft, Check, CaretDown, EnvelopeSimple, Sparkle } from "@phosphor-icons/react";
 import { FAMILIES, getFamily, type Family } from "../data/models";
 import { COMMUNITY } from "../data/community";
@@ -122,121 +122,189 @@ function TopNav({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => 
 
 /* ---------- hero ---------- */
 /* ---------------------------------------------------------------------------
-   The hero, rebuilt for DEEV.
+   The hero, as a shot.
 
-   Three things changed and each is a decision rather than a repaint.
+   The previous two attempts were both layouts: a centred column, then an
+   asymmetric split. Recolouring one into the other is what "we just changed the
+   colours and rounded the corners" was pointing at, and it was fair — a split
+   with a thumbnail grid is an editorial SaaS pattern, and editorial is close to
+   the opposite of cinematic.
 
-   It is no longer centred. A centred column with a 48px headline and a strip of
-   thumbnails under it spent the whole first screen saying very little, and it is
-   the layout every AI tool has. Split asymmetrically, the type gets to be large
-   and the work gets to be large, and neither is competing for the middle.
+   What makes a frame read as a shot is not the arrangement of boxes. It is that
+   there is ONE light source, the light falls off into darkness at the edges, the
+   subject stands in that light, and the type lives inside the frame rather than
+   beside it. So this is not a section containing elements — it is a full
+   viewport scene with layers at different depths:
 
-   The headline is roughly twice the size it was, on a clamp so it scales rather
-   than snapping at a breakpoint. At this size Persian needs its tracking left
-   alone — negative tracking pulls Vazirmatn's connecting strokes into each
-   other — so the weight does the work instead.
+     bloom      the key light, an ellipse behind the subject
+     subject    DEEV, lit from within by its own veins
+     type       over the scene, not next to it
+     vignette   the falloff that turns a page into a frame
+     grain      film, so black is not flat
 
-   The accent appears exactly once above the fold: on the button. Black, white
-   and one blue only means something if the blue is rationed; an eyebrow pill, a
-   glow and a CTA in the same colour is three ways of saying the same thing.
+   The layers move at different rates on scroll. That is the whole parallax: the
+   light drifts slowest because it is furthest away, the subject next, the type
+   fastest because it is closest to the viewer. Two transforms and no library
+   beyond the one already here.
+
+   `min-h-[100dvh]`, never `h-screen` — on iOS Safari the toolbar collapse
+   changes `vh` mid-scroll and the whole shot jumps.
    --------------------------------------------------------------------------- */
 function Hero({ onSignIn }: { onSignIn: () => void }) {
   const { t, n } = useI18n();
-  /* Five, in two columns of unequal height. Six equal thumbnails read as a
-     contact sheet; a staggered pair reads as work. */
-  const showcase = [...COMMUNITY].sort((a, b) => b.likes - a.likes).slice(0, 5);
+  const frame = useRef<HTMLDivElement>(null);
+  const [mascotFailed, onMascotError] = useImageFallback();
+
+  /* Progress through the hero itself, not the page: `offset` ties 0 to the
+     frame's top meeting the viewport top and 1 to its bottom leaving it, so the
+     parallax is the same at every viewport height instead of drifting on tall
+     screens. */
+  const { scrollYProgress } = useScroll({ target: frame, offset: ["start start", "end start"] });
+  const lightY = useTransform(scrollYProgress, [0, 1], ["0%", "14%"]);
+  const subjectY = useTransform(scrollYProgress, [0, 1], ["0%", "26%"]);
+  const typeY = useTransform(scrollYProgress, [0, 1], ["0%", "44%"]);
+  const typeFade = useTransform(scrollYProgress, [0, 0.72], [1, 0]);
+
   return (
-    <div className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0" style={{ background: "var(--vg-light-leak)" }} aria-hidden />
+    <div ref={frame} className="vg-grain relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden">
+      {/* Key light. Furthest back, so it moves least. */}
+      <motion.div style={{ y: lightY }} className="vg-bloom pointer-events-none absolute inset-0" aria-hidden />
 
-      <Section className="!py-12 md:!py-20">
-        <motion.div
-          variants={riseParent}
-          initial="hidden"
-          animate="show"
-          className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-14"
-        >
-          {/* Copy. First in the DOM and, under RTL, first on the screen. */}
-          <div className="min-w-0">
-            <motion.span
-              variants={riseItem}
-              className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
-              style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-latin)" }}
-              lang="en"
+      {/* The subject.
+          Drawn whether or not the artwork has landed: the glow is the mascot's
+          own veins bleeding into the air, and on its own it already reads as
+          something standing in the dark. When brand/deev-mascot.png exists it
+          drops into this frame with nothing else to change — which is why the
+          slot is built now rather than waiting for the file. */}
+      <motion.div
+        style={{ y: subjectY }}
+        className="pointer-events-none absolute inset-x-0 bottom-0 top-[12%] flex items-end justify-center"
+        aria-hidden
+      >
+        <div className="relative h-full w-full max-w-[560px]">
+          <div className="vg-subject-glow absolute inset-x-0 bottom-[8%] top-[18%]" />
+          {!mascotFailed && (
+            <img
+              src="/brand/deev-mascot.png"
+              alt=""
+              onError={onMascotError}
+              className="absolute inset-x-0 bottom-0 mx-auto h-[86%] w-auto object-contain"
+              style={{ filter: "drop-shadow(0 0 60px rgb(var(--vg-primary-rgb) / 0.25))" }}
+            />
+          )}
+        </div>
+      </motion.div>
+
+      {/* Falloff, over the subject and under the type — this is the layer that
+          turns a lit page into a framed one. */}
+      <div className="vg-vignette pointer-events-none absolute inset-0" aria-hidden />
+
+      {/* Type, inside the frame. Closest to the viewer, so it moves most and is
+          the first thing to leave as the shot is scrolled past. */}
+      <motion.div
+        style={{ y: typeY, opacity: typeFade }}
+        className="relative z-[2] mx-auto w-full max-w-[900px] px-5 pb-16 pt-28 text-center sm:px-8"
+      >
+        <motion.div variants={riseParent} initial="hidden" animate="show">
+          <motion.span
+            variants={riseItem}
+            className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.32em]"
+            style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-latin)" }}
+            lang="en"
+          >
+            <Sparkle size={11} weight="fill" />
+            Artificial Intelligence
+          </motion.span>
+
+          {/* Bigger than the split version and centred on purpose: in a frame
+              the subject sits on the centre line, and type that ducks to one
+              side to avoid it is type that has lost the argument with the
+              image. */}
+          <motion.h1
+            variants={riseItem}
+            className="mx-auto mt-6 max-w-[15ch] text-[clamp(2.75rem,7.5vw,5.75rem)] font-extrabold leading-[1.08]"
+            style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+          >
+            {t("lp_hero_title")}
+          </motion.h1>
+
+          <motion.p
+            variants={riseItem}
+            className="mx-auto mt-6 max-w-[46ch] text-[15px] leading-[2] md:text-[16.5px]"
+            style={{ color: "var(--vg-text-secondary)" }}
+          >
+            {t("lp_hero_sub")}
+          </motion.p>
+
+          <motion.div variants={riseItem} className="mt-10 flex flex-col items-center gap-3">
+            <button
+              onClick={onSignIn}
+              className="vg-ease group flex items-center gap-3 rounded-full ps-8 pe-2 text-[15px] font-bold active:scale-[0.98]"
+              style={{
+                height: "var(--vg-cta-height)",
+                background: "var(--vg-primary)",
+                color: "var(--vg-text-on-primary)",
+                /* The one glow in the product, and it belongs here: in a lit
+                   frame the brightest object should look like it emits. */
+                boxShadow: "0 0 48px rgb(var(--vg-primary-rgb) / 0.35)",
+              }}
             >
-              <Sparkle size={11} weight="fill" />
-              Artificial Intelligence
-            </motion.span>
-
-            <motion.h1
-              variants={riseItem}
-              className="mt-4 text-[clamp(2.5rem,6vw,4.5rem)] font-extrabold leading-[1.12]"
-              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-            >
-              {t("lp_hero_title")}
-            </motion.h1>
-
-            <motion.p
-              variants={riseItem}
-              className="mt-5 max-w-[44ch] text-[14.5px] leading-[1.95] md:text-[16px]"
-              style={{ color: "var(--vg-text-muted)" }}
-            >
-              {t("lp_hero_sub")}
-            </motion.p>
-
-            <motion.div variants={riseItem} className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3">
-              {/* The arrow sits in its own well rather than floating beside the
-                  label, and the well is what moves on hover — the button stays
-                  put and something inside it leans toward the click. Cheaper to
-                  read than a whole element sliding, and it survives RTL because
-                  the translate is written per direction rather than mirrored. */}
-              <button
-                onClick={onSignIn}
-                className="vg-ease group flex items-center gap-3 rounded-full ps-7 pe-2 text-[14.5px] font-bold active:scale-[0.98]"
-                style={{ height: "var(--vg-cta-height)", background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+              {t("lp_cta_start")}
+              <span
+                className="vg-ease grid size-9 place-items-center rounded-full group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5"
+                style={{ background: "rgb(0 0 0 / 0.14)" }}
               >
-                {t("lp_cta_start")}
-                <span
-                  className="vg-ease grid size-9 place-items-center rounded-full group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5"
-                  style={{ background: "rgb(0 0 0 / 0.14)" }}
-                >
-                  <ArrowLeft size={15} weight="bold" className="ltr:-scale-x-100" />
-                </span>
-              </button>
-              {/* The objection this answers is "what does it cost to find out",
-                  so it sits on the button rather than in a footnote. */}
-              <span className="text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                {t("lp_gift_note").replace("{n}", n(12))}
+                <ArrowLeft size={15} weight="bold" className="ltr:-scale-x-100" />
               </span>
-            </motion.div>
-          </div>
-
-          {/* Work. Two columns, offset, so the eye reads a wall rather than a
-              row — and each frame sits in a bezel so it reads as a plate in a
-              tray rather than an image dropped on the page. */}
-          <motion.div variants={riseItem} className="grid grid-cols-2 gap-3" aria-hidden>
-            <div className="flex flex-col gap-3 pt-8">
-              {showcase.slice(0, 2).map((p) => (
-                <div key={p.id} className="vg-bezel">
-                  <div className="relative aspect-[3/4]">
-                    <Art family={getFamily(p.familyId)} />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-3">
-              {showcase.slice(2, 5).map((p, i) => (
-                <div key={p.id} className="vg-bezel">
-                  <div className={`relative ${i === 1 ? "aspect-square" : "aspect-[3/4]"}`}>
-                    <Art family={getFamily(p.familyId)} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            </button>
+            <span className="text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
+              {t("lp_gift_note").replace("{n}", n(12))}
+            </span>
           </motion.div>
         </motion.div>
-      </Section>
+      </motion.div>
+
+      {/* The seam out of the shot. The mascot's crack, used once, where the
+          frame ends and the page begins. */}
+      <hr className="vg-vein absolute inset-x-0 bottom-0 z-[2] w-full" aria-hidden />
     </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   The reel.
+
+   The proof that any of this works is the work itself, and the hero has no room
+   for it any more — a shot with a thumbnail grid in it is not a shot. So it
+   comes straight after, and it is edge to edge.
+
+   Full-bleed on purpose. A contained grid says "here are some samples"; frames
+   running off both sides say the reel continues past the screen, which is both
+   truer and the reason a film strip reads the way it does. Faded at the edges
+   with the same mask the nav uses, so the cut is light rather than a hard crop.
+   --------------------------------------------------------------------------- */
+function Reel() {
+  const reel = [...COMMUNITY].sort((a, b) => b.likes - a.likes).slice(0, 8);
+  return (
+    <section className="vg-fade-start vg-fade-end -mt-px overflow-hidden py-10 md:py-14" aria-hidden>
+      {/* One row, no wrap, wider than the viewport. `w-max` rather than a grid:
+          the strip is meant to overflow, and a grid would helpfully prevent it. */}
+      <div className="flex w-max gap-3 px-5 sm:px-8">
+        {reel.map((p, i) => (
+          <div
+            key={p.id}
+            className="vg-bezel shrink-0"
+            /* Alternating heights, so the strip has a horizon rather than a
+               ruler edge. */
+            style={{ marginTop: i % 2 === 0 ? 0 : 28 }}
+          >
+            <div className="relative h-[220px] w-[164px] md:h-[280px] md:w-[210px]">
+              <Art family={getFamily(p.familyId)} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -482,6 +550,7 @@ export default function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; 
     <div className="relative z-10 min-h-[100dvh]">
       <TopNav onSignIn={onSignIn} onSignUp={onSignUp} />
       <Hero onSignIn={onSignUp} />
+      <Reel />
       <Models />
       <Features />
       <Plans onSignIn={onSignUp} />
