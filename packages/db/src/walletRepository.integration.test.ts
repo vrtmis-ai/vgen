@@ -1,58 +1,82 @@
-import { readFile } from "node:fs/promises";
-import postgres, { type Sql } from "postgres";
+import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PostgresWalletRepository } from "./walletRepository";
+import { COIN, connect, inRollback, makeUser } from "./integrationHarness";
 
-const databaseUrl = process.env.DATABASE_URL ?? "postgres://vgen:vgen-local@127.0.0.1:5432/vgen";
-const migrationUrl = new URL("../migrations/0001_initial.sql", import.meta.url);
-const clerkMigrationUrl = new URL("../migrations/0002_clerk_auth.sql", import.meta.url);
-const schemaName = `wallet_repository_test_${process.pid}_${Date.now()}`;
+let sql: Sql;
 
-let adminSql: Sql;
-let appSql: Sql;
-
-beforeAll(async () => {
-  adminSql = postgres(databaseUrl, { max: 1 });
-  await adminSql`create extension if not exists pgcrypto`;
-  await adminSql.unsafe(`create schema "${schemaName}"`);
-  await adminSql.unsafe(`set search_path to "${schemaName}", public`);
-  await adminSql.unsafe(await readFile(migrationUrl, "utf8"));
-  await adminSql.unsafe(await readFile(clerkMigrationUrl, "utf8"));
-  await adminSql.unsafe("set search_path to public");
-  appSql = postgres(databaseUrl, { max: 1, connection: { search_path: `${schemaName},public` } });
+beforeAll(() => {
+  sql = connect();
 });
 
 afterAll(async () => {
-  await appSql.end();
-  await adminSql.unsafe(`drop schema if exists "${schemaName}" cascade`);
-  await adminSql.end();
+  await sql.end();
 });
 
 describe("Postgres wallet repository", () => {
-  it("projects only spendable grants and reports the next expiry", async () => {
-    const [user] = await appSql<{ id: string }[]>`insert into users default values returning id`;
-    if (!user) throw new Error("Wallet test user was not created");
-    const [expiring] = await appSql<{ id: string }[]>`
-      insert into credit_grants (user_id, kind, amount, consumed, granted_at, expires_at)
-      values (${user.id}, 'signup_gift', 12, 2, now() - interval '1 day', now() + interval '2 days')
-      returning id
-    `;
-    await appSql`
-      insert into credit_grants (user_id, kind, amount, consumed, granted_at, expires_at)
-      values
-        (${user.id}, 'reward', 8, 3, now(), null),
-        (${user.id}, 'plan', 7, 0, now(), now() - interval '1 minute'),
-        (${user.id}, 'admin', 4, 4, now(), now() + interval '3 days')
-    `;
+  it("projects only spendable lots and reports the next expiry", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
 
-    const wallet = await new PostgresWalletRepository(appSql).getCurrent(user.id);
+      // Soonest-expiring first, which is also the order credits are spent in.
+      const [expiring] = await tx<{ id: string }[]>`
+        insert into credit_lots (account_id, source, micro_credits_total, micro_credits_remaining, expires_at)
+        values (${accountId}, 'signup_bonus', ${12 * COIN}, ${10 * COIN}, now() + interval '2 days')
+        returning id
+      `;
+      await tx`
+        insert into credit_lots (account_id, source, micro_credits_total, micro_credits_remaining, expires_at)
+        values
+          (${accountId}, 'promo',       ${8 * COIN}, ${5 * COIN}, null),
+          (${accountId}, 'purchase',    ${7 * COIN}, ${7 * COIN}, now() - interval '1 minute'),
+          (${accountId}, 'admin_grant', ${4 * COIN}, 0,           now() + interval '3 days')
+      `;
 
-    expect(wallet.spendable).toBe(15);
-    expect(wallet.grants).toHaveLength(2);
-    expect(wallet.grants[0]).toMatchObject({ id: expiring!.id, kind: "signup_gift", coinsGranted: 12, coinsRemaining: 10 });
-    expect(wallet.grants[0]!.expiresAt).toBeTypeOf("number");
-    expect(wallet.grants[1]).toMatchObject({ kind: "reward", coinsGranted: 8, coinsRemaining: 5 });
-    expect(wallet.grants[1]).not.toHaveProperty("expiresAt");
-    expect(wallet.nextExpiry).toEqual({ at: wallet.grants[0]!.expiresAt, coins: 10 });
+      const wallet = await new PostgresWalletRepository(tx).getCurrent(userId);
+
+      // 10 + 5. The expired lot and the emptied lot are both invisible.
+      expect(wallet.spendable).toBe(15);
+      expect(wallet.grants).toHaveLength(2);
+      expect(wallet.grants[0]).toMatchObject({ id: expiring!.id, kind: "signup_gift", coinsGranted: 12, coinsRemaining: 10 });
+      expect(wallet.grants[0]!.expiresAt).toBeTypeOf("number");
+      expect(wallet.grants[1]).toMatchObject({ kind: "reward", coinsGranted: 8, coinsRemaining: 5 });
+      expect(wallet.grants[1]).not.toHaveProperty("expiresAt");
+      expect(wallet.nextExpiry).toEqual({ at: wallet.grants[0]!.expiresAt, coins: 10 });
+    });
+  });
+
+  it("never reports more coins than the balance can actually buy", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      // Three lots that are each half a coin short of a whole one. Converting
+      // per lot and adding would report 0; the total is genuinely 1 coin.
+      await tx`
+        insert into credit_lots (account_id, source, micro_credits_total, micro_credits_remaining, expires_at)
+        values
+          (${accountId}, 'promo', 500000, 500000, null),
+          (${accountId}, 'promo', 500000, 500000, null),
+          (${accountId}, 'promo', 500000, 500000, null)
+      `;
+
+      const wallet = await new PostgresWalletRepository(tx).getCurrent(userId);
+
+      expect(wallet.spendable).toBe(1);
+    });
+  });
+
+  it("reads only the asking user's own credit", async () => {
+    await inRollback(sql, async (tx) => {
+      const mine = await makeUser(tx);
+      const theirs = await makeUser(tx);
+      await tx`
+        insert into credit_lots (account_id, source, micro_credits_total, micro_credits_remaining)
+        values (${theirs.accountId}, 'purchase', ${99 * COIN}, ${99 * COIN})
+      `;
+
+      const wallet = await new PostgresWalletRepository(tx).getCurrent(mine.userId);
+
+      expect(wallet.spendable).toBe(0);
+      expect(wallet.grants).toEqual([]);
+    });
   });
 });

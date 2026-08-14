@@ -7,4 +7,19 @@ export interface IdGenerator {
 }
 
 export type { InputMap, InputValue, PriceCtx, RateFn } from "./types";
-export { KIE_CREDIT_USD, COIN_USD, MARGIN, NO_CTX, coinsFor, coinsForKieCredits, perKChars, pick, RATES_FALLBACK } from "./pricing";
+export {
+  KIE_CREDIT_USD,
+  COIN_USD,
+  MARGIN,
+  MICRO_CREDITS_PER_COIN,
+  NO_CTX,
+  coinsFor,
+  coinsForKieCredits,
+  coinsToMicroCredits,
+  microCreditsFor,
+  microCreditsForKieCredits,
+  microCreditsToCoins,
+  perKChars,
+  pick,
+  RATES_FALLBACK,
+} from "./pricing";

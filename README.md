@@ -22,6 +22,38 @@ pnpm dev:stack
 Next 16 refuses to start a second dev server in the same directory, so stop
 `pnpm dev` before running `pnpm test:e2e` — Playwright starts its own on 5182.
 
+## Database
+
+91 tables, applied by `packages/db/src/migrate.ts` from `packages/db/migrations/`
+in filename order, each file in its own transaction.
+
+```sh
+docker compose up -d --wait
+pnpm db:migrate
+docker compose exec -T postgres psql -U vgen -d vgen -v ON_ERROR_STOP=1 < packages/db/smoke.sql
+```
+
+The smoke file is the schema's test: ~54 assertions in one transaction that ends
+in `ROLLBACK`, so it is safe to run against any database.
+
+Two things about the container are load-bearing:
+
+- **Postgres listens on 5442, not 5432.** A native PostgreSQL Windows service
+  and the sibling `deev-db` compose stack both want 5432; when two listeners
+  share a port the wrong one answers, and the error reads as a password failure
+  rather than a conflict.
+- **The ICU `fa-IR` collation is set by initdb and only by initdb.** Persian
+  sorts wrongly under `en_US.utf8`, which files Latin first and splits the ک/ك
+  and ی/ي pairs users type interchangeably. Changing it later means a dump and
+  restore, so `docker compose down -v` and re-migrating is the way to reset.
+
+Money is stored as BIGINT **micro-credits**, 1 credit = 1,000,000, so nothing in
+the money path is ever a float. Credit only moves through the functions in
+`0010_credit_functions.sql` — `grant_credits`, `hold_credits`, `capture_hold`,
+`release_hold` — because each movement has to keep the lots, the append-only
+ledger, the hold records and the cached balance in step, and the reconciliation
+views in `0004` exist to catch the case where it did not.
+
 ## Configuration
 
 Copy `.env.example` to `.env.development.local` (ignored by Git).

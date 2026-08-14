@@ -3,16 +3,16 @@ import { AnonymousPrincipalResolver, CustomerSessionService } from "./customerSe
 
 describe("CustomerSessionService", () => {
   it("does not touch PostgreSQL when the request has no valid session", async () => {
-    const repository = { syncClerkUser: vi.fn() };
+    const repository = { upsertFromProfile: vi.fn() };
     const service = new CustomerSessionService({ resolve: vi.fn(async () => null) }, repository);
 
     await expect(service.getCurrent({} as never)).resolves.toEqual({ status: "anonymous", host: "web" });
-    expect(repository.syncClerkUser).not.toHaveBeenCalled();
+    expect(repository.upsertFromProfile).not.toHaveBeenCalled();
   });
 
   it("returns the internal Vgen account for an authenticated profile", async () => {
     const profile = {
-      clerkUserId: "user_clerk_123",
+      externalUserId: "user_external_123",
       emailNormalized: "person@example.com",
       displayName: "Vgen User",
       avatarUrl: null,
@@ -25,11 +25,11 @@ describe("CustomerSessionService", () => {
       locale: "fa" as const,
       isTeam: false,
     };
-    const repository = { syncClerkUser: vi.fn(async () => internalUser) };
+    const repository = { upsertFromProfile: vi.fn(async () => internalUser) };
     const service = new CustomerSessionService({ resolve: vi.fn(async () => profile) }, repository);
 
     await expect(service.getCurrent({} as never)).resolves.toEqual({ status: "authed", host: "web", user: internalUser });
-    expect(repository.syncClerkUser).toHaveBeenCalledWith(profile);
+    expect(repository.upsertFromProfile).toHaveBeenCalledWith(profile);
   });
 });
 

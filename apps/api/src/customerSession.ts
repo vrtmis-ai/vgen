@@ -1,5 +1,5 @@
 import type { CustomerSession } from "@vgen/contracts";
-import type { ClerkCustomerProfile, CustomerRepository } from "@vgen/db";
+import type { CustomerProfile, CustomerRepository } from "@vgen/db";
 import type { FastifyRequest } from "fastify";
 import type { CustomerSessionApplication } from "./routes/session";
 
@@ -16,7 +16,7 @@ import type { CustomerSessionApplication } from "./routes/session";
  * `sessions.getCurrent(request)` and branch on the result.
  */
 export interface PrincipalResolver {
-  resolve(request: FastifyRequest): Promise<ClerkCustomerProfile | null>;
+  resolve(request: FastifyRequest): Promise<CustomerProfile | null>;
 }
 
 /**
@@ -28,7 +28,7 @@ export interface PrincipalResolver {
  * look like it worked.
  */
 export class AnonymousPrincipalResolver implements PrincipalResolver {
-  async resolve(): Promise<ClerkCustomerProfile | null> {
+  async resolve(): Promise<CustomerProfile | null> {
     return null;
   }
 }
@@ -42,10 +42,7 @@ export class CustomerSessionService implements CustomerSessionApplication {
   async getCurrent(request: FastifyRequest): Promise<CustomerSession> {
     const profile = await this.principals.resolve(request);
     if (!profile) return { status: "anonymous", host: "web" };
-    // Still named for Clerk in @vgen/db. That package is rewritten wholesale
-    // against the deev-db schema in the next phase; renaming it here first
-    // would be churn on code that is about to be replaced.
-    const user = await this.customers.syncClerkUser(profile);
+    const user = await this.customers.upsertFromProfile(profile);
     return { status: "authed", host: "web", user };
   }
 }
