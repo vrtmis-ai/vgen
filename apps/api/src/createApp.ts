@@ -5,7 +5,6 @@ import { registerCustomerSessionRoute, type CustomerSessionApplication } from ".
 import { registerCatalogRoute, type CustomerCatalogApplication } from "./routes/catalog";
 import { registerWalletRoute, type CustomerWalletApplication } from "./routes/wallet";
 import { registerGenerationJobsRoute, type GenerationJobsApplication } from "./routes/jobs";
-import { clerkPlugin, type ClerkFastifyOptions } from "@clerk/fastify";
 import cors from "@fastify/cors";
 import {
   registerFrontendTelemetryRoute,
@@ -30,7 +29,6 @@ export interface ApiDependencies {
 }
 
 export interface ApiOptions {
-  clerk?: ClerkFastifyOptions;
   corsOrigin?: string;
   logger?: boolean;
   telemetryRateLimit?: TelemetryRateLimitOptions;
@@ -47,7 +45,6 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   if (options.corsOrigin) {
     void app.register(cors, { origin: options.corsOrigin, credentials: true });
   }
-  if (options.clerk) void app.register(clerkPlugin, options.clerk);
   registerCustomerSessionRoute(app, dependencies.customerSession);
   registerCatalogRoute(app, dependencies.customerCatalog);
   registerWalletRoute(app, dependencies.customerSession, dependencies.customerWallet);

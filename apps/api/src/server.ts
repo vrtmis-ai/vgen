@@ -9,7 +9,7 @@ import {
   PostgresWalletRepository,
 } from "@vgen/db";
 import { createRedisFixedWindowRateLimiter, createRedisHealthAdapter, createS3StorageHealthAdapter } from "@vgen/adapters";
-import { ClerkCustomerSessionService, FastifyClerkPrincipalResolver } from "./customerSession";
+import { AnonymousPrincipalResolver, CustomerSessionService } from "./customerSession";
 import { createApp } from "./createApp";
 
 config({ path: fileURLToPath(new URL("../../../.env.development.local", import.meta.url)), quiet: true });
@@ -29,8 +29,6 @@ function infrastructureSetting(name: string, localDefault: string): string {
 }
 
 const databaseUrl = required("DATABASE_URL");
-const clerkSecretKey = required("CLERK_SECRET_KEY");
-const clerkPublishableKey = required("CLERK_PUBLISHABLE_KEY");
 // Through infrastructureSetting like every other one: this used to fall back to
 // the loopback origin unconditionally, so a production deploy that forgot it
 // booted healthy with CORS pinned to 127.0.0.1 and every browser request from
@@ -59,7 +57,7 @@ const telemetryRateLimiter = createRedisFixedWindowRateLimiter(redisUrl, {
   keyPrefix: "deev:rate-limit:telemetry:v1",
   hashSecret: rateLimitHashSecret,
 });
-const customerSession = new ClerkCustomerSessionService(new FastifyClerkPrincipalResolver(), new PostgresCustomerRepository(sql));
+const customerSession = new CustomerSessionService(new AnonymousPrincipalResolver(), new PostgresCustomerRepository(sql));
 const app = createApp(
   {
     database: {
@@ -81,7 +79,6 @@ const app = createApp(
     generationJobs: new PostgresGenerationRepository(sql),
   },
   {
-    clerk: { secretKey: clerkSecretKey, publishableKey: clerkPublishableKey },
     corsOrigin: webOrigin,
     logger: true,
     telemetryRateLimiter,

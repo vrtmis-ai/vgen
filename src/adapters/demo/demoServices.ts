@@ -1,4 +1,4 @@
-import type { AppServices } from "../../app/AppServices";
+import type { AppServices } from "../../runtime/AppServices";
 import { createDemoCatalogService } from "./catalog";
 import { createDemoGenerationAdapters } from "./generation";
 import { createDemoSessionService } from "./session";

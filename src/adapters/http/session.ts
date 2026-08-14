@@ -1,5 +1,5 @@
-import type { AppServices } from "../../app/AppServices";
-import { SessionSchema } from "../../app/contracts/session";
+import type { AppServices } from "../../runtime/AppServices";
+import { SessionSchema } from "../../runtime/contracts/session";
 import type { HttpClient } from "./client";
 
 export function createHttpSessionService(client: HttpClient): AppServices["session"] {

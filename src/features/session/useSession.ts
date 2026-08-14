@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useAppServices } from "../../app/AppServices";
+import { useAppServices } from "../../runtime/AppServices";
 
 export const appQueryKeys = {
   session: ["session"] as const,

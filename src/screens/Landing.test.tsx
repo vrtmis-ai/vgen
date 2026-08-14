@@ -4,12 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../lib/i18n";
 import Landing from "./Landing";
 
+// English, so the button assertions below read as the labels a reviewer sees.
+// This used to be seeded through localStorage; language now arrives as a prop
+// from the server, which is what lets <html dir> be correct in the first byte.
 describe("Landing authentication actions", () => {
   it("renders the DEEV product name", () => {
-    localStorage.setItem("vgen-lang", '"en"');
-
     render(
-      <LanguageProvider>
+      <LanguageProvider initialLang="en">
         <Landing onSignIn={vi.fn()} onSignUp={vi.fn()} />
       </LanguageProvider>,
     );
@@ -18,13 +19,12 @@ describe("Landing authentication actions", () => {
   });
 
   it("keeps sign in and sign up as distinct actions", async () => {
-    localStorage.setItem("vgen-lang", '"en"');
     const user = userEvent.setup();
     const onSignIn = vi.fn();
     const onSignUp = vi.fn();
 
     render(
-      <LanguageProvider>
+      <LanguageProvider initialLang="en">
         <Landing onSignIn={onSignIn} onSignUp={onSignUp} />
       </LanguageProvider>,
     );

@@ -318,8 +318,8 @@ describe("API health wiring", () => {
   });
 });
 
-describe("Clerk customer session", () => {
-  it("returns an anonymous web session when Clerk has no authenticated user", async () => {
+describe("customer session", () => {
+  it("returns an anonymous web session when no principal resolves", async () => {
     const app = createApp(healthyDependencies());
 
     const response = await app.inject({ method: "GET", url: "/api/v1/session" });
@@ -329,7 +329,7 @@ describe("Clerk customer session", () => {
     await app.close();
   });
 
-  it("returns the internal Vgen user after Clerk authentication", async () => {
+  it("returns the internal Vgen user once a principal resolves", async () => {
     const dependencies = healthyDependencies();
     dependencies.customerSession.getCurrent = vi.fn(async () => ({
       status: "authed" as const,
@@ -345,7 +345,7 @@ describe("Clerk customer session", () => {
     }));
     const app = createApp(dependencies);
 
-    const response = await app.inject({ method: "GET", url: "/api/v1/session", headers: { authorization: "Bearer clerk-session" } });
+    const response = await app.inject({ method: "GET", url: "/api/v1/session", headers: { authorization: "Bearer session-token" } });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
@@ -417,7 +417,7 @@ describe("customer wallet", () => {
     }));
     const app = createApp(dependencies);
 
-    const response = await app.inject({ method: "GET", url: "/api/v1/wallet", headers: { authorization: "Bearer clerk-session" } });
+    const response = await app.inject({ method: "GET", url: "/api/v1/wallet", headers: { authorization: "Bearer session-token" } });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ spendable: 12, grants: [{ kind: "signup_gift", coinsRemaining: 12 }] });

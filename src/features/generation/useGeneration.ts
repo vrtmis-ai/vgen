@@ -1,6 +1,6 @@
 import { useMutation, useQueries, type Query } from "@tanstack/react-query";
-import { useAppServices } from "../../app/AppServices";
-import type { CreateGenerationRequest, GenerationJob, QuoteGenerationRequest } from "../../app/contracts/generation";
+import { useAppServices } from "../../runtime/AppServices";
+import type { CreateGenerationRequest, GenerationJob, QuoteGenerationRequest } from "../../runtime/contracts/generation";
 
 export const CREATE_GENERATION_MUTATION_KEY = ["create-generation"] as const;
 

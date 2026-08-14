@@ -22,7 +22,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface EdgeFade<T extends HTMLElement> {
   /** Attach to the scrolling element. */
-  ref: React.RefObject<T>;
+  ref: React.RefObject<T | null>;
   /** Attach to the same element's `onScroll`. */
   onScroll: () => void;
   /** Content is hidden past the start edge (the user has scrolled away from it). */

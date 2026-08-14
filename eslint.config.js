@@ -1,17 +1,16 @@
 import js from "@eslint/js";
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "node_modules/**", ".vite-logs/**"],
+    ignores: ["dist/**", "node_modules/**", ".next/**", "next-env.d.ts"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["src/**/*.{ts,tsx}", "scripts/**/*.ts", "e2e/**/*.ts", "apps/**/*.ts", "packages/**/*.ts", "*.config.ts"],
+    files: ["app/**/*.{ts,tsx}", "src/**/*.{ts,tsx}", "scripts/**/*.ts", "e2e/**/*.ts", "apps/**/*.ts", "packages/**/*.ts", "*.config.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       globals: {
@@ -21,7 +20,6 @@ export default tseslint.config(
     },
     plugins: {
       "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -29,10 +27,6 @@ export default tseslint.config(
       "react-hooks/purity": "off",
       "react-hooks/refs": "off",
       "react-hooks/set-state-in-effect": "off",
-      // The current codebase intentionally colocates small hooks and helpers with
-      // their providers. Splitting those public modules is a later refactor, not
-      // a correctness condition for this quality gate.
-      "react-refresh/only-export-components": "off",
     },
   },
   {

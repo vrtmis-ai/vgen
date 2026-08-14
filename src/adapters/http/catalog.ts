@@ -1,5 +1,5 @@
-import type { AppServices } from "../../app/AppServices";
-import { CatalogSnapshotSchema } from "../../app/contracts/catalog";
+import type { AppServices } from "../../runtime/AppServices";
+import { CatalogSnapshotSchema } from "../../runtime/contracts/catalog";
 import type { HttpClient } from "./client";
 
 export function createHttpCatalogService(client: HttpClient): AppServices["catalog"] {

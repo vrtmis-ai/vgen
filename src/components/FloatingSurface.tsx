@@ -25,7 +25,7 @@ function place(anchor: HTMLElement, surface: HTMLElement): FloatingPosition {
 
 export function useFloatingPosition(
   anchor: HTMLElement | null,
-  surfaceRef: RefObject<HTMLElement>,
+  surfaceRef: RefObject<HTMLElement | null>,
   dependencyKey = "",
 ): FloatingPosition | null {
   const [position, setPosition] = useState<FloatingPosition | null>(null);
@@ -62,7 +62,7 @@ export function useFloatingDismiss({
   onClose,
 }: {
   anchor: HTMLElement | null;
-  surfaceRef: RefObject<HTMLElement>;
+  surfaceRef: RefObject<HTMLElement | null>;
   onClose: () => void;
 }): void {
   const closeRef = useRef(onClose);
@@ -97,9 +97,9 @@ export function useModalSurface({
   onClose,
   initialFocusRef,
 }: {
-  surfaceRef: RefObject<HTMLElement>;
+  surfaceRef: RefObject<HTMLElement | null>;
   onClose: () => void;
-  initialFocusRef?: RefObject<HTMLElement> | undefined;
+  initialFocusRef?: RefObject<HTMLElement | null> | undefined;
 }): void {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;

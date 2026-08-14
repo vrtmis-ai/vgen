@@ -1,6 +1,6 @@
-import type { AppServices } from "../../app/AppServices";
-import type { GalleryPage, GalleryQuery } from "../../app/contracts/gallery";
-import type { GenerationJob, GenerationQuote, QuoteGenerationRequest } from "../../app/contracts/generation";
+import type { AppServices } from "../../runtime/AppServices";
+import type { GalleryPage, GalleryQuery } from "../../runtime/contracts/gallery";
+import type { GenerationJob, GenerationQuote, QuoteGenerationRequest } from "../../runtime/contracts/generation";
 import { getFamily } from "../../data/models";
 import { priceCoins } from "../../data/pricing";
 

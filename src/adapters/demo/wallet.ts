@@ -1,5 +1,5 @@
-import type { AppServices } from "../../app/AppServices";
-import type { CreditGrantSchema, Wallet } from "../../app/contracts/wallet";
+import type { AppServices } from "../../runtime/AppServices";
+import type { CreditGrantSchema, Wallet } from "../../runtime/contracts/wallet";
 import type { z } from "zod";
 
 type CreditGrant = z.infer<typeof CreditGrantSchema>;

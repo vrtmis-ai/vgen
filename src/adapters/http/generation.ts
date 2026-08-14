@@ -1,5 +1,5 @@
-import type { AppServices } from "../../app/AppServices";
-import { GenerationJobSchema, GenerationQuoteSchema } from "../../app/contracts/generation";
+import type { AppServices } from "../../runtime/AppServices";
+import { GenerationJobSchema, GenerationQuoteSchema } from "../../runtime/contracts/generation";
 import type { HttpClient } from "./client";
 
 /* ⚠️ NOT WIRED. Every method here 404s against the running API.

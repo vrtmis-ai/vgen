@@ -1,5 +1,5 @@
-import type { AppServices } from "../../app/AppServices";
-import { WalletSchema } from "../../app/contracts/wallet";
+import type { AppServices } from "../../runtime/AppServices";
+import { WalletSchema } from "../../runtime/contracts/wallet";
 import type { HttpClient } from "./client";
 
 export function createHttpWalletService(client: HttpClient): AppServices["wallet"] {

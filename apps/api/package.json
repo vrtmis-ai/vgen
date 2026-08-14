@@ -11,7 +11,6 @@
     "test:integration": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@clerk/fastify": "^3.1.64",
     "@fastify/cors": "^11.3.0",
     "@vgen/adapters": "workspace:*",
     "@vgen/contracts": "workspace:*",

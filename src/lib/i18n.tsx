@@ -1,15 +1,17 @@
+"use client";
 /* Lightweight i18n — no library, one dictionary, direction-aware.
    fa = RTL + Vazirmatn (default) · en = LTR + Space Grotesk.
-   Persisted in localStorage; <html lang/dir> kept in sync so CSS and the
-   swipe-back gesture mirror automatically. */
-import { createContext, useContext, useEffect, useState } from "react";
-import { z } from "zod";
-import { readStoredValue, writeStoredValue } from "../adapters/browser/storage";
-import { faNum } from "./format";
 
-export type Lang = "fa" | "en";
-const STORE_KEY = "vgen-lang";
-const LanguageSchema = z.enum(["fa", "en"]);
+   Persisted in a COOKIE, not localStorage. The server renders <html lang dir>
+   on the first byte, and localStorage does not exist there — reading it in an
+   effect meant every Persian visitor got one frame of LTR before hydration
+   corrected it, and Next flags the mismatch. A cookie is the only client
+   preference the server can see while rendering. See app/layout.tsx. */
+import { createContext, useContext, useEffect, useState } from "react";
+import { faNum } from "./format";
+import { dirFor, LANG_COOKIE, LANG_COOKIE_MAX_AGE_SECONDS, type Lang } from "./lang";
+
+export type { Lang };
 
 const dict = {
   fa: {
@@ -417,17 +419,21 @@ const Ctx = createContext<I18n>({
   n: (v) => faNum(v.toLocaleString("en-US")),
 });
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Lang>(() => readStoredValue(STORE_KEY, LanguageSchema, "fa"));
+export function LanguageProvider({ initialLang = "fa", children }: { initialLang?: Lang; children: React.ReactNode }) {
+  // Seeded from the cookie the server already read, so the first client render
+  // agrees with the server's markup. Never re-read here.
+  const [lang, setLang] = useState<Lang>(initialLang);
 
   useEffect(() => {
     try {
-      writeStoredValue(STORE_KEY, lang);
+      document.cookie = `${LANG_COOKIE}=${lang};path=/;max-age=${LANG_COOKIE_MAX_AGE_SECONDS};samesite=lax`;
     } catch {
-      // storage blocked — language just won't persist
+      // cookies blocked — language just won't persist
     }
+    // The server already set both for the initial language. Keeping this write
+    // is what makes a mid-session switch flip direction without a reload.
     document.documentElement.lang = lang;
-    document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+    document.documentElement.dir = dirFor(lang);
   }, [lang]);
 
   const t = (k: TKey) => dict[lang][k] ?? dict.fa[k];

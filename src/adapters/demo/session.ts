@@ -1,5 +1,5 @@
-import type { AppServices } from "../../app/AppServices";
-import type { AccountUser } from "../../app/contracts/session";
+import type { AppServices } from "../../runtime/AppServices";
+import type { AccountUser } from "../../runtime/contracts/session";
 
 const DEMO_USER: AccountUser = {
   id: "demo-user",

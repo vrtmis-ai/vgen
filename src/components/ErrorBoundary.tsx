@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { ApiError } from "../adapters/http/client";
-import { reportCrash } from "../app/telemetry";
+import { reportCrash } from "../runtime/telemetry";
 import { SystemState } from "./SystemState";
 
 // A throw anywhere below React's root unmounts the whole tree and leaves a blank
@@ -25,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     reportCrash(error);
-    if (import.meta.env.DEV) console.error("Unhandled error:", error, info.componentStack);
+    if (process.env.NODE_ENV !== "production") console.error("Unhandled error:", error, info.componentStack);
   }
 
   render() {

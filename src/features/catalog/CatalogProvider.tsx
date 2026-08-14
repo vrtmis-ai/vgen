@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type { CatalogSnapshot } from "../../app/contracts/catalog";
+import type { CatalogSnapshot } from "../../runtime/contracts/catalog";
 import type { Family } from "../../data/models";
 
 type CatalogFamilies = CatalogSnapshot["families"];

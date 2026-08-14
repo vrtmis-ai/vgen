@@ -1,4 +1,4 @@
-import type { AppServices } from "../../app/AppServices";
+import type { AppServices } from "../../runtime/AppServices";
 import { FAMILIES } from "../../data/models";
 
 export function createDemoCatalogService(now: () => number): AppServices["catalog"] {

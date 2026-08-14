@@ -1,5 +1,5 @@
-import type { AppServices } from "../../app/AppServices";
-import { GalleryPageSchema } from "../../app/contracts/gallery";
+import type { AppServices } from "../../runtime/AppServices";
+import { GalleryPageSchema } from "../../runtime/contracts/gallery";
 import type { HttpClient } from "./client";
 
 export function createHttpGalleryService(client: HttpClient): AppServices["gallery"] {

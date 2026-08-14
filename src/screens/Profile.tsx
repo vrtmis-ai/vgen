@@ -15,7 +15,7 @@ import { useFavorites } from "../lib/favorites";
 import { VendorMark } from "../components/VendorMark";
 import { useI18n } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
-import type { AccountUser } from "../app/contracts/session";
+import type { AccountUser } from "../runtime/contracts/session";
 
 function Row({ icon, label, value, onClick }: { icon: React.ReactNode; label: string; value?: string; onClick?: () => void }) {
   return (

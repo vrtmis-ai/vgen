@@ -1,4 +1,4 @@
-import type { AppServices } from "../../app/AppServices";
+import type { AppServices } from "../../runtime/AppServices";
 import { createHttpCatalogService } from "./catalog";
 import { createHttpClient } from "./client";
 import { createHttpGalleryService } from "./gallery";

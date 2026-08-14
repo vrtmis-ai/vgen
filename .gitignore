@@ -2,16 +2,18 @@ node_modules
 dist
 dist-ssr
 *.local
-.vite
 .DS_Store
 *.log
 .env
 .env.*
 !.env.example
 !.env.e2e
-vite.config.js
-vite.config.d.ts
 *.tsbuildinfo
+
+# Next build output. next-env.d.ts is deliberately NOT ignored: tsconfig lists it
+# explicitly, and `pnpm typecheck` can run before any `next build` has generated
+# it — on a fresh clone that is a hard "file not found" rather than a warning.
+.next/
 
 # internal notes — keep private
 KIE_MODELS.md
