@@ -137,10 +137,27 @@ port directly — it wraps each call in a mutation and invalidates the session,
 wallet and catalog caches on success, which is what actually moves the app from
 the landing page into the workspace.
 
-```ts
-const { login, register, startPhoneVerification, verifyPhone, logout } = useAuth();
-await login.mutateAsync({ email, password }); // the gate re-renders on its own
+```tsx
+const { login } = useAuth();
+
+async function submit() {
+  try {
+    await login.mutateAsync({ email, password });
+    // Nothing else to do. The gate re-renders into the workspace by itself.
+  } catch (error) {
+    // Branch on the code, never the message. Both adapters throw the same
+    // ApiError class, so this works identically in demo and production.
+    if (error instanceof ApiError && error.code === "invite_required") showInviteField();
+  }
+}
+
+// login.isPending / login.error are there for the button and the message.
 ```
+
+The **two-step phone flow** is the only one with state between calls: hold the
+phone number from `startPhoneVerification` and pass it back to `verifyPhone`
+with the code. `expiresAt` is when the code dies — it is what a resend
+countdown should count to.
 
 **Building the screen:** run with `NEXT_PUBLIC_DEMO_ANONYMOUS=1` so demo mode
 starts signed out — otherwise the demo session is already authed and the
@@ -186,10 +203,16 @@ Every failure has the same shape:
 { "error": { "code": "invite_required", "message": "DEEV is in early access and needs an invite code", "request_id": "req-l" } }
 ```
 
-The HTTP adapter turns that into an `ApiError`
-(`src/adapters/http/client.ts`) carrying `code`, `status`, `requestId` and
-`retryAfterMs`. **Branch on `code`, never on `message`** — messages are prose and
-will change; codes are the contract.
+Both adapters reject with the same `ApiError` (`src/runtime/apiError.ts`, also
+re-exported from `src/adapters/http/client.ts`), carrying `code`, `status`,
+`requestId` and `retryAfterMs`. **Branch on `code`, never on `message`** —
+messages are prose and will change; codes are the contract.
+
+One class in both modes is deliberate and enforced by
+`src/adapters/parity.test.ts`. A screen identifies a failure with
+`error instanceof ApiError`, and a demo-only error class that merely copied the
+fields would make that check pass in production while failing in the mode the
+screen was built in.
 
 | Code                          | Status |                                                                |
 | ----------------------------- | ------ | -------------------------------------------------------------- |

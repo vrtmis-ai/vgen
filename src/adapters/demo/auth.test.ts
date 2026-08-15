@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_OTP_CODE, DemoAuthError, createDemoAuthService, createDemoAuthState } from "./auth";
+import { DEMO_OTP_CODE, createDemoAuthService, createDemoAuthState } from "./auth";
+import { ApiError } from "../../runtime/apiError";
 import { createDemoSessionService } from "./session";
 
 const NOW = () => 1_700_000_000_000;
@@ -13,7 +14,7 @@ async function codeOf(run: () => Promise<unknown>): Promise<string> {
   try {
     await run();
   } catch (error) {
-    if (error instanceof DemoAuthError) return error.code;
+    if (error instanceof ApiError) return error.code;
     throw error;
   }
   throw new Error("Expected the call to reject");
