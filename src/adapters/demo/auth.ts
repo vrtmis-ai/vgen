@@ -1,4 +1,5 @@
 import type { AppServices } from "../../runtime/AppServices";
+import { ApiError } from "../../runtime/apiError";
 import type { AccountUser, Session } from "../../runtime/contracts/session";
 
 /**
@@ -21,17 +22,16 @@ import type { AccountUser, Session } from "../../runtime/contracts/session";
  *   - a password under 10 characters raises `invalid_credentials`
  */
 
-/** Mirrors ApiError's shape without importing the HTTP adapter into demo mode. */
-export class DemoAuthError extends Error {
-  readonly code: string;
-  readonly status: number;
-
-  constructor(code: string, message: string, status: number) {
-    super(message);
-    this.name = "DemoAuthError";
-    this.code = code;
-    this.status = status;
-  }
+/**
+ * The same ApiError the HTTP adapter throws — not a lookalike.
+ *
+ * A screen reads a failure with `error instanceof ApiError` then branches on
+ * `.code`. A separate demo error class would make that check pass in production
+ * and fail in the mode the screen was actually built in, which is the worst
+ * possible place for the two adapters to disagree.
+ */
+function fail(code: string, message: string, status: number): never {
+  throw new ApiError({ code, message, status });
 }
 
 export const DEMO_OTP_CODE = "123456";
@@ -75,10 +75,10 @@ function requireInvite(inviteCode: string | undefined): void {
   // Early access is on in production, so it is on here. A screen that does not
   // collect an invite code should fail in demo mode too.
   if (!inviteCode) {
-    throw new DemoAuthError("invite_required", "DEEV is in early access and needs an invite code", 403);
+    fail("invite_required", "DEEV is in early access and needs an invite code", 403);
   }
   if (inviteCode.trim().toUpperCase() === "INVALID") {
-    throw new DemoAuthError("invite_invalid", "That invite code is not valid", 400);
+    fail("invite_invalid", "That invite code is not valid", 400);
   }
 }
 
@@ -86,14 +86,14 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
   return {
     async startPhoneVerification(input) {
       if (!/^[\d+۰-۹\s-]{8,}$/.test(input.phone)) {
-        throw new DemoAuthError("invalid_phone", "That is not an Iranian mobile number", 400);
+        fail("invalid_phone", "That is not an Iranian mobile number", 400);
       }
       return { sent: true, expiresAt: now() + 5 * 60_000 };
     },
 
     async verifyPhone(input) {
       if (input.code !== DEMO_OTP_CODE) {
-        throw new DemoAuthError("otp_invalid", `In demo mode the code is ${DEMO_OTP_CODE}`, 400);
+        fail("otp_invalid", `In demo mode the code is ${DEMO_OTP_CODE}`, 400);
       }
       requireInvite(input.inviteCode);
       const session = authedAs();
@@ -103,10 +103,10 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
 
     async register(input) {
       if (input.email.trim().toLowerCase() === "taken@deev.local") {
-        throw new DemoAuthError("account_taken", "That email already has an account", 409);
+        fail("account_taken", "That email already has an account", 409);
       }
       if (input.password.length < MIN_PASSWORD) {
-        throw new DemoAuthError("invalid_credentials", `A password is at least ${MIN_PASSWORD} characters`, 401);
+        fail("invalid_credentials", `A password is at least ${MIN_PASSWORD} characters`, 401);
       }
       requireInvite(input.inviteCode);
       const session = authedAs(input.email.trim().toLowerCase());
@@ -116,7 +116,7 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
 
     async login(input) {
       if (input.password.length < MIN_PASSWORD) {
-        throw new DemoAuthError("invalid_credentials", "Email or password is wrong", 401);
+        fail("invalid_credentials", "Email or password is wrong", 401);
       }
       const session = authedAs(input.email.trim().toLowerCase());
       state.set(session);

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ApiError } from "../../runtime/apiError";
 
 const ErrorBodySchema = z.object({
   error: z
@@ -14,21 +15,12 @@ const ErrorBodySchema = z.object({
     .optional(),
 });
 
-export class ApiError extends Error {
-  readonly code: string;
-  readonly status: number;
-  readonly requestId: string | undefined;
-  readonly retryAfterMs: number | undefined;
-
-  constructor(init: { code: string; message: string; status: number; requestId?: string | undefined; retryAfterMs?: number | undefined }) {
-    super(init.message);
-    this.name = "ApiError";
-    this.code = init.code;
-    this.status = init.status;
-    this.requestId = init.requestId;
-    this.retryAfterMs = init.retryAfterMs;
-  }
-}
+/**
+ * Re-exported, not defined here. It moved to the runtime layer so demo mode can
+ * throw the same class — see src/runtime/apiError.ts. Still exported from this
+ * path because most of the app already imports it from here.
+ */
+export { ApiError };
 
 export interface HttpRequest<T> {
   schema: z.ZodType<T>;
