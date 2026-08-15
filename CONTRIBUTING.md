@@ -1,0 +1,208 @@
+# Contributing to DEEV
+
+Two people work on this repository: one on the backend (API, database, auth,
+admin), one on the UI. This file is how those two stay out of each other's way.
+
+Read [`README.md`](README.md) first — it explains what the system is. This file
+explains how to work in it.
+
+## Getting started
+
+You need [Node 22](.nvmrc) and pnpm. **Do not install pnpm from npm's latest
+tag** — the version is pinned in `package.json` and corepack reads it:
+
+```sh
+corepack enable
+corepack prepare pnpm@11.16.0 --activate
+```
+
+If `pnpm -v` disagrees with the `packageManager` field, you are running the
+wrong one, and `pnpm install --frozen-lockfile` will fail with a lockfile
+compatibility error rather than anything that names the real problem.
+
+Then:
+
+```sh
+git clone https://github.com/vrtmis-ai/vgen.git
+cd vgen
+pnpm install --frozen-lockfile
+cp .env.example .env      # .env is gitignored; keep it that way
+pnpm dev                  # http://localhost:5180
+```
+
+**That is the whole setup for UI work.** With `NEXT_PUBLIC_APP_MODE=demo` (the
+default in `.env.example`) the app runs entirely on the in-memory adapters in
+`src/adapters/demo/` — a deterministic catalog, wallet, session and generation
+flow, with no database, no Docker, no API server and no keys. You can build
+every screen without a backend existing.
+
+When you do need the real stack — Postgres, Redis, MinIO, migrations, API and
+web together — that is `pnpm dev:stack`, and it needs Docker Desktop running.
+
+## Who owns what
+
+The split is by directory, so it is checkable rather than a matter of memory.
+
+### UI owns
+
+| Path                             |                                                                                     |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
+| `src/screens/`                   | The 15 screens. Almost all UI work is here                                          |
+| `src/components/`                | Shared chrome — `TopBar`, `Shell`, surfaces, pickers                                |
+| `src/design-system/`             | Tokens, component CSS, and the design docs                                          |
+| `app/**/page.tsx`                | The route files, which are deliberately thin — they read a hook and render a screen |
+| `src/fonts.css`, `src/index.css` | Type and the Tailwind layer                                                         |
+
+### Backend owns
+
+| Path                                   |                                                                                     |
+| -------------------------------------- | ----------------------------------------------------------------------------------- |
+| `apps/api/`, `apps/worker/`            | Fastify routes, auth, admin, the queue consumer                                     |
+| `packages/db/`                         | Repositories **and** `migrations/` — never edit an applied migration, add a new one |
+| `packages/core/`, `packages/adapters/` | Pricing, money math, secrets, Redis and S3 adapters                                 |
+| `src/runtime/`                         | Providers, session gates, and the HTTP adapters the screens consume                 |
+
+### Shared — say something first
+
+`app/layout.tsx`, `src/data/` (the catalog and plan definitions), `packages/contracts/`,
+`docker-compose.yml`, and this file. These are where the two halves meet, so a
+silent change is how a merge conflict becomes a bug.
+
+## The interface between us
+
+**`packages/contracts/` is the boundary.** Every request and response has a Zod
+schema there, and both sides import it — the API parses with it, the web tier
+types against it.
+
+So when a screen needs a field the API does not return yet, the change starts
+there, not with a `fetch` inside a component:
+
+1. Add or extend the schema in `packages/contracts/src/`.
+2. Tell the backend owner. The route and the repository are their side.
+3. Build the screen against the demo adapter in `src/adapters/demo/` in the
+   meantime — that is what it is for. You are never blocked waiting on an
+   endpoint.
+
+Adding a raw `fetch` to a screen is the one thing that will get a PR sent back:
+it bypasses the contract, the demo mode, and the error handling all at once.
+
+## Branching and merging
+
+`main` is protected by convention, not by settings — **nobody pushes to it
+directly**, including the person who set that convention.
+
+```sh
+git switch main
+git pull
+git switch -c feat/plans-page-desktop     # or fix/...
+# work, commit
+git push -u origin feat/plans-page-desktop
+gh pr create --base main
+```
+
+- **Branch names**: `feat/…` for new work, `fix/…` for repairs, `chore/…` for
+  tooling. Short and about the thing, not the ticket.
+- **Keep branches small and short-lived.** A branch that lives a week against a
+  moving `main` costs more to merge than it saved by being batched.
+- **Rebase on main before opening the PR**, so the PR shows your work and not a
+  merge of everyone else's:
+  ```sh
+  git fetch origin && git rebase origin/main
+  ```
+- **CI must be green before merge.** All four jobs. If a job fails on something
+  you did not touch, say so rather than merging past it — that has been a real
+  bug more than once.
+- **Delete the branch after merging.** Stale branches are how you end up
+  re-doing work that already landed.
+
+If we are both editing near each other, rebase more often, not less.
+
+## Conventions
+
+### Commits
+
+Write the subject as a sentence saying what changed and why it matters, not a
+label. From this repository's own history:
+
+```
+Take Profile and Generate out of the phone column
+Give every effect its own page, and its tile two destinations
+Stop hiding content behind scrollbars that were painted out
+```
+
+Not `feat(profile): update layout`. If the reasoning is not obvious from the
+subject, put it in the body — the body is where the _why_ lives, and it is worth
+more than the diff in six months.
+
+### Code
+
+- **Run `pnpm format` before pushing.** CI runs `format:check` and will fail
+  otherwise. Prettier config is `.prettierrc.json`; do not fight it.
+- **Design tokens, not raw hex.** `src/design-system/tokens.css` defines them
+  and `src/index.css` exposes them through `@theme static`. A literal `#0a0a0a`
+  in a screen is a bug in a product that has a light mode and a rebrand behind
+  it.
+- **Persian first.** The app is RTL and Persian by default. Copy comes from the
+  dictionary in `src/lib/i18n.tsx` through `useI18n()`, which also gives you
+  `n()` for numbers — Persian digits are a locale concern, not a string you
+  format by hand. Test in RTL; a layout that only works in LTR is not done.
+- **Accessibility is not a follow-up.** Every interactive element gets an
+  accessible name; `src/design-system/DESIGN.md` has the rules and the e2e tests
+  select by role, so an unnamed button breaks the suite as well as a screen
+  reader.
+
+### A note on the design docs
+
+`src/design-system/DESIGN.md` and `INTEGRATION.md` are thorough and worth
+reading, but both **predate the DEEV rebrand** and still describe an orange
+accent. The brand is now black, white and one blue. Where they disagree with
+`tokens.css`, the tokens are right.
+
+## Tests
+
+| Command                                          | What it covers                            |
+| ------------------------------------------------ | ----------------------------------------- |
+| `pnpm test`                                      | Web unit tests (Vitest + Testing Library) |
+| `pnpm test:e2e`                                  | Playwright, against a real dev server     |
+| `pnpm typecheck` `pnpm lint` `pnpm format:check` | What CI checks                            |
+| `pnpm backend:test`                              | Backend units — the backend owner's side  |
+
+For UI work, `pnpm test` and `pnpm test:e2e` are the two that matter. `e2e/`
+pins the routing contract — deep links, back/forward, and the 404 → studio
+redirect — which is exactly what a screen refactor tends to break. If you change
+navigation, expect to update `e2e/navigation.spec.ts` deliberately, and do not
+"fix" it by loosening the assertion.
+
+## Gotchas that will otherwise cost you an afternoon
+
+- **Next refuses to start a second dev server in the same directory.** Stop
+  `pnpm dev` before `pnpm test:e2e`; Playwright starts its own on 5182.
+- **Postgres is on 5442**, not 5432 — a native Postgres service and a sibling
+  compose stack both want 5432, and when two listeners share a port the failure
+  reads as "password authentication failed" rather than as a conflict.
+- **The database's Persian collation is set by initdb and only by initdb.** To
+  reset it you need `docker compose down -v` and a re-migrate, not an `ALTER`.
+- **Never put a secret behind `NEXT_PUBLIC_`.** That prefix is the browser
+  bundle — it ships to every visitor. This repository is public.
+- **`.env` is gitignored and stays that way.** Add new variables to
+  `.env.example` with a comment saying what they are for.
+- The GitHub Pages site at `vrtmis-ai.github.io/vgen/` is **frozen** — it serves
+  an old build from before the Next.js move and is no longer deployed to. Ignore
+  it.
+
+## What is deliberately unfinished
+
+So you can tell a gap from a bug:
+
+- **No generation submission path.** `jobs.feature_id` is `NOT NULL` and the
+  routing from a request to a feature row is an open decision, so submitting a
+  generation is not wired end to end yet. The demo adapter fakes it.
+- **No queue consumer.** Jobs can be created; nothing processes them.
+- **No payments.** Plans render and price correctly; nothing charges.
+- **No admin UI.** The admin API is complete and tested; `src/screens/Admin.tsx`
+  still talks to local storage.
+
+## Questions
+
+If something here is wrong or missing, change it — this file is shared, and a
+convention nobody wrote down is not a convention.
