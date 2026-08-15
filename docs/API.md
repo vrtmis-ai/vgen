@@ -45,9 +45,9 @@ generation and gallery do not. **In `demo` mode everything works**, which is why
 UI work is unblocked and should stay on demo mode until this table says
 otherwise.
 
-One caveat on `catalog.list()`: the route is live but **the catalog tables are
-empty**, so it returns a snapshot with zero families. Demo mode returns the real
-catalog. Populating it is the next phase of backend work.
+`catalog.list()` used to carry a caveat here — the route was live but the tables
+were empty. That is fixed: all 19 families and 44 variants are in Postgres, and
+the two modes now serve the same bytes (see below).
 
 Do not "fix" this from the UI side by changing the adapter paths — the server
 routes genuinely are not built, and the mismatch is tracked as backend work.
@@ -75,7 +75,7 @@ Schema: `SessionSchema` in `src/runtime/contracts/session.ts`.
 ### `GET /catalog`
 
 The model catalog — families, variants, controls, reference slots. This is what
-drives every picker in the studio screens.
+drives every picker in the studio screens. 19 families, 44 variants.
 
 ```jsonc
 { "version": "…", "publishedAt": 1234567890, "families": [/* FamilySchema[] */] }
@@ -85,6 +85,39 @@ Schema: `CatalogSnapshotSchema` / `FamilySchema` in
 `src/runtime/contracts/catalog.ts`. That file is the authority on what a control
 or a reference slot may contain — it is a discriminated union, so an unknown
 `kind` is a parse error rather than a silently ignored field.
+
+**Order is meaningful and guaranteed.** Families come back in catalog order and
+variants in family order — the order the switchers should present them, most
+recommended first. Do not sort them.
+
+**New field: `variant.featureCode`.** It names the section of the product a
+variant belongs to — `image_generate`, `image_edit`, `video_generate`,
+`image_to_video`, `video_edit`, `speech_generate`. A screen mostly does not need
+it, but it is the honest way to answer "is this thing a generator or an
+editor?", and it is what a job gets filed under. It is required, so it is always
+there.
+
+Two consequences worth knowing, because neither is guessable from the family:
+
+- `topaz` is an `image` family whose second variant, `topaz-video-upscale`, is
+  `video_edit`. A family's `kind` is not its variants' modality.
+- Both `hailuo` variants are `image_to_video` — there is no text-only path
+  through them, and their `image_url` slot is `required: true`. Their neighbours
+  in `kling` and `wan` are `video_generate` and take an image optionally.
+
+**Where it comes from.** `provider_models`, grouped by the `family` column, with
+everything a screen renders in `capabilities`. Not a table of frozen JSON
+documents any more — the rows the router and the pricing tables already point
+at. A change to `src/data/models.ts` reaches the API through
+`pnpm catalog:publish`, which is idempotent; the version string derives from the
+newest row's `updated_at`, so it changes exactly when the catalog does.
+
+**Demo mode serves the same document.** `src/data/catalog.snapshot.json` is
+generated out of Postgres by `pnpm catalog:snapshot` and committed, and demo
+mode reads it instead of importing `FAMILIES`. Two CI checks pin it: a unit test
+that the committed file equals `FAMILIES`, and a database job that reseeds,
+re-exports, and diffs. So a screen built against demo mode is built against what
+production actually sends — which is the claim demo mode has to keep.
 
 ### `GET /wallet`
 
@@ -248,16 +281,23 @@ sign-in is two steps and the session authorises nothing between them.
 
 So you can tell a gap from a bug:
 
-- **The catalog is empty in the database.** `GET /catalog` is live but returns
-  zero families; the model, provider and price tables have no rows yet. Demo
-  mode has the real catalog, which is where UI work should stay.
+- **Pricing.** `model_prices` is still empty, so nothing can quote. The rate
+  table is in `packages/core` for now; moving it into those rows is the next
+  phase, and until it lands a quote has nothing to read.
 - **Generation submission end to end.** `POST /jobs` exists; the quote and
-  job-status routes the frontend expects do not, and pricing has nothing to read.
+  job-status routes the frontend expects do not.
 - **Gallery.** No server route. Demo mode returns an empty page.
 - **The queue consumer.** Jobs can be created; nothing processes them.
 - **Payments.** Plans render and price correctly; nothing charges.
 - **A sign-in screen.** The port and both adapters are done — see
   Authentication. The screen itself is UI work.
+- **Some screens still read `FAMILIES` directly.** `getFamily()` in Community,
+  Effects, Profile, Mcp and AssetViewer, and the whole list in Landing, import
+  `src/data/models.ts` rather than going through `useCatalogFamilies()`. Nothing
+  is broken by it today — the committed snapshot and the API are the same
+  document — but those screens read a compiled-in constant instead of the served
+  catalog, so a family retired in the database would keep rendering. Porting
+  them is UI work and the port is already there.
 
 ## Asking for a change
 

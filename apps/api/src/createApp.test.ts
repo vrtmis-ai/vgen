@@ -372,7 +372,7 @@ describe("customer catalog", () => {
           blurb: "Test family",
           grad: "linear-gradient(135deg,#111,#333)",
           controls: [],
-          variants: [{ id: "deev-test-v1", model: "deev/test-v1", label: "v1" }],
+          variants: [{ id: "deev-test-v1", model: "deev/test-v1", featureCode: "image_generate", label: "v1" }],
         },
       ],
     }));

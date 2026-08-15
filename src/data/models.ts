@@ -81,6 +81,17 @@ export interface Variant {
   id: string; // our id (also the pricing key)
   model: string; // KIE createTask `model` field
   /**
+   * Which section of the product this variant serves — a `features.code` row in
+   * the database, and what a job is filed under.
+   *
+   * Stated per variant rather than derived from the family, because the two
+   * disagree often enough that inferring it would be wrong: `topaz` is an image
+   * family whose second variant upscales video, and `hailuo` cannot be reached
+   * without an image while its neighbours in `kling` can. `check-combos.ts`
+   * fails the build if this names a feature the database has no row for.
+   */
+  featureCode: string;
+  /**
    * KIE splits some models into separate text-to-video and image-to-video entry
    * points (`kling-2.6/text-to-video` vs `kling-2.6/image-to-video`). Where that
    * is the case, `model` is the text-only one and this is used instead as soon as
@@ -289,12 +300,14 @@ export const FAMILIES: Family[] = [
     variants: [
       {
         id: "nano-banana-pro",
+        featureCode: "image_generate",
         model: "nano-banana-pro",
         label: "Pro",
         badge: "پرچم‌دار",
       },
       {
         id: "nano-banana-2",
+        featureCode: "image_generate",
         model: "nano-banana-2",
         label: "نسخه ۲",
         badge: "جدید",
@@ -352,8 +365,8 @@ export const FAMILIES: Family[] = [
       },
     ],
     variants: [
-      { id: "seedream-4-5", model: "seedream/4.5-text-to-image", label: "۴٫۵" },
-      { id: "seedream-5-lite", model: "seedream/5-lite-text-to-image", label: "۵ Lite", badge: "ارزان" },
+      { id: "seedream-4-5", featureCode: "image_generate", model: "seedream/4.5-text-to-image", label: "۴٫۵" },
+      { id: "seedream-5-lite", featureCode: "image_generate", model: "seedream/5-lite-text-to-image", label: "۵ Lite", badge: "ارزان" },
     ],
   },
   {
@@ -388,9 +401,10 @@ export const FAMILIES: Family[] = [
       QUALITY("1K", ["1K", "2K", "4K"]),
     ],
     variants: [
-      { id: "gpt-image-2", model: "gpt-image-2-text-to-image", label: "نسخه ۲" },
+      { id: "gpt-image-2", featureCode: "image_generate", model: "gpt-image-2-text-to-image", label: "نسخه ۲" },
       {
         id: "gpt-image-1-5",
+        featureCode: "image_generate",
         model: "gpt-image/1.5-text-to-image",
         label: "۱٫۵",
         controls: [
@@ -428,8 +442,8 @@ export const FAMILIES: Family[] = [
       QUALITY("1K", ["1K", "2K"]),
     ],
     variants: [
-      { id: "flux-2-pro", model: "flux-2/pro-text-to-image", label: "Pro" },
-      { id: "flux-2-flex", model: "flux-2/flex-text-to-image", label: "Flex" },
+      { id: "flux-2-pro", featureCode: "image_generate", model: "flux-2/pro-text-to-image", label: "Pro" },
+      { id: "flux-2-flex", featureCode: "image_generate", model: "flux-2/flex-text-to-image", label: "Flex" },
     ],
   },
   {
@@ -451,9 +465,9 @@ export const FAMILIES: Family[] = [
       { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
     ],
     variants: [
-      { id: "imagen-4-ultra", model: "google/imagen4-ultra", label: "Ultra", badge: "بهترین" },
-      { id: "imagen-4", model: "google/imagen4", label: "معمولی" },
-      { id: "imagen-4-fast", model: "google/imagen4-fast", label: "سریع", badge: "ارزان" },
+      { id: "imagen-4-ultra", featureCode: "image_generate", model: "google/imagen4-ultra", label: "Ultra", badge: "بهترین" },
+      { id: "imagen-4", featureCode: "image_generate", model: "google/imagen4", label: "معمولی" },
+      { id: "imagen-4-fast", featureCode: "image_generate", model: "google/imagen4-fast", label: "سریع", badge: "ارزان" },
     ],
   },
   {
@@ -498,7 +512,7 @@ export const FAMILIES: Family[] = [
       { kind: "toggle", key: "expand_prompt", label: "گسترش خودکار پرامپت", def: false, advanced: true },
       { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
     ],
-    variants: [{ id: "ideogram-v3", model: "ideogram/v3-text-to-image", label: "V3" }],
+    variants: [{ id: "ideogram-v3", featureCode: "image_generate", model: "ideogram/v3-text-to-image", label: "V3" }],
   },
   {
     id: "qwen",
@@ -531,7 +545,7 @@ export const FAMILIES: Family[] = [
       },
       { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
     ],
-    variants: [{ id: "qwen-image", model: "qwen/text-to-image", label: "Image" }],
+    variants: [{ id: "qwen-image", featureCode: "image_generate", model: "qwen/text-to-image", label: "Image" }],
   },
   {
     id: "z-image",
@@ -551,7 +565,7 @@ export const FAMILIES: Family[] = [
         options: [ratios.sq, ratios.l43, ratios.p34, ratios.l169, ratios.p916],
       },
     ],
-    variants: [{ id: "z-image", model: "z-image", label: "Z" }],
+    variants: [{ id: "z-image", featureCode: "image_generate", model: "z-image", label: "Z" }],
   },
 
   // ----------------------------- VIDEO ---------------------------------------
@@ -588,6 +602,7 @@ export const FAMILIES: Family[] = [
          two KIE prices. */
       {
         id: "seedance-2-5",
+        featureCode: "video_generate",
         model: "bytedance/seedance-2-5",
         label: "۲٫۵",
         badge: "جدید",
@@ -604,14 +619,21 @@ export const FAMILIES: Family[] = [
           { kind: "toggle", key: "generate_audio", label: "تولید صدا", def: true },
         ],
       },
-      { id: "seedance-2", model: "bytedance/seedance-2", label: "نسخه ۲", badge: "پرچم‌دار" },
-      { id: "seedance-2-fast", model: "bytedance/seedance-2-fast", label: "سریع", controls: seedanceControls(["480p", "720p"]) },
+      { id: "seedance-2", featureCode: "video_generate", model: "bytedance/seedance-2", label: "نسخه ۲", badge: "پرچم‌دار" },
+      {
+        id: "seedance-2-fast",
+        featureCode: "video_generate",
+        model: "bytedance/seedance-2-fast",
+        label: "سریع",
+        controls: seedanceControls(["480p", "720p"]),
+      },
       /* Mini was held back because KIE priced it while the service still said
          "coming soon". It ships now — the endpoint is live — so it goes in. At
          8.2 credits/second against Seedance 2's 41 it is the cheap seat of the
          family, which is the whole point of it. */
       {
         id: "seedance-2-mini",
+        featureCode: "video_generate",
         model: "bytedance/seedance-2-mini",
         label: "۲ مینی",
         badge: "ارزان",
@@ -619,6 +641,7 @@ export const FAMILIES: Family[] = [
       },
       {
         id: "seedance-1-5-pro",
+        featureCode: "video_generate",
         model: "bytedance/seedance-1.5-pro",
         label: "۱٫۵ Pro",
         refs: [{ key: "input_urls", label: "تصاویر ورودی (اختیاری)", max: 2 }],
@@ -686,13 +709,14 @@ export const FAMILIES: Family[] = [
       { kind: "toggle", key: "multi_shots", label: "چندنما (روایت چندبخشی)", def: false, advanced: true },
     ],
     variants: [
-      { id: "kling-3", model: "kling-3.0/video", label: "۳٫۰" },
+      { id: "kling-3", featureCode: "video_generate", model: "kling-3.0/video", label: "۳٫۰" },
       {
         // Turbo exposes neither sound nor multi_shots, and tops out at 1080p, so
         // it can't inherit the family controls. aspect_ratio exists on the
         // text-to-video model only — with an input image the frame comes from the
         // image, so the backend must drop aspect_ratio when it calls image-to-video.
         id: "kling-3-turbo",
+        featureCode: "video_generate",
         model: "kling/v3-turbo-text-to-video",
         modelWithRefs: "kling/v3-turbo-image-to-video",
         label: "۳٫۰ Turbo",
@@ -715,6 +739,7 @@ export const FAMILIES: Family[] = [
       },
       {
         id: "kling-2-6",
+        featureCode: "video_generate",
         model: "kling-2.6/text-to-video",
         modelWithRefs: "kling-2.6/image-to-video",
         label: "۲٫۶",
@@ -742,6 +767,7 @@ export const FAMILIES: Family[] = [
         // the video. Both required. `mode` here means 720p/1080p — not the
         // std/pro/4K that the same field name means on kling-3.0/video.
         id: "kling-3-motion",
+        featureCode: "image_to_video",
         model: "kling-3.0/motion-control",
         label: "Motion Control",
         badge: "جدید",
@@ -753,6 +779,7 @@ export const FAMILIES: Family[] = [
       },
       {
         id: "kling-2-6-motion",
+        featureCode: "image_to_video",
         model: "kling-2.6/motion-control",
         label: "Motion Control ۲٫۶",
         badge: "ارزان",
@@ -764,6 +791,7 @@ export const FAMILIES: Family[] = [
       },
       {
         id: "kling-2-5-turbo",
+        featureCode: "video_generate",
         model: "kling/v2-5-turbo-text-to-video-pro",
         modelWithRefs: "kling/v2-5-turbo-image-to-video-pro",
         label: "۲٫۵ Turbo",
@@ -837,7 +865,7 @@ export const FAMILIES: Family[] = [
       // One variant: KIE prices text-to-video, image-to-video and
       // reference-to-video identically, so splitting them would be three rows
       // of the same number.
-      { id: "minimax-h3", model: "minimax-h3/text-to-video", label: "H3", badge: "جدید" },
+      { id: "minimax-h3", featureCode: "video_generate", model: "minimax-h3/text-to-video", label: "H3", badge: "جدید" },
     ],
   },
   {
@@ -889,6 +917,7 @@ export const FAMILIES: Family[] = [
         // Its image model names the slot image_url — singular, one string — and
         // has no aspect_ratio; the frame follows the image.
         id: "wan-2-5",
+        featureCode: "video_generate",
         model: "wan/2-5-text-to-video",
         modelWithRefs: "wan/2-5-image-to-video",
         maxPrompt: 800, // tightest in the catalog — a detailed prompt passes it easily
@@ -897,6 +926,7 @@ export const FAMILIES: Family[] = [
       },
       {
         id: "wan-2-6",
+        featureCode: "video_generate",
         model: "wan/2-6-text-to-video",
         modelWithRefs: "wan/2-6-image-to-video",
         label: "۲٫۶",
@@ -931,6 +961,7 @@ export const FAMILIES: Family[] = [
       },
       {
         id: "wan-2-7",
+        featureCode: "video_generate",
         model: "wan/2-7-text-to-video",
         modelWithRefs: "wan/2-7-image-to-video",
         label: "۲٫۷",
@@ -978,6 +1009,7 @@ export const FAMILIES: Family[] = [
         // integer in [2,10]". The description is the stricter reading, so 1 is
         // not offered.
         id: "wan-2-7-videoedit",
+        featureCode: "video_edit",
         model: "wan/2-7-videoedit",
         label: "۲٫۷ ویرایش",
         badge: "ویدیو",
@@ -1041,6 +1073,7 @@ export const FAMILIES: Family[] = [
         // Note this model uses `aspect_ratio` while its text-to-video sibling
         // uses `ratio` — same family, different field name.
         id: "wan-2-7-r2v",
+        featureCode: "image_to_video",
         model: "wan/2-7-r2v",
         label: "۲٫۷ مرجع",
         refs: [
@@ -1091,6 +1124,7 @@ export const FAMILIES: Family[] = [
       // Neither offers 10s at 1080P; pricing returns null for that pair.
       {
         id: "hailuo-2-3",
+        featureCode: "image_to_video",
         model: "hailuo/2-3-image-to-video-pro",
         label: "۲٫۳ Pro",
         refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
@@ -1098,6 +1132,7 @@ export const FAMILIES: Family[] = [
       },
       {
         id: "hailuo-2-3-standard",
+        featureCode: "image_to_video",
         model: "hailuo/2-3-image-to-video-standard",
         label: "۲٫۳ استاندارد",
         badge: "ارزان",
@@ -1139,7 +1174,7 @@ export const FAMILIES: Family[] = [
         ],
       },
     ],
-    variants: [{ id: "gemini-omni-video", model: "gemini-omni-video", label: "Omni" }],
+    variants: [{ id: "gemini-omni-video", featureCode: "video_generate", model: "gemini-omni-video", label: "Omni" }],
   },
   // Veo is the one model not on /api/v1/jobs/createTask. Confirmed against its
   // API page: POST /api/v1/veo/generate, model = veo3 | veo3_fast | veo3_lite.
@@ -1180,9 +1215,9 @@ export const FAMILIES: Family[] = [
       },
     ],
     variants: [
-      { id: "veo-fast", model: "veo3_fast", label: "سریع", badge: "ارزان" },
-      { id: "veo-quality", model: "veo3", label: "کیفیت", badge: "پرچم‌دار" },
-      { id: "veo-lite", model: "veo3_lite", label: "Lite" },
+      { id: "veo-fast", featureCode: "video_generate", model: "veo3_fast", label: "سریع", badge: "ارزان" },
+      { id: "veo-quality", featureCode: "video_generate", model: "veo3", label: "کیفیت", badge: "پرچم‌دار" },
+      { id: "veo-lite", featureCode: "video_generate", model: "veo3_lite", label: "Lite" },
     ],
   },
   {
@@ -1203,7 +1238,7 @@ export const FAMILIES: Family[] = [
       },
       { kind: "toggle", key: "enable_pro", label: "حالت کیفیت", def: false },
     ],
-    variants: [{ id: "grok-image", model: "grok-imagine/text-to-image", label: "Imagine" }],
+    variants: [{ id: "grok-image", featureCode: "image_generate", model: "grok-imagine/text-to-image", label: "Imagine" }],
   },
   // ----------------------------- AUDIO ---------------------------------------
   {
@@ -1224,6 +1259,7 @@ export const FAMILIES: Family[] = [
         // The only one that accepts language_code. Sending that field to
         // multilingual-v2 is a documented error, so it lives here and nowhere else.
         id: "eleven-turbo",
+        featureCode: "speech_generate",
         model: "elevenlabs/text-to-speech-turbo-2-5",
         label: "Turbo",
         badge: "ارزان",
@@ -1244,7 +1280,13 @@ export const FAMILIES: Family[] = [
           },
         ],
       },
-      { id: "eleven-multilingual", model: "elevenlabs/text-to-speech-multilingual-v2", label: "چندزبانه", badge: "کیفیت" },
+      {
+        id: "eleven-multilingual",
+        featureCode: "speech_generate",
+        model: "elevenlabs/text-to-speech-multilingual-v2",
+        label: "چندزبانه",
+        badge: "کیفیت",
+      },
     ],
   },
 
@@ -1279,11 +1321,12 @@ export const FAMILIES: Family[] = [
       },
     ],
     variants: [
-      { id: "topaz-image-upscale", model: "topaz/image-upscale", label: "بزرگ‌نمایی" },
+      { id: "topaz-image-upscale", featureCode: "image_edit", model: "topaz/image-upscale", label: "بزرگ‌نمایی" },
       {
         // Per second of the source clip, like Motion Control — so it can't be
         // priced until a video is attached. 1x and 2x share a rate row; 8x has none.
         id: "topaz-video-upscale",
+        featureCode: "video_edit",
         model: "topaz/video-upscale",
         label: "ویدیو",
         refs: [{ key: "video_url", label: "ویدیوی ورودی (الزامی)", max: 1, required: true, media: "video", maxMb: 50 }],
@@ -1316,8 +1359,8 @@ export const FAMILIES: Family[] = [
     refs: [{ key: "image", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
     controls: [],
     variants: [
-      { id: "recraft-crisp-upscale", model: "recraft/crisp-upscale", label: "بزرگ‌نمایی", badge: "ارزان" },
-      { id: "recraft-remove-bg", model: "recraft/remove-background", label: "حذف پس‌زمینه" },
+      { id: "recraft-crisp-upscale", featureCode: "image_edit", model: "recraft/crisp-upscale", label: "بزرگ‌نمایی", badge: "ارزان" },
+      { id: "recraft-remove-bg", featureCode: "image_edit", model: "recraft/remove-background", label: "حذف پس‌زمینه" },
     ],
   },
 ];

@@ -14,6 +14,8 @@
 //
 // Run: npx tsx scripts/check-combos.ts   (node >= 18; uses real network)
 
+import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { FAMILIES, variantControls, type Control } from "../src/data/models";
 import { LIVE, RATES_FALLBACK, coinsForKieCredits } from "../src/data/pricing";
 import { MODEL_MIN_TIER, auditPlans } from "../src/data/plans";
@@ -78,7 +80,48 @@ function describe(input: InputMap): string {
     .join(" ");
 }
 
+/**
+ * The feature codes the migrations actually seed.
+ *
+ * Read out of the SQL rather than listed here, because a second list is a
+ * second thing to forget. `features.code` is unique, so the seeds are the whole
+ * truth about what codes exist — and a variant naming one that does not would
+ * mean either a job with a null feature_id or a seeder that dies at INSERT.
+ */
+function seededFeatureCodes(): Set<string> {
+  const directory = fileURLToPath(new URL("../packages/db/migrations/", import.meta.url));
+  const codes = new Set<string>();
+  for (const name of readdirSync(directory).filter((f) => f.endsWith(".sql"))) {
+    const sql = readFileSync(new URL(`../packages/db/migrations/${name}`, import.meta.url), "utf8");
+    for (const block of sql.matchAll(/INSERT INTO features\s*\([^)]*\)\s*VALUES([\s\S]*?);/gi)) {
+      for (const row of (block[1] ?? "").matchAll(/\(\s*'([^']+)'/g)) codes.add(row[1] as string);
+    }
+  }
+  return codes;
+}
+
+/** Every variant names a feature the database has. Needs no network — run it first. */
+function auditFeatureCodes(): string[] {
+  const known = seededFeatureCodes();
+  if (known.size === 0) return ["no INSERT INTO features found in packages/db/migrations — the audit cannot run"];
+  return FAMILIES.flatMap((f) =>
+    f.variants
+      .filter((v) => !known.has(v.featureCode))
+      .map((v) => `${v.id} names featureCode "${v.featureCode}", which no migration seeds (have: ${[...known].sort().join(", ")})`),
+  );
+}
+
 async function main() {
+  // Before the network, so a data mistake fails the same way whether or not
+  // KIE is reachable. Everything below this point needs the live rate table.
+  const featureProblems = auditFeatureCodes();
+  if (featureProblems.length) {
+    console.error(`${featureProblems.length} variants are routed to a feature that does not exist:`);
+    for (const p of featureProblems) console.error(`  ${p}`);
+    console.error("Add the feature in a migration, or fix the featureCode in models.ts.");
+    process.exit(2);
+  }
+
   startKieRates();
   for (let i = 0; i < 60 && findRate("gpt image 2", "text-to-image", "1k") == null; i++) {
     await new Promise((r) => setTimeout(r, 500));
@@ -143,6 +186,7 @@ async function main() {
 
   if (invented.length === 0 && untiered.length === 0 && planProblems.length === 0) {
     console.log("no combination is quoted a price KIE can't honour ✅");
+    console.log("every variant routes to a seeded feature ✅");
     console.log("every family has a tier ✅");
     console.log("plan ladder holds and every plan clears the margin floor ✅");
     process.exit(0);

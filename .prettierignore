@@ -6,3 +6,9 @@ node_modules
 package-lock.json
 pnpm-lock.yaml
 src/design-system/*.md
+
+# Written by `pnpm catalog:snapshot` straight out of Postgres, and diffed in CI
+# against what the database serves. Prettier collapses short JSON objects onto
+# one line and JSON.stringify does not, so formatting it would make that diff
+# fail on whitespace forever.
+src/data/catalog.snapshot.json
