@@ -8,6 +8,18 @@ export interface IdGenerator {
 
 export type { InputMap, InputValue, PriceCtx, RateFn } from "./types";
 export {
+  WeakPasswordError,
+  assertUsablePassword,
+  generateOtpCode,
+  generateSessionToken,
+  hashPassword,
+  hashPhone,
+  hashToken,
+  normalizeIranianPhone,
+  tokensMatch,
+  verifyPassword,
+} from "./secrets";
+export {
   KIE_CREDIT_USD,
   COIN_USD,
   MARGIN,

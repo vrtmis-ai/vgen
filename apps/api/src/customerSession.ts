@@ -1,48 +1,51 @@
-import type { CustomerSession } from "@vgen/contracts";
-import type { CustomerProfile, CustomerRepository } from "@vgen/db";
+import type { CustomerSession, CustomerSessionUser } from "@vgen/contracts";
+import type { PostgresAuthRepository } from "@vgen/db";
 import type { FastifyRequest } from "fastify";
+import { readSessionToken } from "./auth/cookies";
 import type { CustomerSessionApplication } from "./routes/session";
 
 /**
  * Who is making this request.
  *
- * Clerk was removed with the Next.js migration: its SMS delivery and Google
- * sign-in are both unreliable to Iranian numbers and addresses, which is the
- * entire market. DEEV's own auth — phone OTP, email + password, Google OAuth
- * over the deev-db `users` / `auth_identities` / `sessions` tables — replaces
- * it in the own-auth phase, and plugs in here.
- *
- * The seam is unchanged, so routes did not have to move: they still ask
- * `sessions.getCurrent(request)` and branch on the result.
+ * DEEV's own auth replaced Clerk, whose SMS delivery and Google sign-in are
+ * both unreliable to Iranian numbers and addresses — the entire market. Sessions
+ * are rows in `sessions`, addressed by a hashed opaque token in an HttpOnly
+ * cookie.
  */
 export interface PrincipalResolver {
-  resolve(request: FastifyRequest): Promise<CustomerProfile | null>;
+  resolve(request: FastifyRequest): Promise<CustomerSessionUser | null>;
 }
 
 /**
- * The current resolver: nobody is ever authenticated.
+ * Resolves the session cookie against the database on every request.
  *
- * Every protected route therefore answers 401 rather than guessing at an
- * identity. That is deliberate — a permissive stand-in here would be an
- * unauthenticated wallet and an unauthenticated job submission, and it would
- * look like it worked.
+ * No JWT, and that is the point: a revoked session has to stop working
+ * immediately. Suspending an account or signing out of a stolen device is
+ * worthless if the credential stays valid until it expires on its own.
  */
+export class SessionCookiePrincipalResolver implements PrincipalResolver {
+  constructor(private readonly auth: PostgresAuthRepository) {}
+
+  async resolve(request: FastifyRequest): Promise<CustomerSessionUser | null> {
+    const token = readSessionToken(request);
+    if (!token) return null;
+    return this.auth.resolveSession(token);
+  }
+}
+
+/** Nobody is ever authenticated. Kept for tests that need a guaranteed-anonymous API. */
 export class AnonymousPrincipalResolver implements PrincipalResolver {
-  async resolve(): Promise<CustomerProfile | null> {
+  async resolve(): Promise<CustomerSessionUser | null> {
     return null;
   }
 }
 
 export class CustomerSessionService implements CustomerSessionApplication {
-  constructor(
-    private readonly principals: PrincipalResolver,
-    private readonly customers: CustomerRepository,
-  ) {}
+  constructor(private readonly principals: PrincipalResolver) {}
 
   async getCurrent(request: FastifyRequest): Promise<CustomerSession> {
-    const profile = await this.principals.resolve(request);
-    if (!profile) return { status: "anonymous", host: "web" };
-    const user = await this.customers.upsertFromProfile(profile);
+    const user = await this.principals.resolve(request);
+    if (!user) return { status: "anonymous", host: "web" };
     return { status: "authed", host: "web", user };
   }
 }

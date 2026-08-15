@@ -3,7 +3,7 @@ export interface DatabaseHealthPort {
 }
 
 export * from "./accessRepository";
-export * from "./identityRepository";
+export * from "./authRepository";
 export * from "./walletRepository";
 export * from "./catalogRepository";
 export * from "./frontendTelemetryRepository";

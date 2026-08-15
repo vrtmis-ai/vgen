@@ -72,16 +72,47 @@ spelled out in one place: `browserEnvironment()` in `src/runtime/runtime.ts`.
 
 ## Authentication
 
-**There is currently no working sign-in.** Clerk was removed with the Next.js
-migration: its SMS delivery and Google sign-in are both unreliable to Iranian
-numbers and addresses, which is the entire market.
+DEEV's own, replacing Clerk — whose SMS delivery and Google sign-in are both
+unreliable to Iranian numbers and addresses, which is the entire market.
 
-DEEV's own auth replaces it — phone OTP through an Iranian SMS gateway, email +
-password, and Google OAuth, over the deev-db `users` / `auth_identities` /
-`sessions` tables. Until then `AnonymousPrincipalResolver`
-(`apps/api/src/customerSession.ts`) resolves every request to nobody, so
-protected routes answer 401 rather than inventing an identity, and the UI runs
-in demo mode.
+| Route | |
+|---|---|
+| `POST /api/v1/auth/otp/start` · `/otp/verify` | Phone OTP. The route most users will take |
+| `POST /api/v1/auth/register` · `/login` | Email + password |
+| `GET /api/v1/auth/google` · `/google/callback` | Google. Registered only when credentials are set |
+| `POST /api/v1/auth/logout` | |
+
+A session is a row in `sessions` addressed by an opaque 256-bit token in an
+HttpOnly cookie, and it is resolved against the database on every request — no
+JWT, because a revoked session has to stop working immediately.
+
+Passwords use Node's built-in scrypt with the cost parameters stored alongside
+each hash, so they can be raised later without invalidating anyone's password.
+
+Rate limits come from the `rate_limit_policies` rows, with the counters in
+Redis: an operator can loosen OTP sending during a campaign without a deploy.
+Phone numbers are accepted in every form Iranians write them (`0912…`,
+`+98912…`, Persian digits) and normalised server-side, because two spellings of
+one number would otherwise be two accounts with two free trials.
+
+## Early access
+
+Signup is invite-only while `feature_flags.early_access` is on. Opening the
+product is one `UPDATE`.
+
+- **Invite codes** decide who may create an account. Campaign codes carry a
+  redemption cap and optional free credits (`apple-deev`, capped at 500, worth
+  20 credits); members can also invite friends, which records a referral that
+  stays `pending` until the friend pays.
+- **Discount codes** decide what someone pays: percent-off, flat-Toman-off,
+  free credits, or a free term, optionally restricted to a first purchase.
+- **Deleting either is revocation.** A hard delete would orphan the redemption
+  history — the campaign's result, and the trail for tracing an abusive
+  inviter. Codes nobody has used can be deleted outright.
+
+`v_invite_performance` answers "how many people used this code and how many
+credits did they spend", reading `lifetime_spent` straight off the ledger's own
+numbers rather than a second counter that could drift.
 
 ## Deployment
 

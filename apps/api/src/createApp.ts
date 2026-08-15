@@ -12,6 +12,7 @@ import {
   type TelemetryRateLimiter,
   type TelemetryRateLimitOptions,
 } from "./routes/telemetry";
+import { registerAuthRoutes, type AuthDependencies, type AuthRouteOptions } from "./routes/auth";
 
 export interface HealthDependency {
   ping(): Promise<void>;
@@ -34,6 +35,12 @@ export interface ApiOptions {
   telemetryRateLimit?: TelemetryRateLimitOptions;
   telemetryRateLimiter?: TelemetryRateLimiter;
   trustProxy?: FastifyServerOptions["trustProxy"];
+  /**
+   * Absent in tests that only exercise the customer surface. When absent the
+   * auth routes are simply not registered — there is no half-configured mode
+   * where signup exists but cannot issue a session.
+   */
+  auth?: { dependencies: AuthDependencies; options: AuthRouteOptions } | undefined;
 }
 
 export function createApp(dependencies: ApiDependencies, options: ApiOptions = {}): FastifyInstance {
@@ -45,6 +52,7 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   if (options.corsOrigin) {
     void app.register(cors, { origin: options.corsOrigin, credentials: true });
   }
+  if (options.auth) registerAuthRoutes(app, options.auth.dependencies, options.auth.options);
   registerCustomerSessionRoute(app, dependencies.customerSession);
   registerCatalogRoute(app, dependencies.customerCatalog);
   registerWalletRoute(app, dependencies.customerSession, dependencies.customerWallet);
