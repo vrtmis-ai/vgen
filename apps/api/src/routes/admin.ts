@@ -1,9 +1,4 @@
-import {
-  grantsPermission,
-  type AdminSession,
-  type PostgresAccessRepository,
-  type PostgresAdminRepository,
-} from "@vgen/db";
+import { grantsPermission, type AdminSession, type PostgresAccessRepository, type PostgresAdminRepository } from "@vgen/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { clearAdminCookie, readAdminToken, setAdminCookie, type CookieOptions } from "../auth/cookies";
@@ -99,7 +94,11 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
     return session;
   };
 
-  const audit = (request: FastifyRequest, session: AdminSession, entry: { action: string; targetType?: string; targetId?: string; before?: unknown; after?: unknown }) =>
+  const audit = (
+    request: FastifyRequest,
+    session: AdminSession,
+    entry: { action: string; targetType?: string; targetId?: string; before?: unknown; after?: unknown },
+  ) =>
     admin.recordAudit({
       actorUserId: session.userId,
       actorRole: session.roles[0],

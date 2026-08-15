@@ -88,15 +88,7 @@ describe("one-time codes", () => {
 describe("phone numbers", () => {
   it("treats every way an Iranian number is written as one number", () => {
     const expected = "+989121234567";
-    for (const input of [
-      "09121234567",
-      "+989121234567",
-      "989121234567",
-      "9121234567",
-      "0912 123 4567",
-      "0912-123-4567",
-      "۰۹۱۲۱۲۳۴۵۶۷",
-    ]) {
+    for (const input of ["09121234567", "+989121234567", "989121234567", "9121234567", "0912 123 4567", "0912-123-4567", "۰۹۱۲۱۲۳۴۵۶۷"]) {
       expect(normalizeIranianPhone(input)).toBe(expected);
     }
   });

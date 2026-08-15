@@ -39,11 +39,13 @@ function authDouble() {
   };
 }
 
-function build(overrides: {
-  auth?: ReturnType<typeof authDouble>;
-  limiters?: AuthRateLimiters;
-  google?: Parameters<typeof registerAuthRoutes>[2]["google"];
-} = {}) {
+function build(
+  overrides: {
+    auth?: ReturnType<typeof authDouble>;
+    limiters?: AuthRateLimiters;
+    google?: Parameters<typeof registerAuthRoutes>[2]["google"];
+  } = {},
+) {
   const auth = overrides.auth ?? authDouble();
   const app: FastifyInstance = Fastify({ logger: false });
   registerErrorHandling(app);

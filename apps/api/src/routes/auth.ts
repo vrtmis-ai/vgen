@@ -1,9 +1,4 @@
-import {
-  LoginWithPasswordSchema,
-  RegisterWithPasswordSchema,
-  StartPhoneVerificationSchema,
-  VerifyPhoneSchema,
-} from "@vgen/contracts";
+import { LoginWithPasswordSchema, RegisterWithPasswordSchema, StartPhoneVerificationSchema, VerifyPhoneSchema } from "@vgen/contracts";
 import { normalizeIranianPhone } from "@vgen/core";
 import { AuthError, type PostgresAuthRepository } from "@vgen/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";

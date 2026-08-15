@@ -63,24 +63,24 @@ visitor** — never put a secret behind that prefix. Next only substitutes liter
 `process.env.NEXT_PUBLIC_X` member expressions, so every browser-side read is
 spelled out in one place: `browserEnvironment()` in `src/runtime/runtime.ts`.
 
-| Variable | Purpose |
-|---|---|
-| `NEXT_PUBLIC_APP_MODE` | `demo` for in-memory services, `production` for the HTTP adapters |
-| `NEXT_PUBLIC_API_BASE_URL` | Required when not in demo mode, e.g. `http://127.0.0.1:5181/api/v1` |
-| `NEXT_PUBLIC_APP_RELEASE` | Release identifier attached to sanitized crash reports |
-| `DATABASE_URL`, `REDIS_URL`, `OBJECT_STORAGE_*` | API and worker only |
+| Variable                                        | Purpose                                                             |
+| ----------------------------------------------- | ------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_MODE`                          | `demo` for in-memory services, `production` for the HTTP adapters   |
+| `NEXT_PUBLIC_API_BASE_URL`                      | Required when not in demo mode, e.g. `http://127.0.0.1:5181/api/v1` |
+| `NEXT_PUBLIC_APP_RELEASE`                       | Release identifier attached to sanitized crash reports              |
+| `DATABASE_URL`, `REDIS_URL`, `OBJECT_STORAGE_*` | API and worker only                                                 |
 
 ## Authentication
 
 DEEV's own, replacing Clerk — whose SMS delivery and Google sign-in are both
 unreliable to Iranian numbers and addresses, which is the entire market.
 
-| Route | |
-|---|---|
-| `POST /api/v1/auth/otp/start` · `/otp/verify` | Phone OTP. The route most users will take |
-| `POST /api/v1/auth/register` · `/login` | Email + password |
+| Route                                          |                                                  |
+| ---------------------------------------------- | ------------------------------------------------ |
+| `POST /api/v1/auth/otp/start` · `/otp/verify`  | Phone OTP. The route most users will take        |
+| `POST /api/v1/auth/register` · `/login`        | Email + password                                 |
 | `GET /api/v1/auth/google` · `/google/callback` | Google. Registered only when credentials are set |
-| `POST /api/v1/auth/logout` | |
+| `POST /api/v1/auth/logout`                     |                                                  |
 
 A session is a row in `sessions` addressed by an opaque 256-bit token in an
 HttpOnly cookie, and it is resolved against the database on every request — no

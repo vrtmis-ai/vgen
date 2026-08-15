@@ -20,13 +20,7 @@ interface StartedGeneration {
 
 interface Generations {
   gens: Generation[];
-  startGeneration: (
-    familyId: string,
-    prompt: string,
-    input: InputMap,
-    variant: Variant,
-    refs: RefMap,
-  ) => Promise<StartedGeneration | null>;
+  startGeneration: (familyId: string, prompt: string, input: InputMap, variant: Variant, refs: RefMap) => Promise<StartedGeneration | null>;
   /** Fire-and-forget start used by the studio docks, which have no result to await. */
   requestGeneration: (familyId: string, prompt: string, input: InputMap, variant: Variant) => void;
   regenerate: (previous: Generation) => Promise<void>;

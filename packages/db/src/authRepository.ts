@@ -1,13 +1,5 @@
 import type { CustomerSessionUser } from "@vgen/contracts";
-import {
-  coinsToMicroCredits,
-  generateOtpCode,
-  generateSessionToken,
-  hashPassword,
-  hashPhone,
-  hashToken,
-  verifyPassword,
-} from "@vgen/core";
+import { coinsToMicroCredits, generateOtpCode, generateSessionToken, hashPassword, hashPhone, hashToken, verifyPassword } from "@vgen/core";
 import type { Sql, TransactionSql } from "postgres";
 import { atomically } from "./transaction";
 
@@ -127,9 +119,7 @@ export class PostgresAuthRepository {
    */
   async verifyPhoneCode(phoneE164: string, code: string): Promise<void> {
     const codeHash = hashToken(code);
-    const [attempt] = await this.sql<
-      { consumed: boolean; expired: boolean; exhausted: boolean; code_ok: boolean }[]
-    >`
+    const [attempt] = await this.sql<{ consumed: boolean; expired: boolean; exhausted: boolean; code_ok: boolean }[]>`
       update phone_verifications
       set attempts = attempts + 1,
           consumed_at = case
@@ -221,10 +211,7 @@ export class PostgresAuthRepository {
       }
     }
 
-    return this.createAccount(
-      { email: normalized, displayName, identity: { provider, providerUid } },
-      context,
-    );
+    return this.createAccount({ email: normalized, displayName, identity: { provider, providerUid } }, context);
   }
 
   /**
