@@ -2,6 +2,7 @@ export interface DatabaseHealthPort {
   ping(): Promise<void>;
 }
 
+export * from "./accessRepository";
 export * from "./identityRepository";
 export * from "./walletRepository";
 export * from "./catalogRepository";

@@ -770,4 +770,88 @@ BEGIN
   RAISE NOTICE 'smoke: credit reconciliation checks passed';
 END $$;
 
+
+-- =====================================================================
+--  EARLY ACCESS, INVITES AND DISCOUNTS (0011)
+-- =====================================================================
+DO $$
+DECLARE
+  admin_id uuid; acct uuid; inv uuid;
+  u1 uuid; a1 uuid; u2 uuid; a2 uuid; u3 uuid; a3 uuid;
+  joined bigint; spent bigint; usable boolean; refused boolean;
+BEGIN
+  INSERT INTO accounts (kind) VALUES ('personal') RETURNING id INTO acct;
+  INSERT INTO users (email, personal_account_id) VALUES ('smoke-admin@deev.test', acct) RETURNING id INTO admin_id;
+
+  -- 55. an admin generates a capped campaign code that carries free credit
+  INSERT INTO invite_codes (code, label, kind, created_by, max_redemptions, grant_micro_credits, grant_expires_days)
+  VALUES ('apple-deev', 'Apple campaign', 'campaign', admin_id, 2, 20000000, 30)
+  RETURNING id INTO inv;
+
+  INSERT INTO accounts (kind) VALUES ('personal') RETURNING id INTO a1;
+  INSERT INTO users (email, personal_account_id) VALUES ('smoke-one@deev.test', a1) RETURNING id INTO u1;
+  PERFORM redeem_invite('apple-deev', u1, a1, '1.2.3.4'::inet);
+
+  -- 56. codes are case-insensitive, because people retype them from posters
+  INSERT INTO accounts (kind) VALUES ('personal') RETURNING id INTO a2;
+  INSERT INTO users (email, personal_account_id) VALUES ('smoke-two@deev.test', a2) RETURNING id INTO u2;
+  PERFORM redeem_invite('Apple-DEEV', u2, a2, NULL);
+
+  -- 57. the invitee actually receives the credit
+  SELECT micro_credits INTO spent FROM account_balances WHERE account_id = a1;
+  ASSERT spent = 20000000, 'invitee did not receive the invite credit: ' || spent;
+
+  PERFORM capture_hold(hold_credits(a1, 7000000, 'job', uuid_generate_v7()));
+
+  -- 58. the redemption cap holds
+  INSERT INTO accounts (kind) VALUES ('personal') RETURNING id INTO a3;
+  INSERT INTO users (email, personal_account_id) VALUES ('smoke-three@deev.test', a3) RETURNING id INTO u3;
+  refused := false;
+  BEGIN PERFORM redeem_invite('apple-deev', u3, a3, NULL);
+  EXCEPTION WHEN check_violation THEN refused := true; END;
+  ASSERT refused, 'a code past its cap still admitted someone';
+
+  -- 59. the campaign report answers "how many joined, and what did they spend"
+  SELECT users_joined, micro_credits_spent, is_usable INTO joined, spent, usable
+    FROM v_invite_performance WHERE id = inv;
+  ASSERT joined = 2,       'users_joined should be 2, got ' || joined;
+  ASSERT spent = 7000000,  'micro_credits_spent should follow lifetime_spent, got ' || spent;
+  ASSERT usable = false,   'a code at its cap must not report as usable';
+
+  -- 60. one invite per account, so a signup cannot be credited to two campaigns
+  refused := false;
+  BEGIN PERFORM redeem_invite('apple-deev', u1, a1, NULL);
+  EXCEPTION WHEN unique_violation THEN refused := true; WHEN check_violation THEN refused := true; END;
+  ASSERT refused, 'a user was admitted through a second invite';
+
+  -- 61. revoking closes the door without erasing who came through it
+  UPDATE invite_codes SET revoked_at = now(), revoked_by = admin_id WHERE id = inv;
+  SELECT users_joined INTO joined FROM v_invite_performance WHERE id = inv;
+  ASSERT joined = 2, 'revoking a code erased its redemption history';
+
+  RAISE NOTICE 'smoke: invite checks passed';
+END $$;
+
+DO $$
+DECLARE refused boolean := false; enabled boolean;
+BEGIN
+  -- 62. a discount kind must carry the value it names
+  BEGIN
+    INSERT INTO promo_codes (code, kind) VALUES ('smoke-bad-percent', 'percent_off');
+  EXCEPTION WHEN check_violation THEN refused := true; END;
+  ASSERT refused, 'a percent_off code with no percentage was allowed';
+
+  -- 63. flat-sum discounts exist, priced in the order currency
+  INSERT INTO promo_codes (code, kind, amount_off, first_purchase_only, label)
+  VALUES ('smoke-nowruz', 'amount_off', 200000.00, true, 'Nowruz 200k off');
+  ASSERT (SELECT is_usable FROM v_promo_performance WHERE code = 'smoke-nowruz'),
+    'a fresh promo code should be usable';
+
+  -- 64. early access is a flag, so opening the product is one UPDATE
+  SELECT is_enabled INTO enabled FROM feature_flags WHERE code = 'early_access';
+  ASSERT enabled, 'early access should start enabled';
+
+  RAISE NOTICE 'smoke: discount checks passed';
+END $$;
+
 ROLLBACK;

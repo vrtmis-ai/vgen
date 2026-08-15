@@ -1,6 +1,6 @@
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { COIN, connect, inRollback, makeUser } from "./integrationHarness";
+import { COIN, connect, expectDbError, inRollback, makeUser } from "./integrationHarness";
 
 let sql: Sql;
 
@@ -22,6 +22,7 @@ const EXPECTED_MIGRATIONS = [
   "0008_cron.sql",
   "0009_app_tables.sql",
   "0010_credit_functions.sql",
+  "0011_access.sql",
 ];
 
 describe("database migration chain", () => {
@@ -95,7 +96,7 @@ describe("database migration chain", () => {
       await tx`select hold_credits(${accountId}, ${COIN}, 'job', ${job!.id})`;
       // The unique index is what makes a resubmitted generation idempotent
       // rather than double-charged.
-      await expect(tx`select hold_credits(${accountId}, ${COIN}, 'job', ${job!.id})`).rejects.toThrow();
+      await expectDbError(tx, () => tx`select hold_credits(${accountId}, ${COIN}, 'job', ${job!.id})`);
     });
   });
 
@@ -110,12 +111,13 @@ describe("database migration chain", () => {
         insert into provider_webhook_events (provider_id, external_event_id, event_type, payload)
         values (${provider!.id}, 'evt-1', 'job.completed', '{}'::jsonb)
       `;
-      await expect(
-        tx`
+      await expectDbError(
+        tx,
+        () => tx`
           insert into provider_webhook_events (provider_id, external_event_id, event_type, payload)
           values (${provider!.id}, 'evt-1', 'job.completed', '{}'::jsonb)
         `,
-      ).rejects.toThrow();
+      );
     });
   });
 
@@ -123,28 +125,31 @@ describe("database migration chain", () => {
     await inRollback(sql, async (tx) => {
       const { accountId } = await makeUser(tx);
 
-      await expect(
-        tx`insert into account_balances (account_id, micro_credits) values (${accountId}, -1)`,
-      ).rejects.toThrow();
-      await expect(
-        tx`
+      // Each inside its own savepoint, so all four constraints are genuinely
+      // exercised rather than three of them inheriting the first one's failure.
+      await expectDbError(tx, () => tx`insert into account_balances (account_id, micro_credits) values (${accountId}, -1)`);
+      await expectDbError(
+        tx,
+        () => tx`
           insert into credit_lots (account_id, source, micro_credits_total, micro_credits_remaining)
           values (${accountId}, 'purchase', ${COIN}, -1)
         `,
-      ).rejects.toThrow();
+      );
       // A lot cannot have more left than it ever held.
-      await expect(
-        tx`
+      await expectDbError(
+        tx,
+        () => tx`
           insert into credit_lots (account_id, source, micro_credits_total, micro_credits_remaining)
           values (${accountId}, 'purchase', ${COIN}, ${2 * COIN})
         `,
-      ).rejects.toThrow();
-      await expect(
-        tx`
+      );
+      await expectDbError(
+        tx,
+        () => tx`
           insert into credit_holds (account_id, ref_type, ref_id, micro_credits)
           values (${accountId}, 'job', uuid_generate_v7(), 0)
         `,
-      ).rejects.toThrow();
+      );
     });
   });
 });

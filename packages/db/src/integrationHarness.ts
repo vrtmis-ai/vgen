@@ -37,6 +37,32 @@ export async function inRollback<T>(sql: Sql, run: (tx: Sql) => Promise<T>): Pro
   }
 }
 
+type WithSavepoint = { savepoint: <T>(run: () => Promise<T>) => Promise<T> };
+
+/**
+ * Asserts that a statement is rejected by the database, and leaves the
+ * surrounding transaction usable.
+ *
+ * `expect(...).rejects` is not enough on its own. A failed statement aborts the
+ * whole Postgres transaction, so every later statement fails too — which both
+ * loses the error you wanted (postgres.js rejects the enclosing `begin`) and
+ * makes a run of consecutive rejection assertions pass for the wrong reason:
+ * after the first one, they would all fail no matter what they tested.
+ *
+ * A SAVEPOINT scopes the damage, so each constraint is genuinely exercised.
+ */
+export async function expectDbError(tx: Sql, run: () => Promise<unknown>): Promise<Error> {
+  try {
+    await (tx as unknown as WithSavepoint).savepoint(async () => {
+      await run();
+    });
+  } catch (error) {
+    if (error instanceof Error) return error;
+    throw error;
+  }
+  throw new Error("Expected the database to reject this, but it succeeded");
+}
+
 /** An account with a user attached, which is what most reads are scoped by. */
 export async function makeUser(tx: Sql): Promise<{ userId: string; accountId: string }> {
   const [account] = await tx<{ id: string }[]>`insert into accounts (kind) values ('personal') returning id`;
