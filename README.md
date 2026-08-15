@@ -3,6 +3,11 @@
 Next.js (App Router) web tier, a Fastify API, and a queue worker in one pnpm
 workspace. Persian-first, RTL, Iranian market.
 
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — who owns what, and how to get a change
+  onto `main`. Read it first if you are joining.
+- [`docs/API.md`](docs/API.md) — what the backend serves today, which routes the
+  frontend calls that do not exist yet, and the error codes worth branching on.
+
 ## Local development
 
 `.env` selects deterministic demo services, so the UI runs with no backend at
