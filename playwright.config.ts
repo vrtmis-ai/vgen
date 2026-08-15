@@ -16,6 +16,14 @@ export default defineConfig({
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [["html", { open: "never" }], ["line"]] : "list",
+  /**
+   * Playwright's 5s default is a dev-server budget here, not a product one. Next
+   * compiles each route the first time it is requested, and six parallel workers
+   * hitting six cold routes push the first navigation to ~5s on its own — so the
+   * default makes the suite a coin flip on machine load rather than on the app.
+   * A warm route navigates in ~100ms, so a real regression still fails, later.
+   */
+  expect: { timeout: 15_000 },
   use: {
     baseURL: e2eWebUrl,
     trace: "retain-on-failure",
