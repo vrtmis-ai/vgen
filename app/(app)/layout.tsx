@@ -10,7 +10,8 @@ import { useCatalog, useSession, useWallet } from "../../src/features/session/us
 import { AccessProvider } from "../../src/lib/access";
 import { useOnlineStatus } from "../../src/lib/useOnlineStatus";
 import Landing from "../../src/screens/Landing";
-import { authActions } from "../../src/runtime/providers/authActions";
+import { useAuth } from "../../src/features/session/useAuth";
+import { createAuthActions, type AuthActions } from "../../src/runtime/providers/authActions";
 import { GenerationsProvider } from "../../src/runtime/providers/GenerationsProvider";
 import { NavigationProvider, useNavigation } from "../../src/runtime/providers/NavigationProvider";
 import { SessionProvider } from "../../src/runtime/providers/SessionProvider";
@@ -34,6 +35,8 @@ import type { CatalogSnapshot } from "../../src/runtime/contracts/catalog";
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
   const online = useOnlineStatus();
+  const auth = useAuth();
+  const authActions = createAuthActions(auth);
   const sessionQuery = useSession();
   const session = sessionQuery.data ?? { status: "loading" as const, host: "web" as const };
   const authed = session.status === "authed";
@@ -94,7 +97,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
      plan, this one line is the only thing that changes. */
   return (
     <NavigationProvider>
-      <AuthedTree user={session.user} wallet={walletQuery.data} families={catalogQuery.data.families}>
+      <AuthedTree user={session.user} wallet={walletQuery.data} families={catalogQuery.data.families} authActions={authActions}>
         {children}
       </AuthedTree>
     </NavigationProvider>
@@ -106,11 +109,13 @@ function AuthedTree({
   user,
   wallet,
   families,
+  authActions,
   children,
 }: {
   user: AccountUser;
   wallet: Wallet;
   families: CatalogSnapshot["families"];
+  authActions: AuthActions;
   children: ReactNode;
 }) {
   const { openWallet } = useNavigation();

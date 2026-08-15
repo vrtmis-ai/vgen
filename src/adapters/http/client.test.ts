@@ -52,7 +52,10 @@ describe("HTTP client", () => {
   ])("maps an HTTP %s error", async (status, code) => {
     const client = createHttpClient({
       baseUrl: "https://api.example.test",
-      fetchImpl: vi.fn(async () => Response.json({ error: { code, message: "Request rejected", requestId: "req-body" } }, { status })),
+      // snake_case, because that is the envelope the API actually sends. This
+      // fixture used to say requestId, matching a schema that therefore never
+      // matched a real response.
+      fetchImpl: vi.fn(async () => Response.json({ error: { code, message: "Request rejected", request_id: "req-body" } }, { status })),
     });
 
     await expect(client.request("/jobs", { schema: payloadSchema })).rejects.toMatchObject({ code, status, requestId: "req-body" });

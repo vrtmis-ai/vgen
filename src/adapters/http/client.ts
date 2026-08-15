@@ -5,7 +5,11 @@ const ErrorBodySchema = z.object({
     .object({
       code: z.string().min(1).optional(),
       message: z.string().optional(),
-      requestId: z.string().min(1).optional(),
+      // snake_case, because that is what the API sends — see the error envelope
+      // in apps/api/src/plugins/errors.ts. This read camelCase and so never
+      // matched; the x-request-id header was quietly covering for it, which is
+      // why nothing looked broken.
+      request_id: z.string().min(1).optional(),
     })
     .optional(),
 });
@@ -130,7 +134,7 @@ export function createHttpClient({ baseUrl, fetchImpl = fetch, timeoutMs = 15_00
             code: details?.code ?? statusCode(response.status),
             message: details?.message ?? `Request failed with status ${response.status}.`,
             status: response.status,
-            ...(details?.requestId || requestId ? { requestId: details?.requestId ?? requestId } : {}),
+            ...(details?.request_id || requestId ? { requestId: details?.request_id ?? requestId } : {}),
             ...(response.status === 429 && retryAfterMs(response) !== undefined ? { retryAfterMs: retryAfterMs(response) } : {}),
           });
         }
