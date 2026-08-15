@@ -55,6 +55,8 @@ export const RefSlotSchema = z.object({
 export const VariantSchema = z.object({
   id: z.string().min(1),
   model: z.string().min(1),
+  /** `features.code` — the product section a job from this variant is filed under. */
+  featureCode: z.string().min(1),
   modelWithRefs: z.string().min(1).optional(),
   maxPrompt: z.number().int().positive().optional(),
   label: z.string(),

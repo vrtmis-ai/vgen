@@ -41,9 +41,15 @@ jobs:
       - run: pnpm format:check
       - run: pnpm test
 
-      # Offline — it reads the committed catalog. The pricing audit that calls
-      # KIE's live rate endpoint is deliberately NOT here: a flaky third party
-      # must never be able to block a merge. Run `pnpm check:pricing` by hand
+      # Two audits in one command. The first is offline and runs first by
+      # design: every variant must name a feature the migrations seed, so a
+      # routing mistake fails the same way whether or not KIE is reachable.
+      #
+      # The second walks the settings cross-product against KIE's live rate
+      # table, so this step does depend on a third party being up — an earlier
+      # comment here claimed otherwise and was wrong. Phase C moves the rates
+      # into model_prices, which is what actually takes the dependency out.
+      # `pnpm check:pricing` is the separate, deeper live audit; run it by hand
       # before shipping a pricing change.
       - run: pnpm check:catalog
 
@@ -100,6 +106,20 @@ jobs:
 
       - run: pnpm db:migrate
       - run: pnpm backend:test:integration
+
+      # The catalog's end-to-end proof. `pnpm test` already asserts the
+      # committed snapshot equals FAMILIES; this asserts the database serves
+      # exactly that snapshot, and the two together mean the database serves
+      # exactly FAMILIES. A seeder that dropped a control, a repository that
+      # regrouped a family, or a migration that lost a column all surface here
+      # as a diff — and nowhere else, because every other test reads the
+      # committed file rather than the database.
+      - run: pnpm catalog:publish
+      - name: Seeding twice writes nothing the second time
+        run: pnpm catalog:publish | grep -q 'already current'
+      - run: pnpm catalog:snapshot
+      - name: The database must serve the committed snapshot
+        run: git diff --exit-code -- src/data/catalog.snapshot.json
 
       # The schema's own test: assertions in one transaction ending in ROLLBACK,
       # so it is safe against any database.

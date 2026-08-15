@@ -23,7 +23,11 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      // ignoreRestSiblings, because `const { variants, ...presentation } = family`
+      // is how you omit a key, and the omitted one is the point rather than an
+      // oversight. Passing options at all replaces the rule's defaults, which is
+      // why it has to be named here.
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", ignoreRestSiblings: true }],
       "react-hooks/purity": "off",
       "react-hooks/refs": "off",
       "react-hooks/set-state-in-effect": "off",

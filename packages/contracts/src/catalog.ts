@@ -55,6 +55,8 @@ export const CatalogRefSlotSchema = z.object({
 export const CatalogVariantSchema = z.object({
   id: z.string().min(1),
   model: z.string().min(1),
+  /** `features.code` — the product section a job from this variant is filed under. */
+  featureCode: z.string().min(1),
   modelWithRefs: z.string().min(1).optional(),
   maxPrompt: z.number().int().positive().optional(),
   label: z.string(),
@@ -77,6 +79,26 @@ export const CatalogFamilySchema = z.object({
   noPrompt: z.boolean().optional(),
   controls: z.array(CatalogControlSchema),
   variants: z.array(CatalogVariantSchema).min(1),
+});
+
+/**
+ * What `provider_models.capabilities` holds, and the contract between the
+ * seeder that writes it (scripts/publish-catalog.ts) and the repository that
+ * reads it back.
+ *
+ * A variant's row carries its whole family because provider_models has no
+ * family table to point at. The seeder is the only writer, so the copies cannot
+ * disagree; the repository takes the family from the first row of each group.
+ *
+ * The order fields are not decoration. The studio screens are ordered lists,
+ * a table is a set, and without them the model switcher reshuffles itself
+ * whenever the planner picks a different index.
+ */
+export const CatalogCapabilitiesSchema = z.object({
+  familyOrder: z.number().int().nonnegative(),
+  variantOrder: z.number().int().nonnegative(),
+  family: CatalogFamilySchema.omit({ variants: true }),
+  variant: CatalogVariantSchema,
 });
 
 export const CatalogSnapshotSchema = z.object({

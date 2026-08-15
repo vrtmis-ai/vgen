@@ -12,7 +12,12 @@ afterAll(async () => {
   await sql.end();
 });
 
-const family = (id: string, name: string) => ({
+/**
+ * The catalog is no longer a table of JSON documents; it is provider_models
+ * grouped by `family`. So these tests write the rows the seeder writes, which
+ * means they also pin the shape the seeder has to keep producing.
+ */
+const familyPresentation = (id: string, name: string) => ({
   id,
   name,
   vendor: "DEEV Test",
@@ -20,15 +25,49 @@ const family = (id: string, name: string) => ({
   blurb: `${name} description`,
   grad: "linear-gradient(135deg,#111,#333)",
   controls: [],
-  variants: [{ id: `${id}-v1`, model: `${id}/v1`, label: "v1" }],
 });
 
+const capabilities = (family: string, familyOrder: number, variantOrder: number, label: string) => ({
+  familyOrder,
+  variantOrder,
+  family: familyPresentation(family, family.toUpperCase()),
+  variant: { id: `${family}-${label}`, model: `${family}/${label}`, featureCode: "image_generate", label },
+});
+
+async function seedProvider(tx: Sql, code = "test-provider"): Promise<string> {
+  const [provider] = await tx<{ id: string }[]>`
+    insert into providers (code, name) values (${code}, ${code}) returning id
+  `;
+  return provider!.id;
+}
+
+async function seedModel(
+  tx: Sql,
+  providerId: string,
+  family: string,
+  familyOrder: number,
+  variantOrder: number,
+  label: string,
+  active = true,
+): Promise<void> {
+  await tx`
+    insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
+    values (
+      ${providerId},
+      ${`${family}/${label}`},
+      ${`${family} ${label}`},
+      'image',
+      ${family},
+      ${tx.json(capabilities(family, familyOrder, variantOrder, label))},
+      ${active}
+    )
+  `;
+}
+
 describe("Postgres catalog repository", () => {
-  it("returns the bootstrap snapshot when nothing is published", async () => {
+  it("returns the bootstrap snapshot when no model is on sale", async () => {
     await inRollback(sql, async (tx) => {
-      // A draft version must not be served. Publishing is the gate, not existence.
-      await tx`insert into catalog_versions (note) values ('draft only')`;
-      await tx`update catalog_versions set published_at = null where published_at is not null`;
+      await tx`update provider_models set is_active = false where is_active`;
 
       await expect(new PostgresCatalogRepository(tx).list()).resolves.toEqual({
         version: "bootstrap-v1",
@@ -38,29 +77,75 @@ describe("Postgres catalog repository", () => {
     });
   });
 
-  it("returns active families from the latest published version", async () => {
+  it("groups variants into families and keeps catalog order", async () => {
     await inRollback(sql, async (tx) => {
-      const [older] = await tx<{ id: number }[]>`
-        insert into catalog_versions (published_at, note) values (now() - interval '1 day', 'old') returning id
-      `;
-      const [latest] = await tx<{ id: number; published_at: Date }[]>`
-        insert into catalog_versions (published_at, note) values (now(), 'latest') returning id, published_at
+      await tx`update provider_models set is_active = false where is_active`;
+      const providerId = await seedProvider(tx);
+
+      // Inserted out of order on purpose: the snapshot must follow the order
+      // fields, not the insertion order and not the id.
+      await seedModel(tx, providerId, "beta", 1, 1, "fast");
+      await seedModel(tx, providerId, "alpha", 0, 1, "lite");
+      await seedModel(tx, providerId, "beta", 1, 0, "pro");
+      await seedModel(tx, providerId, "alpha", 0, 0, "ultra");
+
+      const snapshot = await new PostgresCatalogRepository(tx).list();
+
+      expect(snapshot.families.map((family) => family.id)).toEqual(["alpha", "beta"]);
+      expect(snapshot.families.map((family) => family.variants.map((variant) => variant.label))).toEqual([
+        ["ultra", "lite"],
+        ["pro", "fast"],
+      ]);
+      expect(snapshot.families[0]?.name).toBe("ALPHA");
+      expect(snapshot.families[0]?.variants[0]?.featureCode).toBe("image_generate");
+    });
+  });
+
+  it("leaves out a retired model, and a whole provider that is switched off", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`update provider_models set is_active = false where is_active`;
+      const live = await seedProvider(tx, "live-provider");
+      const dark = await seedProvider(tx, "dark-provider");
+      await tx`update providers set is_active = false where id = ${dark}`;
+
+      await seedModel(tx, live, "alpha", 0, 0, "ultra");
+      await seedModel(tx, live, "alpha", 0, 1, "retired", false);
+      await seedModel(tx, dark, "omega", 1, 0, "hidden");
+
+      const snapshot = await new PostgresCatalogRepository(tx).list();
+
+      expect(snapshot.families.map((family) => family.id)).toEqual(["alpha"]);
+      expect(snapshot.families[0]?.variants.map((variant) => variant.label)).toEqual(["ultra"]);
+    });
+  });
+
+  it("versions the snapshot by the newest model, so an edit invalidates it", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`update provider_models set is_active = false where is_active`;
+      const providerId = await seedProvider(tx);
+      await seedModel(tx, providerId, "alpha", 0, 0, "ultra");
+      await seedModel(tx, providerId, "alpha", 0, 1, "lite");
+
+      // Written at INSERT rather than by an UPDATE: provider_models has a
+      // BEFORE UPDATE trigger that stamps updated_at with now(), and now() does
+      // not advance inside a transaction — an update here would set both rows
+      // to the same instant and prove nothing.
+      const [stale] = await tx<{ updated_at: Date }[]>`
+        update provider_models set updated_at = updated_at
+        where external_model_id = 'alpha/ultra' returning updated_at
       `;
       await tx`
-        insert into models (catalog_version, key, family, kind, min_tier, spec, active)
-        values
-          (${older!.id}, 'old', 'old', 'image', 1, ${tx.json(family("old", "Old"))}, true),
-          (${latest!.id}, 'beta', 'beta', 'image', 1, ${tx.json(family("beta", "Beta"))}, true),
-          (${latest!.id}, 'alpha', 'alpha', 'image', 1, ${tx.json(family("alpha", "Alpha"))}, true),
-          (${latest!.id}, 'hidden', 'hidden', 'image', 1, ${tx.json(family("hidden", "Hidden"))}, false)
+        insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active, updated_at)
+        values (
+          ${providerId}, 'alpha/newest', 'alpha newest', 'image', 'alpha',
+          ${tx.json(capabilities("alpha", 0, 2, "newest"))}, true, ${new Date(stale!.updated_at.getTime() + 3_600_000)}
+        )
       `;
 
       const snapshot = await new PostgresCatalogRepository(tx).list();
 
-      // Latest published version only, inactive rows excluded, ordered by key.
-      expect(snapshot.version).toBe(`catalog-${latest!.id}`);
-      expect(snapshot.publishedAt).toBe(latest!.published_at.getTime());
-      expect(snapshot.families.map((item) => item.id)).toEqual(["alpha", "beta"]);
+      expect(snapshot.publishedAt).toBe(stale!.updated_at.getTime() + 3_600_000);
+      expect(snapshot.version).toBe(`catalog-${snapshot.publishedAt}`);
     });
   });
 });

@@ -1,0 +1,3179 @@
+{
+  "families": [
+    {
+      "id": "nano-banana",
+      "name": "Nano Banana",
+      "vendor": "Google",
+      "kind": "image",
+      "blurb": "مدل تصویریِ گوگل؛ کیفیت و فهم بالا",
+      "badge": "محبوب",
+      "grad": "linear-gradient(135deg,#f6d365,#fda085)",
+      "cover": "https://file.aiquickdraw.com/custom-page/akr/section-images/1756223371764w82dsmi4.png",
+      "refs": [
+        {
+          "key": "image_input",
+          "label": "تصاویر ورودی (اختیاری)",
+          "max": 8
+        }
+      ],
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "4:3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "3:4",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            },
+            {
+              "value": "3:2",
+              "label": "3:2",
+              "w": 3,
+              "h": 2
+            },
+            {
+              "value": "2:3",
+              "label": "2:3",
+              "w": 2,
+              "h": 3
+            },
+            {
+              "value": "5:4",
+              "label": "5:4",
+              "w": 5,
+              "h": 4
+            },
+            {
+              "value": "4:5",
+              "label": "4:5",
+              "w": 4,
+              "h": 5
+            },
+            {
+              "value": "21:9",
+              "label": "21:9",
+              "w": 21,
+              "h": 9
+            },
+            {
+              "value": "auto",
+              "label": "خودکار",
+              "w": 1,
+              "h": 1
+            }
+          ],
+          "def": "1:1"
+        },
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "1K",
+              "label": "1K"
+            },
+            {
+              "value": "2K",
+              "label": "2K"
+            },
+            {
+              "value": "4K",
+              "label": "4K"
+            }
+          ],
+          "def": "1K"
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "output_format",
+          "label": "فرمت خروجی",
+          "options": [
+            {
+              "value": "png",
+              "label": "PNG"
+            },
+            {
+              "value": "jpg",
+              "label": "JPG"
+            }
+          ],
+          "def": "png"
+        }
+      ],
+      "variants": [
+        {
+          "id": "nano-banana-pro",
+          "model": "nano-banana-pro",
+          "featureCode": "image_generate",
+          "label": "Pro",
+          "badge": "پرچم‌دار"
+        },
+        {
+          "id": "nano-banana-2",
+          "model": "nano-banana-2",
+          "featureCode": "image_generate",
+          "label": "نسخه ۲",
+          "badge": "جدید",
+          "refs": [
+            {
+              "key": "image_input",
+              "label": "تصاویر ورودی (اختیاری)",
+              "max": 14
+            }
+          ],
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "auto",
+                  "label": "خودکار",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "3:2",
+                  "label": "3:2",
+                  "w": 3,
+                  "h": 2
+                },
+                {
+                  "value": "2:3",
+                  "label": "2:3",
+                  "w": 2,
+                  "h": 3
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "auto"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "1K",
+                  "label": "1K"
+                },
+                {
+                  "value": "2K",
+                  "label": "2K"
+                },
+                {
+                  "value": "4K",
+                  "label": "4K"
+                }
+              ],
+              "def": "1K"
+            },
+            {
+              "advanced": true,
+              "kind": "segment",
+              "key": "output_format",
+              "label": "فرمت خروجی",
+              "options": [
+                {
+                  "value": "jpg",
+                  "label": "JPG"
+                },
+                {
+                  "value": "png",
+                  "label": "PNG"
+                }
+              ],
+              "def": "jpg"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seedream",
+      "name": "Seedream",
+      "vendor": "ByteDance",
+      "kind": "image",
+      "blurb": "واقع‌گرایی بالا و رنگ‌بندی سینمایی",
+      "badge": "محبوب",
+      "grad": "linear-gradient(135deg,#2bd2c0,#1e6cff)",
+      "cover": "https://file.aiquickdraw.com/custom-page/akr/section-images/1756804550795qh7gkrc5.PNG",
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "4:3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "3:4",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            },
+            {
+              "value": "3:2",
+              "label": "3:2",
+              "w": 3,
+              "h": 2
+            },
+            {
+              "value": "2:3",
+              "label": "2:3",
+              "w": 2,
+              "h": 3
+            },
+            {
+              "value": "21:9",
+              "label": "21:9",
+              "w": 21,
+              "h": 9
+            }
+          ],
+          "def": "1:1"
+        },
+        {
+          "kind": "segment",
+          "key": "quality",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "basic",
+              "label": "2K"
+            },
+            {
+              "value": "high",
+              "label": "4K"
+            }
+          ],
+          "def": "basic"
+        }
+      ],
+      "variants": [
+        {
+          "id": "seedream-4-5",
+          "model": "seedream/4.5-text-to-image",
+          "featureCode": "image_generate",
+          "label": "۴٫۵"
+        },
+        {
+          "id": "seedream-5-lite",
+          "model": "seedream/5-lite-text-to-image",
+          "featureCode": "image_generate",
+          "label": "۵ Lite",
+          "badge": "ارزان"
+        }
+      ]
+    },
+    {
+      "id": "gpt-image",
+      "name": "GPT Image",
+      "vendor": "OpenAI",
+      "kind": "image",
+      "blurb": "مدل تصویری OpenAI؛ دقیق در دنبال‌کردن پرامپت",
+      "badge": "OpenAI",
+      "grad": "linear-gradient(135deg,#43e97b,#38f9d7)",
+      "cover": "https://file.aiquickdraw.com/static/custom/page/1623/1745493643100rk4liou3.png",
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "auto",
+              "label": "خودکار",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "3:2",
+              "label": "3:2",
+              "w": 3,
+              "h": 2
+            },
+            {
+              "value": "2:3",
+              "label": "2:3",
+              "w": 2,
+              "h": 3
+            },
+            {
+              "value": "4:3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "3:4",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            },
+            {
+              "value": "5:4",
+              "label": "5:4",
+              "w": 5,
+              "h": 4
+            },
+            {
+              "value": "4:5",
+              "label": "4:5",
+              "w": 4,
+              "h": 5
+            },
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "21:9",
+              "label": "21:9",
+              "w": 21,
+              "h": 9
+            }
+          ],
+          "def": "auto"
+        },
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "1K",
+              "label": "1K"
+            },
+            {
+              "value": "2K",
+              "label": "2K"
+            },
+            {
+              "value": "4K",
+              "label": "4K"
+            }
+          ],
+          "def": "1K"
+        }
+      ],
+      "variants": [
+        {
+          "id": "gpt-image-2",
+          "model": "gpt-image-2-text-to-image",
+          "featureCode": "image_generate",
+          "label": "نسخه ۲"
+        },
+        {
+          "id": "gpt-image-1-5",
+          "model": "gpt-image/1.5-text-to-image",
+          "featureCode": "image_generate",
+          "label": "۱٫۵",
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "2:3",
+                  "label": "2:3",
+                  "w": 2,
+                  "h": 3
+                },
+                {
+                  "value": "3:2",
+                  "label": "3:2",
+                  "w": 3,
+                  "h": 2
+                }
+              ],
+              "def": "1:1"
+            },
+            {
+              "kind": "segment",
+              "key": "quality",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "medium",
+                  "label": "متعادل"
+                },
+                {
+                  "value": "high",
+                  "label": "بالا"
+                }
+              ],
+              "def": "medium"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "flux",
+      "name": "Flux 2",
+      "vendor": "Black Forest Labs",
+      "kind": "image",
+      "blurb": "ترکیب‌بندی و نور درجه‌یک",
+      "grad": "linear-gradient(135deg,#30cfd0,#330867)",
+      "cover": "https://file.aiquickdraw.com/static//kie-maket/17604346335909arn4y6a.webp",
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "4:3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "3:4",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            },
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "3:2",
+              "label": "3:2",
+              "w": 3,
+              "h": 2
+            },
+            {
+              "value": "2:3",
+              "label": "2:3",
+              "w": 2,
+              "h": 3
+            }
+          ],
+          "def": "1:1"
+        },
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "1K",
+              "label": "1K"
+            },
+            {
+              "value": "2K",
+              "label": "2K"
+            }
+          ],
+          "def": "1K"
+        }
+      ],
+      "variants": [
+        {
+          "id": "flux-2-pro",
+          "model": "flux-2/pro-text-to-image",
+          "featureCode": "image_generate",
+          "label": "Pro"
+        },
+        {
+          "id": "flux-2-flex",
+          "model": "flux-2/flex-text-to-image",
+          "featureCode": "image_generate",
+          "label": "Flex"
+        }
+      ]
+    },
+    {
+      "id": "imagen",
+      "name": "Imagen 4",
+      "vendor": "Google",
+      "kind": "image",
+      "blurb": "کیفیت بالا و طبیعی از گوگل",
+      "badge": "Google",
+      "grad": "linear-gradient(135deg,#4facfe,#00f2fe)",
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "4:3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "3:4",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            },
+            {
+              "value": "auto",
+              "label": "خودکار",
+              "w": 1,
+              "h": 1
+            }
+          ],
+          "def": "1:1"
+        },
+        {
+          "advanced": true,
+          "kind": "text",
+          "key": "negative_prompt",
+          "label": "پرامپت منفی",
+          "placeholder": "چه چیزی نباشد…"
+        }
+      ],
+      "variants": [
+        {
+          "id": "imagen-4-ultra",
+          "model": "google/imagen4-ultra",
+          "featureCode": "image_generate",
+          "label": "Ultra",
+          "badge": "بهترین"
+        },
+        {
+          "id": "imagen-4",
+          "model": "google/imagen4",
+          "featureCode": "image_generate",
+          "label": "معمولی"
+        },
+        {
+          "id": "imagen-4-fast",
+          "model": "google/imagen4-fast",
+          "featureCode": "image_generate",
+          "label": "سریع",
+          "badge": "ارزان"
+        }
+      ]
+    },
+    {
+      "id": "ideogram",
+      "name": "Ideogram V3",
+      "vendor": "Ideogram",
+      "kind": "image",
+      "blurb": "بهترین برای متن، لوگو و پوستر",
+      "badge": "متن و لوگو",
+      "grad": "linear-gradient(135deg,#ff9a9e,#fecfef)",
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "image_size",
+          "label": "اندازه تصویر",
+          "options": [
+            {
+              "value": "square_hd",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "landscape_16_9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "portrait_16_9",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "landscape_4_3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "portrait_4_3",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            }
+          ],
+          "def": "square_hd"
+        },
+        {
+          "kind": "segment",
+          "key": "rendering_speed",
+          "label": "حالت",
+          "options": [
+            {
+              "value": "TURBO",
+              "label": "سریع"
+            },
+            {
+              "value": "BALANCED",
+              "label": "متعادل"
+            },
+            {
+              "value": "QUALITY",
+              "label": "کیفیت"
+            }
+          ],
+          "def": "BALANCED"
+        },
+        {
+          "kind": "segment",
+          "key": "style",
+          "label": "سبک",
+          "options": [
+            {
+              "value": "AUTO",
+              "label": "خودکار"
+            },
+            {
+              "value": "GENERAL",
+              "label": "عمومی"
+            },
+            {
+              "value": "REALISTIC",
+              "label": "واقع‌گرا"
+            },
+            {
+              "value": "DESIGN",
+              "label": "طراحی"
+            }
+          ],
+          "def": "AUTO"
+        },
+        {
+          "advanced": true,
+          "kind": "toggle",
+          "key": "expand_prompt",
+          "label": "گسترش خودکار پرامپت",
+          "def": false
+        },
+        {
+          "advanced": true,
+          "kind": "text",
+          "key": "negative_prompt",
+          "label": "پرامپت منفی",
+          "placeholder": "چه چیزی نباشد…"
+        }
+      ],
+      "variants": [
+        {
+          "id": "ideogram-v3",
+          "model": "ideogram/v3-text-to-image",
+          "featureCode": "image_generate",
+          "label": "V3"
+        }
+      ]
+    },
+    {
+      "id": "qwen",
+      "name": "Qwen Image",
+      "vendor": "Alibaba",
+      "kind": "image",
+      "blurb": "سریع و مقرون‌به‌صرفه",
+      "badge": "ارزان",
+      "grad": "linear-gradient(135deg,#a18cd1,#fbc2eb)",
+      "cover": "https://file.aiquickdraw.com/custom-page/akr/section-images/17568761228997zjbv53p.png",
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "image_size",
+          "label": "اندازه تصویر",
+          "options": [
+            {
+              "value": "square_hd",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "landscape_16_9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "portrait_16_9",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "landscape_4_3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "portrait_4_3",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            }
+          ],
+          "def": "square_hd"
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "acceleration",
+          "label": "سرعت",
+          "options": [
+            {
+              "value": "none",
+              "label": "عادی"
+            },
+            {
+              "value": "regular",
+              "label": "تند"
+            },
+            {
+              "value": "high",
+              "label": "خیلی تند"
+            }
+          ],
+          "def": "none"
+        },
+        {
+          "advanced": true,
+          "kind": "text",
+          "key": "negative_prompt",
+          "label": "پرامپت منفی",
+          "placeholder": "چه چیزی نباشد…"
+        }
+      ],
+      "variants": [
+        {
+          "id": "qwen-image",
+          "model": "qwen/text-to-image",
+          "featureCode": "image_generate",
+          "label": "Image"
+        }
+      ]
+    },
+    {
+      "id": "z-image",
+      "name": "Z-Image",
+      "vendor": "Tongyi",
+      "kind": "image",
+      "blurb": "اقتصادی برای تست‌های سریع",
+      "badge": "ارزان‌ترین",
+      "grad": "linear-gradient(135deg,#89f7fe,#66a6ff)",
+      "cover": "https://file.aiquickdraw.com/static//kie-maket/176043358319433328iqf.png",
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "4:3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "3:4",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            },
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            }
+          ],
+          "def": "1:1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "z-image",
+          "model": "z-image",
+          "featureCode": "image_generate",
+          "label": "Z"
+        }
+      ]
+    },
+    {
+      "id": "seedance",
+      "name": "Seedance",
+      "vendor": "ByteDance",
+      "kind": "video",
+      "blurb": "ویدیوی واقع‌گرا با صدا؛ متن یا عکس به ویدیو",
+      "badge": "پرچم‌دار",
+      "grad": "linear-gradient(135deg,#4b6cf7,#9b4bf7)",
+      "refs": [
+        {
+          "key": "reference_image_urls",
+          "label": "تصاویر مرجع / سوژه (اختیاری)",
+          "max": 9,
+          "maxMb": 30
+        },
+        {
+          "key": "reference_video_urls",
+          "label": "ویدیوی مرجع (اختیاری)",
+          "max": 3,
+          "media": "video",
+          "maxMb": 50
+        },
+        {
+          "key": "reference_audio_urls",
+          "label": "صدای مرجع (اختیاری)",
+          "max": 3,
+          "media": "audio",
+          "maxMb": 15
+        }
+      ],
+      "maxPrompt": 20000,
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "4:3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "3:4",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            },
+            {
+              "value": "21:9",
+              "label": "21:9",
+              "w": 21,
+              "h": 9
+            }
+          ],
+          "def": "16:9"
+        },
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "480p",
+              "label": "480p"
+            },
+            {
+              "value": "720p",
+              "label": "720p"
+            },
+            {
+              "value": "1080p",
+              "label": "1080p"
+            },
+            {
+              "value": "4k",
+              "label": "4K"
+            }
+          ],
+          "def": "720p"
+        },
+        {
+          "kind": "slider",
+          "key": "duration",
+          "label": "مدت",
+          "min": 4,
+          "max": 15,
+          "step": 1,
+          "def": 5,
+          "unit": "ثانیه"
+        },
+        {
+          "kind": "toggle",
+          "key": "generate_audio",
+          "label": "تولید صدا",
+          "def": true
+        }
+      ],
+      "variants": [
+        {
+          "id": "seedance-2-5",
+          "model": "bytedance/seedance-2-5",
+          "featureCode": "video_generate",
+          "label": "۲٫۵",
+          "badge": "جدید",
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "16:9"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "480p",
+                  "label": "480p"
+                },
+                {
+                  "value": "720p",
+                  "label": "720p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 4,
+              "max": 30,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            },
+            {
+              "kind": "toggle",
+              "key": "generate_audio",
+              "label": "تولید صدا",
+              "def": true
+            }
+          ]
+        },
+        {
+          "id": "seedance-2",
+          "model": "bytedance/seedance-2",
+          "featureCode": "video_generate",
+          "label": "نسخه ۲",
+          "badge": "پرچم‌دار"
+        },
+        {
+          "id": "seedance-2-fast",
+          "model": "bytedance/seedance-2-fast",
+          "featureCode": "video_generate",
+          "label": "سریع",
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "16:9"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "480p",
+                  "label": "480p"
+                },
+                {
+                  "value": "720p",
+                  "label": "720p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 4,
+              "max": 15,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            },
+            {
+              "kind": "toggle",
+              "key": "generate_audio",
+              "label": "تولید صدا",
+              "def": true
+            }
+          ]
+        },
+        {
+          "id": "seedance-2-mini",
+          "model": "bytedance/seedance-2-mini",
+          "featureCode": "video_generate",
+          "label": "۲ مینی",
+          "badge": "ارزان",
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "16:9"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "480p",
+                  "label": "480p"
+                },
+                {
+                  "value": "720p",
+                  "label": "720p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 4,
+              "max": 15,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            },
+            {
+              "kind": "toggle",
+              "key": "generate_audio",
+              "label": "تولید صدا",
+              "def": true
+            }
+          ]
+        },
+        {
+          "id": "seedance-1-5-pro",
+          "model": "bytedance/seedance-1.5-pro",
+          "featureCode": "video_generate",
+          "label": "۱٫۵ Pro",
+          "refs": [
+            {
+              "key": "input_urls",
+              "label": "تصاویر ورودی (اختیاری)",
+              "max": 2
+            }
+          ],
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "16:9"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "480p",
+                  "label": "480p"
+                },
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 4,
+              "max": 12,
+              "step": 2,
+              "def": 8,
+              "unit": "ثانیه"
+            },
+            {
+              "kind": "toggle",
+              "key": "generate_audio",
+              "label": "تولید صدا",
+              "def": false
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "fixed_lens",
+              "label": "دوربین ثابت",
+              "def": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kling",
+      "name": "Kling",
+      "vendor": "Kuaishou",
+      "kind": "video",
+      "blurb": "حرکت سینمایی و چندنما؛ تا ۱۵ ثانیه",
+      "badge": "سینمایی",
+      "grad": "linear-gradient(135deg,#f7c948,#f86a3b)",
+      "cover": "https://file.aiquickdraw.com/static//kie-maket/17622493381934oqt0mus.mp4",
+      "refs": [
+        {
+          "key": "image_urls",
+          "label": "فریم شروع و پایان (اختیاری)",
+          "max": 2
+        }
+      ],
+      "maxPrompt": 2500,
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            }
+          ],
+          "def": "16:9"
+        },
+        {
+          "kind": "segment",
+          "key": "mode",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "std",
+              "label": "720p"
+            },
+            {
+              "value": "pro",
+              "label": "1080p"
+            },
+            {
+              "value": "4K",
+              "label": "4K"
+            }
+          ],
+          "def": "pro"
+        },
+        {
+          "kind": "slider",
+          "key": "duration",
+          "label": "مدت",
+          "min": 3,
+          "max": 15,
+          "step": 1,
+          "def": 5,
+          "unit": "ثانیه",
+          "asString": true
+        },
+        {
+          "kind": "toggle",
+          "key": "sound",
+          "label": "تولید صدا",
+          "def": false
+        },
+        {
+          "advanced": true,
+          "kind": "toggle",
+          "key": "multi_shots",
+          "label": "چندنما (روایت چندبخشی)",
+          "def": false
+        }
+      ],
+      "variants": [
+        {
+          "id": "kling-3",
+          "model": "kling-3.0/video",
+          "featureCode": "video_generate",
+          "label": "۳٫۰"
+        },
+        {
+          "id": "kling-3-turbo",
+          "model": "kling/v3-turbo-text-to-video",
+          "featureCode": "video_generate",
+          "modelWithRefs": "kling/v3-turbo-image-to-video",
+          "label": "۳٫۰ Turbo",
+          "badge": "سریع",
+          "refs": [
+            {
+              "key": "image_urls",
+              "label": "تصویر ورودی (اختیاری)",
+              "max": 1
+            }
+          ],
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                }
+              ],
+              "def": "16:9"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 3,
+              "max": 15,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            }
+          ]
+        },
+        {
+          "id": "kling-2-6",
+          "model": "kling-2.6/text-to-video",
+          "featureCode": "video_generate",
+          "modelWithRefs": "kling-2.6/image-to-video",
+          "label": "۲٫۶",
+          "refs": [
+            {
+              "key": "image_urls",
+              "label": "تصویر ورودی (اختیاری)",
+              "max": 1
+            }
+          ],
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                }
+              ],
+              "def": "16:9"
+            },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "5",
+                  "label": "۵ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                }
+              ],
+              "def": "5"
+            },
+            {
+              "kind": "toggle",
+              "key": "sound",
+              "label": "تولید صدا",
+              "def": false
+            }
+          ]
+        },
+        {
+          "id": "kling-3-motion",
+          "model": "kling-3.0/motion-control",
+          "featureCode": "image_to_video",
+          "label": "Motion Control",
+          "badge": "جدید",
+          "refs": [
+            {
+              "key": "input_urls",
+              "label": "تصویر شخصیت (الزامی)",
+              "max": 1,
+              "maxMb": 10,
+              "required": true
+            },
+            {
+              "key": "video_urls",
+              "label": "ویدیوی حرکت (الزامی)",
+              "max": 1,
+              "media": "video",
+              "maxMb": 100,
+              "required": true
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "mode",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "segment",
+              "key": "character_orientation",
+              "label": "جهت شخصیت",
+              "options": [
+                {
+                  "value": "video",
+                  "label": "از ویدیو (تا ۳۰ ثانیه)"
+                },
+                {
+                  "value": "image",
+                  "label": "از عکس (تا ۱۰ ثانیه)"
+                }
+              ],
+              "def": "video"
+            }
+          ]
+        },
+        {
+          "id": "kling-2-6-motion",
+          "model": "kling-2.6/motion-control",
+          "featureCode": "image_to_video",
+          "label": "Motion Control ۲٫۶",
+          "badge": "ارزان",
+          "refs": [
+            {
+              "key": "input_urls",
+              "label": "تصویر شخصیت (الزامی)",
+              "max": 1,
+              "maxMb": 10,
+              "required": true
+            },
+            {
+              "key": "video_urls",
+              "label": "ویدیوی حرکت (الزامی)",
+              "max": 1,
+              "media": "video",
+              "maxMb": 100,
+              "required": true
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "mode",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "segment",
+              "key": "character_orientation",
+              "label": "جهت شخصیت",
+              "options": [
+                {
+                  "value": "video",
+                  "label": "از ویدیو (تا ۳۰ ثانیه)"
+                },
+                {
+                  "value": "image",
+                  "label": "از عکس (تا ۱۰ ثانیه)"
+                }
+              ],
+              "def": "video"
+            }
+          ]
+        },
+        {
+          "id": "kling-2-5-turbo",
+          "model": "kling/v2-5-turbo-text-to-video-pro",
+          "featureCode": "video_generate",
+          "modelWithRefs": "kling/v2-5-turbo-image-to-video-pro",
+          "label": "۲٫۵ Turbo",
+          "refs": [
+            {
+              "key": "image_url",
+              "label": "فریم شروع (اختیاری)",
+              "max": 1
+            },
+            {
+              "key": "tail_image_url",
+              "label": "فریم پایان",
+              "max": 1,
+              "requires": "image_url"
+            }
+          ],
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                }
+              ],
+              "def": "16:9"
+            },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "5",
+                  "label": "۵ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                }
+              ],
+              "def": "5"
+            },
+            {
+              "advanced": true,
+              "kind": "text",
+              "key": "negative_prompt",
+              "label": "پرامپت منفی",
+              "placeholder": "چه چیزی نباشد…"
+            },
+            {
+              "advanced": true,
+              "kind": "slider",
+              "key": "cfg_scale",
+              "label": "پایبندی به پرامپت",
+              "min": 0,
+              "max": 1,
+              "step": 0.1,
+              "def": 0.5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "minimax-h3",
+      "name": "MiniMax H3",
+      "vendor": "MiniMax",
+      "kind": "video",
+      "blurb": "یک مدل برای همه‌چیز: متن، عکس یا مرجع به ویدیوی ۲K با صدای همگام",
+      "badge": "جدید",
+      "grad": "linear-gradient(135deg,#f7734b,#f74b9b)",
+      "refs": [
+        {
+          "key": "reference_image_urls",
+          "label": "تصاویر مرجع / سوژه (اختیاری)",
+          "max": 9,
+          "maxMb": 30
+        },
+        {
+          "key": "reference_video_urls",
+          "label": "ویدیوی مرجع برای حرکت (اختیاری)",
+          "max": 3,
+          "media": "video",
+          "maxMb": 50
+        },
+        {
+          "key": "reference_audio_urls",
+          "label": "صدای مرجع (اختیاری)",
+          "max": 3,
+          "media": "audio",
+          "maxMb": 15
+        }
+      ],
+      "maxPrompt": 5000,
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "4:3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "3:4",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            },
+            {
+              "value": "21:9",
+              "label": "21:9",
+              "w": 21,
+              "h": 9
+            }
+          ],
+          "def": "16:9"
+        },
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "768p",
+              "label": "768p"
+            },
+            {
+              "value": "2K",
+              "label": "2K"
+            }
+          ],
+          "def": "2K"
+        },
+        {
+          "kind": "slider",
+          "key": "duration",
+          "label": "مدت",
+          "min": 5,
+          "max": 15,
+          "step": 1,
+          "def": 5,
+          "unit": "ثانیه"
+        }
+      ],
+      "variants": [
+        {
+          "id": "minimax-h3",
+          "model": "minimax-h3/text-to-video",
+          "featureCode": "video_generate",
+          "label": "H3",
+          "badge": "جدید"
+        }
+      ]
+    },
+    {
+      "id": "wan",
+      "name": "Wan",
+      "vendor": "Alibaba",
+      "kind": "video",
+      "blurb": "ویدیوی روان و اقتصادی",
+      "badge": "ارزان",
+      "grad": "linear-gradient(135deg,#ff5db1,#7b4dff)",
+      "cover": "https://file.aiquickdraw.com/custom-page/akr/section-images/1758796495606nze1vzkk.mp4",
+      "maxPrompt": 5000,
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            }
+          ],
+          "def": "16:9"
+        },
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "720p",
+              "label": "720p"
+            },
+            {
+              "value": "1080p",
+              "label": "1080p"
+            }
+          ],
+          "def": "720p"
+        },
+        {
+          "kind": "segment",
+          "key": "duration",
+          "label": "مدت",
+          "options": [
+            {
+              "value": "5",
+              "label": "۵ ثانیه"
+            },
+            {
+              "value": "10",
+              "label": "۱۰ ثانیه"
+            }
+          ],
+          "def": "5"
+        },
+        {
+          "advanced": true,
+          "kind": "toggle",
+          "key": "enable_prompt_expansion",
+          "label": "گسترش خودکار پرامپت",
+          "def": false
+        },
+        {
+          "advanced": true,
+          "kind": "text",
+          "key": "negative_prompt",
+          "label": "پرامپت منفی",
+          "placeholder": "چه چیزی نباشد…"
+        }
+      ],
+      "variants": [
+        {
+          "id": "wan-2-5",
+          "model": "wan/2-5-text-to-video",
+          "featureCode": "video_generate",
+          "modelWithRefs": "wan/2-5-image-to-video",
+          "maxPrompt": 800,
+          "label": "۲٫۵",
+          "refs": [
+            {
+              "key": "image_url",
+              "label": "تصویر ورودی (اختیاری)",
+              "max": 1
+            }
+          ]
+        },
+        {
+          "id": "wan-2-6",
+          "model": "wan/2-6-text-to-video",
+          "featureCode": "video_generate",
+          "modelWithRefs": "wan/2-6-image-to-video",
+          "label": "۲٫۶",
+          "refs": [
+            {
+              "key": "image_urls",
+              "label": "تصویر ورودی (اختیاری)",
+              "max": 1
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "1080p"
+            },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "5",
+                  "label": "۵ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                },
+                {
+                  "value": "15",
+                  "label": "۱۵ ثانیه"
+                }
+              ],
+              "def": "5"
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "multi_shots",
+              "label": "چندنما (روایت چندبخشی)",
+              "def": false
+            }
+          ]
+        },
+        {
+          "id": "wan-2-7",
+          "model": "wan/2-7-text-to-video",
+          "featureCode": "video_generate",
+          "modelWithRefs": "wan/2-7-image-to-video",
+          "label": "۲٫۷",
+          "refs": [
+            {
+              "key": "first_frame_url",
+              "label": "فریم شروع (اختیاری)",
+              "max": 1,
+              "maxMb": 30
+            },
+            {
+              "key": "last_frame_url",
+              "label": "فریم پایان (اختیاری)",
+              "max": 1,
+              "maxMb": 30
+            },
+            {
+              "key": "first_clip_url",
+              "label": "کلیپ شروع (اختیاری)",
+              "max": 1,
+              "media": "video",
+              "maxMb": 30
+            },
+            {
+              "key": "driving_audio_url",
+              "label": "صدای هدایت‌گر (اختیاری)",
+              "max": 1,
+              "media": "audio",
+              "maxMb": 50
+            }
+          ],
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                }
+              ],
+              "def": "16:9"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "1080p"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 2,
+              "max": 15,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            },
+            {
+              "advanced": true,
+              "kind": "text",
+              "key": "negative_prompt",
+              "label": "پرامپت منفی",
+              "placeholder": "چه چیزی نباشد…"
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "prompt_extend",
+              "label": "گسترش خودکار پرامپت",
+              "def": true
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "watermark",
+              "label": "واترمارک",
+              "def": false
+            }
+          ]
+        },
+        {
+          "id": "wan-2-7-videoedit",
+          "model": "wan/2-7-videoedit",
+          "featureCode": "video_edit",
+          "label": "۲٫۷ ویرایش",
+          "badge": "ویدیو",
+          "refs": [
+            {
+              "key": "video_url",
+              "label": "ویدیوی ورودی (الزامی)",
+              "max": 1,
+              "media": "video",
+              "maxMb": 100,
+              "required": true
+            },
+            {
+              "key": "reference_image",
+              "label": "تصویر مرجع (اختیاری)",
+              "max": 1,
+              "maxMb": 30
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت خروجی",
+              "options": [
+                {
+                  "value": "0",
+                  "label": "کل ویدیو"
+                },
+                {
+                  "value": "2",
+                  "label": "۲ ثانیه"
+                },
+                {
+                  "value": "4",
+                  "label": "۴ ثانیه"
+                },
+                {
+                  "value": "6",
+                  "label": "۶ ثانیه"
+                },
+                {
+                  "value": "8",
+                  "label": "۸ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                }
+              ],
+              "def": "0"
+            },
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                }
+              ],
+              "def": "16:9"
+            },
+            {
+              "kind": "segment",
+              "key": "audio_setting",
+              "label": "صدا",
+              "options": [
+                {
+                  "value": "auto",
+                  "label": "خودکار"
+                },
+                {
+                  "value": "origin",
+                  "label": "حفظ صدای اصلی"
+                }
+              ],
+              "def": "auto"
+            },
+            {
+              "advanced": true,
+              "kind": "text",
+              "key": "negative_prompt",
+              "label": "پرامپت منفی",
+              "placeholder": "چه چیزی نباشد…"
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "prompt_extend",
+              "label": "گسترش خودکار پرامپت",
+              "def": true
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "watermark",
+              "label": "واترمارک",
+              "def": false
+            }
+          ]
+        },
+        {
+          "id": "wan-2-7-r2v",
+          "model": "wan/2-7-r2v",
+          "featureCode": "image_to_video",
+          "label": "۲٫۷ مرجع",
+          "refs": [
+            {
+              "key": "reference_image",
+              "label": "تصاویر مرجع (الزامی)",
+              "max": 5,
+              "required": true
+            },
+            {
+              "key": "first_frame",
+              "label": "فریم شروع (اختیاری)",
+              "max": 1
+            }
+          ],
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                }
+              ],
+              "def": "16:9"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "1080p"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 2,
+              "max": 10,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            },
+            {
+              "advanced": true,
+              "kind": "text",
+              "key": "negative_prompt",
+              "label": "پرامپت منفی",
+              "placeholder": "چه چیزی نباشد…"
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "prompt_extend",
+              "label": "گسترش خودکار پرامپت",
+              "def": true
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "watermark",
+              "label": "واترمارک",
+              "def": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hailuo",
+      "name": "Hailuo 2.3",
+      "vendor": "MiniMax",
+      "kind": "video",
+      "blurb": "حرکت طبیعی و چهره‌های واقعی؛ عکس به ویدیو",
+      "badge": "MiniMax",
+      "grad": "linear-gradient(135deg,#ee9ca7,#ffdde1)",
+      "maxPrompt": 5000,
+      "controls": [
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "768P",
+              "label": "768p"
+            },
+            {
+              "value": "1080P",
+              "label": "1080p"
+            }
+          ],
+          "def": "768P"
+        },
+        {
+          "kind": "segment",
+          "key": "duration",
+          "label": "مدت",
+          "options": [
+            {
+              "value": "6",
+              "label": "۶ ثانیه"
+            },
+            {
+              "value": "10",
+              "label": "۱۰ ثانیه"
+            }
+          ],
+          "def": "6"
+        }
+      ],
+      "variants": [
+        {
+          "id": "hailuo-2-3",
+          "model": "hailuo/2-3-image-to-video-pro",
+          "featureCode": "image_to_video",
+          "label": "۲٫۳ Pro",
+          "refs": [
+            {
+              "key": "image_url",
+              "label": "تصویر ورودی (الزامی)",
+              "max": 1,
+              "required": true
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "768P",
+                  "label": "768p"
+                },
+                {
+                  "value": "1080P",
+                  "label": "1080p"
+                }
+              ],
+              "def": "768P"
+            },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "6",
+                  "label": "۶ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                }
+              ],
+              "def": "6"
+            }
+          ]
+        },
+        {
+          "id": "hailuo-2-3-standard",
+          "model": "hailuo/2-3-image-to-video-standard",
+          "featureCode": "image_to_video",
+          "label": "۲٫۳ استاندارد",
+          "badge": "ارزان",
+          "refs": [
+            {
+              "key": "image_url",
+              "label": "تصویر ورودی (الزامی)",
+              "max": 1,
+              "required": true
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "768P",
+                  "label": "768p"
+                },
+                {
+                  "value": "1080P",
+                  "label": "1080p"
+                }
+              ],
+              "def": "768P"
+            },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "6",
+                  "label": "۶ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                }
+              ],
+              "def": "6"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gemini-omni",
+      "name": "Gemini Omni",
+      "vendor": "Google",
+      "kind": "video",
+      "blurb": "ویدیو و صدای همزمان؛ ورودی عکس اختیاری",
+      "badge": "جدید",
+      "grad": "linear-gradient(135deg,#34d399,#3b82f6)",
+      "refs": [
+        {
+          "key": "image_urls",
+          "label": "تصاویر ورودی (اختیاری)",
+          "max": 4
+        }
+      ],
+      "maxPrompt": 20000,
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            }
+          ],
+          "def": "16:9"
+        },
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "720p",
+              "label": "720p"
+            },
+            {
+              "value": "1080p",
+              "label": "1080p"
+            },
+            {
+              "value": "4k",
+              "label": "4K"
+            }
+          ],
+          "def": "1080p"
+        },
+        {
+          "kind": "segment",
+          "key": "duration",
+          "label": "مدت",
+          "options": [
+            {
+              "value": "4",
+              "label": "۴ ثانیه"
+            },
+            {
+              "value": "6",
+              "label": "۶ ثانیه"
+            },
+            {
+              "value": "8",
+              "label": "۸ ثانیه"
+            },
+            {
+              "value": "10",
+              "label": "۱۰ ثانیه"
+            }
+          ],
+          "def": "8"
+        }
+      ],
+      "variants": [
+        {
+          "id": "gemini-omni-video",
+          "model": "gemini-omni-video",
+          "featureCode": "video_generate",
+          "label": "Omni"
+        }
+      ]
+    },
+    {
+      "id": "veo",
+      "name": "Veo 3.1",
+      "vendor": "Google",
+      "kind": "video",
+      "blurb": "پرچم‌دارِ ویدیوی گوگل؛ کیفیت سینمایی و صدا",
+      "badge": "جدید",
+      "grad": "linear-gradient(135deg,#0ea5e9,#6366f1)",
+      "cover": "https://file.aiquickdraw.com/custom-page/akr/section-images/1760692238600spjz047p.mp4",
+      "refs": [
+        {
+          "key": "imageUrls",
+          "label": "تصاویر مرجع / فریم (اختیاری)",
+          "max": 2
+        }
+      ],
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            }
+          ],
+          "def": "16:9"
+        },
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "720p",
+              "label": "720p"
+            },
+            {
+              "value": "1080p",
+              "label": "1080p"
+            },
+            {
+              "value": "4k",
+              "label": "4K"
+            }
+          ],
+          "def": "720p"
+        },
+        {
+          "kind": "segment",
+          "key": "duration",
+          "label": "مدت",
+          "options": [
+            {
+              "value": "4",
+              "label": "۴ ثانیه"
+            },
+            {
+              "value": "6",
+              "label": "۶ ثانیه"
+            },
+            {
+              "value": "8",
+              "label": "۸ ثانیه"
+            }
+          ],
+          "def": "8"
+        }
+      ],
+      "variants": [
+        {
+          "id": "veo-fast",
+          "model": "veo3_fast",
+          "featureCode": "video_generate",
+          "label": "سریع",
+          "badge": "ارزان"
+        },
+        {
+          "id": "veo-quality",
+          "model": "veo3",
+          "featureCode": "video_generate",
+          "label": "کیفیت",
+          "badge": "پرچم‌دار"
+        },
+        {
+          "id": "veo-lite",
+          "model": "veo3_lite",
+          "featureCode": "video_generate",
+          "label": "Lite"
+        }
+      ]
+    },
+    {
+      "id": "grok-image",
+      "name": "Grok Imagine",
+      "vendor": "xAI",
+      "kind": "image",
+      "blurb": "تصویرسازِ سریعِ xAI",
+      "badge": "xAI",
+      "grad": "linear-gradient(135deg,#3b3f46,#1c1f24)",
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "2:3",
+              "label": "2:3",
+              "w": 2,
+              "h": 3
+            },
+            {
+              "value": "3:2",
+              "label": "3:2",
+              "w": 3,
+              "h": 2
+            },
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            }
+          ],
+          "def": "1:1"
+        },
+        {
+          "kind": "toggle",
+          "key": "enable_pro",
+          "label": "حالت کیفیت",
+          "def": false
+        }
+      ],
+      "variants": [
+        {
+          "id": "grok-image",
+          "model": "grok-imagine/text-to-image",
+          "featureCode": "image_generate",
+          "label": "Imagine"
+        }
+      ]
+    },
+    {
+      "id": "elevenlabs",
+      "name": "ElevenLabs",
+      "vendor": "ElevenLabs",
+      "kind": "audio",
+      "blurb": "متن به گفتار؛ طبیعی و چندزبانه — فارسی هم پشتیبانی می‌شود",
+      "badge": "صدا",
+      "grad": "linear-gradient(135deg,#22d3ee,#0f766e)",
+      "maxPrompt": 5000,
+      "controls": [
+        {
+          "kind": "voice",
+          "key": "voice",
+          "label": "صدا",
+          "def": "EkK5I93UQWFDigLMpZcX"
+        },
+        {
+          "kind": "slider",
+          "key": "speed",
+          "label": "سرعت گفتار",
+          "min": 0.7,
+          "max": 1.2,
+          "step": 0.05,
+          "def": 1
+        },
+        {
+          "advanced": true,
+          "kind": "slider",
+          "key": "stability",
+          "label": "ثبات صدا",
+          "min": 0,
+          "max": 1,
+          "step": 0.05,
+          "def": 0.5
+        },
+        {
+          "advanced": true,
+          "kind": "slider",
+          "key": "similarity_boost",
+          "label": "شباهت به صدای اصلی",
+          "min": 0,
+          "max": 1,
+          "step": 0.05,
+          "def": 0.75
+        },
+        {
+          "advanced": true,
+          "kind": "slider",
+          "key": "style",
+          "label": "اغراق در لحن",
+          "min": 0,
+          "max": 1,
+          "step": 0.05,
+          "def": 0
+        }
+      ],
+      "variants": [
+        {
+          "id": "eleven-turbo",
+          "model": "elevenlabs/text-to-speech-turbo-2-5",
+          "featureCode": "speech_generate",
+          "label": "Turbo",
+          "badge": "ارزان",
+          "controls": [
+            {
+              "kind": "voice",
+              "key": "voice",
+              "label": "صدا",
+              "def": "EkK5I93UQWFDigLMpZcX"
+            },
+            {
+              "kind": "slider",
+              "key": "speed",
+              "label": "سرعت گفتار",
+              "min": 0.7,
+              "max": 1.2,
+              "step": 0.05,
+              "def": 1
+            },
+            {
+              "advanced": true,
+              "kind": "slider",
+              "key": "stability",
+              "label": "ثبات صدا",
+              "min": 0,
+              "max": 1,
+              "step": 0.05,
+              "def": 0.5
+            },
+            {
+              "advanced": true,
+              "kind": "slider",
+              "key": "similarity_boost",
+              "label": "شباهت به صدای اصلی",
+              "min": 0,
+              "max": 1,
+              "step": 0.05,
+              "def": 0.75
+            },
+            {
+              "advanced": true,
+              "kind": "slider",
+              "key": "style",
+              "label": "اغراق در لحن",
+              "min": 0,
+              "max": 1,
+              "step": 0.05,
+              "def": 0
+            },
+            {
+              "advanced": true,
+              "kind": "segment",
+              "key": "language_code",
+              "label": "زبان",
+              "options": [
+                {
+                  "value": "",
+                  "label": "خودکار"
+                },
+                {
+                  "value": "fa",
+                  "label": "فارسی"
+                },
+                {
+                  "value": "en",
+                  "label": "انگلیسی"
+                },
+                {
+                  "value": "ar",
+                  "label": "عربی"
+                }
+              ],
+              "def": ""
+            }
+          ]
+        },
+        {
+          "id": "eleven-multilingual",
+          "model": "elevenlabs/text-to-speech-multilingual-v2",
+          "featureCode": "speech_generate",
+          "label": "چندزبانه",
+          "badge": "کیفیت"
+        }
+      ]
+    },
+    {
+      "id": "topaz",
+      "name": "Topaz",
+      "vendor": "Topaz Labs",
+      "kind": "image",
+      "blurb": "بزرگ‌نمایی تصویر با حفظ جزئیات",
+      "badge": "ابزار",
+      "grad": "linear-gradient(135deg,#64748b,#1e293b)",
+      "refs": [
+        {
+          "key": "image_url",
+          "label": "تصویر ورودی (الزامی)",
+          "max": 1,
+          "required": true
+        }
+      ],
+      "noPrompt": true,
+      "controls": [
+        {
+          "kind": "segment",
+          "key": "upscale_factor",
+          "label": "بزرگ‌نمایی",
+          "options": [
+            {
+              "value": "2",
+              "label": "۲ برابر"
+            },
+            {
+              "value": "4",
+              "label": "۴ برابر"
+            },
+            {
+              "value": "8",
+              "label": "۸ برابر"
+            }
+          ],
+          "def": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "topaz-image-upscale",
+          "model": "topaz/image-upscale",
+          "featureCode": "image_edit",
+          "label": "بزرگ‌نمایی"
+        },
+        {
+          "id": "topaz-video-upscale",
+          "model": "topaz/video-upscale",
+          "featureCode": "video_edit",
+          "label": "ویدیو",
+          "refs": [
+            {
+              "key": "video_url",
+              "label": "ویدیوی ورودی (الزامی)",
+              "max": 1,
+              "media": "video",
+              "maxMb": 50,
+              "required": true
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "upscale_factor",
+              "label": "بزرگ‌نمایی",
+              "options": [
+                {
+                  "value": "1",
+                  "label": "۱ برابر"
+                },
+                {
+                  "value": "2",
+                  "label": "۲ برابر"
+                },
+                {
+                  "value": "4",
+                  "label": "۴ برابر"
+                }
+              ],
+              "def": "2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recraft",
+      "name": "Recraft",
+      "vendor": "Recraft",
+      "kind": "image",
+      "blurb": "بزرگ‌نمایی سریع و حذف پس‌زمینه",
+      "badge": "ابزار",
+      "grad": "linear-gradient(135deg,#a78bfa,#4c1d95)",
+      "refs": [
+        {
+          "key": "image",
+          "label": "تصویر ورودی (الزامی)",
+          "max": 1,
+          "required": true
+        }
+      ],
+      "noPrompt": true,
+      "controls": [],
+      "variants": [
+        {
+          "id": "recraft-crisp-upscale",
+          "model": "recraft/crisp-upscale",
+          "featureCode": "image_edit",
+          "label": "بزرگ‌نمایی",
+          "badge": "ارزان"
+        },
+        {
+          "id": "recraft-remove-bg",
+          "model": "recraft/remove-background",
+          "featureCode": "image_edit",
+          "label": "حذف پس‌زمینه"
+        }
+      ]
+    }
+  ]
+}
