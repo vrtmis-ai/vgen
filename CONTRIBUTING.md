@@ -105,6 +105,12 @@ silent change is how a merge conflict becomes a bug.
 
 ## The interface between us
 
+**[`docs/API.md`](docs/API.md) says what the backend currently serves** — which
+endpoints are live, which the frontend calls but the server does not answer yet,
+the error codes worth branching on, and what is deliberately unbuilt. The
+backend owner keeps it current. Read it before wiring a screen to anything real,
+and trust it over any assumption about what a route probably returns.
+
 **`packages/contracts/` is the boundary.** Every request and response has a Zod
 schema there, and both sides import it — the API parses with it, the web tier
 types against it.
