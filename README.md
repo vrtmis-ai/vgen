@@ -114,6 +114,36 @@ product is one `UPDATE`.
 credits did they spend", reading `lifetime_spent` straight off the ledger's own
 numbers rather than a second counter that could drift.
 
+## Admin
+
+`/api/v1/admin/*` — invite and discount CRUD, per-code usage and spend, and the
+early-access switch.
+
+Signing in is two steps: password, then a second factor. The session exists
+after the first and authorises nothing until the second, and an account with no
+enrolled factor cannot get a session at all — which is what keeps
+`v_admins_without_mfa` empty. Staff sessions are their own table with their own
+cookie and a 12-hour life, so a stolen customer session is never an admin one.
+
+Authorisation is per-permission (`invites.write`, `flags.write`, …), never "is
+this an admin". The seeded `admin` role holds `["*"]`; granting a campaign
+manager exactly the invite permissions later is one `UPDATE` on `roles` with no
+code change. Roles are re-read on every request, so revoking one takes effect
+immediately rather than when the session expires.
+
+Every mutation writes an `audit_log` row with before and after states. That
+table is append-only through row triggers, not only a `REVOKE` — a grant does
+not bind the table owner, and the trail exists to survive whoever made the
+change being audited.
+
+Requests with no staff role get **404, not 403**, so the surface is not
+confirmed to a customer probing for it. The first admin is made by hand:
+`grantRole` exists on the repository and there is deliberately no route for it.
+
+TOTP secrets are sealed with AES-256-GCM under a key held outside the database
+(`MFA_SEALING_KEY`), so `mfa_credentials.secret_ref` stays a pointer-shaped blob
+rather than a usable second factor sitting in a dump.
+
 ## Deployment
 
 A Node server, via `output: "standalone"`. This replaced a GitHub Pages static

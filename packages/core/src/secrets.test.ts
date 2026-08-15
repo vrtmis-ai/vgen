@@ -7,6 +7,9 @@ import {
   hashPhone,
   hashToken,
   normalizeIranianPhone,
+  openSecret,
+  sealSecret,
+  sealingKeyFrom,
   tokensMatch,
   verifyPassword,
 } from "./secrets";
@@ -111,5 +114,41 @@ describe("phone numbers", () => {
     expect(hashPhone(phone, "pepper-a")).not.toBe(hashPhone(phone, "pepper-b"));
     expect(hashPhone(phone, "pepper-a")).toBe(hashPhone(phone, "pepper-a"));
     expect(hashPhone(phone, "pepper-a")).not.toContain("9121234567");
+  });
+});
+
+describe("sealed secrets", () => {
+  const key = sealingKeyFrom("a local development key");
+
+  it("round-trips through the seal", () => {
+    const sealed = sealSecret("JBSWY3DPEHPK3PXP", key);
+    expect(sealed).not.toContain("JBSWY3DPEHPK3PXP");
+    expect(openSecret(sealed, key)).toBe("JBSWY3DPEHPK3PXP");
+  });
+
+  it("produces a different blob every time", () => {
+    // A fresh IV per seal, so two admins with the same secret do not have the
+    // same row — and neither does one admin re-enrolling.
+    expect(sealSecret("same secret", key)).not.toBe(sealSecret("same secret", key));
+  });
+
+  it("refuses to open under the wrong key", () => {
+    const sealed = sealSecret("JBSWY3DPEHPK3PXP", key);
+    expect(() => openSecret(sealed, sealingKeyFrom("a different key"))).toThrow();
+  });
+
+  it("refuses a tampered blob rather than decrypting it to something else", () => {
+    // GCM authenticates the ciphertext; without that, flipping bits would
+    // produce a different, still-accepted secret.
+    const [version, iv, tag, rawBody] = sealSecret("JBSWY3DPEHPK3PXP", key).split(".");
+    const body = Buffer.from(rawBody!, "base64url");
+    body[0] = body[0]! ^ 0xff;
+    expect(() => openSecret([version, iv, tag, body.toString("base64url")].join("."), key)).toThrow();
+  });
+
+  it("refuses a malformed blob", () => {
+    for (const bad of ["", "nope", "v2.a.b.c", "v1.only-two"]) {
+      expect(() => openSecret(bad, key)).toThrow();
+    }
   });
 });

@@ -3,12 +3,14 @@ export interface DatabaseHealthPort {
 }
 
 export * from "./accessRepository";
+export * from "./adminRepository";
 export * from "./authRepository";
 export * from "./walletRepository";
 export * from "./catalogRepository";
 export * from "./frontendTelemetryRepository";
 export * from "./generationRepository";
 export * from "./outbox";
+export * from "./transaction";
 
 /* The Drizzle schema mirror is gone. It described the 30-table schema this
    package no longer targets, nothing ever queried through it — every statement

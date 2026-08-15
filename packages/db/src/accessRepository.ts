@@ -58,9 +58,9 @@ export function normalizeCustomCode(raw: string): string {
 export type InviteKind = "campaign" | "user";
 
 export interface CreateInviteInput {
-  code?: string;
+  code?: string | undefined;
   label?: string | undefined;
-  kind?: InviteKind;
+  kind?: InviteKind | undefined;
   createdBy?: string | undefined;
   ownerUserId?: string | undefined;
   maxRedemptions?: number | undefined;
@@ -111,7 +111,7 @@ export interface PromoPerformance {
 }
 
 export interface CreatePromoInput {
-  code?: string;
+  code?: string | undefined;
   label?: string | undefined;
   kind: PromoPerformance["kind"];
   coins?: number | undefined;

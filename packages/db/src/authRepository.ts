@@ -9,6 +9,7 @@ import {
   verifyPassword,
 } from "@vgen/core";
 import type { Sql, TransactionSql } from "postgres";
+import { atomically } from "./transaction";
 
 /**
  * The free trial, granted once per phone number rather than once per account.
@@ -82,8 +83,6 @@ function publicUser(row: UserRow): CustomerSessionUser {
   };
 }
 
-type Atomically = <T>(run: (tx: TransactionSql) => Promise<T>) => Promise<T>;
-
 /**
  * Everything that creates or authenticates a person.
  *
@@ -98,22 +97,6 @@ export class PostgresAuthRepository {
     private readonly sql: Sql,
     private readonly phonePepper: string,
   ) {}
-
-  /**
-   * Runs a block atomically, whether or not the caller already has a
-   * transaction open.
-   *
-   * postgres.js puts `begin` on a connection and `savepoint` on a transaction,
-   * and neither has the other. Picking between them here means signup composes
-   * into a larger transaction — which is how the integration tests run it, and
-   * what a future "create an account and something else, or neither" needs.
-   */
-  private get atomically(): Atomically {
-    const handle = this.sql as unknown as { begin?: Atomically; savepoint?: Atomically };
-    const runner = handle.begin ?? handle.savepoint;
-    if (!runner) throw new Error("The SQL handle supports neither begin() nor savepoint()");
-    return runner.bind(handle) as Atomically;
-  }
 
   // ---------------------------------------------------------------- phone OTP
 
@@ -265,7 +248,7 @@ export class PostgresAuthRepository {
       throw new AuthError("invite_required", "DEEV is in early access and needs an invite code");
     }
 
-    return (await this.atomically(async (tx) => {
+    return (await atomically(this.sql)(async (tx) => {
       const [account] = await tx<{ id: string }[]>`
         insert into accounts (kind) values ('personal') returning id
       `;

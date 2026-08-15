@@ -13,6 +13,7 @@ import {
   type TelemetryRateLimitOptions,
 } from "./routes/telemetry";
 import { registerAuthRoutes, type AuthDependencies, type AuthRouteOptions } from "./routes/auth";
+import { registerAdminRoutes, type AdminDependencies, type AdminRouteOptions } from "./routes/admin";
 
 export interface HealthDependency {
   ping(): Promise<void>;
@@ -41,6 +42,8 @@ export interface ApiOptions {
    * where signup exists but cannot issue a session.
    */
   auth?: { dependencies: AuthDependencies; options: AuthRouteOptions } | undefined;
+  /** Absent in tests of the customer surface; the staff routes are then simply not mounted. */
+  admin?: { dependencies: AdminDependencies; options: AdminRouteOptions } | undefined;
 }
 
 export function createApp(dependencies: ApiDependencies, options: ApiOptions = {}): FastifyInstance {
@@ -53,6 +56,7 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
     void app.register(cors, { origin: options.corsOrigin, credentials: true });
   }
   if (options.auth) registerAuthRoutes(app, options.auth.dependencies, options.auth.options);
+  if (options.admin) registerAdminRoutes(app, options.admin.dependencies, options.admin.options);
   registerCustomerSessionRoute(app, dependencies.customerSession);
   registerCatalogRoute(app, dependencies.customerCatalog);
   registerWalletRoute(app, dependencies.customerSession, dependencies.customerWallet);

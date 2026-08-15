@@ -16,9 +16,13 @@ export {
   hashPhone,
   hashToken,
   normalizeIranianPhone,
+  openSecret,
+  sealSecret,
+  sealingKeyFrom,
   tokensMatch,
   verifyPassword,
 } from "./secrets";
+export { base32Decode, base32Encode, generateTotpSecret, totpCode, totpEnrolmentUri, verifyTotp } from "./totp";
 export {
   KIE_CREDIT_USD,
   COIN_USD,

@@ -23,6 +23,8 @@ const EXPECTED_MIGRATIONS = [
   "0009_app_tables.sql",
   "0010_credit_functions.sql",
   "0011_access.sql",
+  "0012_admin_sessions.sql",
+  "0013_audit_immutable.sql",
 ];
 
 describe("database migration chain", () => {

@@ -2,6 +2,12 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 
 export const SESSION_COOKIE = "deev_session";
 export const OAUTH_STATE_COOKIE = "deev_oauth_state";
+/**
+ * Staff sessions ride a different cookie from customer ones, so a stolen
+ * customer session is never accidentally an admin session and revoking one
+ * does not touch the other.
+ */
+export const ADMIN_COOKIE = "deev_admin";
 
 /**
  * Cookie handling, by hand rather than through a plugin.
@@ -51,6 +57,16 @@ export function setSessionCookie(reply: FastifyReply, token: string, expiresAt: 
 
 export function clearSessionCookie(reply: FastifyReply, options: CookieOptions): void {
   appendCookie(reply, serialize(SESSION_COOKIE, "", new Date(0), options));
+}
+
+export const readAdminToken = (request: FastifyRequest): string | null => readCookie(request, ADMIN_COOKIE);
+
+export function setAdminCookie(reply: FastifyReply, token: string, expiresAt: Date, options: CookieOptions): void {
+  appendCookie(reply, serialize(ADMIN_COOKIE, token, expiresAt, options));
+}
+
+export function clearAdminCookie(reply: FastifyReply, options: CookieOptions): void {
+  appendCookie(reply, serialize(ADMIN_COOKIE, "", new Date(0), options));
 }
 
 export function setOAuthStateCookie(reply: FastifyReply, state: string, options: CookieOptions): void {

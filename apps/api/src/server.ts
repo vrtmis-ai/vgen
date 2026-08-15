@@ -2,6 +2,8 @@ import postgres from "postgres";
 import { config } from "dotenv";
 import { fileURLToPath } from "node:url";
 import {
+  PostgresAccessRepository,
+  PostgresAdminRepository,
   PostgresAuthRepository,
   PostgresCatalogRepository,
   PostgresFrontendTelemetryRepository,
@@ -10,6 +12,7 @@ import {
 } from "@vgen/db";
 import { createRedisFixedWindowRateLimiter, createRedisHealthAdapter, createS3StorageHealthAdapter } from "@vgen/adapters";
 import { CustomerSessionService, SessionCookiePrincipalResolver } from "./customerSession";
+import { sealingKeyFrom } from "@vgen/core";
 import { createAuthRateLimiters } from "./auth/rateLimits";
 import { GoogleOAuth } from "./auth/googleOAuth";
 import { ConsoleSmsSender, KavenegarSmsSender, type SmsSender } from "./auth/sms";
@@ -86,7 +89,12 @@ const sms: SmsSender =
     ? new KavenegarSmsSender({ apiKey: kavenegarKey, template: kavenegarTemplate })
     : new ConsoleSmsSender();
 
+// Seals TOTP secrets at rest, so `mfa_credentials.secret_ref` is a blob that
+// is useless without a key held outside the database.
+const mfaSealingKey = sealingKeyFrom(infrastructureSetting("MFA_SEALING_KEY", "deev-local-mfa-key"));
 const authRepository = new PostgresAuthRepository(sql, phonePepper);
+const adminRepository = new PostgresAdminRepository(sql, mfaSealingKey);
+const accessRepository = new PostgresAccessRepository(sql);
 const authRateLimiters = await createAuthRateLimiters(sql, redisUrl, rateLimitHashSecret);
 const telemetryRateLimiter = createRedisFixedWindowRateLimiter(redisUrl, {
   max: 20,
@@ -120,6 +128,19 @@ const app = createApp(
     logger: true,
     telemetryRateLimiter,
     ...(trustProxy ? { trustProxy } : {}),
+    admin: {
+      dependencies: {
+        admin: adminRepository,
+        access: accessRepository,
+        // Staff prove who they are exactly as customers do; the second factor
+        // is what makes it a staff session.
+        verifyPassword: async (email, password) => {
+          const user = await authRepository.loginWithPassword(email, password);
+          return { id: user.id, emailNormalized: user.emailNormalized };
+        },
+      },
+      options: { cookie: { secure: process.env.NODE_ENV === "production" } },
+    },
     auth: {
       dependencies: { auth: authRepository, sms },
       options: {

@@ -1,4 +1,13 @@
-import { createHash, randomBytes, randomInt, scrypt as scryptCallback, timingSafeEqual, type ScryptOptions } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+  randomInt,
+  scrypt as scryptCallback,
+  timingSafeEqual,
+  type ScryptOptions,
+} from "node:crypto";
 
 /**
  * promisify() only picks up scrypt's three-argument overload, and the cost
@@ -128,6 +137,39 @@ export function generateOtpCode(): string {
  */
 export function hashPhone(phoneE164: string, pepper: string): string {
   return createHash("sha256").update(`${pepper}:${phoneE164}`).digest("base64url");
+}
+
+/**
+ * Encrypts a secret for storage in `mfa_credentials.secret_ref`.
+ *
+ * That column is documented as a pointer rather than a key, and this keeps
+ * faith with the intent without requiring a secrets manager: what lands in the
+ * row is a sealed blob that is useless without a key held outside the database,
+ * so a dump does not hand over anyone's second factor. Swapping this for a real
+ * KMS reference later changes only these two functions.
+ *
+ * AES-256-GCM, so the ciphertext is authenticated — a tampered blob fails to
+ * open rather than decrypting to something arbitrary.
+ */
+export function sealSecret(plaintext: string, key: Buffer): string {
+  if (key.length !== 32) throw new Error("Sealing key must be 32 bytes");
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const sealed = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  return `v1.${iv.toString("base64url")}.${cipher.getAuthTag().toString("base64url")}.${sealed.toString("base64url")}`;
+}
+
+export function openSecret(sealed: string, key: Buffer): string {
+  const [version, rawIv, rawTag, rawBody] = sealed.split(".");
+  if (version !== "v1" || !rawIv || !rawTag || !rawBody) throw new Error("Unreadable sealed secret");
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(rawIv, "base64url"));
+  decipher.setAuthTag(Buffer.from(rawTag, "base64url"));
+  return Buffer.concat([decipher.update(Buffer.from(rawBody, "base64url")), decipher.final()]).toString("utf8");
+}
+
+/** Derives the 32-byte sealing key from whatever the operator configured. */
+export function sealingKeyFrom(secret: string): Buffer {
+  return createHash("sha256").update(secret).digest();
 }
 
 /**
