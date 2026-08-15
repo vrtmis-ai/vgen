@@ -4,6 +4,14 @@ dist-ssr
 *.local
 .DS_Store
 *.log
+
+# pnpm is the package manager (see `packageManager` in package.json). npm cannot
+# install this repo at all — the root package.json declares
+# "@vgen/core": "workspace:*", a protocol npm rejects — so an npm lockfile here
+# is never right, only stale.
+package-lock.json
+yarn.lock
+
 .env
 .env.*
 !.env.example
