@@ -39,6 +39,41 @@ every screen without a backend existing.
 When you do need the real stack — Postgres, Redis, MinIO, migrations, API and
 web together — that is `pnpm dev:stack`, and it needs Docker Desktop running.
 
+## Upgrading a clone you already had
+
+If your checkout predates the Next.js move, `git pull` on its own leaves you in
+a state that fails for reasons that do not look like their cause. Do this once:
+
+```sh
+git switch main && git pull
+
+rm -rf node_modules .next dist          # the old tree was npm-installed and Vite-built
+git rm --cached -r -q . && git reset --hard   # rewrite the working tree as LF
+
+corepack pnpm install --frozen-lockfile
+cp .env.example .env
+pnpm dev
+```
+
+Why each line is there, because none of them is guessable from the error:
+
+- **`node_modules`** came from `npm ci` against React 18, Vite and Clerk — all
+  three are gone. `dist/` is a build artifact of a bundler the repo no longer
+  uses, and `.next/` may hold a cache from a different dependency tree.
+- **The line-ending rewrite** is the subtle one. `.gitattributes` is new, and it
+  only takes effect on checkout — files git did not have to rewrite during the
+  merge keep the CRLF they were checked out with years ago. Measured on a real
+  pull from the old main: 5 files stay CRLF, `git status` reports the tree
+  **clean**, and `pnpm format:check` then fails on 4 files you never touched.
+  The command above forces the re-checkout. It is needed once, ever.
+- **`.env`** did not exist before and the variable names changed — `VITE_` is
+  now `NEXT_PUBLIC_`.
+
+If you also ran the old backend: the schema was replaced wholesale, so
+`docker compose down -v` and `pnpm db:migrate` gives you the current one. The
+compose volume was renamed, so the old cluster is orphaned rather than upgraded
+— nothing you had locally is migrated, and nothing local was meant to be kept.
+
 ## Who owns what
 
 The split is by directory, so it is checkable rather than a matter of memory.
