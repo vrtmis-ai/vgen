@@ -7,6 +7,8 @@ export type RuntimeResolution = { ready: true; services: AppServices } | { ready
 export interface RuntimeEnvironment {
   APP_MODE?: string | undefined;
   API_BASE_URL?: string | undefined;
+  /** Demo mode only: start signed out, so sign-in screens are reachable. */
+  DEMO_ANONYMOUS?: string | undefined;
 }
 
 /**
@@ -23,11 +25,14 @@ export function browserEnvironment(): RuntimeEnvironment {
   return {
     APP_MODE: process.env.NEXT_PUBLIC_APP_MODE,
     API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
+    DEMO_ANONYMOUS: process.env.NEXT_PUBLIC_DEMO_ANONYMOUS,
   };
 }
 
 export function resolveRuntime(environment: RuntimeEnvironment, getAccessToken?: () => Promise<string | null>): RuntimeResolution {
-  if (environment.APP_MODE === "demo") return { ready: true, services: createDemoServices() };
+  if (environment.APP_MODE === "demo") {
+    return { ready: true, services: createDemoServices({ startAnonymous: environment.DEMO_ANONYMOUS === "1" }) };
+  }
   if (!environment.API_BASE_URL) {
     return {
       ready: false,

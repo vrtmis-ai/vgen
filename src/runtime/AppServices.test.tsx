@@ -5,6 +5,13 @@ import { AppServicesProvider, type AppServices, useAppServices } from "./AppServ
 
 const services = {
   session: { getCurrent: vi.fn() },
+  auth: {
+    startPhoneVerification: vi.fn(),
+    verifyPhone: vi.fn(),
+    register: vi.fn(),
+    login: vi.fn(),
+    logout: vi.fn(),
+  },
   catalog: { list: vi.fn() },
   wallet: { getCurrent: vi.fn() },
   generation: { quote: vi.fn(), create: vi.fn(), getJob: vi.fn() },
