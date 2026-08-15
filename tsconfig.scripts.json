@@ -1,0 +1,12 @@
+// The audit scripts stand in for a test suite (HANDOFF §10), but they sat
+// outside every tsconfig: tsconfig.json includes only "src" and
+// tsconfig.node.json only "vite.config.ts", so `tsc -b` never saw them. They
+// import deep into src/data and src/components, so a refactor there broke them
+// silently until somebody remembered to run them by hand.
+//
+// Same compiler settings as the app — they share its code, so they should share
+// its rules — with src included because the scripts import from it.
+{
+  "extends": "./tsconfig.json",
+  "include": ["src", "scripts"]
+}

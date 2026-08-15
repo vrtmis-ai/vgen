@@ -1,57 +1,182 @@
 @import "tailwindcss";
+
+/* Fonts. All four are self-hosted and bundled — the Stitch export loaded every
+   one of them from the Google CDN, which is the exact failure this app already
+   fixed once: slow from Iran, and a blocked stylesheet dropped the UI to a
+   system font part-way through loading. Vazirmatn is the local woff2 set;
+   the other three come in as npm packages so Vite fingerprints and serves them
+   from our own origin.
+
+   `/wght.css` rather than the bare package name: it takes the weight axis only,
+   without the italic and optical-size axes nothing here uses. The subsets it
+   declares — cyrillic, greek, vietnamese — cost nothing at runtime because
+   fontsource splits them by `unicode-range`, so a Persian user downloads the
+   Arabic and latin faces and never touches the rest. They are emitted into
+   dist as separate files; they are not fetched. */
 @import "./fonts.css";
+@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource-variable/syne/wght.css";
+@import "@fontsource-variable/geist-mono/wght.css";
+
+/* The design system's source of truth. Every --vg-* value lives here and
+   nowhere else; the @theme block below only maps this app's existing token
+   names onto it. */
+@import "./design-system/tokens.css";
+
+/* The component layer — .vg-btn, .vg-card, .vg-nav, .vg-sheet and the rest.
+   It was copied in with the tokens and then never imported, so all fifty
+   classes sat in the repo doing nothing.
+   `layer(components)` is load-bearing: unlayered CSS outranks every Tailwind
+   utility, so without it `class="vg-btn px-8"` would silently lose its padding.
+   Inside the layer, utilities win — which is the whole point of having both. */
+@import "./design-system/components.css" layer(components);
 
 /* ============================================================
-   Vgen design system — Ember: screaming orange on warm near-black
-   Tech-dark futuristic. Flat accent (no glow), layered warm surfaces.
+   Vgen — the app's token names, mapped onto the design system.
+   Values live in design-system/tokens.css. Nothing below defines a
+   colour; it renames one so existing markup keeps working.
    ============================================================ */
-@theme {
-  /* surfaces — near-black, tinted warm toward the ember hue (never flat #000) */
-  --color-bg: #0a0908; /* deepest */
-  --color-surface: #0e0d0b; /* app canvas */
-  --color-card: #16130f; /* elevation 1 */
-  --color-card2: #1e1a14; /* elevation 2 */
-  --color-elev3: #292319; /* popover / sheet */
+/* `static` is load-bearing, not decoration. Tailwind v4 tree-shakes theme
+   variables it cannot see used in scanned source, and this system is referenced
+   from inline `style={{ … var(--color-ink-invert) }}` as often as from utility
+   classes. Without `static`, --color-ink-invert, --color-line-media,
+   --color-accent-wash, --radius-xs and --radius-pill emitted NOTHING — verified
+   in the browser — so a toggle knob or a tile edge would silently render with no
+   colour at all. A design system's tokens must always exist; this block is ~35
+   hand-written variables, so emitting all of them costs nothing. */
+@theme static {
+  /* ── MAPPING LAYER ────────────────────────────────────────────────────────
+     Every value below is now a pointer into design-system/tokens.css. Nothing
+     here defines a colour; it renames one.
 
-  --color-line: rgba(255, 244, 230, 0.07);
-  --color-line2: rgba(255, 244, 230, 0.13);
+     Why an alias layer instead of a rewrite: the app has ~40 screens' worth of
+     `bg-card`, `text-ink2`, `border-line` already written, and rewriting all of
+     them in one pass is how you end up half-migrated with a hex and a token
+     both describing the same colour — which the design system's own handoff
+     calls out as worse than either alone. Pointing the old names at the new
+     values means the whole app adopts the system at once, and components move
+     to the `.vg-*` classes one at a time with the screen still shipping.
 
-  /* ink — warm whites, contrast pushed past AA */
-  --color-ink: #f8f5f1;
-  --color-ink2: #c4bcb1;
-  --color-ink3: #8a8175;
+     Delete an entry here when its last call site is converted.
+     ──────────────────────────────────────────────────────────────────────── */
 
-  /* accent — Ember Orange: flat, loud, spent only on moments that matter.
-     Text ON orange is near-black (white fails AA on this hue). */
-  --color-accent: #ff5c00;
-  --color-accent2: #f05400; /* pressed / filled */
-  --color-accent-soft: rgba(255, 92, 0, 0.14); /* tinted wash */
-  --color-on-accent: #170b02;
+  /* Surfaces. The new ladder is five steps on a true-black canvas; the old one
+     was five warm steps. Mapped by ROLE, not by lightness — the new system puts
+     cards at level 1 alongside content, where the old one had chrome there. */
+  --color-bg: var(--vg-canvas); /* #090909 — page canvas, OLED-true */
+  --color-surface: var(--vg-surface); /* #121212 — nav, sticky bars */
+  --color-card: var(--vg-surface); /* #121212 — feed cards, rows, tiles */
+  --color-card2: var(--vg-surface-raised); /* #191919 — things inside a card */
+  --color-raised: var(--vg-surface-overlay); /* #232323 — sheets, popovers */
+  --color-elev3: var(--color-raised); /* deprecated alias — CreateSheet uses bg-elev3 */
+
+  /* Borders are now the exception, not the default. Three legitimate cases:
+     line          — divider between rows of the SAME surface inside one card
+     line-media    — edge of a tile whose interior is an image (lightness unknown)
+     .hairline-t   — single top edge on chrome that floats over unknown content
+     Anything already one ladder step from its parent must NOT be outlined. */
+  --color-line: var(--vg-border-subtle); /* .05 white */
+  --color-line2: var(--vg-border); /* .10 white */
+  --color-line-media: var(--vg-border);
+
+  /* ink. The new scale is off-white rather than warm-white, and it separates
+     "body copy" from "caption" where the old one ran them together. */
+  --color-ink: var(--vg-text); /* #F5F3EF — headings, primary */
+  --color-ink2: var(--vg-text-secondary); /* #E5E2E1 — body copy */
+  /* was #8a8175 = 4.58:1 on the new card — technically AA but it carries 11px
+     nav labels and the ghost label, where it failed in practice. ink3 is legal
+     down to card2 and NEVER on `raised` (4.07:1 there) — use ink2 instead. */
+  --color-ink3: var(--vg-text-muted); /* #A8A29E — captions, metadata */
+  --color-ink-invert: var(--vg-canvas);
+
+  /* accent — the system's orange. Two changes worth knowing about:
+     · the hex moved from #FF5C00 to #E95F18, deeper and less saturated;
+     · text ON the fill is now WHITE, not near-black. The system pairs the
+       fill with #FFFFFF and reserves --vg-primary-soft (#FFB598) for orange
+       used AS text, where the fill colour fails contrast at body sizes.
+     The scarcity rule survives the move and gets stricter: two orange elements
+     on one screen means one of them is wrong. */
+  --color-accent: var(--vg-primary); /* #E95F18 */
+  --color-accent2: var(--vg-primary-press); /* #C94E10 — pressed */
+  --color-accent-tint: var(--vg-primary-a20);
+  --color-accent-wash: var(--vg-primary-a10);
+  --color-accent-soft: var(--color-accent-tint); /* deprecated alias */
+  --color-on-accent: var(--vg-text-on-primary); /* #FFFFFF */
+
+  /* Blue is new to this app and has no old name to map. It is the counterweight
+     the system is built around — orange means "act", blue means "know" — and it
+     is what keeps orange findable. Model badges, links, info, background tasks. */
+  --color-info: var(--vg-accent); /* #9DCAFF — blue as text/icon */
+  --color-info-fill: var(--vg-accent-strong); /* #1995F1 — blue as a fill */
+  --color-on-info: var(--vg-accent-deep); /* #002440 — text on that fill */
 
   /* semantic */
-  --color-success: #2ee6b6;
-  --color-danger: #ff6b6b;
+  --color-success: var(--vg-success);
+  --color-danger: var(--vg-danger);
 
-  --font-sans: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", "Vazirmatn", ui-sans-serif, sans-serif;
+  /* Type. --vg-font-ui flips to Vazirmatn under [dir="rtl"], so one token
+     serves both languages. Syne is the display face and has NO Arabic
+     coverage — see the note under html[lang] below. */
+  --font-sans: var(--vg-font-ui);
+  --font-display: var(--vg-font-display);
+  --font-mono: var(--vg-font-mono);
 
-  --radius-md: 0.875rem;
-  --radius-card: 1.25rem;
-  --radius-bezel: 1.75rem;
+  /* FIVE radii, nothing else. Nesting rule: inner = outer minus the padding
+     between them (a 20px card with 8px padding gives its child 12px). Never
+     nest equal radii — concentric mismatch is the "slightly off" feeling. */
+  --radius-xs: var(--vg-radius); /* 8px  — badges, small chips */
+  --radius-md: var(--vg-radius-md); /* 12px — inputs, small cards */
+  --radius-card: var(--vg-radius-lg); /* 16px — cards, buttons, nav (was 20px) */
+  --radius-bezel: var(--vg-radius-xl); /* 24px — bottom sheets (was 28px) */
+  --radius-pill: var(--vg-radius-full);
 
+  /* The system expresses depth as surface lightness and reserves shadow for
+     things that genuinely float — sheets and modals. These three survive only
+     because existing call sites reference them; prefer moving a component up a
+     ladder step over reaching for one of these. */
   --shadow-soft: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
-  --shadow-pop: 0 20px 50px -18px rgba(0, 0, 0, 0.6);
-  --shadow-accent: 0 14px 36px -16px rgba(255, 92, 0, 0.45);
+  --shadow-pop: var(--vg-shadow-modal);
+  --shadow-lift: var(--vg-shadow-sheet);
+  /* was 0 14px 36px -16px rgba(255,92,0,0.45) — an orange glow spilling onto
+     neighbouring surfaces under btn-accent, the FAB, the prompt-bar arrow and
+     Profile's CTA. Four uncounted sources of ambient orange, and a coloured
+     shadow none of the three references use — contradicting this file's own
+     "flat accent (no glow)" header. Aliased so all four sites change at once. */
+  /* The system DOES want a glow on the primary CTA — outer bloom plus a 1px
+     inner top highlight, so the button reads as a lit physical surface. That is
+     the opposite of the old "flat accent, no glow" rule, and it is deliberate:
+     this is a cinematic dark-room language, not a flat one. */
+  --shadow-accent: var(--vg-glow-primary);
 
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: var(--vg-ease-out);
+  --ease: var(--vg-ease);
 }
 
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  /* Real bottom-nav height. `pb-28` was a 112px guess that collapses to nothing
+     on a phone with a 34px gesture inset. */
+  --nav-h: calc(64px + max(14px, env(safe-area-inset-bottom)));
+}
 
-/* English mode: Space Grotesk leads, Vazirmatn stays as fallback for any fa text */
-html[lang="en"] { --font-sans: "Space Grotesk", "Vazirmatn", ui-sans-serif, system-ui, sans-serif; }
-* { box-sizing: border-box; }
-html, body, #root { height: 100%; }
+/* Language no longer needs a rule here. tokens.css flips --vg-font-ui from
+   Inter to Vazirmatn under [dir="rtl"] / :lang(fa), and --font-sans points at
+   that, so one token serves both scripts.
+
+   ⚠️ OPEN: Syne carries the display voice and has NO Arabic coverage, so every
+   Persian heading falls through to Vazirmatn. The chain works — Latin renders
+   Syne, Persian renders Vazirmatn — but it means the display *character* only
+   exists in English, on a Persian-first product. Either we find a Persian
+   display face, or Persian headings need their own treatment (heavier weight,
+   tighter measure) to carry the same presence. Not solved here. */
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
 
 body {
   margin: 0;
@@ -64,9 +189,19 @@ body {
   overflow-x: hidden;
 }
 
-button { font-family: inherit; cursor: pointer; }
-img, video { display: block; max-width: 100%; }
-textarea, input { font-family: inherit; }
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+img,
+video {
+  display: block;
+  max-width: 100%;
+}
+textarea,
+input {
+  font-family: inherit;
+}
 
 /* Keyboard-only focus ring — invisible to pointer/touch, clear for a11y.
    Applies app-wide so every interactive control is reachable by keyboard. */
@@ -76,23 +211,163 @@ textarea, input { font-family: inherit; }
   border-radius: var(--radius-md);
 }
 
-.ltr { direction: ltr; text-align: left; }
-.font-display { font-family: var(--font-display); }
+.ltr {
+  direction: ltr;
+  text-align: left;
+}
+.font-display {
+  font-family: var(--font-display);
+}
 
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
-/* ---- typography system (apply, don't hardcode) --------------- */
-.t-display { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.9rem, 7vw, 2.15rem); line-height: 1.06; letter-spacing: -0.02em; }
-.t-h1 { font-weight: 600; font-size: 1.4rem; line-height: 1.2; letter-spacing: -0.01em; }
-.t-h2 { font-weight: 600; font-size: 1.15rem; line-height: 1.25; letter-spacing: -0.01em; }
-.t-title { font-weight: 600; font-size: 1.02rem; line-height: 1.3; }
-.t-body { font-weight: 400; font-size: 0.9375rem; line-height: 1.6; }
-.t-caption { font-weight: 400; font-size: 0.8125rem; line-height: 1.45; }
-.t-label { font-family: var(--font-display); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.04em; }
+/* ---- typography system (apply, don't hardcode) ---------------
+   THE LADDER: 30 / 22 / 17 / 15 / 13 / 11 — six sizes, minimum 2px apart, and
+   11px is LATIN-ONLY. Three weights: 700 / 600 / 400 (no 500 — delete every
+   font-medium). Nothing else. The app previously rendered five sizes crammed
+   between 11px and 13px, which the eye cannot separate; it reads as sloppiness
+   rather than hierarchy. Hierarchy comes from WEIGHT, never from 1px.
+
+   These live in @layer components deliberately. Unlayered they outranked every
+   Tailwind utility, so `t-title font-bold` silently did nothing. */
+@layer components {
+  .t-display {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.875rem;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+  }
+  .t-h1 {
+    font-weight: 700;
+    font-size: 1.375rem;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+  }
+  /* the section header — carries the presence higgsfield buys with uppercase
+     Space Grotesk. 700 ONLY: 600 belongs to .t-title, so a section header and a
+     card title can never be confused despite being 2px apart. The margins live
+     on .section-head, not here — .t-h2 has live call sites that would silently
+     gain 32px. */
+  .t-h2 {
+    font-weight: 700;
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    letter-spacing: -0.015em;
+  }
+  .t-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+  }
+  .t-body {
+    font-weight: 400;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+  .t-caption {
+    font-weight: 400;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+  }
+
+  /* The Latin ghost label — the app's typographic signature, and Persian's
+     answer to "how does a section header get presence when the script has no
+     uppercase". LATIN-ONLY BY CONTRACT: every call site passes lang="en", so
+     there is deliberately no :lang(fa) guard — html is lang="fa" by default and
+     a guard would strip the uppercase and tracking from 100% of instances.
+     Full-strength ink3: Home applied opacity-70 on top of an already-dim token,
+     which is what made it read as an afterthought instead of a device. */
+  .t-ghost {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink3);
+  }
+  .t-label {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  } /* deprecated — migrate to .t-ghost */
+
+  /* Numerics split by script. Vazirmatn's Arabic-Indic digits are ALREADY
+     fixed-width, and tabular-nums shifts them; Space Grotesk has no Persian
+     digit coverage at all, so it must never wrap n() output in fa. */
+  .t-num {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+    direction: ltr;
+  }
+  .t-num-fa {
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+
+  /* Persian guards, subject-scoped. Negative tracking pulls Vazirmatn's
+     connecting strokes into each other and renders as broken kerning on Android
+     WebView; the extra leading is because Vazirmatn's descenders and bowls look
+     visibly cramped at Latin line-heights, which reads as low quality. */
+  .t-display:lang(fa) {
+    font-family: var(--font-sans);
+    letter-spacing: 0;
+  }
+  .t-h1:lang(fa),
+  .t-h2:lang(fa),
+  .t-title:lang(fa) {
+    letter-spacing: 0;
+  }
+  .t-body:lang(fa) {
+    line-height: 1.75;
+  }
+  .t-caption:lang(fa) {
+    line-height: 1.7;
+  }
+}
 
 /* ---- primitives --------------------------------------------- */
-.hairline-t { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+.hairline-t {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.hairline-b {
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* The section rhythm. 32px above / 12px below is what a Persian header spends
+   instead of uppercase — it owns whitespace rather than colour or case. */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block: 32px 12px;
+}
+
+/* Expand a small control to a 44px hit area without growing its visual box. */
+.tap44 {
+  position: relative;
+}
+.tap44::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
 
 /* One media scrim for every image/video tile (was three near-identical
    inline gradients). Darkens the bottom so captions stay legible. */
@@ -105,25 +380,84 @@ textarea, input { font-family: inherit; }
 /* Top-lit tactile surface for primary tiles — subtle depth without a hard
    border, so the three create actions read as buttons, not flat cards. */
 .tile-raised {
-  background: linear-gradient(180deg, var(--color-card2), var(--color-card));
-  box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
+  background: linear-gradient(180deg, var(--color-raised), var(--color-card));
+  box-shadow:
+    var(--shadow-soft),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition:
+    transform 0.18s var(--ease-out),
+    box-shadow 0.18s var(--ease-out);
 }
-.tile-raised:active { transform: scale(0.97); }
+.tile-raised:active {
+  transform: scale(0.97);
+}
 
 .btn-accent {
-  background: var(--color-accent2);
+  /* The brighter primary, not the pressed shade. Dark ink on #C94E10 measures
+     3.8:1 and fails; on #E95F18 it measures 4.97:1. The press shade belongs in
+     :active, which is where it now lives. */
+  background: var(--color-accent);
   color: var(--color-on-accent);
   box-shadow: var(--shadow-accent);
-  transition: transform 0.18s var(--ease-out), filter 0.18s var(--ease-out);
+  transition:
+    transform 0.18s var(--ease-out),
+    filter 0.18s var(--ease-out);
 }
-.btn-accent:active { transform: scale(0.97); filter: brightness(1.05); }
+.btn-accent:active {
+  transform: scale(0.97);
+  background: var(--color-accent2);
+}
+/* a disabled accent button must not read as tappable — the "current plan"
+   button on the subscription screen is the first one to need this */
+.btn-accent:disabled {
+  background: var(--color-card2);
+  color: var(--color-ink3);
+  box-shadow: none;
+  cursor: default;
+}
+.btn-accent:disabled:active {
+  transform: none;
+  filter: none;
+}
+
+/* The secondary action, borrowed from the reference: an alpha wash of the SAME
+   accent with accent-coloured type, rather than a grey button. It costs
+   nothing, keeps a screen full of buttons coherent, and leaves the solid fill
+   free to mean "this is the one". */
+.btn-quiet {
+  background: var(--color-accent-soft);
+  /* primary-soft, not the accent itself: #E95F18 as type on a dark surface
+     fails AA at body sizes, which is the rule the token exists for. The fill
+     may be the accent; the letters may not. */
+  color: var(--vg-primary-soft);
+  transition:
+    transform 0.18s var(--ease-out),
+    filter 0.18s var(--ease-out);
+}
+.btn-quiet:active {
+  transform: scale(0.97);
+  filter: brightness(1.12);
+}
+.btn-quiet:disabled {
+  background: var(--color-card2);
+  color: var(--color-ink3);
+  cursor: default;
+}
 
 /* ---- motion helpers ----------------------------------------- */
-@keyframes vg-shimmer { 100% { transform: translateX(100%); } }
-.shimmer { position: relative; overflow: hidden; }
+@keyframes vg-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
 .shimmer::after {
-  content: ""; position: absolute; inset: 0;
+  content: "";
+  position: absolute;
+  inset: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
   transform: translateX(-100%);
   animation: vg-shimmer 1.5s infinite;
@@ -131,16 +465,345 @@ textarea, input { font-family: inherit; }
 
 /* range slider — accent thumb, kept LTR for predictable dragging */
 input[type="range"] {
-  -webkit-appearance: none; appearance: none; direction: ltr;
-  height: 4px; border-radius: 999px; background: var(--color-line2); outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  direction: ltr;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-line2);
+  outline: none;
 }
 input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 20px; height: 20px; border-radius: 999px;
-  background: #fff; cursor: pointer;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--color-accent-soft);
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  /* dropped the `0 0 0 4px var(--color-accent-soft)` halo — uncounted accent,
+     and Generate renders several sliders at once */
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+}
+
+/* The density slider on the output canvases. Thinner and quieter than the
+   generic range input above — it is chrome sitting next to the view toggle, not
+   a form control, so it gets a 3px track and a 12px thumb like theirs. */
+/* `input.vg-density`, not `.vg-density`: the generic `input[type="range"]` rule
+   above is (0,1,1) and forces `direction: ltr`, so a bare class at (0,1,0) loses
+   and the track stayed LTR while its bookend icons mirrored — the minimum ended
+   up under the *small* square. Matching specificity and coming later wins. */
+input.vg-density {
+  /* Deliberately NOT forced to ltr. That rule exists so dragging a value slider
+     is predictable; here the control is bookended by a large and a small square
+     and the minimum has to sit under the large one, so it must mirror. */
+  -webkit-appearance: none;
+  appearance: none;
+  direction: inherit;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--color-line2);
+  cursor: pointer;
+}
+/* `outline: none` only once there is something else to see.
+   The app-wide ring is `:where(…):focus-visible`, whose zero-specificity
+   `:where()` loses to this class — so killing the outline here without a
+   replacement left the control invisible to keyboard focus, which is exactly
+   the anti-pattern the ring exists to prevent. A 2px ring offset around a 3px
+   track also reads as a box round nothing; the thumb is the part that moves,
+   so the thumb is what lights up. Same trade `.vg-slider` already makes. */
+.vg-density:focus-visible {
+  outline: none;
+}
+.vg-density::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--vg-text-secondary);
+  cursor: pointer;
+  box-shadow: none;
+}
+.vg-density::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--vg-text-secondary);
+  cursor: pointer;
+}
+.vg-density:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--vg-glow-focus);
+  background: var(--vg-text);
+}
+.vg-density:focus-visible::-moz-range-thumb {
+  box-shadow: var(--vg-glow-focus);
+  background: var(--vg-text);
+}
+
+/* A horizontal scroller that admits it scrolls.
+   The opposite of `.hide-scrollbar`: for content where being able to see that
+   there is more is the whole point — a pricing comparison, say — the bar stays,
+   just slim and quiet enough not to sit on the design. */
+.vg-xscroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line2) transparent;
+}
+.vg-xscroll::-webkit-scrollbar {
+  height: 8px;
+}
+.vg-xscroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.vg-xscroll::-webkit-scrollbar-thumb {
+  background: var(--color-line2);
+  border-radius: 999px;
+  /* Inset via a transparent border so the thumb does not touch the table edge. */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.vg-xscroll::-webkit-scrollbar-thumb:hover {
+  background: var(--vg-border-strong);
+  background-clip: padding-box;
+}
+
+/* The fade over the edge that still has content behind it. Like the banner
+   fades below, a linear-gradient has no logical direction, so RTL needs its own
+   rule rather than inheriting a mirror. */
+.vg-xscroll-fade {
+  background: linear-gradient(to right, var(--color-bg), transparent);
+}
+[dir="rtl"] .vg-xscroll-fade {
+  background: linear-gradient(to left, var(--color-bg), transparent);
+}
+
+/* The same idea for a strip that cannot take an overlay — the nav row, where an
+   absolutely positioned gradient would have to match whatever the header is
+   painted with and would then have to be re-matched on every palette change.
+   `mask-image` cuts the element's own alpha instead, so it is correct over any
+   background and survives a re-theme untouched. Applied per-edge by the caller,
+   so the leading edge is not faded while sitting at the start of the row.
+
+   `mask` uses physical directions, hence the RTL pair. */
+.vg-fade-end {
+  mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 100%);
+}
+.vg-fade-start {
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 100%);
+}
+.vg-fade-start.vg-fade-end {
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+}
+[dir="rtl"] .vg-fade-end {
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 100%);
+}
+[dir="rtl"] .vg-fade-start {
+  mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 100%);
+}
+[dir="rtl"] .vg-fade-start.vg-fade-end {
+  mask-image: linear-gradient(to left, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+}
+
+/* Banner media fade. A linear-gradient along the inline axis has no logical
+   direction, so `dir="rtl"` will not mirror it — the flip has to be written. */
+.vg-banner-fade {
+  background: linear-gradient(to right, var(--vg-surface), transparent 55%);
+}
+[dir="rtl"] .vg-banner-fade {
+  background: linear-gradient(to left, var(--vg-surface), transparent 55%);
+}
+/* The mirrored banner puts its media on the other side, so its fade runs the
+   other way — and then flips again under RTL. */
+.vg-banner-fade-flip {
+  background: linear-gradient(to left, var(--vg-surface), transparent 55%);
+}
+[dir="rtl"] .vg-banner-fade-flip {
+  background: linear-gradient(to right, var(--vg-surface), transparent 55%);
+}
+
+/* Extends a small control's tap target to the 44px minimum without changing
+   what it paints. The chrome runs a 28px avatar and a 27px "change" pill —
+   correct visually against a 44px bar, and too small to hit on a phone. Applied
+   rather than resizing them, because the sizes are right and the hit area is
+   the thing that is wrong.
+
+   Scoped to coarse pointers so a mouse does not get invisible 44px boxes
+   overlapping neighbouring controls. */
+@media (pointer: coarse) {
+  .vg-tap {
+    position: relative;
+  }
+  .vg-tap::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+  }
+}
+
+/* A row that is meant to scroll sideways but must not show a bar doing it.
+   The nav lives inside a 44px chrome element, where a scrollbar reads as a
+   rendering fault rather than an affordance. Scrolling still works by wheel,
+   trackpad, touch and keyboard — only the bar is hidden. */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   DEEV motion + surface language.
+
+   One easing curve for the whole product. A landing page whose nav, buttons and
+   cards each ease differently reads as several sites stitched together; the
+   consistency is what makes motion feel like a material rather than an effect.
+   --------------------------------------------------------------------------- */
+.vg-ease {
+  transition-property: transform, background-color, color, border-color, opacity, box-shadow;
+  transition-duration: 420ms;
+  /* Heavy out, no bounce — mass without cartoon. */
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The double bezel: a plate sitting in a tray, not a card lying on a page.
+   The inner radius is the outer minus the padding, which is what makes the two
+   curves concentric — mismatch it and the corner reads as a mistake even when
+   nobody can say why. */
+.vg-bezel {
+  padding: 6px;
+  border-radius: 1.75rem;
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid var(--vg-border-subtle);
+}
+.vg-bezel > * {
+  border-radius: calc(1.75rem - 6px);
+  overflow: hidden;
+}
+
+/* The vein.
+   Taken from the mascot rather than invented: black stone with light running
+   through the cracks. A hairline that is mostly invisible and glows only where
+   it passes the middle, so an edge reads as lit rather than drawn. Used on
+   section seams — never as a border round everything, which would turn a
+   signature into wallpaper. */
+.vg-vein {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(to right, transparent, rgb(var(--vg-primary-rgb) / 0.55) 50%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   Cinematic surface.
+
+   What makes a frame read as a shot rather than a section is not the content —
+   it is that a shot has ONE light source, falls off into darkness at the edges,
+   and sits on film rather than on glass. Three layers do all of it, and all
+   three are pure paint: no layout, no reflow, nothing that can jank a scroll.
+   --------------------------------------------------------------------------- */
+
+/* The key light. An ellipse rather than a circle because a wide frame lit by a
+   circle looks like a spotlight on a stage; an ellipse looks like depth. */
+.vg-bloom {
+  background:
+    radial-gradient(60% 45% at 50% 42%, rgb(var(--vg-primary-rgb) / 0.16), transparent 70%),
+    radial-gradient(45% 35% at 50% 38%, rgb(255 255 255 / 0.05), transparent 70%);
+}
+
+/* Falloff. The corners go to the canvas colour, not to black — on an OLED-true
+   canvas those are the same, but the moment anyone lightens the page this stays
+   correct instead of ringing the frame in a darker box. */
+.vg-vignette {
+  background: radial-gradient(75% 65% at 50% 45%, transparent 40%, var(--vg-canvas) 100%);
+}
+
+/* Film grain. Fixed and pointer-events-none, per the performance rule: attached
+   to a scrolling container it repaints every frame and costs more than the
+   whole rest of the page. */
+.vg-grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* The subject's own light — the mascot's veins bleeding into the air around it.
+   Sits behind the figure, never on it, so a PNG with a clean alpha edge still
+   reads as lit from within rather than cut out and pasted. */
+.vg-subject-glow {
+  background: radial-gradient(50% 40% at 50% 55%, rgb(var(--vg-primary-rgb) / 0.28), transparent 72%);
+  filter: blur(28px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The parallax is the one thing here that moves. Grain and glow are static
+     paint and can stay — removing them would change the design, not the motion. */
+  .vg-parallax {
+    transform: none !important;
+  }
+}
+
+/* Local light.
+   The hero establishes that this is a lit space. If everything below it is
+   uniformly grey the shot becomes a hat on a spreadsheet — the eye reads the
+   page as two different products stacked. So each section carries its own soft
+   key, off-centre and alternating side, and scrolling reads as moving through
+   a room rather than down a document.
+
+   Off-centre matters. A glow centred behind a centred heading is a spotlight
+   pointing at the text and reads as decoration; offset to one side it reads as
+   light coming from somewhere, which is the whole difference.
+
+   It is one radial on a pseudo-element, not a filter or a blur — this paints
+   in the same pass as the background and costs nothing on scroll. */
+.vg-lit {
+  position: relative;
+  isolation: isolate;
+}
+.vg-lit::before {
+  content: "";
+  position: absolute;
+  inset-block: -8%;
+  inset-inline-start: var(--vg-lit-x, -10%);
+  inline-size: 70%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    50% 42% at 50% 50%,
+    rgb(var(--vg-primary-rgb) / 0.07) 0%,
+    rgb(var(--vg-primary-rgb) / 0.025) 42%,
+    transparent 72%
+  );
+}
+.vg-lit-end::before {
+  inset-inline-start: auto;
+  inset-inline-end: -10%;
+}
+
+/* Chapter index.
+   Set in the Latin face and lining figures on purpose: this is a mark on the
+   page, like a slate, not a number the reader is meant to add up. Persian
+   digits here would read as content. */
+.vg-chapter {
+  font-family: var(--vg-font-latin);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.28em;
 }

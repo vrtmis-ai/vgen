@@ -1,12 +1,17 @@
+"use client";
 /* Lightweight i18n — no library, one dictionary, direction-aware.
    fa = RTL + Vazirmatn (default) · en = LTR + Space Grotesk.
-   Persisted in localStorage; <html lang/dir> kept in sync so CSS and the
-   swipe-back gesture mirror automatically. */
+
+   Persisted in a COOKIE, not localStorage. The server renders <html lang dir>
+   on the first byte, and localStorage does not exist there — reading it in an
+   effect meant every Persian visitor got one frame of LTR before hydration
+   corrected it, and Next flags the mismatch. A cookie is the only client
+   preference the server can see while rendering. See app/layout.tsx. */
 import { createContext, useContext, useEffect, useState } from "react";
 import { faNum } from "./format";
+import { dirFor, LANG_COOKIE, LANG_COOKIE_MAX_AGE_SECONDS, type Lang } from "./lang";
 
-export type Lang = "fa" | "en";
-const STORE_KEY = "vgen-lang";
+export type { Lang };
 
 const dict = {
   fa: {
@@ -24,6 +29,69 @@ const dict = {
     home_shortcuts: "میانبرهای تو",
     home_trending: "ترندها",
     home_foryou: "برای تو",
+    home_greeting: "سلام، خوش آمدی",
+    home_hero_title: "آینده‌ی تولید ویدیو",
+    home_hero_sub: "ایده‌هایت را با هوش مصنوعی به تصویر و ویدیوی سینمایی تبدیل کن.",
+    home_recent: "تولیدات اخیر",
+    home_popular: "مدل‌های محبوب",
+    home_more_all: "مشاهده همه",
+    home_price_from: "از",
+    home_price_na: "قیمت متغیر",
+    // landing (logged out)
+    lp_login: "ورود",
+    lp_signup: "شروع رایگان",
+    lp_hero_title: "ایده‌هایت را به واقعیتِ سینمایی تبدیل کن",
+    lp_hero_sub: "بهترین مدل‌های تصویر و ویدیوی دنیا، یک‌جا و به فارسی. بنویس چه می‌خواهی، بقیه‌اش با ما.",
+    lp_cta_start: "شروع کن",
+    lp_gift_note: "{n} سکه هدیه، بدون نیاز به کارت",
+    lp_models_title: "یک پلتفرم، تمام مدل‌ها",
+    lp_models_sub: "به‌جای اشتراک جدا برای هرکدام، با یک حساب به همه‌شان دسترسی داری و فقط بابت چیزی که می‌سازی پول می‌دهی.",
+    lp_features_title: "برای خالقانِ فردا",
+    lp_f1: "بدون فیلترشکن",
+    lp_f1_d: "همه‌چیز از داخل ایران کار می‌کند و با تومان پرداخت می‌کنی. نه کارت خارجی لازم است، نه دردسر.",
+    lp_f2: "قیمت قبل از ساخت",
+    lp_f2_d: "هزینه‌ی هر خروجی را پیش از زدن دکمه می‌بینی. اگر ترکیبی قابل قیمت‌گذاری نباشد، فروخته نمی‌شود.",
+    lp_f3: "کارت تو، مال توست",
+    lp_f3_d: "هیچ خروجی‌ای بدون اجازه‌ات عمومی نمی‌شود. انتشار در کامیونیتی کاملاً دست خودت است.",
+    lp_plans_title: "پلن‌های اشتراک",
+    lp_monthly: "ماهانه",
+    lp_annual: "سالانه",
+    lp_coins_month: "سکه در ماه",
+    lp_toman_month: "تومان / ماه",
+    lp_off: "کمتر",
+    lp_monthly_only: "فقط ماهانه",
+    lp_plans_note: "پلن‌ها تمدید خودکار ندارند. هر خرید {n} روز اعتبار دارد و تمام.",
+    lp_faq_title: "سؤال‌های پرتکرار",
+    lp_faq1_q: "سکه چیست و چطور خرج می‌شود؟",
+    lp_faq1_a:
+      "سکه واحد پرداخت داخل اپ است. هر ساخت بسته به مدل و تنظیماتش تعداد مشخصی سکه می‌برد و آن عدد را قبل از ساخت روی دکمه می‌بینی.",
+    lp_faq2_q: "سکه‌های استفاده‌نشده چه می‌شوند؟",
+    lp_faq2_a: "سکه‌های هر ماه آخر همان ماه منقضی می‌شوند و به ماه بعد منتقل نمی‌شوند. تاریخ انقضای هر بسته در کیف پولت نوشته شده.",
+    lp_faq3_q: "پرداخت چطور است؟",
+    lp_faq3_a: "با کارت بانکی ایرانی و از طریق درگاه، به تومان. نیازی به کارت یا حساب خارجی نیست.",
+    lp_faq4_q: "خروجی‌ها مال چه کسی است؟",
+    lp_faq4_a: "مال خودت. تا وقتی خودت منتشرشان نکنی خصوصی می‌مانند، و موقع انتشار دقیقاً گفته می‌شود چه چیزی عمومی خواهد شد.",
+    lp_closing_title: "همین حالا شروع کن",
+    lp_google: "ادامه با گوگل",
+    lp_phone: "ادامه با شماره موبایل",
+    lp_email: "ادامه با ایمیل",
+    lp_no_password: "بدون رمز عبور. فقط یک بار تأیید و تمام.",
+    lp_footer: "ساخته‌شده برای فارسی‌زبان‌ها",
+    auth_title: "ورود به DEEV",
+    auth_email_hint: "ایمیلت را وارد کن؛ یک کد یک‌بارمصرف برایت می‌فرستیم.",
+    auth_email_label: "ایمیل",
+    auth_send_code: "ارسال کد ورود",
+    auth_sending: "در حال ارسال…",
+    auth_code_title: "کد ورود را وارد کن",
+    auth_code_sent: "کد ۶ رقمی به ایمیل شما ارسال شد.",
+    auth_code_label: "کد تأیید",
+    auth_verify: "تأیید و ورود",
+    auth_verifying: "در حال بررسی…",
+    auth_change_email: "تغییر ایمیل",
+    auth_close: "بستن",
+    auth_send_failed: "ارسال کد انجام نشد. کمی بعد دوباره تلاش کن.",
+    auth_verify_failed: "کد واردشده معتبر نیست یا منقضی شده است.",
+    p_logout: "خروج از حساب",
     home_more: "بیشتر",
     home_see_community: "دیدن همه در کامیونیتی",
     home_make: "بساز",
@@ -53,6 +121,7 @@ const dict = {
     w_est_img: "عکس",
     w_est_vid: "ویدیو ۵ ثانیه",
     w_est_or: "یا",
+    w_est_with: "با",
     w_about: "≈",
     w_access: "دسترسی به مدل‌ها",
     w_access_base: "مدل‌های پایه (اقتصادی)",
@@ -64,6 +133,28 @@ const dict = {
     w_tag_best: "بهترین ارزش",
     w_foot1: "پرداخت با کارت بانکی از طریق زرین‌پال (به‌زودی فعال می‌شود).",
     w_foot2: "سکه‌ها برای ساختِ تصویر و ویدیو با مدل‌ها خرج می‌شوند.",
+    // plans (subscription)
+    pl_title: "اشتراک",
+    pl_no_plan_title: "هنوز اشتراک نداری",
+    pl_no_plan_sub: "یک پلن بگیر تا هر ماه سکه بگیری و مدل‌های بیشتری باز شود",
+    pl_this_month: "سکه‌های این دوره",
+    pl_expires: "انقضا",
+    pl_current: "پلن فعلی تو",
+    pl_monthly: "ماهانه",
+    pl_monthly_only: "فقط ماهانه",
+    pl_annual: "سالانه",
+    pl_save: "کمتر",
+    pl_coins_month: "سکه در ماه",
+    pl_per_month: "در ماه",
+    pl_billed_annual: "۱۲ ماه یکجا · سکه‌ها ماه‌به‌ماه",
+    pl_today: "پرداخت امروز",
+    pl_buy_30: "خرید ۳۰ روزه",
+    pl_buy_12m: "خرید ۱۲ ماهه",
+    pl_switch: "تغییر به این پلن",
+    pl_entry_group: "پلن‌های ورودی",
+    pl_main_group: "پلن‌های اصلی",
+    pl_expiry_note: "سکه‌های هر دوره تا پایان همان دوره معتبرند و به دوره‌ی بعد منتقل نمی‌شوند.",
+    pl_no_autorenew: "تمدید خودکار ندارد. بعد از ۳۰ روز، اگر خواستی ادامه بدهی خودت دوباره خرید می‌کنی.",
     // profile
     p_title: "پروفایل",
     p_guest: "کاربرِ مهمان",
@@ -77,7 +168,7 @@ const dict = {
     p_lang: "زبان",
     p_support: "پشتیبانی",
     p_soon: "به‌زودی",
-    p_about: "درباره‌ی Vgen",
+    p_about: "درباره‌ی DEEV",
     // generate
     g_version: "نسخه‌ی مدل",
     g_versions: "نسخه",
@@ -88,7 +179,9 @@ const dict = {
     g_advanced: "تنظیمات پیشرفته",
     g_create: "ساخت",
     g_est_for: "سکه برای این تنظیمات",
+    auth_signed_out: "برای ساختن، اول وارد شو",
     g_no_rate: "این ترکیب تنظیمات پشتیبانی نمی‌شود",
+    g_clip_unreadable: "مدت این ویدیو خوانده نشد و قیمت از روی همان حساب می‌شود — با MP4 دوباره امتحان کن",
     g_need_input: "این مدل بدون تصویر ورودی کار نمی‌کند",
     g_need_also: "این را هم باید بدهی:",
     // result
@@ -133,6 +226,69 @@ const dict = {
     home_shortcuts: "Your shortcuts",
     home_trending: "Trending",
     home_foryou: "For you",
+    home_greeting: "Hey, welcome back",
+    home_hero_title: "The future of video generation",
+    home_hero_sub: "Turn your ideas into cinematic images and video with AI.",
+    home_recent: "Recent work",
+    home_popular: "Popular models",
+    home_more_all: "See all",
+    home_price_from: "from",
+    home_price_na: "Varies",
+    lp_login: "Log in",
+    lp_signup: "Start free",
+    lp_hero_title: "Turn your ideas into cinematic reality",
+    lp_hero_sub: "The world's best image and video models, in one place. Describe what you want — we handle the rest.",
+    lp_cta_start: "Get started",
+    lp_gift_note: "{n} free coins, no card needed",
+    lp_models_title: "One platform, every model",
+    lp_models_sub: "Instead of a separate subscription for each, one account reaches all of them and you pay only for what you make.",
+    lp_features_title: "For tomorrow's creators",
+    lp_f1: "No VPN needed",
+    lp_f1_d: "Everything works from inside Iran and you pay in Toman. No foreign card, no workarounds.",
+    lp_f2: "Priced before you commit",
+    lp_f2_d: "You see what an output costs before you press the button. If a combination cannot be priced, it is not sold.",
+    lp_f3: "Your work stays yours",
+    lp_f3_d: "Nothing becomes public without your say-so. Publishing to the community is entirely your call.",
+    lp_plans_title: "Plans",
+    lp_monthly: "Monthly",
+    lp_annual: "Yearly",
+    lp_coins_month: "coins per month",
+    lp_toman_month: "Toman / month",
+    lp_off: "off",
+    lp_monthly_only: "Monthly only",
+    lp_plans_note: "Plans do not auto-renew. Each purchase lasts {n} days, and that is it.",
+    lp_faq_title: "Common questions",
+    lp_faq1_q: "What is a coin, and how is it spent?",
+    lp_faq1_a:
+      "Coins are the in-app unit of payment. Each generation costs a set number depending on the model and its settings, and you see that number on the button before you create.",
+    lp_faq2_q: "What happens to unused coins?",
+    lp_faq2_a:
+      "Each month's coins expire at the end of that month and do not roll over. Every grant's expiry date is shown in your wallet.",
+    lp_faq3_q: "How does payment work?",
+    lp_faq3_a: "With an Iranian bank card through the gateway, in Toman. No foreign card or account required.",
+    lp_faq4_q: "Who owns the output?",
+    lp_faq4_a: "You do. It stays private until you publish it, and when you do, you are told exactly what becomes public.",
+    lp_closing_title: "Start creating today",
+    lp_google: "Continue with Google",
+    lp_phone: "Continue with phone",
+    lp_email: "Continue with email",
+    lp_no_password: "No password. One verification and you are in.",
+    lp_footer: "Built for Persian speakers",
+    auth_title: "Sign in to DEEV",
+    auth_email_hint: "Enter your email and we'll send you a one-time code.",
+    auth_email_label: "Email",
+    auth_send_code: "Send sign-in code",
+    auth_sending: "Sending…",
+    auth_code_title: "Enter your sign-in code",
+    auth_code_sent: "A 6-digit code was sent to your email.",
+    auth_code_label: "Verification code",
+    auth_verify: "Verify and sign in",
+    auth_verifying: "Verifying…",
+    auth_change_email: "Change email",
+    auth_close: "Close",
+    auth_send_failed: "We couldn't send the code. Try again shortly.",
+    auth_verify_failed: "That code is invalid or has expired.",
+    p_logout: "Sign out",
     home_more: "More",
     home_see_community: "See all in Community",
     home_make: "Create",
@@ -160,6 +316,7 @@ const dict = {
     w_est_img: "images",
     w_est_vid: "5s videos",
     w_est_or: "or",
+    w_est_with: "with",
     w_about: "≈",
     w_access: "Model access",
     w_access_base: "Base (economy) models",
@@ -171,6 +328,27 @@ const dict = {
     w_tag_best: "Best value",
     w_foot1: "Pay by bank card via ZarinPal (coming soon).",
     w_foot2: "Coins are spent on generating images and videos.",
+    pl_title: "Subscription",
+    pl_no_plan_title: "No subscription yet",
+    pl_no_plan_sub: "Pick a plan to get coins every month and unlock more models",
+    pl_this_month: "Coins this period",
+    pl_expires: "Expires",
+    pl_current: "Your current plan",
+    pl_monthly: "Monthly",
+    pl_monthly_only: "Monthly only",
+    pl_annual: "Yearly",
+    pl_save: "less",
+    pl_coins_month: "coins / month",
+    pl_per_month: "per month",
+    pl_billed_annual: "12 months upfront · coins arrive month by month",
+    pl_today: "Charged today",
+    pl_buy_30: "Buy 30 days",
+    pl_buy_12m: "Buy 12 months",
+    pl_switch: "Switch to this plan",
+    pl_entry_group: "Entry plans",
+    pl_main_group: "Main plans",
+    pl_expiry_note: "Each period's coins are valid until the end of that period and do not roll over.",
+    pl_no_autorenew: "No auto-renewal. After 30 days you buy again yourself if you want to continue.",
     p_title: "Profile",
     p_guest: "Guest user",
     p_made: "Created",
@@ -183,7 +361,7 @@ const dict = {
     p_lang: "Language",
     p_support: "Support",
     p_soon: "Soon",
-    p_about: "About Vgen",
+    p_about: "About DEEV",
     g_version: "Model version",
     g_versions: "versions",
     g_inputs: "Input images",
@@ -193,7 +371,9 @@ const dict = {
     g_advanced: "Advanced settings",
     g_create: "Create",
     g_est_for: "coins for these settings",
+    auth_signed_out: "Sign in to start creating",
     g_no_rate: "This combination of settings isn't supported",
+    g_clip_unreadable: "Couldn't read this video's length, and the price is based on it — try an MP4",
     g_need_input: "This model can't run without an input image",
     g_need_also: "You also need to provide:",
     r_result: "Result",
@@ -239,24 +419,21 @@ const Ctx = createContext<I18n>({
   n: (v) => faNum(v.toLocaleString("en-US")),
 });
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Lang>(() => {
-    try {
-      const saved = localStorage.getItem(STORE_KEY);
-      return saved === "en" ? "en" : "fa";
-    } catch {
-      return "fa";
-    }
-  });
+export function LanguageProvider({ initialLang = "fa", children }: { initialLang?: Lang; children: React.ReactNode }) {
+  // Seeded from the cookie the server already read, so the first client render
+  // agrees with the server's markup. Never re-read here.
+  const [lang, setLang] = useState<Lang>(initialLang);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORE_KEY, lang);
+      document.cookie = `${LANG_COOKIE}=${lang};path=/;max-age=${LANG_COOKIE_MAX_AGE_SECONDS};samesite=lax`;
     } catch {
-      // storage blocked — language just won't persist
+      // cookies blocked — language just won't persist
     }
+    // The server already set both for the initial language. Keeping this write
+    // is what makes a mid-session switch flip direction without a reload.
     document.documentElement.lang = lang;
-    document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+    document.documentElement.dir = dirFor(lang);
   }, [lang]);
 
   const t = (k: TKey) => dict[lang][k] ?? dict.fa[k];

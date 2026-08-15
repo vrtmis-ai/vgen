@@ -36,6 +36,30 @@ function norm(s: string): string {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Rows we are willing to price from.
+ *
+ * The network path already drops anything without a description or a finite
+ * price. The cache path did not — it cast whatever `JSON.parse` returned and
+ * trusted it. That matters because the cache lives in localStorage, which the
+ * user can edit and which survives every schema change we ever make: one row
+ * with a string `credits` produces `NaN` out of `findRate`, and `NaN` passes the
+ * `price != null` test the create button gates on. The result is an enabled
+ * button quoting `NaN` coins. Same gate on both paths.
+ */
+function sane(rows: unknown): KieRate[] {
+  if (!Array.isArray(rows)) return [];
+  const out: KieRate[] = [];
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    const { desc, credits, unit } = r as Record<string, unknown>;
+    if (typeof desc !== "string" || !desc.trim()) continue;
+    if (typeof credits !== "number" || !Number.isFinite(credits)) continue;
+    out.push({ desc: norm(desc), credits, unit: typeof unit === "string" ? unit : "" });
+  }
+  return out;
+}
+
 interface PageResult {
   rows: KieRate[];
   total: number;
@@ -93,10 +117,16 @@ export function startKieRates(): void {
   started = true;
   let stale = true;
   try {
-    const c = JSON.parse(localStorage.getItem(CACHE_KEY) ?? "null") as { t: number; rows: KieRate[] } | null;
-    if (c?.rows?.length) {
-      rows = c.rows;
-      stale = Date.now() - c.t > TTL_MS;
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY) ?? "null") as { t?: unknown; rows?: unknown } | null;
+    const cached = sane(c?.rows);
+    if (cached.length) {
+      rows = cached;
+      // A timestamp in the future — a device clock change, or a hand-edited
+      // entry — would leave the cache looking permanently fresh and pin the
+      // whole session to it, which is the failure the fetch retry was added to
+      // close, reached through the other door. Treat the future as "just now".
+      const t = typeof c?.t === "number" && Number.isFinite(c.t) ? Math.min(c.t, Date.now()) : 0;
+      stale = Date.now() - t > TTL_MS;
       notify();
     }
   } catch {

@@ -1,0 +1,22 @@
+{
+  "name": "@vgen/worker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@vgen/adapters": "workspace:*",
+    "@vgen/contracts": "workspace:*",
+    "@vgen/core": "workspace:*",
+    "@vgen/db": "workspace:*",
+    "bullmq": "^5.60.0",
+    "dotenv": "^17.4.2",
+    "postgres": "^3.4.9"
+  }
+}

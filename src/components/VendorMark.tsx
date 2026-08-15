@@ -17,10 +17,16 @@ const VENDORS: Record<string, { m: string; c: string }> = {
 export function VendorMark({ vendor, size = 22 }: { vendor: string; size?: number }) {
   const v = VENDORS[vendor] ?? { m: vendor.slice(0, 1).toUpperCase(), c: "#71717A" };
   return (
+    /* aria-hidden, not aria-label: this is a logotype standing in for a brand
+       mark, and every place it appears the vendor or model name is already in
+       the adjacent text. Announcing "B" — or "ByteDance" a second time — is
+       noise. WCAG exempts logotypes from the contrast minimum for the same
+       reason the letter is not really text.
+       `font-semibold` at 46% of the mark keeps the glyph legible at 15px. */
     <span
+      aria-hidden
       className="grid shrink-0 place-items-center rounded-full font-semibold text-white ring-1 ring-white/20"
       style={{ width: size, height: size, background: v.c, fontSize: Math.round(size * 0.46) }}
-      aria-label={vendor}
     >
       {v.m}
     </span>

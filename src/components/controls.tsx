@@ -138,10 +138,7 @@ function ToggleRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <button
-      onClick={() => onChange(!value)}
-      className="flex w-full items-center justify-between active:scale-[0.99]"
-    >
+    <button onClick={() => onChange(!value)} className="flex w-full items-center justify-between active:scale-[0.99]">
       <span className="text-[13px] text-ink">{control.label}</span>
       <span className={`relative h-[26px] w-[44px] rounded-full transition-colors ${value ? "bg-accent" : "bg-card2"}`}>
         <span
@@ -181,7 +178,10 @@ export function ControlField({
   onChange,
 }: {
   control: Control;
-  value: InputValue;
+  /** Undefined when the key is missing from the input map — the pickers already
+   *  fall back to `control.def`, and saying so keeps the lookup honest now that
+   *  index access is checked. */
+  value: InputValue | undefined;
   onChange: (key: string, v: InputValue) => void;
 }) {
   switch (control.kind) {
@@ -191,11 +191,7 @@ export function ControlField({
       return <Segmented control={control} value={String(value)} onChange={(v) => onChange(control.key, v)} />;
     case "slider":
       return (
-        <SliderControl
-          control={control}
-          value={Number(value)}
-          onChange={(v) => onChange(control.key, control.asString ? String(v) : v)}
-        />
+        <SliderControl control={control} value={Number(value)} onChange={(v) => onChange(control.key, control.asString ? String(v) : v)} />
       );
     case "toggle":
       return <ToggleRow control={control} value={Boolean(value)} onChange={(v) => onChange(control.key, v)} />;
@@ -283,8 +279,10 @@ export interface RefFile {
   /** object URL for the preview only; revoked as soon as the file is dropped */
   url: string;
   /** Seconds, for video and audio. Motion Control is billed per second of the
-   *  supplied clip, so its price cannot be quoted until this is known. */
-  duration?: number;
+   *  supplied clip, so its price cannot be quoted until this is known.
+   *  Explicitly `| undefined`: readDuration returns undefined for a file whose
+   *  metadata will not decode, and that is a different state from "not a clip". */
+  duration?: number | undefined;
 }
 
 /** Picked input files, keyed by RefSlot.key (the field name KIE expects). */
@@ -296,14 +294,36 @@ const ACCEPT: Record<SlotMedia, string> = {
   audio: "audio/mpeg,audio/wav",
 };
 
-/** Read a clip's length without playing it. Resolves undefined if unreadable. */
-function readDuration(file: File, url: string, media: SlotMedia): Promise<number | undefined> {
+/** How long to wait for metadata before giving up on a clip's length. */
+const DURATION_TIMEOUT_MS = 4_000;
+
+/**
+ * Read a clip's length without playing it. Resolves undefined if unreadable.
+ *
+ * The timeout is load-bearing, not defensive. `video/x-matroska` and
+ * `video/quicktime` are both in ACCEPT above and a browser that cannot decode
+ * either may fire neither `loadedmetadata` nor `error` — leaving the promise
+ * pending, `pick()` awaiting it, and the file the user chose never appearing at
+ * all. Callers treat undefined as "unknown", which for a per-second model means
+ * refusing to quote rather than guessing.
+ */
+function readDuration(url: string, media: SlotMedia): Promise<number | undefined> {
   if (media === "image") return Promise.resolve(undefined);
   return new Promise((resolve) => {
     const el = document.createElement(media === "video" ? "video" : "audio");
+    let settled = false;
+    const done = (d?: number) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      // Stop the probe fetching; the object URL itself stays valid for the preview.
+      el.removeAttribute("src");
+      resolve(d);
+    };
+    const timer = setTimeout(() => done(undefined), DURATION_TIMEOUT_MS);
     el.preload = "metadata";
-    el.onloadedmetadata = () => resolve(Number.isFinite(el.duration) ? el.duration : undefined);
-    el.onerror = () => resolve(undefined);
+    el.onloadedmetadata = () => done(Number.isFinite(el.duration) ? el.duration : undefined);
+    el.onerror = () => done(undefined);
     el.src = url;
   });
 }
@@ -336,7 +356,7 @@ export function RefUpload({ slot, images, onChange }: { slot: RefSlot; images: R
         continue;
       }
       const url = URL.createObjectURL(f);
-      next.push({ file: f, url, duration: await readDuration(f, url, media) });
+      next.push({ file: f, url, duration: await readDuration(url, media) });
     }
     setRejected(tooBig);
     onChange(next);

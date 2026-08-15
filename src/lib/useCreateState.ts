@@ -1,0 +1,172 @@
+import { useEffect, useMemo, useState } from "react";
+import { defaultInput, variantControls, type Control, type Family, type Variant } from "../data/models";
+import { useAccess } from "./access";
+import type { InputMap } from "../components/controls";
+import { priceCoins } from "../data/pricing";
+import { validateGenerationInput } from "../features/generation/validation";
+import { useIsMutating } from "@tanstack/react-query";
+import { CREATE_GENERATION_MUTATION_KEY } from "../features/generation/useGeneration";
+
+/* The state every create surface needs, and nothing else.
+   The three studios look nothing alike — a side panel, a floating glass bar, a
+   dock over a waveform grid — but all three hold the same four things and price
+   them the same way. Only the arrangement differs, so only the arrangement is
+   written three times. */
+
+/** Controls a compact surface can render inline. `text` and `voice` need more
+ *  room than a chip; `voice` gets its own affordance on the audio studio. */
+export type ChipControl = Extract<Control, { kind: "aspect" | "segment" | "toggle" | "slider" }>;
+
+export function chipControls(controls: Control[]): ChipControl[] {
+  return controls.filter(
+    (c): c is ChipControl =>
+      !("advanced" in c && c.advanced) && (c.kind === "aspect" || c.kind === "segment" || c.kind === "toggle" || c.kind === "slider"),
+  );
+}
+
+export function valueLabel(c: ChipControl, input: InputMap): string {
+  const v = input[c.key];
+  if (c.kind === "toggle") return v ? "روشن" : "خاموش";
+  if (c.kind === "slider") return `${v}${c.unit ? ` ${c.unit}` : ""}`;
+  return c.options.find((o) => o.value === String(v))?.label ?? String(v ?? c.def);
+}
+
+/** A slider rendered as a menu. Fine steps produce a scroll rather than a menu,
+ *  so anything over eight stops is thinned to eight.
+ *
+ *  Only for surfaces that cannot show a real slider. Where one fits, use
+ *  `rangeOf` instead — thinning a 4-to-15-second range down to eight stops
+ *  quietly removes seconds the model will happily accept. */
+export function sliderSteps(c: Extract<Control, { kind: "slider" }>): number[] {
+  const out: number[] = [];
+  for (let v = c.min; v <= c.max + 1e-9; v += c.step) out.push(Number(v.toFixed(4)));
+  return out.length > 8 ? out.filter((_, i) => i % Math.ceil(out.length / 8) === 0) : out;
+}
+
+/**
+ * The range behind a chip, or null if the control is a fixed set.
+ *
+ * This is the whole distinction the catalog already draws and the UI was
+ * throwing away: Seedance takes any duration from 4 to 15, Kling 2.5 takes 5 or
+ * 10 and nothing else. One deserves a bar you drag; the other must stay a list,
+ * because a slider there would offer seven values the provider rejects.
+ */
+export function rangeOf(c: ChipControl): { min: number; max: number; step: number; unit?: string | undefined; title: string } | null {
+  if (c.kind !== "slider") return null;
+  return { min: c.min, max: c.max, step: c.step, unit: c.unit, title: c.label };
+}
+
+/* ---------------------------------------------------------------------------
+   Row metadata for the model picker.
+
+   The reference's picker does not list names — each row carries the ceiling
+   that actually decides whether the model is the right one: top resolution and
+   the length range it will produce. Ours has the same facts in the catalog and
+   was throwing them away, printing "name · vendor" instead.
+   --------------------------------------------------------------------------- */
+
+export interface VariantMeta {
+  /** Best resolution the variant offers, e.g. "4K". Null when it has no choice. */
+  topRes: string | null;
+  /** Length range as the reference writes it, e.g. "۴s-۱۵s". Null for stills. */
+  range: string | null;
+}
+
+export function variantMeta(family: Family, variant: Variant): VariantMeta {
+  const controls = variantControls(family, variant);
+
+  // Resolution goes by the LAST option, not the largest number: the catalog
+  // already lists them ascending, and "4K" does not sort above "1080p" as text.
+  const res = controls.find((c) => c.kind === "segment" && (c.key === "resolution" || c.key === "mode" || c.key === "quality"));
+  const topRes = res?.kind === "segment" ? (res.options[res.options.length - 1]?.label ?? null) : null;
+
+  const dur = controls.find((c) => c.key === "duration");
+  let range: string | null = null;
+  if (dur?.kind === "slider") range = `${dur.min}s-${dur.max}s`;
+  else if (dur?.kind === "segment") {
+    const vals = dur.options.map((o) => Number(o.value)).filter((v) => !Number.isNaN(v));
+    if (vals.length) range = vals.length === 1 ? `${vals[0]}s` : `${Math.min(...vals)}s-${Math.max(...vals)}s`;
+  }
+
+  return { topRes, range };
+}
+
+export function useCreateState(families: Family[]) {
+  const access = useAccess();
+  const isSubmitting = useIsMutating({ mutationKey: CREATE_GENERATION_MUTATION_KEY }) > 0;
+  /**
+   * Open on something the account can actually run.
+   *
+   * The catalog is ordered flagship-first, so `families[0]` for video is
+   * Seedance — tier 2. A new account is tier 1, so the studio's first frame was
+   * a locked model and an upgrade button: the product opening by telling you
+   * what you cannot have. Falling back to the first unlocked family means the
+   * gate sells on the models the user goes looking for instead of on the door.
+   *
+   * Still `families[0]` if nothing is unlocked, so the surface always has a
+   * model and the lock explains itself rather than rendering an empty panel.
+   */
+  const opening = (fs: Family[]) => fs.find((f) => access.can(f.id)) ?? fs[0]!;
+
+  const [family, setFamily] = useState<Family>(() => opening(families));
+  const [variantId, setVariantId] = useState<string>(() => opening(families).variants[0]!.id);
+  const [prompt, setPrompt] = useState("");
+
+  // A modality switch swaps the whole catalog, so the held family may no longer
+  // belong to it.
+  useEffect(() => {
+    if (!families.some((f) => f.id === family.id)) setFamily(opening(families));
+    // `opening` closes over access, which is stable per plan; re-running on a
+    // plan change is correct — an upgrade should not leave the panel parked on
+    // the fallback it picked while locked.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [families, family.id, access]);
+
+  /**
+   * The variant, not `variants[0]`.
+   *
+   * Thirteen of the eighteen families carry more than one — Kling has six, Wan
+   * five — and they are separate models with separate prices, not cosmetic
+   * labels. Pinning the first one made most of the catalog unreachable and
+   * quoted a price for something the user had not chosen.
+   *
+   * Held by id rather than by object so a family change cannot leave a variant
+   * belonging to the previous family in state; the lookup falls back to the new
+   * family's first, which is the only sane default.
+   */
+  const variant: Variant = family.variants.find((v) => v.id === variantId) ?? family.variants[0]!;
+
+  // Keep the id honest after a family change, so the chip and the price agree.
+  useEffect(() => setVariantId(family.variants[0]!.id), [family]);
+
+  const controls = useMemo(() => variantControls(family, variant), [family, variant]);
+  const [input, setInput] = useState<InputMap>(() => defaultInput(controls));
+
+  // A different control set means different keys. Carrying the old ones over is
+  // not merely stale — the provider answers unknown keys with a 422. Variants
+  // may override controls too, so this has to key off the resolved list.
+  useEffect(() => setInput(defaultInput(controls)), [controls]);
+
+  const price = priceCoins(variant, input, { chars: prompt.length, clipSeconds: 0 });
+  const validation = validateGenerationInput({ family, variant, prompt, input, refs: {} });
+  const ready = validation.valid && price !== null && !isSubmitting;
+
+  return {
+    family,
+    setFamily,
+    variant,
+    setVariant: (id: string) => setVariantId(id),
+    /** More than one is worth a control; exactly one is noise. */
+    hasVariants: family.variants.length > 1,
+    controls,
+    chips: chipControls(controls),
+    input,
+    set: (k: string, v: string | number | boolean) => setInput((p) => ({ ...p, [k]: v })),
+    prompt,
+    setPrompt,
+    price,
+    ready,
+    validation,
+    isSubmitting,
+  };
+}

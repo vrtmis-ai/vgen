@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import { z } from "zod";
+import { readStoredCollection, writeStoredCollection } from "../adapters/browser/storage";
 
 const KEY = "vgen:favs";
 
 function read(): string[] {
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
+  return readStoredCollection(KEY, z.string().trim().min(1));
 }
 
 /** User's pinned model families, persisted to localStorage. */
@@ -16,11 +13,7 @@ export function useFavorites() {
   const [favs, setFavs] = useState<string[]>(read);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(favs));
-    } catch {
-      /* ignore */
-    }
+    writeStoredCollection(KEY, favs);
   }, [favs]);
 
   const toggle = useCallback((id: string) => {

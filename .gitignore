@@ -2,15 +2,36 @@ node_modules
 dist
 dist-ssr
 *.local
-.vite
 .DS_Store
 *.log
+
+# pnpm is the package manager (see `packageManager` in package.json). npm cannot
+# install this repo at all — the root package.json declares
+# "@vgen/core": "workspace:*", a protocol npm rejects — so an npm lockfile here
+# is never right, only stale.
+package-lock.json
+yarn.lock
+
 .env
 .env.*
-vite.config.js
-vite.config.d.ts
+!.env.example
+!.env.e2e
 *.tsbuildinfo
+
+# Next build output. next-env.d.ts is deliberately NOT ignored: tsconfig lists it
+# explicitly, and `pnpm typecheck` can run before any `next build` has generated
+# it — on a fresh clone that is a hard "file not found" rather than a warning.
+.next/
 
 # internal notes — keep private
 KIE_MODELS.md
 HANDOFF.md
+
+# raw API responses from scripts/spike-kie.ts — may contain account details
+scripts/spike-out/
+
+# local-only: Stitch reference screens, served for side-by-side comparison
+public/_ref/
+
+# Playwright run artifacts
+test-results/

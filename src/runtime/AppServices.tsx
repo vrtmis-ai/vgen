@@ -1,0 +1,42 @@
+import { createContext, useContext, type ReactNode } from "react";
+import type { CatalogSnapshot } from "./contracts/catalog";
+import type { GalleryPage, GalleryQuery } from "./contracts/gallery";
+import type { CreateGenerationRequest, GenerationJob, GenerationQuote, QuoteGenerationRequest } from "./contracts/generation";
+import type { Session } from "./contracts/session";
+import type { Wallet } from "./contracts/wallet";
+
+export interface RequestOptions {
+  signal?: AbortSignal | undefined;
+}
+
+export interface AppServices {
+  session: {
+    getCurrent(options?: RequestOptions): Promise<Session>;
+  };
+  catalog: {
+    list(options?: RequestOptions): Promise<CatalogSnapshot>;
+  };
+  wallet: {
+    getCurrent(options?: RequestOptions): Promise<Wallet>;
+  };
+  generation: {
+    quote(request: QuoteGenerationRequest, options?: RequestOptions): Promise<GenerationQuote>;
+    create(request: CreateGenerationRequest, options?: RequestOptions): Promise<GenerationJob>;
+    getJob(jobId: string, options?: RequestOptions): Promise<GenerationJob>;
+  };
+  gallery: {
+    list(query?: GalleryQuery, options?: RequestOptions): Promise<GalleryPage>;
+  };
+}
+
+const AppServicesContext = createContext<AppServices | null>(null);
+
+export function AppServicesProvider({ services, children }: { services: AppServices; children: ReactNode }) {
+  return <AppServicesContext.Provider value={services}>{children}</AppServicesContext.Provider>;
+}
+
+export function useAppServices(): AppServices {
+  const services = useContext(AppServicesContext);
+  if (!services) throw new Error("App services are not available. Wrap the application in AppServicesProvider.");
+  return services;
+}

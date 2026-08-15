@@ -1,12 +1,52 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { ImagesSquare, CircleNotch } from "@phosphor-icons/react";
 import type { Generation } from "../lib/gallery";
-import { CreditPill } from "../components/chrome";
+import type { ModelKind } from "../data/models";
+import { ViewControls, useViewMode } from "../components/ViewControls";
 import { useI18n } from "../lib/i18n";
 
-function GenCard({ g, i, onOpen }: { g: Generation; i: number; onOpen: () => void }) {
+function GenCard({ g, i, onOpen, list }: { g: Generation; i: number; onOpen: () => void; list?: boolean }) {
   const { t } = useI18n();
   const running = g.status === "running";
+
+  /* In list view the thumbnail stops being the card and becomes a 56px chip
+     beside the prompt — the point of the list is reading what you asked for,
+     and a full-bleed 9:16 frame per row makes that a scroll. */
+  if (list) {
+    return (
+      <motion.button
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: Math.min(i, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
+        onClick={onOpen}
+        className="mb-2 flex w-full break-inside-avoid items-center gap-3 rounded-xl border border-line p-2 text-start"
+        style={{ background: "var(--vg-surface)" }}
+      >
+        <span className="relative size-14 shrink-0 overflow-hidden rounded-lg" style={{ background: g.grad }}>
+          {running && <span className="shimmer absolute inset-0" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="ltr line-clamp-2 block text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
+            {g.prompt || "—"}
+          </span>
+          <span className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+            <bdi>{g.name}</bdi>
+            <span className="vg-numeric">
+              {g.w}×{g.h}
+            </span>
+            {running && (
+              <span className="flex items-center gap-1" style={{ color: "var(--vg-primary-soft)" }}>
+                <CircleNotch size={10} className="animate-spin" />
+                {t("gal_making")}
+              </span>
+            )}
+          </span>
+        </span>
+      </motion.button>
+    );
+  }
+
   return (
     <motion.button
       initial={{ opacity: 0, y: 12 }}
@@ -25,7 +65,9 @@ function GenCard({ g, i, onOpen }: { g: Generation; i: number; onOpen: () => voi
               {t("gal_making")}
             </span>
           ) : (
-            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{t(g.kind === "video" ? "kind_video" : g.kind === "audio" ? "kind_audio" : "kind_image")}</span>
+            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
+              {t(g.kind === "video" ? "kind_video" : g.kind === "audio" ? "kind_audio" : "kind_image")}
+            </span>
           )}
         </div>
         <div className="absolute inset-x-2.5 bottom-2.5">
@@ -37,26 +79,73 @@ function GenCard({ g, i, onOpen }: { g: Generation; i: number; onOpen: () => voi
   );
 }
 
-export default function Gallery({
-  gens,
-  coins,
-  onOpen,
-  onBrowse,
-  onWallet,
-}: {
-  gens: Generation[];
-  coins: number;
-  onOpen: (g: Generation) => void;
-  onBrowse: () => void;
-  onWallet: () => void;
-}) {
-  const { t } = useI18n();
+type Filter = "all" | ModelKind | "running";
+
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "all", label: "همه" },
+  { key: "video", label: "ویدیو" },
+  { key: "image", label: "تصویر" },
+  { key: "audio", label: "صدا" },
+  { key: "running", label: "در حال ساخت" },
+];
+
+export default function Gallery({ gens, onOpen, onBrowse }: { gens: Generation[]; onOpen: (g: Generation) => void; onBrowse: () => void }) {
+  const { t, n } = useI18n();
+  const [filter, setFilter] = useState<Filter>("all");
+  const view = useViewMode("gallery", { mode: "grid", density: 1 });
+
+  const count = (f: Filter) =>
+    f === "all"
+      ? gens.length
+      : f === "running"
+        ? gens.filter((g) => g.status === "running").length
+        : gens.filter((g) => g.kind === f).length;
+  const shown = gens.filter((g) => (filter === "all" ? true : filter === "running" ? g.status === "running" : g.kind === filter));
+
   return (
-    <div className="relative z-10 px-4 pt-4">
-      <div className="mb-5 flex items-center justify-between">
-        <span className="text-[20px] font-semibold tracking-tight">{t("gal_title")}</span>
-        <CreditPill coins={coins} onClick={onWallet} />
-      </div>
+    /* Rebuilt for the top-bar shell. Like Community, this printed its own title
+       row with a CreditPill in it — a second balance directly under the one in
+       the chrome, left over from when it was a tab in a 480px column. */
+    // @container for ViewControls, which asks `@xl` whether the row has space
+    // for the density group. Without a container ancestor the query can never
+    // match and the control disappears. Full width here, so it tracks the page.
+    <div className="@container relative z-10 mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-16 pt-5 md:px-8">
+      <h1 className="text-[19px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+        {t("gal_title")}
+      </h1>
+      <p className="mt-0.5 text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
+        هرچه ساخته‌ای اینجاست. هیچ‌کدام تا وقتی خودت نخواهی عمومی نمی‌شود.
+      </p>
+
+      {/* A filter row only earns its space once there is something to filter. */}
+      {gens.length > 0 && (
+        <div className="hide-scrollbar -mx-4 my-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
+          {FILTERS.filter((f) => count(f.key) > 0 || f.key === "all").map((f) => {
+            const on = f.key === filter;
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                aria-pressed={on}
+                className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
+                style={{
+                  background: on ? "var(--vg-primary-a14)" : "var(--vg-surface)",
+                  color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                  border: "1px solid var(--vg-border-subtle)",
+                }}
+              >
+                {f.label}
+                <span className="vg-numeric text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+                  {n(count(f.key))}
+                </span>
+              </button>
+            );
+          })}
+          <div className="ms-auto shrink-0">
+            <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
+          </div>
+        </div>
+      )}
 
       {gens.length === 0 ? (
         <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-4 px-8 text-center">
@@ -69,10 +158,17 @@ export default function Gallery({
             {t("gal_browse")}
           </button>
         </div>
+      ) : shown.length === 0 ? (
+        <p className="py-16 text-center text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
+          با این فیلتر چیزی نیست.
+        </p>
       ) : (
-        <div className="[column-fill:_balance] columns-2 gap-3">
-          {gens.map((g, i) => (
-            <GenCard key={g.id} g={g} i={i} onOpen={() => onOpen(g)} />
+        /* Masonry columns rather than a grid, because generations have mixed
+           aspect ratios and a fixed row height would letterbox half of them.
+           The density stepper drives the column count directly. */
+        <div className="[column-fill:_balance] gap-3" style={{ columnCount: view.mode === "list" ? 1 : view.cols }}>
+          {shown.map((g, i) => (
+            <GenCard key={g.id} g={g} i={i} onOpen={() => onOpen(g)} list={view.mode === "list"} />
           ))}
         </div>
       )}

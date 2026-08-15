@@ -1,34 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, CaretDown, Sparkle, Stack } from "@phosphor-icons/react";
-import {
-  defaultInput,
-  variantControls,
-  variantRefs,
-  variantMaxPrompt,
-  type Control,
-  type Family,
-  type Variant,
-} from "../data/models";
+import { ArrowRight, CaretDown, Lock, Sparkle, Stack } from "@phosphor-icons/react";
+import { defaultInput, variantControls, variantRefs, variantMaxPrompt, type Family, type Variant } from "../data/models";
 import { priceCoins } from "../data/pricing";
+import { CoinMark } from "../components/chrome";
 import { useKieRates } from "../lib/kieRates";
 import { useI18n } from "../lib/i18n";
+import { useAccess } from "../lib/access";
 import { ControlField, RefUpload, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
-
-export function currentAspect(controls: Control[], input: InputMap): { w: number; h: number } {
-  const ac = controls.find((c) => c.kind === "aspect");
-  if (ac && ac.kind === "aspect") {
-    const opt = ac.options.find((o) => o.value === input[ac.key]) ?? ac.options[0];
-    if (opt) return { w: opt.w, h: opt.h };
-  }
-  return { w: 16, h: 9 };
-}
+import { generationErrorMessage, validateGenerationInput } from "../features/generation/validation";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <div className="text-[12px] font-medium text-ink2">{children}</div>;
+}
+
+export interface GenerationReceipt {
+  coins: number;
+  expiresAt: number;
 }
 
 export default function Generate({
@@ -39,10 +30,10 @@ export default function Generate({
   onGenerate,
 }: {
   family: Family;
-  initialVariantId?: string;
-  initialPrompt?: string;
+  initialVariantId?: string | undefined;
+  initialPrompt?: string | undefined;
   onBack: () => void;
-  onGenerate: (prompt: string, input: InputMap, variant: Variant, refs: RefMap) => void;
+  onGenerate: (prompt: string, input: InputMap, variant: Variant, refs: RefMap) => Promise<GenerationReceipt | null>;
 }) {
   const firstVariant = family.variants.find((v) => v.id === initialVariantId) ?? family.variants[0]!;
   const [variant, setVariant] = useState<Variant>(firstVariant);
@@ -50,6 +41,9 @@ export default function Generate({
   const [input, setInput] = useState<InputMap>(() => defaultInput(variantControls(family, firstVariant)));
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [refImages, setRefImages] = useState<RefMap>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [receipt, setReceipt] = useState<GenerationReceipt | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Object URLs are process-wide; without this every picked image leaks until reload.
   const liveRefs = useRef<RefMap>(refImages);
@@ -87,33 +81,72 @@ export default function Generate({
   const { t, n } = useI18n();
   const [coverFailed, onCoverError] = useImageFallback();
   useKieRates(); // re-render when the live KIE price table (re)loads
-  // Two model families price off something other than their settings, and both
-  // read it from this one number: speech bills per 1000 characters of prompt,
-  // Motion Control bills per second of the clip the user attached. A model uses
-  // whichever of the two it declares an interest in; the rest ignore it.
-  const clipSeconds = refs.reduce(
-    (longest, s) => (s.media === "video" ? Math.max(longest, refImages[s.key]?.[0]?.duration ?? 0) : longest),
-    0,
-  );
-  const price = priceCoins(variant, input, clipSeconds > 0 ? clipSeconds : prompt.trim().length);
+  // Two model families price off something other than their settings: speech
+  // bills per 1000 characters of prompt, Motion Control per second of the
+  // attached clip. Both used to arrive through one argument, so this had to pick
+  // one and pass the other as a stand-in — and with no clip yet it passed the
+  // prompt's length, quoting Motion Control at 27 credits per character typed.
+  // They travel separately now; a model reads whichever it declares.
+  const chars = prompt.trim().length;
+  const videoFiles = refs.flatMap((s) => (s.media === "video" ? (refImages[s.key] ?? []) : []));
+  // KIE bills whole seconds and `duration` is a float, so round up: quoting a
+  // 7.36s clip at 7.36 × the per-second rate loses the fraction on every job.
+  const clipSeconds = videoFiles.reduce((longest, f) => Math.max(longest, Math.ceil(f.duration ?? 0)), 0);
+  const price = priceCoins(variant, input, { chars, clipSeconds });
+  // .mkv and iPhone HEVC .mov are both in the accept list and neither decodes
+  // reliably in a browser, so `duration` can come back undefined. On a per-second
+  // model that number *is* the price, and substituting anything for it sells a
+  // job at a made-up figure. Probe whether this model actually reads it — a
+  // first-frame clip on Wan is not priced by its length, and blocking there
+  // would be a dead button for no reason.
+  const clipUnreadable =
+    videoFiles.some((f) => f.duration == null) &&
+    priceCoins(variant, input, { chars, clipSeconds: 0 }) !== priceCoins(variant, input, { chars, clipSeconds: 1 });
   // No price means neither the live table nor the fallback has a rate — the
   // provider doesn't offer this combination at all (Hailuo 2.3 has no 1080P
   // at 10s). Selling it would take the user's coins for a job that can't run.
   // maxLength on the textarea only stops typing and pasting, so the length is
   // checked again here. The backend has to check a third time — nothing the
   // client says about length can be trusted once money is attached.
-  const promptTooLong = maxPrompt != null && prompt.trim().length > maxPrompt;
   // Upscalers and background removal transform a file and take no description,
   // so requiring a prompt would leave their button permanently disabled.
   const wantsPrompt = !family.noPrompt;
-  const canGenerate =
-    (!wantsPrompt || prompt.trim().length > 0) && !missingRequired && !orphan && !promptTooLong && price != null;
+  // Same gate as the studios. See the CTA below for why this screen needs it.
+  const access = useAccess();
+  const locked = !access.can(family.id);
+  const need = locked ? access.needs(family.id) : null;
+  const validation = validateGenerationInput({ family, variant, prompt, input, refs: refImages });
+  const hasReferenceFiles = Object.values(refImages).some((files) => files.length > 0);
+  const canGenerate = validation.valid && !clipUnreadable && !hasReferenceFiles && price != null;
+
+  async function submit() {
+    if (!canGenerate || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const nextReceipt = await onGenerate(prompt.trim(), input, variant, refImages);
+      if (nextReceipt) setReceipt(nextReceipt);
+      else setSubmitError("درخواست ساخته نشد؛ ورودی‌ها را دوباره بررسی کنید.");
+    } catch (error: unknown) {
+      setSubmitError(generationErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
-    <div className="relative z-10 min-h-[100dvh] pb-32">
+    /* Every model link and every preset lands here, and it was still a 480px
+       phone column: the controls ran single-file down the middle of a 1440px
+       page with the CTA pinned to a 480px strip. It now runs a 1100px
+       container and splits into two columns from `md`. */
+    <div className="relative z-10 mx-auto min-h-[100dvh] w-full max-w-[1100px] pb-32 md:pb-10">
       {/* top bar */}
       <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/85 px-4 py-3 backdrop-blur-xl">
-        <button onClick={onBack} aria-label={t("nav_home")} className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95">
+        <button
+          onClick={onBack}
+          aria-label={t("nav_home")}
+          className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95"
+        >
           <ArrowRight size={18} weight="bold" className="ltr:-scale-x-100" />
         </button>
         <span className="relative h-9 w-9 overflow-hidden rounded-xl" style={{ background: family.grad }}>
@@ -128,14 +161,19 @@ export default function Generate({
         <VendorMark vendor={family.vendor} size={24} />
       </div>
 
-      <div className="flex flex-col gap-7 px-4 pt-5">
+      {/* Two columns from `md`: the settings stack does not get wider, it gets
+          shorter — a 1100px page of single-file controls is a phone screenshot
+          stretched, and the scroll it costs is the actual usability problem. */}
+      <div className="flex flex-col gap-7 px-4 pt-5 md:grid md:grid-cols-2 md:items-start md:gap-x-6 md:px-8">
         {/* variant selector — prominent */}
         {multiVariant && (
           <div className="rounded-bezel border border-line bg-card p-3.5">
             <div className="mb-3 flex items-center gap-1.5">
               <Stack size={15} weight="fill" className="text-ink2" />
               <span className="text-[12.5px] font-medium">{t("g_version")}</span>
-              <span className="text-[11px] text-ink3">({n(family.variants.length)} {t("g_versions")})</span>
+              <span className="text-[11px] text-ink3">
+                ({n(family.variants.length)} {t("g_versions")})
+              </span>
             </div>
             <div className="-mx-1 flex gap-2 overflow-x-auto px-1 no-scrollbar">
               {family.variants.map((v) => {
@@ -152,7 +190,14 @@ export default function Generate({
                     }
                   >
                     <span className="text-[13px] font-medium">{v.label}</span>
-                    {v.badge && <span className="text-[10px]" style={{ color: on ? "color-mix(in srgb, var(--color-on-accent) 70%, transparent)" : "var(--color-ink3)" }}>{v.badge}</span>}
+                    {v.badge && (
+                      <span
+                        className="text-[10px]"
+                        style={{ color: on ? "color-mix(in srgb, var(--color-on-accent) 70%, transparent)" : "var(--color-ink3)" }}
+                      >
+                        {v.badge}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -177,28 +222,28 @@ export default function Generate({
 
         {/* prompt */}
         {wantsPrompt && (
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-center justify-between">
-            <SectionLabel>{t("g_prompt")}</SectionLabel>
-            {/* The count only appears near the ceiling — Wan 2.5 stops at 800,
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <SectionLabel>{t("g_prompt")}</SectionLabel>
+              {/* The count only appears near the ceiling — Wan 2.5 stops at 800,
                 so on that model it matters; on a 20000 one it never shows. */}
-            {maxPrompt != null && prompt.length > maxPrompt * 0.8 ? (
-              <span className="text-[11px] tabular-nums text-ink3">
-                {n(prompt.length)} / {n(maxPrompt)}
-              </span>
-            ) : (
-              <span className="text-[11px] text-ink3">{t("g_prompt_hint")}</span>
-            )}
+              {maxPrompt != null && prompt.length > maxPrompt * 0.8 ? (
+                <span className="text-[11px] tabular-nums text-ink3">
+                  {n(prompt.length)} / {n(maxPrompt)}
+                </span>
+              ) : (
+                <span className="text-[11px] text-ink3">{t("g_prompt_hint")}</span>
+              )}
+            </div>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Describe what you want to create…"
+              rows={4}
+              maxLength={maxPrompt ?? undefined}
+              className="ltr w-full resize-none rounded-bezel border border-line bg-card p-4 text-[14px] leading-relaxed text-ink placeholder:text-ink3 focus:border-accent focus:outline-none"
+            />
           </div>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe what you want to create…"
-            rows={4}
-            maxLength={maxPrompt ?? undefined}
-            className="ltr w-full resize-none rounded-bezel border border-line bg-card p-4 text-[14px] leading-relaxed text-ink placeholder:text-ink3 focus:border-accent focus:outline-none"
-          />
-        </div>
         )}
 
         {/* settings */}
@@ -237,30 +282,63 @@ export default function Generate({
         </div>
       </div>
 
-      {/* sticky CTA */}
-      <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-[480px] -translate-x-1/2 border-t border-line bg-surface/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-xl">
-        <button
-          onClick={() => onGenerate(prompt.trim(), input, variant, refImages)}
-          disabled={!canGenerate}
-          className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
-        >
-          <Sparkle size={18} weight="fill" />
-          <span>{t("g_create")}</span>
-          {price != null && (
-            <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
-              <span>⬡</span>
-              {n(price)}
-            </span>
-          )}
-        </button>
+      {/* The CTA. Fixed to the viewport floor on a phone, where the thumb is;
+          in flow at the end of the column on desktop, where a bar pinned to a
+          480px strip in the middle of the screen was just wrong. */}
+      <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-[480px] -translate-x-1/2 border-t border-line bg-surface/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-xl md:static md:mx-auto md:mt-8 md:max-w-[520px] md:translate-x-0 md:rounded-2xl md:border md:pb-4 md:backdrop-blur-none">
+        {/* This screen is reached from an effect tile, so the model is chosen
+            for the user by the preset rather than picked in a menu. It has to
+            carry the same gate as the studios — otherwise the one route where
+            the user never saw the picker is the one that skips the lock. */}
+        {locked ? (
+          <button
+            onClick={access.onUpgrade}
+            className="flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold"
+            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
+          >
+            <Lock size={16} weight="fill" />
+            {need ? (
+              <>
+                ارتقا به <bdi>{need.name}</bdi>
+              </>
+            ) : (
+              "ارتقای پلن"
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={() => void submit()}
+            disabled={!canGenerate || submitting}
+            className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
+          >
+            <Sparkle size={18} weight="fill" />
+            <span>{submitting ? "در حال ثبت…" : t("g_create")}</span>
+            {price != null && !clipUnreadable && (
+              <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
+                <CoinMark size={12} />
+                {n(price)}
+              </span>
+            )}
+          </button>
+        )}
         <div className="pt-1.5 text-center text-[10.5px] text-ink3">
-          {missingRequired
-            ? `${t("g_need_also")} ${missingRequired.label}`
-            : orphanNeeds
-              ? `${t("g_need_also")} ${orphanNeeds.label}`
-              : price != null
-                ? `≈ ${n(price)} ${t("g_est_for")}`
-                : t("g_no_rate")}
+          {submitError
+            ? submitError
+            : receipt
+              ? `هزینهٔ نهایی سرور: ${n(receipt.coins)} · اعتبار قیمت تا ${new Date(receipt.expiresAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}`
+              : missingRequired
+                ? `${t("g_need_also")} ${missingRequired.label}`
+                : orphanNeeds
+                  ? `${t("g_need_also")} ${orphanNeeds.label}`
+                  : clipUnreadable
+                    ? t("g_clip_unreadable")
+                    : hasReferenceFiles
+                      ? "آپلود فایل مرجع پس از اتصال سرویس آپلود فعال می‌شود؛ فعلاً هزینه‌ای کسر نمی‌شود."
+                      : validation.issues[0]
+                        ? validation.issues[0].message
+                        : price != null
+                          ? `≈ ${n(price)} ${t("g_est_for")}`
+                          : t("g_no_rate")}
         </div>
       </div>
     </div>

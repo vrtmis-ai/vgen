@@ -1,0 +1,33 @@
+# Line endings are LF in the repository, on every machine.
+#
+# Without this file, a Windows clone with the default `core.autocrlf=true` gets
+# CRLF in the working tree while the repository keeps LF. Prettier has no
+# `endOfLine` set in .prettierrc.json and so defaults to "lf", which made
+# `pnpm format:check` fail on 166 files that nobody had touched — including on
+# a fresh clone, where it reads as a repository problem rather than as one git
+# setting.
+#
+# This changes no stored content: `git ls-files --eol` reported every tracked
+# text file as `i/lf` already. It only fixes what lands in the working tree.
+* text=auto eol=lf
+
+# Binary, so git never rewrites bytes inside them.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.mp4 binary
+*.webm binary
+*.mp3 binary
+*.wav binary
+*.pdf binary
+
+# Generated: keep them out of diffs and out of language statistics.
+pnpm-lock.yaml linguist-generated=true -diff

@@ -1,0 +1,72 @@
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+    environment:
+      POSTGRES_DB: vgen
+      POSTGRES_USER: vgen
+      POSTGRES_PASSWORD: vgen-local
+      # Persian-tailored sorting as the database default. glibc en_US.utf8 files
+      # Latin before Persian and splits the ک/ك and ی/ي pairs users type
+      # interchangeably. This is applied by initdb and ONLY by initdb — changing
+      # it later means a dump and restore, which is why the volume below is
+      # named separately from the old one rather than reused.
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=fa-IR --encoding=UTF8"
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=vgen
+    ports:
+      # 5442, not 5432. A native PostgreSQL 18 Windows service and the deev-db
+      # compose stack both bind 5432 on this machine; when two listeners share
+      # it the wrong one answers, and the failure reads as "password
+      # authentication failed for user vgen" rather than as a port conflict.
+      - "5442:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vgen -d vgen"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      # Migrations are applied by packages/db/src/migrate.ts, not mounted into
+      # docker-entrypoint-initdb.d. One path that runs against any database
+      # beats a second one that only ever runs on an empty local volume.
+      - vgen-postgres-icu:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - vgen-redis:/data
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: vgen-local
+      MINIO_ROOT_PASSWORD: vgen-local-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - vgen-minio:/data
+
+volumes:
+  vgen-postgres-icu:
+  vgen-redis:
+  vgen-minio:

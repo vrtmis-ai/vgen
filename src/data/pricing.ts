@@ -19,130 +19,56 @@
 // (KIE bills credits at $0.005 each) and converts to USD before the coin formula
 // sees it, so adding a second provider doesn't touch the coin economy.
 
-import type { Variant } from "./models";
+import { defaultInput, variantControls, type Family, type Variant } from "./models";
 import type { InputMap } from "../components/controls";
 import { findRate } from "../lib/kieRates";
 
-export const KIE_CREDIT_USD = 0.005;
-export const COIN_USD = 0.05;
-export const MARGIN = 2;
-
-/** Coins we charge for a generation that costs us `costUsd` at the provider. */
-export function coinsFor(costUsd: number): number {
-  return Math.ceil((costUsd * MARGIN) / COIN_USD);
-}
-
-/** Same, for a provider that quotes in KIE credits. */
-export function coinsForKieCredits(credits: number): number {
-  return coinsFor(credits * KIE_CREDIT_USD);
-}
-
-// null = the provider has no such offering, so the combination can't be sold.
-//
-// `chars` is the prompt's length. Every model here is priced by its settings
-// except the audio ones, which KIE bills per 1000 characters of input — for those
-// the settings say nothing about cost and only the text length does.
-type RateFn = (i: InputMap, chars: number) => number | null;
+/* The rate table and coin arithmetic now live in @vgen/core, because the API
+   has to price a generation too and a quote derived from a number the browser
+   sent is a quote the user can edit. Re-exported here so every existing
+   importer of data/pricing keeps working and there stays exactly one table. */
+export { KIE_CREDIT_USD, COIN_USD, MARGIN, coinsFor, coinsForKieCredits, pick, RATES_FALLBACK } from "@vgen/core";
+export type { PriceCtx } from "@vgen/core";
+import { KIE_CREDIT_USD, NO_CTX, RATES_FALLBACK as RATES, coinsFor, perKChars } from "@vgen/core";
+import type { PriceCtx } from "@vgen/core";
 
 function num(v: unknown, fb: number): number {
+  // Number("") and Number(false) are both 0, so a bare isFinite check turns an
+  // empty or boolean setting into a real zero — and a zero on a per-second model
+  // is a job sold for nothing. Only actual numbers and numeric strings count.
+  if (typeof v === "number") return Number.isFinite(v) ? v : fb;
+  if (typeof v !== "string" || v.trim() === "") return fb;
   const n = Number(v);
   return Number.isFinite(n) ? n : fb;
+}
+
+/**
+ * Seconds Motion Control will actually render. `character_orientation` caps the
+ * output — 10s when the character comes from the image, 30s when it comes from
+ * the video — so anything past the cap is uploaded, paid for and discarded.
+ *
+ * ⚠️ ASSUMPTION: that KIE bills the seconds it *produces*, not the seconds we
+ * hand it. Its rate row says only "per second" and never which. Billing the full
+ * upload quotes 162 coins for a job that returns ten seconds, which is the worse
+ * error to make in front of a paying user, and the ledger reconciles against
+ * `creditsConsumed` either way. Settle it with one real job — HANDOFF §11 item 4.
+ */
+function motionSeconds(i: InputMap, clipSeconds: number): number {
+  const cap = String(i.character_orientation ?? "video") === "image" ? 10 : 30;
+  return Math.min(clipSeconds, cap);
 }
 
 // Real KIE credit cost per generation (from KIE's published per-model rates).
 // image models = per generation (by resolution / speed); video = per second × duration,
 // or a fixed per-video tier. Seedance/Kling use the text-to-video ("no input") rate as a
 // conservative upper bound.
-const RATES: Record<string, RateFn> = {
-  "nano-banana-2": (i) => pick(i.resolution, { "1K": 8, "2K": 12, "4K": 18 }, 8),
-  "nano-banana-pro": (i) => pick(i.resolution, { "1K": 18, "2K": 18, "4K": 24 }, 18),
-  "seedream-4-5": () => 6.5,
-  "gpt-image-2": (i) => pick(i.resolution, { "1K": 6, "2K": 10, "4K": 16 }, 6),
-  "flux-2-pro": (i) => pick(i.resolution, { "1K": 5, "2K": 7 }, 5),
-  "imagen-4-ultra": () => 12,
-  "imagen-4": () => 8,
-  "imagen-4-fast": () => 4,
-  "ideogram-v3": (i) => pick(i.rendering_speed, { TURBO: 3.5, BALANCED: 7, QUALITY: 10 }, 7),
-  "qwen-image": () => 4, // 4 credits per megapixel; outputs ≈ 1MP
-  "z-image": () => 0.8,
-
-  "seedance-2": (i) => pick(i.resolution, { "480p": 19, "720p": 41, "1080p": 102, "4k": 208 }, 41) * num(i.duration, 5),
-  "seedance-2-fast": (i) => pick(i.resolution, { "480p": 15.5, "720p": 33 }, 33) * num(i.duration, 5),
-  "kling-3": (i) => {
-    const sound = Boolean(i.sound);
-    // keyed by Kling 3.0's `mode`, not a resolution string
-    return pick(i.mode, { std: sound ? 20 : 14, pro: sound ? 27 : 18, "4K": 67 }, 18) * num(i.duration, 5);
-  },
-  "wan-2-5": (i) => pick(`${i.resolution}-${i.duration}`, { "720p-5": 60, "720p-10": 120, "1080p-5": 100, "1080p-10": 200 }, 60),
-
-  // --- added families / variants ---
-  "seedream-5-lite": () => 5.5,
-  "gpt-image-1-5": (i) => pick(i.quality, { medium: 4, high: 22 }, 4),
-  "flux-2-flex": (i) => pick(i.resolution, { "1K": 14, "2K": 24 }, 14),
-  "grok-image": (i) => (Boolean(i.enable_pro) ? 5 : 4),
-  "seedance-1-5-pro": (i) => {
-    const a = Boolean(i.generate_audio);
-    return (
-      pick(i.resolution, a ? { "480p": 3.5, "720p": 7, "1080p": 15 } : { "480p": 1.75, "720p": 3.5, "1080p": 7.5 }, a ? 7 : 3.5) *
-      num(i.duration, 5)
-    );
-  },
-  "kling-3-turbo": (i) => pick(i.resolution, { "720p": 18, "1080p": 22.5 }, 18) * num(i.duration, 5),
-  "kling-2-6": (i) => pick(`${i.duration}`, Boolean(i.sound) ? { "5": 110, "10": 220 } : { "5": 55, "10": 110 }, 55),
-  "kling-2-5-turbo": (i) => pick(`${i.duration}`, { "5": 42, "10": 84 }, 42),
-  "wan-2-6": (i) =>
-    pick(`${i.resolution}-${i.duration}`, { "720p-5": 70, "720p-10": 140, "720p-15": 210, "1080p-5": 104.5, "1080p-10": 209.5, "1080p-15": 315 }, 104.5),
-  "wan-2-7": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
-  "wan-2-7-r2v": (i) => pick(i.resolution, { "720p": 16, "1080p": 24 }, 24) * num(i.duration, 5),
-  // Billed per second of output. duration 0 means "keep the whole source clip",
-  // so the length then comes from the uploaded file and isn't known until it lands.
-  "wan-2-7-videoedit": (i, secs) => {
-    const billed = num(i.duration, 0) || secs;
-    return billed > 0 ? pick(i.resolution, { "720p": 16, "1080p": 24 }, 16) * billed : null;
-  },
-  // KIE: "10 seconds videos are not supported for 1080p resolution" — the missing
-  // key returns null rather than a made-up price for a job that can't be created.
-  "hailuo-2-3": (i) => only(`${i.resolution}-${i.duration}`, { "768P-6": 45, "768P-10": 90, "1080P-6": 80 }),
-  "hailuo-2-3-standard": (i) => only(`${i.resolution}-${i.duration}`, { "768P-6": 30, "768P-10": 50, "1080P-6": 50 }),
-  // Flat per-video by duration; 720p and 1080p are billed identically.
-  "gemini-omni-video": (i) =>
-    only(`${i.resolution}-${i.duration}`, {
-      "720p-4": 63, "1080p-4": 63, "4k-4": 147,
-      "720p-6": 84, "1080p-6": 84, "4k-6": 168,
-      "720p-8": 105, "1080p-8": 105, "4k-8": 189,
-      "720p-10": 126, "1080p-10": 126, "4k-10": 210,
-    }),
-  // Motion Control bills per second of the *uploaded* clip — there is no duration
-  // setting. `chars` carries that length here (see costUsdFor); with no clip yet
-  // there is nothing to price, so the create button stays shut rather than
-  // quoting a number that would change once a file is attached.
-  "kling-3-motion": (i, secs) => (secs > 0 ? pick(i.mode, { "720p": 20, "1080p": 27 }, 20) * secs : null),
-  "kling-2-6-motion": (i, secs) => (secs > 0 ? pick(i.mode, { "720p": 11, "1080p": 18 }, 11) * secs : null),
-  // Tools — flat per image. No 1x row exists, so `only` refuses that factor.
-  "topaz-image-upscale": (i) => only(`${i.upscale_factor}`, { "2": 10, "4": 20, "8": 40 }),
-  "recraft-crisp-upscale": () => 0.5,
-  "recraft-remove-bg": () => 1,
-  // Per second of the source clip. 1x and 2x share one rate row.
-  "topaz-video-upscale": (i, secs) =>
-    secs > 0 ? pick(`${i.upscale_factor}`, { "1": 8, "2": 8, "4": 14 }, 8) * secs : null,
-  // Text-to-speech: settings don't move the price, the text's length does.
-  "eleven-turbo": (_i, chars) => perKChars(6, chars),
-  "eleven-multilingual": (_i, chars) => perKChars(12, chars),
-  "veo-quality": (i) => pick(i.resolution, { "720p": 250, "1080p": 255, "4k": 380 }, 250),
-  "veo-fast": (i) => pick(i.resolution, { "720p": 60, "1080p": 65, "4k": 180 }, 60),
-  "veo-lite": (i) => pick(i.resolution, { "720p": 30, "1080p": 35, "4k": 150 }, 30),
-};
 
 // ---- live lookup ------------------------------------------------------------
 // Per-variant resolvers: settings → tokens that select the right row in KIE's
 // live table (all tokens must appear in the row's description; "!x" = must not).
 // Descriptions are matched normalized (lowercase, single spaces).
 
-type LiveFn = (i: InputMap, chars: number) => number | null;
-
-/** KIE bills text-to-speech per 1000 characters, rounded up, minimum one block. */
-const perKChars = (rate: number | null, chars: number) =>
-  rate == null ? null : rate * Math.max(1, Math.ceil(chars / 1000));
+type LiveFn = (i: InputMap, c: PriceCtx) => number | null;
 
 const dur = (i: InputMap, fb: number) => num(i.duration, fb);
 /** per-second row × duration (null passes through). */
@@ -169,14 +95,21 @@ export const LIVE: Record<string, LiveFn> = {
   "ideogram-v3": (i) => findRate("ideogram v3,", "text-to-image", String(i.rendering_speed ?? "BALANCED")),
   "qwen-image": () => findRate("qwen image", "text-to-image", "!edit"), // per megapixel; outputs ≈ 1MP
   "z-image": () => findRate("qwen z-image", "text-to-image"),
-  "grok-image": (i) => (Boolean(i.enable_pro) ? findRate("grok-imagine", "text-to-image(quality)") : findRate("grok-imagine,", "text-to-image", "!quality")),
+  "grok-image": (i) =>
+    i.enable_pro ? findRate("grok-imagine", "text-to-image(quality)") : findRate("grok-imagine,", "text-to-image", "!quality"),
 
   // ---- video ----
   // Seedance rows are per second, split by resolution; "no video input" = the
   // conservative text-to-video rate (image input is cheaper — settled after).
+  // "seedance-2-5", not "seedance-2.5": KIE's descriptions hyphenate the minor
+  // version. Matching on the dotted form finds nothing and silently falls back.
+  "seedance-2-5": (i) => perSec(findRate("bytedance/seedance-2-5,", `${res(i, "720p")} no video`), dur(i, 5)),
   "seedance-2": (i) => perSec(findRate("bytedance/seedance-2,", `${res(i, "720p")} no video`), dur(i, 5)),
   "seedance-2-fast": (i) => perSec(findRate("seedance-2 fast", `${res(i, "720p")} no video`), dur(i, 5)),
-  "seedance-1-5-pro": (i) => perSec(findRate("seedance-1.5-pro", `${Boolean(i.generate_audio) ? "with" : "without"} audio-${res(i, "720p")}`), dur(i, 5)),
+  "seedance-2-mini": (i) => perSec(findRate("seedance-2-mini,", `${res(i, "720p")} no video`), dur(i, 5)),
+  "minimax-h3": (i) => perSec(findRate("minimax h3,", "text to video", res(i, "2k")), dur(i, 5)),
+  "seedance-1-5-pro": (i) =>
+    perSec(findRate("seedance-1.5-pro", `${i.generate_audio ? "with" : "without"} audio-${res(i, "720p")}`), dur(i, 5)),
   // Rows are per second by audio + resolution, but the model's own parameter is
   // `mode`. std/pro aren't spelled out as 720p/1080p anywhere in the docs — the
   // mapping comes from "std has standard resolution, pro has higher resolution"
@@ -184,19 +117,19 @@ export const LIVE: Record<string, LiveFn> = {
   // real job's creditsConsumed.
   "kling-3": (i) => {
     const r = KLING3_MODE_RES[String(i.mode ?? "pro")] ?? "1080p";
-    return perSec(findRate("kling 3.0, video", `${Boolean(i.sound) ? "with" : "without"} audio-${r}`), dur(i, 5));
+    return perSec(findRate("kling 3.0, video", `${i.sound ? "with" : "without"} audio-${r}`), dur(i, 5));
   },
   // Per second by resolution, no audio tier. The text-to-video and image-to-video
   // rows carry the same rate, so matching either one prices both entry points.
   "kling-3-turbo": (i) => perSec(findRate("kling 3.0 turbo", "text-to-video", res(i, "720p")), dur(i, 5)),
-  "kling-2-6": (i) => findRate("kling 2.6", "text-to-video", `${Boolean(i.sound) ? "with" : "without"} audio-${dur(i, 5)}.0s`),
+  "kling-2-6": (i) => findRate("kling 2.6", "text-to-video", `${i.sound ? "with" : "without"} audio-${dur(i, 5)}.0s`),
   "kling-2-5-turbo": (i) => findRate("kling 2.5 turbo", "text-to-video", `turbo pro-${dur(i, 5)}.0s`),
   "wan-2-5": (i) => findRate("wan 2.5", "text-to-video", `default-${dur(i, 5)}.0s-${res(i, "720p")}`),
   "wan-2-6": (i) => findRate("wan 2.6", "text to video", `, ${dur(i, 5)}.0s-${res(i, "1080p")}`), // leading ", " so 5.0s can't match 15.0s
   "wan-2-7": (i) => perSec(findRate("wan 2.7 video", "text-to-video", res(i, "1080p")), dur(i, 5)),
   "wan-2-7-r2v": (i) => perSec(findRate("wan 2.7 video", "r2v", res(i, "1080p")), dur(i, 5)),
-  "wan-2-7-videoedit": (i, secs) => {
-    const billed = num(i.duration, 0) || secs;
+  "wan-2-7-videoedit": (i, c) => {
+    const billed = num(i.duration, 0) || c.clipSeconds;
     return billed > 0 ? perSec(findRate("wan 2.7 video", "videoedit", res(i, "720p")), billed) : null;
   },
   "hailuo-2-3": (i) => findRate("hailuo 2.3", "image-to-video", `pro-${dur(i, 6)}.0s-${res(i, "768P")}`),
@@ -204,19 +137,23 @@ export const LIVE: Record<string, LiveFn> = {
   // Row text is "gemini-omni-video, video, 8s 1080p no video input" — matched as
   // one contiguous token so a duration can't pair with the wrong resolution.
   "gemini-omni-video": (i) => findRate("gemini-omni-video", `${dur(i, 8)}s ${res(i, "1080p")} no video input`),
-  "kling-3-motion": (i, secs) =>
-    secs > 0 ? perSec(findRate("kling 3.0 motion control", "video-to-video", String(i.mode ?? "720p")), secs) : null,
-  "kling-2-6-motion": (i, secs) =>
-    secs > 0 ? perSec(findRate("kling 2.6 motion control", String(i.mode ?? "720p")), secs) : null,
+  "kling-3-motion": (i, c) => {
+    const s = motionSeconds(i, c.clipSeconds);
+    return s > 0 ? perSec(findRate("kling 3.0 motion control", "video-to-video", String(i.mode ?? "720p")), s) : null;
+  },
+  "kling-2-6-motion": (i, c) => {
+    const s = motionSeconds(i, c.clipSeconds);
+    return s > 0 ? perSec(findRate("kling 2.6 motion control", String(i.mode ?? "720p")), s) : null;
+  },
   // Row text is "Topaz Image Upscaler, image-upscale, 2K" — the tier, not the factor.
   "topaz-image-upscale": (i) => findRate("topaz image upscaler", "image-upscale", `${i.upscale_factor}k`),
   "recraft-crisp-upscale": () => findRate("recraft crisp upscale", "image to image"),
   "recraft-remove-bg": () => findRate("recraft remove background", "image to image"),
   // Rows read "upscale factor 1x/2x" and "upscale factor 4x".
-  "topaz-video-upscale": (i, secs) =>
-    secs > 0 ? perSec(findRate("topaz video upscaler", String(i.upscale_factor) === "4" ? "4x" : "1x/2x"), secs) : null,
-  "eleven-turbo": (_i, chars) => perKChars(findRate("elevenlabs text to speech", "turbo 2.5"), chars),
-  "eleven-multilingual": (_i, chars) => perKChars(findRate("elevenlabs text to speech", "multilingual v2"), chars),
+  "topaz-video-upscale": (i, c) =>
+    c.clipSeconds > 0 ? perSec(findRate("topaz video upscaler", String(i.upscale_factor) === "4" ? "4x" : "1x/2x"), c.clipSeconds) : null,
+  "eleven-turbo": (_i, c) => perKChars(findRate("elevenlabs text to speech", "turbo 2.5"), c.chars),
+  "eleven-multilingual": (_i, c) => perKChars(findRate("elevenlabs text to speech", "multilingual v2"), c.chars),
   "veo-quality": (i) => findRate("google veo 3.1", "text-to-video", `quality-${res(i, "720p")}`),
   "veo-fast": (i) => findRate("google veo 3.1", "text-to-video", `fast-${res(i, "720p")}`),
   "veo-lite": (i) => findRate("google veo 3.1", "text-to-video", `lite-${res(i, "720p")}`),
@@ -225,11 +162,11 @@ export const LIVE: Record<string, LiveFn> = {
 // ---- KIE provider adapter ---------------------------------------------------
 
 /** KIE credits the current settings will cost: live table first, built-in fallback second. */
-export function kieCreditsFor(variant: Variant, input: InputMap, chars = 0): number | null {
-  const live = LIVE[variant.id]?.(input, chars);
+export function kieCreditsFor(variant: Variant, input: InputMap, ctx: PriceCtx = NO_CTX): number | null {
+  const live = LIVE[variant.id]?.(input, ctx);
   if (live != null) return live;
   const fn = RATES[variant.id];
-  return fn ? fn(input, chars) : null;
+  return fn ? fn(input, ctx) : null;
 }
 
 // ---- provider-neutral -------------------------------------------------------
@@ -238,30 +175,39 @@ export function kieCreditsFor(variant: Variant, input: InputMap, chars = 0): num
  * What these settings cost us at the provider, in USD.
  * KIE is the only provider today; a second one adds a branch here, not a rewrite.
  */
-export function costUsdFor(variant: Variant, input: InputMap, chars = 0): number | null {
-  const credits = kieCreditsFor(variant, input, chars);
+export function costUsdFor(variant: Variant, input: InputMap, ctx: PriceCtx = NO_CTX): number | null {
+  const credits = kieCreditsFor(variant, input, ctx);
   return credits == null ? null : credits * KIE_CREDIT_USD;
 }
 
 /**
  * Final coin price for the current settings, or null if this combination isn't
- * offered. `chars` is the prompt length, which only the per-character audio
- * models use — everything else ignores it.
+ * offered — which callers render as "not supported" and use to shut the create
+ * button.
+ *
+ * A non-finite result is treated as no price at all. Callers gate on
+ * `price != null`, and `NaN != null` is true, so a NaN leaking out of a corrupt
+ * rate row would otherwise arrive as an enabled button with `NaN` on it.
  */
-export function priceCoins(variant: Variant, input: InputMap, chars = 0): number | null {
-  const usd = costUsdFor(variant, input, chars);
-  return usd == null ? null : coinsFor(usd);
+export function priceCoins(variant: Variant, input: InputMap, ctx: PriceCtx = NO_CTX): number | null {
+  const usd = costUsdFor(variant, input, ctx);
+  if (usd == null || !Number.isFinite(usd)) return null;
+  return coinsFor(usd);
 }
 
-/** Small helper for rate tables: look up a setting value in a map with a fallback. */
-export function pick(value: unknown, table: Record<string, number>, fallback: number): number {
-  return table[String(value)] ?? fallback;
+/**
+ * Cheapest this family can be run for, at each variant's own defaults.
+ *
+ * Home shows it where the mockup had a star rating: we have no ratings, and a
+ * fabricated one sits on a purchase decision. Null means every variant needs
+ * something we cannot know yet — Motion Control cannot be priced until a clip
+ * is attached — and the card says so rather than guessing.
+ */
+export function minCoinsForFamily(family: Family): number | null {
+  let best: number | null = null;
+  for (const v of family.variants) {
+    const p = priceCoins(v, defaultInput(variantControls(family, v)), NO_CTX);
+    if (p != null && (best == null || p < best)) best = p;
+  }
+  return best;
 }
-
-/** Like `pick`, but a missing key means "not offered" rather than "use the default". */
-function only(value: unknown, table: Record<string, number>): number | null {
-  return table[String(value)] ?? null;
-}
-
-/** Exported for tests — the built-in fallback table. */
-export { RATES as RATES_FALLBACK };
