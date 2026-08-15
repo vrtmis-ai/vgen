@@ -19,15 +19,15 @@ jobs:
     name: Web — typecheck, lint, format, unit, build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # pnpm before setup-node, not after: `cache: pnpm` resolves the store path
       # by running pnpm, so it has to exist first. No version is pinned here on
       # purpose — the action reads `packageManager` from package.json, which is
       # what keeps CI and the lockfile from drifting apart.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -59,9 +59,9 @@ jobs:
     name: Backend — typecheck, lint, unit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -73,10 +73,17 @@ jobs:
   database:
     name: Database — migrations, integration, smoke
     runs-on: ubuntu-latest
+    env:
+      # migrate.ts requires this and deliberately has no default — pointing the
+      # migration runner at a database by accident is exactly the mistake worth
+      # making impossible. (The integration harness does default, to this same
+      # URL.) The port is 5442 because that is what docker-compose.yml
+      # publishes; the credentials are the compose file's local-only ones.
+      DATABASE_URL: postgres://vgen:vgen-local@127.0.0.1:5442/vgen
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -91,8 +98,6 @@ jobs:
       - name: Start Postgres
         run: docker compose up -d --wait postgres
 
-      # No DATABASE_URL needed: integrationHarness.ts already defaults to the
-      # port compose publishes (5442, not 5432 — see docker-compose.yml).
       - run: pnpm db:migrate
       - run: pnpm backend:test:integration
 
@@ -109,9 +114,9 @@ jobs:
     name: End-to-end
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -126,7 +131,7 @@ jobs:
       # Playwright starts its own dev server on 5182 and retries twice in CI.
       - run: pnpm test:e2e
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
