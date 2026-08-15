@@ -9,6 +9,11 @@ import { Providers } from "./providers";
 export const metadata: Metadata = {
   title: "DEEV",
   icons: { icon: "/favicon.svg" },
+  // Domain-ownership proof for enamad.ir, which fetches the homepage and looks
+  // for this exact tag. It belongs in the root layout rather than a page: the
+  // crawler lands on `/`, and an anonymous visitor gets the landing page from
+  // the session gate below, so only the shared <head> is guaranteed to carry it.
+  other: { enamad: "11292457" },
 };
 
 export const viewport: Viewport = {
