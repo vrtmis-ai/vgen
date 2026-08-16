@@ -46,6 +46,11 @@ const dict = {
     lp_cta_secondary: "مدل‌ها و قیمت‌ها",
     /** {n} تومان ماهانه، {c} سکه — هر دو از PLANS مشتق می‌شوند. */
     lp_hero_from: "شروع از {n} تومان در ماه — {c} سکه",
+    lp_kind_video: "ویدیو",
+    lp_kind_image: "تصویر",
+    lp_kind_audio: "صدا و صوت",
+    /** {n} مدل، {v} برند — هر دو از کاتالوگ شمرده می‌شوند. */
+    lp_models_count: "{n} مدل از {v} سازنده، همه با یک حساب.",
     lp_nav_models: "مدل‌ها",
     lp_nav_features: "امکانات",
     lp_nav_plans: "قیمت‌ها",
@@ -362,6 +367,10 @@ const dict = {
     lp_cta_start: "Get started",
     lp_cta_secondary: "Models and pricing",
     lp_hero_from: "From {n} toman a month — {c} coins",
+    lp_kind_video: "Video",
+    lp_kind_image: "Image",
+    lp_kind_audio: "Audio and voice",
+    lp_models_count: "{n} models from {v} makers, all on one account.",
     lp_nav_models: "Models",
     lp_nav_features: "Features",
     lp_nav_plans: "Pricing",

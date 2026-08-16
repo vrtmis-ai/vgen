@@ -7,7 +7,6 @@ import { PLANS, monthlyCoins, toman, annualDiscountPct, effectiveUsd, type Plan 
 import { minCoinsForFamily } from "../data/pricing";
 import { Marquee } from "../components/Marquee";
 import { ModelMark } from "../components/ModelMark";
-import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { useI18n, type TKey } from "../lib/i18n";
@@ -398,6 +397,27 @@ const ENTRY_PLAN = [...PLANS].sort((a, b) => effectiveUsd(a, false) - effectiveU
  * per-model colour rather than to holes.
  */
 const HERO_BACKDROP = FAMILIES.filter((f) => f.cover && !isVideoUrl(f.cover)).slice(0, 6);
+
+/**
+ * The model wall, grouped by what each family makes.
+ *
+ * Order is video → image → audio rather than catalogue order: video is the
+ * expensive thing people come for, which is the same reason the hero row leads
+ * with it.
+ *
+ * Both this and the vendor count are computed. The section's whole claim is a
+ * number — "every model, one account" — and a number written by hand is one
+ * catalogue edit away from being a lie.
+ */
+const MODEL_GROUPS = (["video", "image", "audio"] as const)
+  .map((kind) => ({
+    kind,
+    label: `lp_kind_${kind}` as TKey,
+    families: FAMILIES.filter((f) => f.kind === kind),
+  }))
+  .filter((group) => group.families.length > 0);
+
+const MODEL_VENDOR_COUNT = new Set(FAMILIES.map((f) => f.vendor)).size;
 
 function Hero({ onSignUp }: { onSignUp: () => void }) {
   const { t, n } = useI18n();
@@ -871,33 +891,67 @@ function TryIt({ onSignUp }: { onSignUp: () => void }) {
 /* ---------- one platform, every model ---------- */
 function Models() {
   const { t, n } = useI18n();
-  const shown = FAMILIES.slice(0, 12);
   return (
     <Section light="start" id="models">
       <Heading index="01" sub={t("lp_models_sub")}>
         {t("lp_models_title")}
       </Heading>
-      <Rise className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6">
-        {shown.map((f) => {
-          const p = minCoinsForFamily(f);
-          return (
-            <motion.div
-              key={f.id}
-              variants={riseItem}
-              className="vg-ease flex flex-col items-center gap-2 rounded-card p-4 text-center hover:-translate-y-0.5"
-              style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
-            >
-              <VendorMark vendor={f.vendor} size={26} />
-              <span className="truncate text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }} lang="en">
-                {f.name}
-              </span>
-              <span className="text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
-                {p == null ? t("home_price_na") : `${t("home_price_from")} ${n(p)}`}
-              </span>
-            </motion.div>
-          );
-        })}
-      </Rise>
+
+      {/* The count, stated. It is the claim.
+          Both numbers are counted off the catalogue rather than written down —
+          "19 models from 13 makers" is only worth saying if it cannot become
+          untrue the next time one is added. */}
+      <p className="-mt-6 mb-10 text-[14px] font-semibold" style={{ color: "var(--vg-text-secondary)" }}>
+        {t("lp_models_count").replace("{n}", n(FAMILIES.length)).replace("{v}", n(MODEL_VENDOR_COUNT))}
+      </p>
+
+      {/* Grouped by what they make, and showing all of them.
+          It used to be `FAMILIES.slice(0, 12)` — twelve of nineteen, chosen by
+          position. That undersells the one claim this section exists to make,
+          and the seven it dropped were dropped for no reason anyone could state.
+
+          Video first. It is the expensive thing people come for, the same
+          reasoning that orders the hero row. */}
+      {MODEL_GROUPS.map(({ kind, label, families }) => (
+        <div key={kind} className="mb-10 last:mb-0">
+          <div className="mb-4 flex items-baseline gap-2.5">
+            <h3 className="text-[15px] font-bold" style={{ color: "var(--vg-text)" }}>
+              {t(label)}
+            </h3>
+            <span className="text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
+              {n(families.length)}
+            </span>
+          </div>
+
+          <Rise className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {families.map((f) => {
+              const p = minCoinsForFamily(f);
+              return (
+                <motion.div
+                  key={f.id}
+                  variants={riseItem}
+                  className="vg-ease flex flex-col items-center gap-2 rounded-card p-4 text-center hover:-translate-y-0.5"
+                  style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+                >
+                  {/* ModelMark, not VendorMark. Three of these are Google, so
+                      vendor monograms put the same blue G on three tiles and the
+                      wall reads as one company — the opposite of the point. This
+                      still falls back to the monogram today, but the moment a
+                      model's own artwork is cleared it appears here with nothing
+                      to change. */}
+                  <ModelMark familyId={f.id} vendor={f.vendor} size={26} />
+                  <span className="truncate text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }} lang="en">
+                    {f.name}
+                  </span>
+                  <span className="text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+                    {p == null ? t("home_price_na") : `${t("home_price_from")} ${n(p)}`}
+                  </span>
+                </motion.div>
+              );
+            })}
+          </Rise>
+        </div>
+      ))}
     </Section>
   );
 }
