@@ -67,7 +67,16 @@ export function HeroSection({ onSignIn, onSignUp }: { onSignIn: () => void; onSi
     <>
       <HeroHeader onSignIn={onSignIn} onSignUp={onSignUp} />
       <main className="overflow-x-hidden">
-        <section>
+        {/* `overflow-hidden`, which the original does not need and we do.
+            The video card is `absolute inset-1` with an aspect ratio, so its
+            height comes from its width — and at a wide viewport that makes it
+            taller than the hero's own content, so it hangs down into the section
+            below. The original gets away with it because that next section is
+            opaque and simply paints over the overflow. Ours is opaque too, which
+            is exactly what cut a hard black band across the middle of the video.
+            Clipping the card to the hero removes the overflow instead of hiding
+            it. */}
+        <section className="relative overflow-hidden">
           <div className="py-24 md:pb-32 lg:pb-36 lg:pt-72">
             <div className="relative z-10 mx-auto flex max-w-7xl flex-col px-6 lg:block lg:px-12">
               <div className="mx-auto max-w-lg text-center lg:ms-0 lg:max-w-full lg:text-start">
@@ -161,7 +170,18 @@ export function HeroSection({ onSignIn, onSignUp }: { onSignIn: () => void; onSi
                     the infinite animation for a ONE-SHOT tween to the end, and
                     when that completes the row simply stops. Which is exactly the
                     "it scrolls past and finishes" you saw. */}
-                <InfiniteSlider duration={40} gap={112}>
+                {/* `reverse` under RTL, and it is the difference between a loop
+                    and a row that empties.
+
+                    A flex row in RTL lays its first child at the right edge and
+                    the rest leftward, so the track hangs off to the LEFT of the
+                    container. `InfiniteSlider` always animates `x` negative,
+                    which drags the track further left — away from the only
+                    content there is — so once the list has passed, the right
+                    side of the band is empty until the loop restarts. Reversing
+                    animates from `-contentSize/2` up to `0`, which walks the
+                    track rightward through the copy that is already there. */}
+                <InfiniteSlider duration={40} gap={112} reverse={rtl}>
                   {SLIDER_MODELS.map((f) => (
                     <div key={f.id} className="flex items-center gap-2.5">
                       <ModelMark familyId={f.id} vendor={f.vendor} size={22} />

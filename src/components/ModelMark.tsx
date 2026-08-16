@@ -4,35 +4,76 @@ import { FAMILY_MARKS, VENDOR_MARKS } from "../data/vendorMarks";
 import { VendorMark } from "./VendorMark";
 
 /**
- * A model's mark, in two tiers: its maker's logo, then a monogram.
+ * A model's mark, in four tiers: a bitmap stencil, the model's own vector logo,
+ * its maker's, then a monogram.
  *
- * The logo tier is what earns the model wall. A grid of letter-circles borrows
- * nobody's credibility — the entire point of naming Veo and Kling is that a
- * visitor already trusts Google and Kuaishou — and it cannot be the model's own
- * logo, because "Veo", "Kling" and "Nano Banana" are products of an age that
- * mostly have no published mark to use. The maker's does exist.
+ * The logo is what earns the model wall. A grid of letter-circles borrows
+ * nobody's credibility, and the entire point of naming Veo and Kling is that a
+ * visitor already trusts Google and Kuaishou.
  *
- * Three Google families therefore show the same Google logo. That was the
- * argument against doing this at all, and it was wrong: the model's name sits
- * directly beside the mark, so nothing is ambiguous, and one real logo repeated
- * is worth more than three different letters nobody recognises.
+ * The model's own mark beats its maker's wherever one exists, and that ordering
+ * is not cosmetic: Kuaishou's logo beside "Kling" was reported as simply the
+ * wrong logo, and it was — nobody outside China reads that mark as Kling. Where
+ * only the maker's exists it still earns its place, so three Google families
+ * share the Google logo with their own names beside them.
  *
  * ## Inline, not an <img>
  *
- * The first pass wrote SVG files to `public/` and pointed an `<img>` at them.
+ * An earlier pass wrote SVG files to `public/` and pointed an `<img>` at them.
  * That ships a logo nobody can see: an SVG loaded through `<img>` is an isolated
  * document, page CSS does not reach inside it, and the file's `currentColor`
- * resolves against its own default — black, on a near-black canvas. Half of
- * these brands are `#000000`.
+ * resolves against its own default — black, on a near-black canvas.
  *
- * Inlining the path fixes it at the root and costs no request, which matters
- * here because the model wall draws nineteen of these at once.
+ * Inlining fixes it at the root and costs no request, which matters because the
+ * model wall draws nineteen of these at once.
  *
- * `VendorMark` remains the floor. Seven of the catalogue's thirteen vendors have
- * no icon upstream — OpenAI among them — so their families keep the monogram,
- * and that is a working state rather than a gap.
+ * `VendorMark` remains the floor. Only Z-Image still reaches it.
  */
+
+/**
+ * Marks that exist only as a bitmap, drawn as a stencil rather than an image.
+ *
+ * Wan is the sole entry and likely to stay that way: it is the one model in the
+ * catalogue with no vector logo published anywhere — not in @lobehub/icons, not
+ * in svgl, not in its own GitHub repo, and not on wan.video, which serves a PNG
+ * from a CDN.
+ *
+ * `mask-image` rather than `<img>`, and that is the whole trick. An `<img>` is
+ * an isolated document that ignores page CSS, so a bitmap logo cannot be tinted
+ * and would sit in the row at its own brand colour while the other seventeen
+ * take `currentColor`. As a mask, only the alpha channel is used and the element
+ * paints itself through it — so this weighs and colours exactly like a vector
+ * mark. `scripts/make-mark-mask.ts` is what turns the supplied PNG into that
+ * alpha channel.
+ */
+const RASTER_MASKS: Record<string, string> = {
+  wan: "/brand/marks/wan.png",
+};
+
 export function ModelMark({ familyId, vendor, size = 16 }: { familyId?: string; vendor: string; size?: number }) {
+  const mask = familyId ? RASTER_MASKS[familyId] : undefined;
+  if (mask) {
+    return (
+      <span
+        aria-hidden
+        className="shrink-0"
+        style={{
+          width: size,
+          height: size,
+          background: "var(--vg-text-secondary)",
+          maskImage: `url(${mask})`,
+          WebkitMaskImage: `url(${mask})`,
+          maskSize: "contain",
+          WebkitMaskSize: "contain",
+          maskRepeat: "no-repeat",
+          WebkitMaskRepeat: "no-repeat",
+          maskPosition: "center",
+          WebkitMaskPosition: "center",
+        }}
+      />
+    );
+  }
+
   // The model's own mark first — Kling's logo beside "Kling" is right in a way
   // Kuaishou's is not — then its maker's, then the monogram.
   const mark = (familyId ? FAMILY_MARKS[familyId] : undefined) ?? VENDOR_MARKS[vendor];
