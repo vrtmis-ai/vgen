@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { ArrowLeft, Check, CaretDown, DeviceMobile, Sparkle } from "@phosphor-icons/react";
+import { motion, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
+import { ArrowLeft, Check, CaretDown, DeviceMobile, List, Sparkle, X } from "@phosphor-icons/react";
 import { FAMILIES, getFamily, type Family } from "../data/models";
 import { COMMUNITY } from "../data/community";
 import { PLANS, monthlyCoins, toman, annualDiscountPct, effectiveUsd, type Plan } from "../data/plans";
@@ -160,58 +160,154 @@ function Heading({ index, children, sub }: { index: string; children: React.Reac
 }
 
 /* ---------- nav ---------- */
+
+/** The page's own sections. Anchors, not routes — this is one document. */
+const NAV_LINKS: { href: string; label: TKey }[] = [
+  { href: "#models", label: "lp_nav_models" },
+  { href: "#features", label: "lp_nav_features" },
+  { href: "#plans", label: "lp_nav_plans" },
+  { href: "#faq", label: "lp_nav_faq" },
+];
+
 function TopNav({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) {
   const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  /* Glass on arrival, not at rest.
+     The bar used to carry its own background from the first frame, which put a
+     bordered pill directly on top of the hero card's bordered edge — two frames
+     stacked at the top of the screen, each undermining the other. Transparent
+     until the page has actually moved, the nav belongs to the shot; once there
+     is content sliding under it, the glass earns its keep.
+
+     `scrollY` rather than `scrollYProgress`: a fixed pixel threshold behaves the
+     same on a short page and a long one, where a percentage would trigger almost
+     immediately on one and far too late on the other. */
+  const { scrollY } = useScroll();
+  useMotionValueEvent(scrollY, "change", (y) => setScrolled(y > 24));
+
+  const linkClass = "vg-ease whitespace-nowrap text-[13px] hover:text-[color:var(--vg-text)]";
+
   return (
-    /* A floating island, not a bar glued to the top edge.
-       The glass reads as glass when there is something visible behind and
-       around it; edge-to-edge it just looks like a lighter strip. The blur
-       stays here rather than on any scrolling surface — a backdrop-filter over
-       moving content repaints every frame and is the usual cause of a landing
-       page that stutters on a phone. */
-    <header className="sticky top-0 z-30 px-4 pt-4 sm:px-6">
+    /* Fixed, not sticky. A sticky header still occupies a row in the flow, and
+       the hero is a full-bleed card that has to start at the top of the page —
+       sticky would push it down by the height of the bar and break the inset. */
+    <header className="fixed inset-x-0 top-0 z-30 px-4 pt-4 sm:px-6">
       <div
-        className="mx-auto flex h-16 w-full max-w-[1180px] items-center justify-between rounded-[1.75rem] pe-2 ps-6"
-        style={{
-          background: "var(--vg-glass)",
-          backdropFilter: "blur(var(--vg-blur))",
-          border: "1px solid var(--vg-border-subtle)",
-        }}
+        /* The blur lives here rather than on any scrolling surface: a
+           backdrop-filter over moving content repaints every frame and is the
+           usual cause of a landing page that stutters on a phone. */
+        className={`vg-ease mx-auto w-full max-w-[1180px] rounded-[1.75rem] pe-2 ps-6 ${scrolled ? "py-2.5" : "py-4"}`}
+        style={
+          scrolled
+            ? {
+                background: "var(--vg-glass)",
+                backdropFilter: "blur(var(--vg-blur))",
+                border: "1px solid var(--vg-border-subtle)",
+              }
+            : { background: "transparent", border: "1px solid transparent" }
+        }
       >
-        {/* Wordmark over tagline, as the brand sheet sets it. Light weight and
-            wide tracking, not the extrabold/tight it was — the logo is the one
-            piece of type whose treatment is not ours to choose. */}
-        <span className="flex flex-col leading-none">
-          <span
-            className="text-[20px] font-light tracking-[0.34em]"
-            style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-          >
-            {BRAND.name}
-          </span>
-          <span
-            className="mt-1.5 hidden text-[9.5px] font-medium uppercase tracking-[0.2em] sm:block"
-            style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-latin)" }}
-            lang="en"
-          >
-            {BRAND.tagline}
-          </span>
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onSignIn}
-            className="vg-ease rounded-full px-4 py-2.5 text-[13px] hover:text-[color:var(--vg-text)] active:scale-[0.98]"
-            style={{ color: "var(--vg-text-secondary)" }}
-          >
-            {t("lp_login")}
-          </button>
-          <button
-            onClick={onSignUp}
-            className="vg-ease rounded-full px-5 py-2.5 text-[13px] font-semibold active:scale-[0.98]"
-            style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
-          >
-            {t("lp_signup")}
-          </button>
+        <div className="flex items-center justify-between gap-6">
+          {/* Wordmark over tagline, as the brand sheet sets it. Light weight and
+              wide tracking, not the extrabold/tight it was — the logo is the one
+              piece of type whose treatment is not ours to choose. */}
+          <a href="#" className="flex shrink-0 flex-col leading-none" aria-label={BRAND.name}>
+            <span
+              className="text-[20px] font-light tracking-[0.34em]"
+              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+            >
+              {BRAND.name}
+            </span>
+            <span
+              className="mt-1.5 hidden text-[9.5px] font-medium uppercase tracking-[0.2em] sm:block"
+              style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-latin)" }}
+              lang="en"
+            >
+              {BRAND.tagline}
+            </span>
+          </a>
+
+          {/* The page has four chapters and the bar offered no way into any of
+              them. On a document this long that is the nav's actual job; the two
+              buttons were doing the whole thing alone. */}
+          <nav className="hidden lg:block">
+            <ul className="flex items-center gap-7">
+              {NAV_LINKS.map((l) => (
+                <li key={l.href}>
+                  <a href={l.href} className={linkClass} style={{ color: "var(--vg-text-secondary)" }}>
+                    {t(l.label)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Outlined, not bare. Two actions with only one of them looking like
+                a control reads as "a link and a button" rather than as a second
+                and a first choice — the outline is what makes them a pair with a
+                clear order. */}
+            <button
+              onClick={onSignIn}
+              className="vg-ease hidden rounded-full px-4 py-2 text-[13px] font-medium hover:bg-[color:var(--vg-surface-overlay)] active:scale-[0.98] sm:block"
+              style={{ color: "var(--vg-text-secondary)", border: "1px solid var(--vg-border)" }}
+            >
+              {t("lp_login")}
+            </button>
+            <button
+              onClick={onSignUp}
+              className="vg-ease rounded-full px-5 py-2 text-[13px] font-semibold active:scale-[0.98]"
+              style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+            >
+              {t("lp_signup")}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOpen(!open)}
+              aria-expanded={open}
+              aria-label={t(open ? "lp_nav_close" : "lp_nav_open")}
+              className="vg-ease -me-1 grid size-9 place-items-center rounded-full lg:hidden"
+              style={{ color: "var(--vg-text-secondary)" }}
+            >
+              {open ? <X size={18} weight="bold" /> : <List size={18} weight="bold" />}
+            </button>
+          </div>
         </div>
+
+        {/* The links again, stacked, for the widths that cannot show the row.
+            Inside the same pill rather than a full-screen overlay: there are four
+            of them, and covering the page to show four words is a sheet doing a
+            menu's job. */}
+        {open && (
+          <nav className="mt-4 border-t pt-4 lg:hidden" style={{ borderColor: "var(--vg-border-subtle)" }}>
+            <ul className="flex flex-col gap-4">
+              {NAV_LINKS.map((l) => (
+                <li key={l.href}>
+                  <a
+                    href={l.href}
+                    onClick={() => setOpen(false)}
+                    className={`${linkClass} block`}
+                    style={{ color: "var(--vg-text-secondary)" }}
+                  >
+                    {t(l.label)}
+                  </a>
+                </li>
+              ))}
+              <li className="sm:hidden">
+                <button
+                  onClick={onSignIn}
+                  className="vg-ease w-full rounded-full py-2.5 text-[13px] font-medium"
+                  style={{ color: "var(--vg-text-secondary)", border: "1px solid var(--vg-border)" }}
+                >
+                  {t("lp_login")}
+                </button>
+              </li>
+            </ul>
+          </nav>
+        )}
       </div>
     </header>
   );
@@ -285,7 +381,19 @@ function Hero({ onSignUp }: { onSignUp: () => void }) {
   const typeFade = useTransform(scrollYProgress, [0, 0.72], [1, 0]);
 
   return (
-    <div ref={frame} className="relative">
+    /* `overflow-hidden` is load-bearing, and dropping it when this became a card
+       is what let the hero's type escape onto the sections below.
+
+       The type block is parallaxed down by up to 44% of the hero's height — that
+       is the point, it is the nearest layer — and a transform does not shrink
+       the box it moves out of. The old full-bleed hero clipped it, so it never
+       showed. A card that does not clip lets the headline slide out of its frame
+       and sit on top of the reel, which is exactly what was reported.
+
+       The fade is not a substitute for the clip. `typeFade` reaches zero at 72%
+       of the way through the frame, so between there and wherever the transform
+       carries it the type is still partly opaque and still outside the card. */
+    <div ref={frame} className="relative overflow-hidden">
       {/* THE CARD.
           The reference's defining move, and the reason the marquee alone did not
           make this look like it: the scene is an inset rounded card with a
@@ -576,7 +684,7 @@ function Features() {
     { k: "lp_f3", d: "lp_f3_d" },
   ];
   return (
-    <Section light="end">
+    <Section light="end" id="features">
       <Heading index="02">{t("lp_features_title")}</Heading>
       {/* Three claims, and each one is the answer to a real objection about
           using this from Iran — so they get room to be read rather than being
@@ -620,7 +728,7 @@ function Plans({ onSignIn }: { onSignIn: () => void }) {
   const [annual, setAnnual] = useState(false);
   const main = PLANS.filter((p) => p.group === "main").slice(0, 2);
   return (
-    <Section light="start">
+    <Section light="start" id="plans">
       {/* Heading and billing switch on one row at desktop. Stacked and centred,
           the switch read as a third heading; beside the title it reads as the
           control for what is underneath it, which is what it is. */}
@@ -752,7 +860,7 @@ function Faq() {
   const { t } = useI18n();
   const [open, setOpen] = useState<number | null>(0);
   return (
-    <Section light="end">
+    <Section light="end" id="faq">
       <Heading index="04">{t("lp_faq_title")}</Heading>
       <div className="mx-auto flex max-w-[720px] flex-col gap-2">
         {FAQ_KEYS.map(({ q, a }, i) => {
