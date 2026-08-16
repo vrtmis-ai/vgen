@@ -1,0 +1,1664 @@
+{
+  "rows": [
+    {
+      "variantId": "eleven-multilingual",
+      "externalModelId": "elevenlabs/text-to-speech-multilingual-v2",
+      "featureCode": "speech_generate",
+      "selector": {},
+      "pricingMode": "derived",
+      "quantity": "characters",
+      "providerUnits": 12,
+      "microCredits": 2400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "eleven-turbo",
+      "externalModelId": "elevenlabs/text-to-speech-turbo-2-5",
+      "featureCode": "speech_generate",
+      "selector": {},
+      "pricingMode": "derived",
+      "quantity": "characters",
+      "providerUnits": 6,
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "flux-2-flex",
+      "externalModelId": "flux-2/flex-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 14,
+      "microCredits": 2800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "flux-2-flex",
+      "externalModelId": "flux-2/flex-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 24,
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "flux-2-pro",
+      "externalModelId": "flux-2/pro-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 5,
+      "microCredits": 1000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "flux-2-pro",
+      "externalModelId": "flux-2/pro-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 7,
+      "microCredits": 1400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "10",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 126,
+      "microCredits": 25200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "10",
+        "resolution": "4k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 210,
+      "microCredits": 42000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "10",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 126,
+      "microCredits": 25200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "4",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 63,
+      "microCredits": 12600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "4",
+        "resolution": "4k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 147,
+      "microCredits": 29400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "4",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 63,
+      "microCredits": 12600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "6",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 84,
+      "microCredits": 16800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "6",
+        "resolution": "4k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 168,
+      "microCredits": 33600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "6",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 84,
+      "microCredits": 16800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "8",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 105,
+      "microCredits": 21000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "8",
+        "resolution": "4k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 189,
+      "microCredits": 37800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-omni-video",
+      "externalModelId": "gemini-omni-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "8",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 105,
+      "microCredits": 21000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-1-5",
+      "externalModelId": "gpt-image/1.5-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "high"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 22,
+      "microCredits": 4400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-1-5",
+      "externalModelId": "gpt-image/1.5-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "medium"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 4,
+      "microCredits": 800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2",
+      "externalModelId": "gpt-image-2-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 6,
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2",
+      "externalModelId": "gpt-image-2-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 10,
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2",
+      "externalModelId": "gpt-image-2-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "grok-image",
+      "externalModelId": "grok-imagine/text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "enable_pro": "false"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 4,
+      "microCredits": 800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "grok-image",
+      "externalModelId": "grok-imagine/text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "enable_pro": "true"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 5,
+      "microCredits": 1000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "hailuo-2-3-standard",
+      "externalModelId": "hailuo/2-3-image-to-video-standard",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "10",
+        "resolution": "1080P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0,
+      "microCredits": 0,
+      "maxBillableUnits": null,
+      "isOffered": false
+    },
+    {
+      "variantId": "hailuo-2-3-standard",
+      "externalModelId": "hailuo/2-3-image-to-video-standard",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "10",
+        "resolution": "768P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 50,
+      "microCredits": 10000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "hailuo-2-3-standard",
+      "externalModelId": "hailuo/2-3-image-to-video-standard",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "6",
+        "resolution": "1080P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 50,
+      "microCredits": 10000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "hailuo-2-3-standard",
+      "externalModelId": "hailuo/2-3-image-to-video-standard",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "6",
+        "resolution": "768P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 30,
+      "microCredits": 6000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "hailuo-2-3",
+      "externalModelId": "hailuo/2-3-image-to-video-pro",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "10",
+        "resolution": "1080P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0,
+      "microCredits": 0,
+      "maxBillableUnits": null,
+      "isOffered": false
+    },
+    {
+      "variantId": "hailuo-2-3",
+      "externalModelId": "hailuo/2-3-image-to-video-pro",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "10",
+        "resolution": "768P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 90,
+      "microCredits": 18000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "hailuo-2-3",
+      "externalModelId": "hailuo/2-3-image-to-video-pro",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "6",
+        "resolution": "1080P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 80,
+      "microCredits": 16000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "hailuo-2-3",
+      "externalModelId": "hailuo/2-3-image-to-video-pro",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "6",
+        "resolution": "768P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 45,
+      "microCredits": 9000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "ideogram-v3",
+      "externalModelId": "ideogram/v3-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "rendering_speed": "BALANCED"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 7,
+      "microCredits": 1400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "ideogram-v3",
+      "externalModelId": "ideogram/v3-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "rendering_speed": "QUALITY"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 10,
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "ideogram-v3",
+      "externalModelId": "ideogram/v3-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "rendering_speed": "TURBO"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 3.5,
+      "microCredits": 700000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "imagen-4-fast",
+      "externalModelId": "google/imagen4-fast",
+      "featureCode": "image_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 4,
+      "microCredits": 800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "imagen-4-ultra",
+      "externalModelId": "google/imagen4-ultra",
+      "featureCode": "image_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 12,
+      "microCredits": 2400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "imagen-4",
+      "externalModelId": "google/imagen4",
+      "featureCode": "image_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 8,
+      "microCredits": 1600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-2-5-turbo",
+      "externalModelId": "kling/v2-5-turbo-text-to-video-pro",
+      "featureCode": "video_generate",
+      "selector": {},
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 8.4,
+      "microCredits": 1680000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-2-6-motion",
+      "externalModelId": "kling-2.6/motion-control",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "image",
+        "mode": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 18,
+      "microCredits": 3600000,
+      "maxBillableUnits": 10,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-2-6-motion",
+      "externalModelId": "kling-2.6/motion-control",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "image",
+        "mode": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 11,
+      "microCredits": 2200000,
+      "maxBillableUnits": 10,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-2-6-motion",
+      "externalModelId": "kling-2.6/motion-control",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "video",
+        "mode": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 18,
+      "microCredits": 3600000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-2-6-motion",
+      "externalModelId": "kling-2.6/motion-control",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "video",
+        "mode": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 11,
+      "microCredits": 2200000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-2-6",
+      "externalModelId": "kling-2.6/text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "sound": "false"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 11,
+      "microCredits": 2200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-2-6",
+      "externalModelId": "kling-2.6/text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "sound": "true"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 22,
+      "microCredits": 4400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-motion",
+      "externalModelId": "kling-3.0/motion-control",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "image",
+        "mode": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 27,
+      "microCredits": 5400000,
+      "maxBillableUnits": 10,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-motion",
+      "externalModelId": "kling-3.0/motion-control",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "image",
+        "mode": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 20,
+      "microCredits": 4000000,
+      "maxBillableUnits": 10,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-motion",
+      "externalModelId": "kling-3.0/motion-control",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "video",
+        "mode": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 27,
+      "microCredits": 5400000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-motion",
+      "externalModelId": "kling-3.0/motion-control",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "video",
+        "mode": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 20,
+      "microCredits": 4000000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-turbo",
+      "externalModelId": "kling/v3-turbo-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 22.5,
+      "microCredits": 4500000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-turbo",
+      "externalModelId": "kling/v3-turbo-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 18,
+      "microCredits": 3600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3",
+      "externalModelId": "kling-3.0/video",
+      "featureCode": "video_generate",
+      "selector": {
+        "mode": "4K",
+        "sound": "false"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 67,
+      "microCredits": 13400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3",
+      "externalModelId": "kling-3.0/video",
+      "featureCode": "video_generate",
+      "selector": {
+        "mode": "4K",
+        "sound": "true"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 67,
+      "microCredits": 13400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3",
+      "externalModelId": "kling-3.0/video",
+      "featureCode": "video_generate",
+      "selector": {
+        "mode": "pro",
+        "sound": "false"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 18,
+      "microCredits": 3600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3",
+      "externalModelId": "kling-3.0/video",
+      "featureCode": "video_generate",
+      "selector": {
+        "mode": "pro",
+        "sound": "true"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 27,
+      "microCredits": 5400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3",
+      "externalModelId": "kling-3.0/video",
+      "featureCode": "video_generate",
+      "selector": {
+        "mode": "std",
+        "sound": "false"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 14,
+      "microCredits": 2800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3",
+      "externalModelId": "kling-3.0/video",
+      "featureCode": "video_generate",
+      "selector": {
+        "mode": "std",
+        "sound": "true"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 20,
+      "microCredits": 4000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "minimax-h3",
+      "externalModelId": "minimax-h3/text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 26,
+      "microCredits": 5200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "minimax-h3",
+      "externalModelId": "minimax-h3/text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "768p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "nano-banana-2",
+      "externalModelId": "nano-banana-2",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 8,
+      "microCredits": 1600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "nano-banana-2",
+      "externalModelId": "nano-banana-2",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 12,
+      "microCredits": 2400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "nano-banana-2",
+      "externalModelId": "nano-banana-2",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 18,
+      "microCredits": 3600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "nano-banana-pro",
+      "externalModelId": "nano-banana-pro",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 18,
+      "microCredits": 3600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "nano-banana-pro",
+      "externalModelId": "nano-banana-pro",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 18,
+      "microCredits": 3600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "nano-banana-pro",
+      "externalModelId": "nano-banana-pro",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 24,
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "qwen-image",
+      "externalModelId": "qwen/text-to-image",
+      "featureCode": "image_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 4,
+      "microCredits": 800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "recraft-crisp-upscale",
+      "externalModelId": "recraft/crisp-upscale",
+      "featureCode": "image_edit",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0.5,
+      "microCredits": 100000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "recraft-remove-bg",
+      "externalModelId": "recraft/remove-background",
+      "featureCode": "image_edit",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 1,
+      "microCredits": 200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-1-5-pro",
+      "externalModelId": "bytedance/seedance-1.5-pro",
+      "featureCode": "video_generate",
+      "selector": {
+        "generate_audio": "false",
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 7.5,
+      "microCredits": 1500000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-1-5-pro",
+      "externalModelId": "bytedance/seedance-1.5-pro",
+      "featureCode": "video_generate",
+      "selector": {
+        "generate_audio": "false",
+        "resolution": "480p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 1.75,
+      "microCredits": 350000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-1-5-pro",
+      "externalModelId": "bytedance/seedance-1.5-pro",
+      "featureCode": "video_generate",
+      "selector": {
+        "generate_audio": "false",
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 3.5,
+      "microCredits": 700000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-1-5-pro",
+      "externalModelId": "bytedance/seedance-1.5-pro",
+      "featureCode": "video_generate",
+      "selector": {
+        "generate_audio": "true",
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 15,
+      "microCredits": 3000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-1-5-pro",
+      "externalModelId": "bytedance/seedance-1.5-pro",
+      "featureCode": "video_generate",
+      "selector": {
+        "generate_audio": "true",
+        "resolution": "480p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 3.5,
+      "microCredits": 700000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-1-5-pro",
+      "externalModelId": "bytedance/seedance-1.5-pro",
+      "featureCode": "video_generate",
+      "selector": {
+        "generate_audio": "true",
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 7,
+      "microCredits": 1400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2-5",
+      "externalModelId": "bytedance/seedance-2-5",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 28,
+      "microCredits": 5600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2-5",
+      "externalModelId": "bytedance/seedance-2-5",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 63,
+      "microCredits": 12600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2-fast",
+      "externalModelId": "bytedance/seedance-2-fast",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 15.5,
+      "microCredits": 3100000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2-fast",
+      "externalModelId": "bytedance/seedance-2-fast",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 33,
+      "microCredits": 6600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2-mini",
+      "externalModelId": "bytedance/seedance-2-mini",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 3.8,
+      "microCredits": 760000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2-mini",
+      "externalModelId": "bytedance/seedance-2-mini",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 8.2,
+      "microCredits": 1640000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2",
+      "externalModelId": "bytedance/seedance-2",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 102,
+      "microCredits": 20400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2",
+      "externalModelId": "bytedance/seedance-2",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 19,
+      "microCredits": 3800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2",
+      "externalModelId": "bytedance/seedance-2",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "4k"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 208,
+      "microCredits": 41600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2",
+      "externalModelId": "bytedance/seedance-2",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 41,
+      "microCredits": 8200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedream-4-5",
+      "externalModelId": "seedream/4.5-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 6.5,
+      "microCredits": 1300000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedream-5-lite",
+      "externalModelId": "seedream/5-lite-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 5.5,
+      "microCredits": 1100000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "topaz-image-upscale",
+      "externalModelId": "topaz/image-upscale",
+      "featureCode": "image_edit",
+      "selector": {
+        "upscale_factor": "2"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 10,
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "topaz-image-upscale",
+      "externalModelId": "topaz/image-upscale",
+      "featureCode": "image_edit",
+      "selector": {
+        "upscale_factor": "4"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 20,
+      "microCredits": 4000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "topaz-image-upscale",
+      "externalModelId": "topaz/image-upscale",
+      "featureCode": "image_edit",
+      "selector": {
+        "upscale_factor": "8"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 40,
+      "microCredits": 8000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "topaz-video-upscale",
+      "externalModelId": "topaz/video-upscale",
+      "featureCode": "video_edit",
+      "selector": {
+        "upscale_factor": "1"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 8,
+      "microCredits": 1600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "topaz-video-upscale",
+      "externalModelId": "topaz/video-upscale",
+      "featureCode": "video_edit",
+      "selector": {
+        "upscale_factor": "2"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 8,
+      "microCredits": 1600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "topaz-video-upscale",
+      "externalModelId": "topaz/video-upscale",
+      "featureCode": "video_edit",
+      "selector": {
+        "upscale_factor": "4"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 14,
+      "microCredits": 2800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "veo-fast",
+      "externalModelId": "veo3_fast",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 65,
+      "microCredits": 13000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "veo-fast",
+      "externalModelId": "veo3_fast",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "4k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 180,
+      "microCredits": 36000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "veo-fast",
+      "externalModelId": "veo3_fast",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 60,
+      "microCredits": 12000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "veo-lite",
+      "externalModelId": "veo3_lite",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 35,
+      "microCredits": 7000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "veo-lite",
+      "externalModelId": "veo3_lite",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "4k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 150,
+      "microCredits": 30000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "veo-lite",
+      "externalModelId": "veo3_lite",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 30,
+      "microCredits": 6000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "veo-quality",
+      "externalModelId": "veo3",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 255,
+      "microCredits": 51000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "veo-quality",
+      "externalModelId": "veo3",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "4k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 380,
+      "microCredits": 76000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "veo-quality",
+      "externalModelId": "veo3",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 250,
+      "microCredits": 50000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-5",
+      "externalModelId": "wan/2-5-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 20,
+      "microCredits": 4000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-5",
+      "externalModelId": "wan/2-5-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 12,
+      "microCredits": 2400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6",
+      "externalModelId": "wan/2-6-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "10",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 209.5,
+      "microCredits": 41900000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6",
+      "externalModelId": "wan/2-6-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "10",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 140,
+      "microCredits": 28000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6",
+      "externalModelId": "wan/2-6-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "15",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 315,
+      "microCredits": 63000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6",
+      "externalModelId": "wan/2-6-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "15",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 210,
+      "microCredits": 42000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6",
+      "externalModelId": "wan/2-6-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "5",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 104.5,
+      "microCredits": 20900000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6",
+      "externalModelId": "wan/2-6-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "duration": "5",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 70,
+      "microCredits": 14000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-r2v",
+      "externalModelId": "wan/2-7-r2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 24,
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-r2v",
+      "externalModelId": "wan/2-7-r2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-videoedit",
+      "externalModelId": "wan/2-7-videoedit",
+      "featureCode": "video_edit",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 24,
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-videoedit",
+      "externalModelId": "wan/2-7-videoedit",
+      "featureCode": "video_edit",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7",
+      "externalModelId": "wan/2-7-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 24,
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7",
+      "externalModelId": "wan/2-7-text-to-video",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "z-image",
+      "externalModelId": "z-image",
+      "featureCode": "image_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0.8,
+      "microCredits": 160000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    }
+  ]
+}

@@ -4,7 +4,6 @@ import { ArrowRight, CaretDown, Lock, Sparkle, Stack } from "@phosphor-icons/rea
 import { defaultInput, variantControls, variantRefs, variantMaxPrompt, type Family, type Variant } from "../data/models";
 import { priceCoins } from "../data/pricing";
 import { CoinMark } from "../components/chrome";
-import { useKieRates } from "../lib/kieRates";
 import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
 import { ControlField, RefUpload, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
@@ -80,7 +79,6 @@ export default function Generate({
   const orphanNeeds = orphan && refs.find((s) => s.key === orphan.requires);
   const { t, n } = useI18n();
   const [coverFailed, onCoverError] = useImageFallback();
-  useKieRates(); // re-render when the live KIE price table (re)loads
   // Two model families price off something other than their settings: speech
   // bills per 1000 characters of prompt, Motion Control per second of the
   // attached clip. Both used to arrive through one argument, so this had to pick
@@ -102,9 +100,9 @@ export default function Generate({
   const clipUnreadable =
     videoFiles.some((f) => f.duration == null) &&
     priceCoins(variant, input, { chars, clipSeconds: 0 }) !== priceCoins(variant, input, { chars, clipSeconds: 1 });
-  // No price means neither the live table nor the fallback has a rate — the
-  // provider doesn't offer this combination at all (Hailuo 2.3 has no 1080P
-  // at 10s). Selling it would take the user's coins for a job that can't run.
+  // No price means no row covers this combination — the provider doesn't offer
+  // it at all (Hailuo 2.3 has no 1080P at 10s). Selling it would take the
+  // user's coins for a job that can't run.
   // maxLength on the textarea only stops typing and pasting, so the length is
   // checked again here. The backend has to check a third time — nothing the
   // client says about length can be trusted once money is attached.

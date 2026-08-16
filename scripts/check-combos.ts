@@ -1,5 +1,5 @@
 // Cross-product audit: every settings combination the UI lets a user build,
-// checked against KIE's real rate table.
+// checked against the price rows.
 //
 // check-live-pricing.ts varies one control at a time from the defaults, so it
 // only ever sees combinations that differ from default in a single field. That
@@ -7,19 +7,23 @@
 // but has no 1080p-10s row, and the fallback table happily invents a price for
 // it. This script walks the full cross product instead.
 //
-// A MISS means the UI allows a combination KIE has no rate row for. That is
-// either a control the model doesn't really support at that setting, or a
-// token-matching bug in LIVE — both worth knowing, and the two are told apart
-// by hand from the row list.
+// A MISS means the UI offers a combination no price row covers. That is either
+// a control the model doesn't really support at that setting, or a selector the
+// seeder failed to emit — and either way the Create button would be quoting a
+// price nobody has agreed to.
 //
-// Run: npx tsx scripts/check-combos.ts   (node >= 18; uses real network)
+// This used to fetch KIE's live rate table and exit 1 if it could not, which
+// made a third party able to fail the build. Prices are rows now, so the whole
+// audit is offline; `pnpm check:pricing` is what compares those rows against
+// what the app used to charge.
+//
+// Run: npx tsx scripts/check-combos.ts   (no network)
 
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { FAMILIES, variantControls, type Control } from "../src/data/models";
-import { LIVE, RATES_FALLBACK, coinsForKieCredits } from "../src/data/pricing";
+import { priceCoins } from "../src/data/pricing";
 import { MODEL_MIN_TIER, auditPlans } from "../src/data/plans";
-import { startKieRates, findRate } from "../src/lib/kieRates";
 import type { InputMap, InputValue } from "../src/components/controls";
 
 // keys that select a rate row; varying anything else can't change the price
@@ -122,15 +126,6 @@ async function main() {
     process.exit(2);
   }
 
-  startKieRates();
-  for (let i = 0; i < 60 && findRate("gpt image 2", "text-to-image", "1k") == null; i++) {
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  if (findRate("gpt image 2", "text-to-image", "1k") == null) {
-    console.error("FATAL: live table did not load");
-    process.exit(1);
-  }
-
   // A family with no tier entry used to fall through to tier 1 — the cheapest
   // pack — which is the wrong direction to fail in. It now locks instead, so an
   // omission costs a sale rather than the margin. Catch it here either way.
@@ -153,8 +148,7 @@ async function main() {
   }
 
   let checked = 0;
-  const invented: string[] = []; // no live row, but the fallback still quotes a price
-  const blocked: string[] = []; // no live row and no fallback — the UI refuses it
+  const blocked: string[] = []; // no row covers it — the UI refuses to sell it
 
   for (const fam of FAMILIES) {
     for (const v of fam.variants) {
@@ -167,11 +161,8 @@ async function main() {
         // realistic, so the printed coin figures mean something. The point here
         // is only that every combination resolves a rate at all.
         const ctx = { chars: 1000, clipSeconds: 10 };
-        if (LIVE[v.id]?.(input, ctx) != null) continue;
-        const fb = RATES_FALLBACK[v.id]?.(input, ctx);
-        const line = `${v.id.padEnd(22)} ${describe(input)}`;
-        if (fb == null) blocked.push(line);
-        else invented.push(`${line}  → quotes ${coinsForKieCredits(fb)} coins (${fb}cr)`);
+        if (priceCoins(v, input, ctx) != null) continue;
+        blocked.push(`${v.id.padEnd(22)} ${describe(input)}`);
       }
     }
   }
@@ -179,22 +170,19 @@ async function main() {
   console.log(`checked ${checked} combinations across ${FAMILIES.length} families\n`);
 
   if (blocked.length) {
-    console.log(`${blocked.length} combinations correctly refused (no rate anywhere, create button disabled):`);
+    console.log(`${blocked.length} combinations correctly refused (no price row, create button disabled):`);
     for (const b of blocked) console.log("  " + b);
     console.log("");
   }
 
-  if (invented.length === 0 && untiered.length === 0 && planProblems.length === 0) {
-    console.log("no combination is quoted a price KIE can't honour ✅");
+  if (untiered.length === 0 && planProblems.length === 0) {
+    console.log("every priced combination resolves to a real price row ✅");
     console.log("every variant routes to a seeded feature ✅");
     console.log("every family has a tier ✅");
     console.log("plan ladder holds and every plan clears the margin floor ✅");
     process.exit(0);
   }
-  if (invented.length === 0) process.exit(2); // untiered families / plan problems only
-  console.log(`${invented.length} combinations are quoted an INVENTED price — KIE has no such rate:\n`);
-  for (const m of invented) console.log("  " + m);
-  process.exit(2);
+  process.exit(2); // untiered families / plan problems
 }
 
 void main();

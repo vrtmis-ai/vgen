@@ -41,16 +41,14 @@ jobs:
       - run: pnpm format:check
       - run: pnpm test
 
-      # Two audits in one command. The first is offline and runs first by
-      # design: every variant must name a feature the migrations seed, so a
-      # routing mistake fails the same way whether or not KIE is reachable.
+      # Three audits in one command, and all of them offline now. Every variant
+      # names a feature the migrations seed; every settings combination the UI
+      # can build resolves to a real price row, or is refused outright; and the
+      # plan ladder holds.
       #
-      # The second walks the settings cross-product against KIE's live rate
-      # table, so this step does depend on a third party being up — an earlier
-      # comment here claimed otherwise and was wrong. Phase C moves the rates
-      # into model_prices, which is what actually takes the dependency out.
-      # `pnpm check:pricing` is the separate, deeper live audit; run it by hand
-      # before shipping a pricing change.
+      # This step used to fetch KIE's live rate table and exit 1 if it could
+      # not, which made a third party able to fail the build. Prices are rows in
+      # `pricing.rows.json` now, so nothing here touches the network.
       - run: pnpm check:catalog
 
       - run: pnpm build
@@ -120,6 +118,18 @@ jobs:
       - run: pnpm catalog:snapshot
       - name: The database must serve the committed snapshot
         run: git diff --exit-code -- src/data/catalog.snapshot.json
+
+      # Pricing, and the one check that makes moving it into Postgres safe.
+      # pricing.expected.json holds every price the app charged before the rate
+      # table was deleted; check:pricing recomputes all 738 of them from the
+      # seeded rows. A disagreement means the migration changed what a customer
+      # pays, which is never acceptable in either direction. It audits the
+      # margin floor in the same pass, because matching the old number is no
+      # defence if the old number was below cost.
+      - run: pnpm pricing:publish
+      - name: Seeding prices twice writes nothing the second time
+        run: pnpm pricing:publish | grep -q 'already current'
+      - run: pnpm check:pricing
 
       # The schema's own test: assertions in one transaction ending in ROLLBACK,
       # so it is safe against any database.
