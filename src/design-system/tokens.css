@@ -50,37 +50,47 @@
      real content. Rather than police every call site, the token now passes on
      its own and genuinely disabled controls carry opacity instead. */
   --vg-text-faint: #8c919b; /* captions, counts, units              */
-  /* Dark ink on the orange fill, not white. White on #E95F18 measures 3.43:1
-     and fails AA; #1A1A1A measures 4.97:1 and passes. The system's own prose
-     said #1A1A1A from the start — this token had drifted from it, and every
-     accent button and badge in the app inherited the failure. */
-  --vg-text-on-primary: #1a1a1a; /* on the orange fill                   */
+  /* Dark ink on the primary fill, not white.
+     It was chosen against the old orange, where white measured 3.43:1 and
+     failed AA while #1A1A1A measured 4.97:1. Re-checked against DEEV's blue:
+     #1A1A1A on rgb(0 180 255) measures 7.44:1, so it still holds — comfortably
+     AAA rather than barely AA. Nothing to change; the reasoning just no longer
+     matches the colour it was written for. */
+  --vg-text-on-primary: #1a1a1a; /* ink on a --vg-primary fill           */
 
   /* ---------------------------------------------------------------------
      3. BRAND — "the spark"
-     Orange is a scalpel, not a paint roller. CTAs, active states, progress.
-     Never a large background area.
+     A scalpel, not a paint roller. CTAs, active states, progress. Never a
+     large background area.
+
+     DEEV's brand is black, white and one blue, and the rule that matters is
+     scarcity rather than the hue: on a screen with two primary-filled elements,
+     one of them is wrong. That rule is easier to break now than it was when
+     this was orange, because blue is a quieter colour and it stops feeling like
+     an alarm long before it stops being the loudest thing on the page.
      --------------------------------------------------------------------- */
   /* ======================================================================
      THE ONE KNOB. Change this line to re-brand the product.
 
      Everything else in this block is derived from it — the hover and press
-     shades, the light tint used for orange text on dark, the deep end of
-     gradients, and every translucent wash. Nothing downstream repeats the
-     value, so a new palette does not mean hunting for orange in eleven files.
+     shades, the light tint used for brand-coloured text on dark, the deep end
+     of gradients, and every translucent wash. Nothing downstream repeats the
+     value, so a new palette does not mean hunting for a hex in eleven files.
 
      It used to. `--vg-primary` was a hex and the washes below re-stated its
-     channels as `rgb(233 95 24 / …)`, so changing the accent left every tint
-     behind — and seventeen more sat inline in components as literal
-     `rgba(233,95,24,…)`. That is the thing this block exists to prevent.
+     channels literally, so changing the brand left every tint behind — and
+     seventeen more sat inline in components as hardcoded rgba(). That is the
+     thing this block exists to prevent, and it is why the move from the
+     original orange to DEEV's blue was one line here rather than a sweep.
 
      `--vg-primary-rgb` is space-separated channels, not a colour: it feeds
      `rgb(… / alpha)` below. Keep that form.
 
      AFTER CHANGING IT, CHECK TWO THINGS:
        1. `--vg-text-on-primary` still reads on the new fill (dark ink needs a
-          light accent; a dark accent needs light ink). White on the old orange
-          measured 3.43:1 and failed, which is why that token is near-black.
+          light brand colour; a dark one needs light ink). White on the original
+          orange measured 3.43:1 and failed, which is why that token is
+          near-black; on today's blue it measures 7.44:1.
        2. `--vg-primary-soft` still passes AA as text on --vg-canvas. It is
           derived light enough for that here, but a very dark or desaturated
           brand may need the derivation loosened.
@@ -109,18 +119,37 @@
   --vg-primary-a40: rgb(var(--vg-primary-rgb) / 0.4);
 
   /* ---------------------------------------------------------------------
-     3b. ACCENT — the cool counterweight
-     Carried over from the mobile system's `tertiary`. Orange means "act";
-     blue means "know". It cools the composition where a screen would
-     otherwise be entirely orange-on-black, and gives non-destructive
-     machine states a colour that isn't the CTA.
+     3b. ACCENT — the informational counterweight
 
      Use for: AI/model badges and capability tags, links, informational
      banners, selected-but-not-primary state, background-task progress,
-     data-viz series alongside orange, ambient shadow on floating chrome.
+     data-viz series alongside the brand colour, ambient shadow on floating
+     chrome.
 
      Never for: the primary CTA, destructive actions, or anything that
-     competes with orange for "the action on this screen".
+     competes with `--vg-primary` for "the action on this screen".
+
+     ⚠ THE SPLIT THIS ENCODES NO LONGER HOLDS, AND IT IS NOT A COMMENT BUG.
+
+     Carried over from the mobile system's `tertiary`, where the rule was
+     "orange means act, blue means know" — two hues ~187° apart, so the two
+     roles could never be confused. The DEEV rebrand moved `--vg-primary` to
+     blue and left this block alone:
+
+         --vg-primary-rgb   0 180 255    hue ~198°
+         --vg-accent-strong #1995f1      hue ~207°
+
+     Nine degrees. "Act" and "know" are now the same hue at two lightnesses, so
+     they read as one signal at two strengths rather than as two meanings. The
+     roles below are still right and still used correctly by every call site —
+     it is only the separation that was lost.
+
+     Where it actually shows: `Auth.tsx` is the only screen that puts both on
+     one surface (a primary submit button beside an accent resend link). The
+     landing page never references accent at all. Fixing it means moving accent
+     off the brand hue — most likely to the neutral ramp, since "black, white
+     and one blue" reads as blue being reserved for action — and that touches
+     19 call sites across chips, badges, notes, links and progress bars.
      --------------------------------------------------------------------- */
   --vg-accent: #9dcaff; /* blue *text* and icons on dark — AA   */
   --vg-accent-strong: #1995f1; /* fills, active blue chips             */
@@ -249,11 +278,14 @@
      screens used this (`shadow-tertiary/10`). Reads as cold room light. */
   --vg-shadow-ambient: 0 24px 60px -20px var(--vg-accent-a20);
 
-  /* Light leak — a faint orange reflection in the top corner of hero cards. */
+  /* Light leak — a faint reflection of the brand colour in the top corner of
+     hero cards. Derived from --vg-primary, so it follows a rebrand on its own. */
   --vg-light-leak: radial-gradient(circle at 0% 0%, var(--vg-primary-a10) 0%, transparent 55%);
 
-  /* Cool leak — the blue counterpart, for informational or model-detail
-     panels that should read as machine rather than action. */
+  /* Cool leak — the accent counterpart, for informational or model-detail
+     panels that should read as machine rather than action. Note that while
+     accent sits on the brand's own hue (see 3b), this is nearly the same wash
+     as the one above rather than a counterpart to it. */
   --vg-cool-leak: radial-gradient(circle at 100% 0%, var(--vg-accent-a10) 0%, transparent 55%);
 
   /* Media scrim — bottom-up fade so white type sits legibly over artwork. */

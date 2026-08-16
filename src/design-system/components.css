@@ -192,7 +192,7 @@
   pointer-events: none;
 }
 
-/* Primary — the single orange action on screen. */
+/* Primary — the single brand-filled action on screen. */
 .vg-btn--primary {
   background: var(--vg-primary);
   color: var(--vg-text-on-primary);
@@ -267,7 +267,7 @@
   padding: var(--vg-space-4);
 }
 
-/* Hero / featured card — adds the orange light leak in the leading corner. */
+/* Hero / featured card — adds the brand light leak in the leading corner. */
 .vg-card--lit {
   position: relative;
   isolation: isolate;
@@ -442,8 +442,10 @@
   border-color: transparent;
 }
 
-/* Blue chip — filters and model tags that are selectable but are not "the"
-   action. Keeps orange free for the one CTA on screen. */
+/* Accent chip — filters and model tags that are selectable but are not "the"
+   action. Keeps --vg-primary free for the one CTA on screen. Note that accent
+   currently sits on the brand's own hue, so this reads as a weaker version of
+   the CTA rather than a different kind of thing — see 3b in tokens.css. */
 .vg-chip--accent[aria-pressed="true"],
 .vg-chip--accent[data-selected] {
   background: var(--vg-accent-strong);
@@ -705,7 +707,9 @@
 }
 
 /* Background tasks — uploads, queued jobs, anything the user isn't waiting on.
-   Blue keeps the orange bar meaningful: orange = your generation, right now. */
+   The accent bar keeps the primary one meaningful: primary = your generation,
+   right now. That distinction is carried almost entirely by lightness while
+   accent shares the brand hue — see 3b in tokens.css. */
 .vg-progress__bar--accent {
   background: linear-gradient(to right, var(--vg-accent-strong), var(--vg-accent));
 }
@@ -794,9 +798,9 @@
   padding: var(--vg-space-4);
 }
 
-/* Orange breathing wash from below — the generation is "warming up". This is
-   the one place orange may fill an area, because it is the subject of the
-   screen and it is under 12% opacity. */
+/* A breathing wash of the brand colour from below — the generation is "warming
+   up". This is the one place it may fill an area, because it is the subject of
+   the screen and it is under 12% opacity. */
 .vg-generating::before {
   content: "";
   position: absolute;

@@ -90,6 +90,28 @@ spacing:
   section-gap: 48px
 ---
 
+> [!CAUTION]
+> **This document predates the DEEV rebrand. `src/design-system/tokens.css` is
+> the authority — where the two disagree, this file is wrong.**
+>
+> The frontmatter above is a full palette snapshot and is stale in several
+> places that matter, not just in its prose:
+>
+> | | This file | `tokens.css` today |
+> | --- | --- | --- |
+> | `primary` | `#e95f18` (orange) | `rgb(0 180 255)` — DEEV's blue |
+> | `text-on-primary` | `#ffffff` | `#1a1a1a` — white failed AA on the fill |
+> | `text-faint` | `#6b6663` | `#8c919b` — lightened; the old value measured 2.77–3.31:1 |
+>
+> Everything below that reads "orange" means "the brand colour", which is now
+> blue. One consequence is worth knowing before you follow the accent guidance:
+> the "orange means act, blue means know" split this document is built on
+> **no longer separates anything**, because primary and accent now sit nine
+> degrees apart on the same hue. See section 3b of `tokens.css`.
+>
+> Rewriting this properly is pending the landing-page design pass, which is
+> where the replacement language is being settled.
+
 ## Brand & Style
 
 VGen is a dark-room instrument for AI generation. The aesthetic is **Cinematic
