@@ -7,7 +7,7 @@ import { Menu, X, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InfiniteSlider } from "@/components/ui/infinite-slider";
 import { ProgressiveBlur } from "@/components/ui/progressive-blur";
-import { ModelMark } from "@/components/ModelMark";
+import { ModelMark, hasModelMark } from "@/components/ModelMark";
 import { BRAND } from "@/data/brand";
 import { FAMILIES } from "@/data/models";
 import { PLANS, effectiveUsd, monthlyCoins, toman } from "@/data/plans";
@@ -52,12 +52,20 @@ const NAV_ITEMS: { label: TKey; href: string }[] = [
 /** Cheapest plan by effective monthly price, so the hero's figure follows the ladder. */
 const ENTRY_PLAN = [...PLANS].sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false))[0];
 
-/** Video leads, then image, then audio — the order the hero row uses. */
+/**
+ * Video leads, then image, then audio — the order the hero row uses.
+ *
+ * Only families that resolve to a real logo. The band exists to borrow
+ * recognition, and a monogram borrows none; one lettered tile among eighteen
+ * marks reads as a failed image rather than as a choice. Filtered by predicate
+ * rather than by an exclusion list, so a model that gains a logo joins on its
+ * own and one added without a logo stays out without anyone remembering to.
+ */
 const SLIDER_MODELS = [
   ...FAMILIES.filter((f) => f.kind === "video"),
   ...FAMILIES.filter((f) => f.kind === "image"),
   ...FAMILIES.filter((f) => f.kind === "audio"),
-];
+].filter((f) => hasModelMark(f.id, f.vendor));
 
 export function HeroSection({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) {
   const { t, n, lang } = useI18n();

@@ -2,7 +2,6 @@
 import { cn } from "@/lib/utils";
 import { useMotionValue, animate, motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import useMeasure from "react-use-measure";
 
 type InfiniteSliderProps = {
   children: React.ReactNode;
@@ -24,53 +23,46 @@ export function InfiniteSlider({
   className,
 }: InfiniteSliderProps) {
   const [currentDuration, setCurrentDuration] = useState(duration);
-  const [ref, { width, height }] = useMeasure();
-  const translation = useMotionValue(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [key, setKey] = useState(0);
+  const translation = useMotionValue("0%");
 
+  /* Percent of the track's own width, not a measured pixel distance.
+     ────────────────────────────────────────────────────────────────
+     The original computed the loop distance from `useMeasure` and listed
+     `width` in this effect's dependencies. The arithmetic was right — for our
+     row, `(7831 + 112) / 2` is exactly one copy plus one gap — but the approach
+     is fragile in a way that shows: any change in measured width re-runs the
+     effect, and `animate()` restarts from the beginning. A late-loading font, an
+     image settling, a resize, and the row visibly jumps. Because the measurement
+     kept changing, it also never completed a pass, so it never looked like a
+     loop.
+
+     The track holds the row twice, so moving it by 50% of its own width is
+     exactly one copy — whatever that copy measures, whenever it changes. Nothing
+     to observe, nothing to re-run, and no restart to see.
+
+     `reverse` flips the direction. It is what RTL needs: a flex row lays its
+     first child at the *right* edge there, so the track hangs off to the left
+     and travelling further left walks away from the only content there is. */
   useEffect(() => {
-    let controls;
-    const size = direction === "horizontal" ? width : height;
-    const contentSize = size + gap;
-    const from = reverse ? -contentSize / 2 : 0;
-    const to = reverse ? 0 : -contentSize / 2;
+    const controls = animate(translation, ["0%", reverse ? "50%" : "-50%"], {
+      ease: "linear",
+      duration: currentDuration,
+      repeat: Infinity,
+      repeatType: "loop",
+      repeatDelay: 0,
+    });
+    return controls.stop;
+  }, [translation, currentDuration, reverse]);
 
-    if (isTransitioning) {
-      controls = animate(translation, [translation.get(), to], {
-        ease: "linear",
-        duration: currentDuration * Math.abs((translation.get() - to) / contentSize),
-        onComplete: () => {
-          setIsTransitioning(false);
-          setKey((prevKey) => prevKey + 1);
-        },
-      });
-    } else {
-      controls = animate(translation, [from, to], {
-        ease: "linear",
-        duration: currentDuration,
-        repeat: Infinity,
-        repeatType: "loop",
-        repeatDelay: 0,
-        onRepeat: () => {
-          translation.set(from);
-        },
-      });
-    }
-
-    return controls?.stop;
-  }, [key, translation, currentDuration, width, height, gap, isTransitioning, direction, reverse]);
-
+  /* Hover changes the speed and nothing else. The original swapped the infinite
+     animation for a one-shot tween to the end of the track and restarted the
+     loop on completion; if that tween finished, the row stopped. Changing
+     `currentDuration` re-runs the effect above, which is a plain restart of a
+     looping animation — slower, still looping. */
   const hoverProps = durationOnHover
     ? {
-        onHoverStart: () => {
-          setIsTransitioning(true);
-          setCurrentDuration(durationOnHover);
-        },
-        onHoverEnd: () => {
-          setIsTransitioning(true);
-          setCurrentDuration(duration);
-        },
+        onHoverStart: () => setCurrentDuration(durationOnHover),
+        onHoverEnd: () => setCurrentDuration(duration),
       }
     : {};
 
@@ -83,7 +75,6 @@ export function InfiniteSlider({
           gap: `${gap}px`,
           flexDirection: direction === "horizontal" ? "row" : "column",
         }}
-        ref={ref}
         {...hoverProps}
       >
         {children}

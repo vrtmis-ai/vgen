@@ -141,7 +141,11 @@ ${vendorBlock}
 `;
 
 writeFileSync("src/data/vendorMarks.ts", file);
-console.log(`\n${dressed.size}/${FAMILIES.length} families carry a logo.`);
+console.log(`\n${dressed.size}/${FAMILIES.length} families carry a vector mark.`);
 if (undressed.length) {
-  console.log(`Still on a monogram: ${undressed.map((f) => f.name).join(", ")}`);
+  console.log(`No vector mark: ${undressed.map((f) => f.name).join(", ")}`);
+  // Not the same as "no logo". Families with only a bitmap are handled by
+  // RASTER_MASKS in src/components/ModelMark.tsx, which this script does not
+  // read — saying "monogram" here would report Wan as bare when it is not.
+  console.log(`(check RASTER_MASKS in ModelMark.tsx before treating those as bare)`);
 }

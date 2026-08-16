@@ -50,6 +50,22 @@ const RASTER_MASKS: Record<string, string> = {
   wan: "/brand/marks/wan.png",
 };
 
+/**
+ * Whether this family renders as a real logo rather than as a monogram.
+ *
+ * The model band uses it to show only families it can dress. A row whose whole
+ * job is borrowing recognition has nothing to gain from a letter in a circle,
+ * and one lettered tile among eighteen logos reads as a missing image rather
+ * than as a design.
+ *
+ * A predicate rather than a hardcoded exclusion list, so the band maintains
+ * itself: a model gains a logo and it appears, a model is added without one and
+ * it stays out, and neither needs anyone to remember this rule.
+ */
+export function hasModelMark(familyId: string, vendor: string): boolean {
+  return familyId in RASTER_MASKS || familyId in FAMILY_MARKS || vendor in VENDOR_MARKS;
+}
+
 export function ModelMark({ familyId, vendor, size = 16 }: { familyId?: string; vendor: string; size?: number }) {
   const mask = familyId ? RASTER_MASKS[familyId] : undefined;
   if (mask) {
