@@ -177,9 +177,17 @@ export class PostgresAuthRepository {
     return this.assertActive(row);
   }
 
-  /** Google and friends. `providerUid` is the provider's stable subject claim. */
+  /**
+   * Google and friends. `providerUid` is the provider's stable subject claim.
+   *
+   * `email` must be null unless the provider *proved* the address belongs to
+   * this person. The block below links a new identity onto whichever user
+   * already holds that address, so an unverified one is a way into somebody
+   * else's account — see `emailIsVerified` in the Microsoft client, where the
+   * evidence is weaker than Google's and the rule is spelled out.
+   */
   async signInWithOAuth(
-    provider: "google" | "github" | "apple",
+    provider: "google" | "microsoft" | "github" | "apple",
     providerUid: string,
     email: string | null,
     displayName: string | null,

@@ -15,6 +15,7 @@ import { CustomerSessionService, SessionCookiePrincipalResolver } from "./custom
 import { sealingKeyFrom } from "@vgen/core";
 import { createAuthRateLimiters } from "./auth/rateLimits";
 import { GoogleOAuth } from "./auth/googleOAuth";
+import { MicrosoftOAuth } from "./auth/microsoftOAuth";
 import { ConsoleSmsSender, KavenegarSmsSender, type SmsSender } from "./auth/sms";
 import { createApp } from "./createApp";
 
@@ -65,10 +66,14 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("API_P
 const sql = postgres(databaseUrl, { max: 10 });
 
 /**
- * Google is optional: it needs credentials, and for most Iranian users it needs
- * a VPN to reach at all. Phone OTP is the route that works, so a missing Google
- * client disables that one endpoint rather than failing the boot.
+ * Both social providers are optional, and optional one at a time: each needs
+ * credentials, and both need a VPN to reach from most of Iran. Phone OTP is the
+ * route that works, so missing credentials disable those endpoints rather than
+ * failing the boot.
  */
+const apiPublicUrl = infrastructureSetting("API_PUBLIC_URL", `http://127.0.0.1:${port}`);
+const callbackUrl = (provider: string) => `${apiPublicUrl}/api/v1/auth/${provider}/callback`;
+
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 const google =
@@ -76,7 +81,24 @@ const google =
     ? new GoogleOAuth({
         clientId: googleClientId,
         clientSecret: googleClientSecret,
-        redirectUri: `${infrastructureSetting("API_PUBLIC_URL", `http://127.0.0.1:${port}`)}/api/v1/auth/google/callback`,
+        redirectUri: callbackUrl("google"),
+      })
+    : undefined;
+
+const microsoftClientId = process.env.MICROSOFT_CLIENT_ID?.trim();
+const microsoftClientSecret = process.env.MICROSOFT_CLIENT_SECRET?.trim();
+const microsoft =
+  microsoftClientId && microsoftClientSecret
+    ? new MicrosoftOAuth({
+        clientId: microsoftClientId,
+        clientSecret: microsoftClientSecret,
+        redirectUri: callbackUrl("microsoft"),
+        // `common` — work, school and personal accounts. Also the setting under
+        // which Microsoft omits unverified addresses from the token, which is
+        // what lets an email be trusted for account linking at all. Pinning this
+        // to a single tenant is a deliberate, narrower deployment: read
+        // `emailIsVerified` before changing it.
+        tenant: process.env.MICROSOFT_TENANT?.trim() || "common",
       })
     : undefined;
 
@@ -149,6 +171,7 @@ const app = createApp(
         limiters: authRateLimiters,
         webOrigin,
         ...(google ? { google } : {}),
+        ...(microsoft ? { microsoft } : {}),
       },
     },
   },

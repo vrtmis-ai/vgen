@@ -12,7 +12,9 @@ import {
   setSessionCookie,
   type CookieOptions,
 } from "../auth/cookies";
-import { OAuthError, statesMatch, type GoogleOAuth } from "../auth/googleOAuth";
+import type { GoogleOAuth } from "../auth/googleOAuth";
+import type { MicrosoftOAuth } from "../auth/microsoftOAuth";
+import { OAuthError, statesMatch } from "../auth/oidc";
 import type { SmsSender } from "../auth/sms";
 
 /** Returns null when allowed, or the seconds to wait when not. */
@@ -36,7 +38,8 @@ export interface AuthRouteOptions {
   cookie: CookieOptions;
   limiters: AuthRateLimiters;
   google?: GoogleOAuth | undefined;
-  /** Where the browser lands after a Google round trip. */
+  microsoft?: MicrosoftOAuth | undefined;
+  /** Where the browser lands after an OAuth round trip. */
   webOrigin: string;
 }
 
@@ -207,53 +210,73 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     return reply.code(204).send();
   });
 
-  // ----------------------------------------------------------------- Google
+  // ------------------------------------------------------------------ OAuth
 
-  const google = options.google;
-  if (!google) return;
+  /**
+   * Google and Microsoft are the same two routes with a different client, so
+   * they are registered from one place rather than copied. Each provider stays
+   * independently optional — credentials for one do not imply the other, and a
+   * provider that is not configured has no endpoint at all rather than one that
+   * fails once the user has already committed to it.
+   *
+   * `provider` is also the `auth_identities.provider` value. The column is
+   * plain text with a UNIQUE (provider, provider_uid), so a new provider needs
+   * no migration; it just has to keep using the same string forever, because
+   * changing it would orphan every identity already linked under the old one.
+   */
+  for (const [provider, client] of [
+    ["google", options.google],
+    ["microsoft", options.microsoft],
+  ] as const) {
+    if (!client) continue;
 
-  app.get("/api/v1/auth/google", async (_request, reply) => {
-    const { url, state } = google.createAuthorizationUrl();
-    setOAuthStateCookie(reply, state, cookie);
-    return reply.redirect(url, 302);
-  });
+    app.get(`/api/v1/auth/${provider}`, async (_request, reply) => {
+      const { url, state } = client.createAuthorizationUrl();
+      setOAuthStateCookie(reply, state, cookie);
+      return reply.redirect(url, 302);
+    });
 
-  app.get("/api/v1/auth/google/callback", async (request, reply) => {
-    const query = request.query as { code?: string; state?: string; error?: string };
-    const expected = readCookie(request, OAUTH_STATE_COOKIE);
-    clearOAuthStateCookie(reply, cookie);
+    app.get(`/api/v1/auth/${provider}/callback`, async (request, reply) => {
+      const query = request.query as { code?: string; state?: string; error?: string };
+      const expected = readCookie(request, OAUTH_STATE_COOKIE);
+      clearOAuthStateCookie(reply, cookie);
 
-    // The state check comes first, before the code is worth anything: without
-    // it an attacker completes a login into their own Google account inside
-    // someone else's browser, and every generation that follows is theirs.
-    if (query.error || !query.code || !statesMatch(query.state, expected ?? undefined)) {
-      return reply.redirect(`${options.webOrigin}/?auth=failed`, 302);
-    }
-
-    try {
-      const profile = await google.exchangeCode(query.code);
-      const user = await auth.signInWithOAuth("google", profile.subject, profile.email, profile.displayName, {
-        ip: request.ip,
-        userAgent: request.headers["user-agent"],
-      });
-      await auth.recordLoginAttempt({
-        identifier: profile.email ?? profile.subject,
-        userId: user.id,
-        method: "oauth",
-        succeeded: true,
-        ip: request.ip,
-      });
-      await startSession(reply, request, user.id);
-      return reply.redirect(options.webOrigin, 302);
-    } catch (error) {
-      if (error instanceof AuthError || error instanceof OAuthError) {
-        request.log.warn({ err: error }, "google sign-in failed");
-        // An invite-gated signup arriving through Google fails here, so the
-        // reason travels in the URL for the landing page to explain.
-        const reason = error instanceof AuthError ? error.code : "oauth_failed";
-        return reply.redirect(`${options.webOrigin}/?auth=${reason}`, 302);
+      // The state check comes first, before the code is worth anything: without
+      // it an attacker completes a login into their own account inside someone
+      // else's browser, and every generation that follows is theirs.
+      if (query.error || !query.code || !statesMatch(query.state, expected ?? undefined)) {
+        return reply.redirect(`${options.webOrigin}/?auth=failed`, 302);
       }
-      throw error;
-    }
-  });
+
+      try {
+        const profile = await client.exchangeCode(query.code);
+        // profile.email is null unless the provider proved it. Passing it on
+        // is what decides between linking to the account that already owns the
+        // address and creating a new one, so it must not be filled in from
+        // somewhere else to make the flow tidier.
+        const user = await auth.signInWithOAuth(provider, profile.subject, profile.email, profile.displayName, {
+          ip: request.ip,
+          userAgent: request.headers["user-agent"],
+        });
+        await auth.recordLoginAttempt({
+          identifier: profile.email ?? profile.subject,
+          userId: user.id,
+          method: "oauth",
+          succeeded: true,
+          ip: request.ip,
+        });
+        await startSession(reply, request, user.id);
+        return reply.redirect(options.webOrigin, 302);
+      } catch (error) {
+        if (error instanceof AuthError || error instanceof OAuthError) {
+          request.log.warn({ err: error, provider }, "oauth sign-in failed");
+          // An invite-gated signup arriving through a provider fails here, so
+          // the reason travels in the URL for the landing page to explain.
+          const reason = error instanceof AuthError ? error.code : "oauth_failed";
+          return reply.redirect(`${options.webOrigin}/?auth=${reason}`, 302);
+        }
+        throw error;
+      }
+    });
+  }
 }

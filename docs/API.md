@@ -204,14 +204,15 @@ Still stubs on purpose: `signIn` and `signUp` in
 and they warn rather than navigate because the screen they should open does not
 exist yet. Point them at it when you build it. `signOut` is live.
 
-| Route                                        |                                                                                  |
-| -------------------------------------------- | -------------------------------------------------------------------------------- |
-| `POST /auth/otp/start`                       | `{ phone }` → `202 { sent: true, expiresAt }`. The route most Iranian users take |
-| `POST /auth/otp/verify`                      | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie              |
-| `POST /auth/register`                        | `{ email, password, inviteCode?, deviceFingerprint? }` → `201`                   |
-| `POST /auth/login`                           | `{ email, password }` → `200`                                                    |
-| `POST /auth/logout`                          | → `204`, always, and says nothing about whether a session existed                |
-| `GET /auth/google` · `/auth/google/callback` | Registered only when Google credentials are configured                           |
+| Route                                              |                                                                                  |
+| -------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `POST /auth/otp/start`                             | `{ phone }` → `202 { sent: true, expiresAt }`. The route most Iranian users take |
+| `POST /auth/otp/verify`                            | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie              |
+| `POST /auth/register`                              | `{ email, password, inviteCode?, deviceFingerprint? }` → `201`                   |
+| `POST /auth/login`                                 | `{ email, password }` → `200`                                                    |
+| `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                |
+| `GET /auth/google` · `/auth/google/callback`       | Registered only when Google credentials are configured                           |
+| `GET /auth/microsoft` · `/auth/microsoft/callback` | Registered only when Microsoft credentials are configured                        |
 
 Schemas: `packages/contracts/src/auth.ts`. They are `.strict()`, so an extra key
 is a `validation_failed`, not an ignored field.
@@ -227,6 +228,21 @@ Things a UI needs to know about these:
   has 20 coins, not 32 — the 12-coin trial only comes with the phone route.
   This is deliberate, not a missing grant.
 - Passwords have a floor of 10 characters and a ceiling of 512.
+- **Social sign-in is a full-page navigation, not `fetch`.** Send the browser to
+  `/auth/google` or `/auth/microsoft` — an `<a href>`, not an XHR. Both set a
+  short-lived state cookie and redirect off-site, so a same-origin fetch will
+  fail CORS and drop the cookie that makes the callback safe. The provider
+  returns the browser to `WEB_ORIGIN` with the session cookie already set, so
+  the screen's job afterwards is simply to refetch the session.
+- **A failed social sign-in comes back as `?auth=<code>` on the landing page**,
+  not as a JSON error — there is no response to read when the browser is
+  mid-redirect. Expect `oauth_failed`, `invite_required`, `invite_invalid` or
+  `account_suspended`, and `failed` for a CSRF-state mismatch. Nothing in the UI
+  reads this yet.
+- **Neither provider is reachable from Iran without a VPN**, so treat them as
+  secondary next to the phone route rather than the prominent option, and expect
+  both to be absent in most deployments — a provider without credentials has no
+  endpoint at all, and its button would go to a 404.
 
 ## Errors
 
