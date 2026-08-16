@@ -4,14 +4,27 @@ import {
   KIE_CREDIT_USD,
   MARGIN,
   MICRO_CREDITS_PER_COIN,
-  NO_CTX,
-  RATES_FALLBACK,
   coinsFor,
   coinsForKieCredits,
   coinsToMicroCredits,
   microCreditsFor,
   microCreditsToCoins,
 } from "./pricing";
+import { isRefusal, resolvePrice, type PriceRowLike } from "./priceResolution";
+
+/** A flat, offered row with every rate at zero — the base for the cases below. */
+const FLAT: PriceRowLike = {
+  selector: {},
+  pricingMode: "fixed",
+  isOffered: true,
+  providerUnitsBase: 0,
+  providerUnitsPerSecond: 0,
+  providerUnitsPer1kInput: 0,
+  microCreditsBase: 0,
+  microCreditsPerSecond: 0,
+  microCreditsPer1kInput: 0,
+  maxBillableUnits: null,
+};
 
 describe("coin pricing", () => {
   it("holds the locked economics", () => {
@@ -61,23 +74,72 @@ describe("micro-credit conversion", () => {
 });
 
 describe("unsellable combinations", () => {
-  // `only()` returns null where `pick()` would fall back to a default. A default
-  // here would invent a price for a job the provider cannot run, and the create
-  // button would open on a generation that is guaranteed to fail.
-  const hailuo = RATES_FALLBACK["hailuo-2-3"];
+  // A price row can say "we do not sell that", and it is not the same answer as
+  // a price of zero or a missing row. Inventing a price here would open the
+  // create button on a generation the provider is guaranteed to refuse.
+  const rows = [
+    { ...FLAT, selector: { resolution: "768P", duration: "6" }, microCreditsBase: 9_000_000, providerUnitsBase: 45 },
+    { ...FLAT, selector: { resolution: "1080P", duration: "6" }, microCreditsBase: 16_000_000, providerUnitsBase: 80 },
+    { ...FLAT, selector: { resolution: "1080P", duration: "10" }, isOffered: false },
+  ];
 
   it("prices the combinations the provider offers", () => {
-    expect(hailuo?.({ resolution: "768P", duration: 6 }, NO_CTX)).toBe(45);
-    expect(hailuo?.({ resolution: "1080P", duration: 6 }, NO_CTX)).toBe(80);
+    expect(resolvePrice(rows, { params: { resolution: "768P", duration: "6" } })).toMatchObject({ coins: 9 });
+    expect(resolvePrice(rows, { params: { resolution: "1080P", duration: "6" } })).toMatchObject({ coins: 16 });
   });
 
-  it("returns null for a combination the provider does not offer", () => {
-    expect(hailuo?.({ resolution: "1080P", duration: 10 }, NO_CTX)).toBeNull();
+  it("refuses a combination the provider does not offer", () => {
+    expect(resolvePrice(rows, { params: { resolution: "1080P", duration: "10" } })).toBe("not_offered");
   });
 
-  it("never turns a null into a chargeable price", () => {
-    const unsellable = hailuo?.({ resolution: "1080P", duration: 10 }, NO_CTX);
-    expect(unsellable).not.toBe(0);
-    expect(unsellable).toBeNull();
+  it("never turns a refusal into a chargeable price", () => {
+    const outcome = resolvePrice(rows, { params: { resolution: "1080P", duration: "10" } });
+    expect(isRefusal(outcome)).toBe(true);
+    expect(outcome).not.toBe(0);
+  });
+
+  it("says so plainly when no row covers the settings at all", () => {
+    expect(resolvePrice(rows, { params: { resolution: "4K", duration: "6" } })).toBe("no_matching_row");
+  });
+});
+
+describe("choosing between rows", () => {
+  // A general row and a specific one both match; the specific one has to win, or
+  // every 4k job is charged the base price and the margin quietly goes.
+  const rows = [
+    { ...FLAT, selector: {}, microCreditsBase: 2_000_000, providerUnitsBase: 10 },
+    { ...FLAT, selector: { resolution: "4k" }, microCreditsBase: 20_000_000, providerUnitsBase: 100 },
+  ];
+
+  it("prefers the most specific matching row", () => {
+    expect(resolvePrice(rows, { params: { resolution: "4k" } })).toMatchObject({ coins: 20 });
+    expect(resolvePrice(rows, { params: { resolution: "720p" } })).toMatchObject({ coins: 2 });
+  });
+});
+
+describe("quantities", () => {
+  const perSecond = [{ ...FLAT, pricingMode: "derived" as const, microCreditsPerSecond: 8_200_000, providerUnitsPerSecond: 41 }];
+
+  it("multiplies a per-second rate by the seconds supplied", () => {
+    expect(resolvePrice(perSecond, { params: {}, seconds: 5 })).toMatchObject({ coins: 41 });
+  });
+
+  it("refuses to guess when a per-unit model is given no quantity", () => {
+    // Defaulting to a second here would sell a ten-second video for the price
+    // of one, which is the expensive direction to be wrong in.
+    expect(resolvePrice(perSecond, { params: {}, seconds: 0 })).toBe("missing_quantity");
+  });
+
+  it("stops billing at the cap, where the provider stops rendering", () => {
+    const capped = [{ ...perSecond[0]!, maxBillableUnits: 10 }];
+    expect(resolvePrice(capped, { params: {}, seconds: 45 })).toMatchObject({ coins: 82 });
+    expect(resolvePrice(capped, { params: {}, seconds: 10 })).toMatchObject({ coins: 82 });
+  });
+
+  it("bills text in whole blocks, and never fewer than one", () => {
+    const perBlock = [{ ...FLAT, pricingMode: "derived" as const, microCreditsPer1kInput: 1_200_000, providerUnitsPer1kInput: 6 }];
+    expect(resolvePrice(perBlock, { params: {}, characters: 1 })).toMatchObject({ coins: 2 });
+    expect(resolvePrice(perBlock, { params: {}, characters: 1000 })).toMatchObject({ coins: 2 });
+    expect(resolvePrice(perBlock, { params: {}, characters: 2500 })).toMatchObject({ coins: 4 });
   });
 });

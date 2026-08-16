@@ -293,13 +293,45 @@ Not a normal frontend surface: it needs a staff role, a separate cookie, and a
 confirmed second factor. If you are building admin screens, ask first — the
 sign-in is two steps and the session authorises nothing between them.
 
+## Pricing
+
+Prices live in `model_prices`, one row per (model, feature, **selector**) —
+the selector being just the settings a price is keyed on, like
+`{"resolution":"1080p"}`. 117 rows cover the catalogue.
+
+Three things a UI needs to know:
+
+- **The server prices, not the browser.** `PostgresPricingRepository.priceFor()`
+  resolves the row in force _now_ and computes the amount. A quote written from
+  a number the client sent is a number the client can edit, so once
+  `POST /generation/quotes` lands, that is where the price comes from.
+- **"Not offered" is its own answer.** A row can say a combination is not sold —
+  Hailuo 2.3 has no 1080P at 10 seconds. That is `not_offered`, and it is
+  different from "no price found", which is a bug. The UI disables the button on
+  the first and should shout about the second.
+- **Prices are effective-dated.** Changing one closes the old row and opens a
+  new one rather than overwriting, so a job can always say what it was charged
+  and why. `priceFor({ at })` re-prices as of any moment.
+
+Until the quote route exists, the screens that must show a price before
+submitting read `src/data/pricing.rows.json` — the same committed list the
+database is seeded from, through the same resolver in `@vgen/core`. So the
+number under the Create button and the number the ledger charges cannot drift.
+When the quote route lands, those screens ask the server and that file stops
+being read by the browser.
+
+**Do not hand-edit `pricing.rows.json` or `pricing.expected.json`.** The first
+is the price list; the second is every price the app charged before pricing
+moved into Postgres, frozen so `pnpm check:pricing` can prove none of them
+moved. CI runs that check over all 738 of them.
+
 ## Not built yet
 
 So you can tell a gap from a bug:
 
-- **Pricing.** `model_prices` is still empty, so nothing can quote. The rate
-  table is in `packages/core` for now; moving it into those rows is the next
-  phase, and until it lands a quote has nothing to read.
+- **A quote route.** Prices are now in Postgres and resolvable server-side —
+  see Pricing below — but `POST /generation/quotes` does not exist yet, so
+  nothing hands the browser a signed price. That is the next phase.
 - **Generation submission end to end.** `POST /jobs` exists; the quote and
   job-status routes the frontend expects do not.
 - **Gallery.** No server route. Demo mode returns an empty page.

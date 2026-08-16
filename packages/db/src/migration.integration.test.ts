@@ -27,6 +27,7 @@ const EXPECTED_MIGRATIONS = [
   "0013_audit_immutable.sql",
   "0014_features.sql",
   "0015_drop_app_catalog.sql",
+  "0016_price_selector.sql",
 ];
 
 describe("database migration chain", () => {

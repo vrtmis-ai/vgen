@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "../../src/adapters/http/client";
-import { startKieRates } from "../../src/lib/kieRates";
 import { AppLoading } from "../../src/components/AppLoading";
 import { SystemState } from "../../src/components/SystemState";
 import { CatalogProvider } from "../../src/features/catalog/CatalogProvider";
@@ -121,7 +120,6 @@ function AuthedTree({
   children: ReactNode;
 }) {
   const { openWallet } = useNavigation();
-  useEffect(() => startKieRates(), []); // live KIE price table (cached 6h)
 
   return (
     <SessionProvider value={{ user, wallet, ...authActions }}>

@@ -12,3 +12,11 @@ src/design-system/*.md
 # one line and JSON.stringify does not, so formatting it would make that diff
 # fail on whitespace forever.
 src/data/catalog.snapshot.json
+
+# The same, for pricing. `pricing.rows.json` is the price list the database is
+# seeded from and the browser quotes from; `pricing.expected.json` is every
+# price the app charged before pricing moved into Postgres, frozen so
+# `pnpm check:pricing` can prove none of them moved. Both are generated, both
+# are diffed, and neither is hand-edited.
+src/data/pricing.rows.json
+src/data/pricing.expected.json

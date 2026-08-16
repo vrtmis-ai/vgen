@@ -32,7 +32,7 @@
 // NOTE: enforcing renewals, expiry and tier access needs the backend; until then
 // the UI reads this file and the backend phase wires it up against the same data.
 
-import { coinsForKieCredits, COIN_USD, MARGIN, RATES_FALLBACK, priceCoins } from "./pricing";
+import { COIN_USD, MARGIN, coinsForVariantId, priceCoins } from "./pricing";
 import { FAMILIES, defaultInput, variantControls } from "./models";
 import type { InputMap } from "../components/controls";
 
@@ -332,8 +332,7 @@ export function tierUnlockNames(tier: Tier): string[] {
  * derived from nothing.
  */
 function anchor(id: string, input: InputMap): number | null {
-  const credits = RATES_FALLBACK[id]?.(input, { chars: 0, clipSeconds: 0 });
-  return credits == null ? null : coinsForKieCredits(credits);
+  return coinsForVariantId(id, input, { chars: 0, clipSeconds: 0 });
 }
 
 const IMAGE_ANCHOR_ID = "gpt-image-2";
@@ -385,7 +384,7 @@ export function estVideos(plan: Plan): number | null {
    the thing I actually make does this get me", and only a per-model table
    answers that.
 
-   Every row is priced through the same RATES_FALLBACK the studios quote from,
+   Every row is priced through the same price rows the studios quote from,
    at a stated, ordinary setting — not an invented average. A row whose rate has
    gone missing returns null and renders as a dash rather than a made-up count,
    which is the same rule the plan cards already follow.
