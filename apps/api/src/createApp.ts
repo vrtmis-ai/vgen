@@ -3,6 +3,7 @@ import { ReadinessSchema, type Readiness } from "@vgen/contracts";
 import { registerErrorHandling } from "./plugins/errors";
 import { registerCustomerSessionRoute, type CustomerSessionApplication } from "./routes/session";
 import { registerCatalogRoute, type CustomerCatalogApplication } from "./routes/catalog";
+import { registerPlansRoute, type CustomerPlansApplication } from "./routes/plans";
 import { registerWalletRoute, type CustomerWalletApplication } from "./routes/wallet";
 import { registerGenerationJobsRoute, type GenerationJobsApplication } from "./routes/jobs";
 import cors from "@fastify/cors";
@@ -26,6 +27,7 @@ export interface ApiDependencies {
   customerSession: CustomerSessionApplication;
   customerWallet: CustomerWalletApplication;
   customerCatalog: CustomerCatalogApplication;
+  customerPlans: CustomerPlansApplication;
   frontendTelemetry: FrontendTelemetryApplication;
   generationJobs: GenerationJobsApplication;
 }
@@ -59,6 +61,7 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   if (options.admin) registerAdminRoutes(app, options.admin.dependencies, options.admin.options);
   registerCustomerSessionRoute(app, dependencies.customerSession);
   registerCatalogRoute(app, dependencies.customerCatalog);
+  registerPlansRoute(app, dependencies.customerPlans);
   registerWalletRoute(app, dependencies.customerSession, dependencies.customerWallet);
   registerFrontendTelemetryRoute(app, dependencies.frontendTelemetry, options.telemetryRateLimit, options.telemetryRateLimiter);
   registerGenerationJobsRoute(app, dependencies.customerSession, dependencies.generationJobs);

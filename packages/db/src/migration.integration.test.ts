@@ -28,6 +28,7 @@ const EXPECTED_MIGRATIONS = [
   "0014_features.sql",
   "0015_drop_app_catalog.sql",
   "0016_price_selector.sql",
+  "0017_plan_tier.sql",
 ];
 
 describe("database migration chain", () => {

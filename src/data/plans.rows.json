@@ -1,0 +1,95 @@
+{
+  "rows": [
+    {
+      "code": "starter",
+      "name": "Starter",
+      "tier": 1,
+      "baseCoins": 30,
+      "bonusCoins": 0,
+      "monthlyUsd": 1.5,
+      "annualUsdPerMonth": null,
+      "group": "entry",
+      "tag": "test",
+      "popular": false,
+      "sortOrder": 0
+    },
+    {
+      "code": "basic",
+      "name": "Basic",
+      "tier": 1,
+      "baseCoins": 80,
+      "bonusCoins": 0,
+      "monthlyUsd": 4,
+      "annualUsdPerMonth": null,
+      "group": "entry",
+      "tag": null,
+      "popular": false,
+      "sortOrder": 1
+    },
+    {
+      "code": "flow",
+      "name": "Flow",
+      "tier": 1,
+      "baseCoins": 150,
+      "bonusCoins": 0,
+      "monthlyUsd": 7.5,
+      "annualUsdPerMonth": null,
+      "group": "entry",
+      "tag": null,
+      "popular": false,
+      "sortOrder": 2
+    },
+    {
+      "code": "plus",
+      "name": "Plus",
+      "tier": 1,
+      "baseCoins": 500,
+      "bonusCoins": 25,
+      "monthlyUsd": 25,
+      "annualUsdPerMonth": null,
+      "group": "entry",
+      "tag": "gift",
+      "popular": false,
+      "sortOrder": 3
+    },
+    {
+      "code": "pro",
+      "name": "Pro",
+      "tier": 2,
+      "baseCoins": 1000,
+      "bonusCoins": 100,
+      "monthlyUsd": 49,
+      "annualUsdPerMonth": 39,
+      "group": "main",
+      "tag": "popular",
+      "popular": true,
+      "sortOrder": 4
+    },
+    {
+      "code": "studio",
+      "name": "Studio",
+      "tier": 3,
+      "baseCoins": 2000,
+      "bonusCoins": 300,
+      "monthlyUsd": 99,
+      "annualUsdPerMonth": 80,
+      "group": "main",
+      "tag": null,
+      "popular": false,
+      "sortOrder": 5
+    },
+    {
+      "code": "creator",
+      "name": "Creator",
+      "tier": 3,
+      "baseCoins": 3000,
+      "bonusCoins": 350,
+      "monthlyUsd": 139,
+      "annualUsdPerMonth": 109,
+      "group": "main",
+      "tag": "best",
+      "popular": false,
+      "sortOrder": 6
+    }
+  ]
+}

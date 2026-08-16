@@ -131,6 +131,17 @@ jobs:
         run: pnpm pricing:publish | grep -q 'already current'
       - run: pnpm check:pricing
 
+      # The plan ladder, same two-part guarantee as the catalogue: a unit test
+      # says the committed snapshot matches the ladder the screens render, and
+      # this says the database serves that snapshot. Neither is worth much
+      # alone; together they mean the table bills what the card advertises.
+      - run: pnpm plans:publish
+      - name: Seeding plans twice writes nothing the second time
+        run: pnpm plans:publish | grep -q 'already current'
+      - run: pnpm plans:snapshot
+      - name: The database must serve the committed plan snapshot
+        run: git diff --exit-code -- src/data/plans.snapshot.json
+
       # The schema's own test: assertions in one transaction ending in ROLLBACK,
       # so it is safe against any database.
       - name: Schema smoke

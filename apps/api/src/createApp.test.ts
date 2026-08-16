@@ -9,6 +9,7 @@ function healthyDependencies(): ApiDependencies {
     customerSession: {
       getCurrent: vi.fn(async () => ({ status: "anonymous" as const, host: "web" as const })),
     },
+    customerPlans: { list: vi.fn(async () => []) },
     customerWallet: {
       getCurrent: vi.fn(async () => ({ spendable: 0, grants: [] })),
     },
@@ -369,6 +370,7 @@ describe("customer catalog", () => {
           name: "DEEV Test",
           vendor: "DEEV",
           kind: "image" as const,
+          minTier: 1 as const,
           blurb: "Test family",
           grad: "linear-gradient(135deg,#111,#333)",
           controls: [],
@@ -432,6 +434,48 @@ describe("customer wallet", () => {
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ error: { code: "unauthorized" } });
+    await app.close();
+  });
+});
+
+describe("the plan ladder", () => {
+  it("serves the plans a card is rendered from", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerPlans.list = vi.fn(async () => [
+      {
+        code: "pro",
+        name: "Pro",
+        tier: 2 as const,
+        coinsPerTerm: 1100,
+        baseCoins: 1000,
+        bonusCoins: 100,
+        termDays: 30,
+        monthlyUsd: 49,
+        annualUsdPerMonth: 39,
+        group: "main" as const,
+        tag: "popular" as const,
+        popular: true,
+      },
+    ]);
+    const app = createApp(dependencies, { corsOrigin: "https://deev.test" });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/plans" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ plans: [expect.objectContaining({ code: "pro", coinsPerTerm: 1100 })] });
+    await app.close();
+  });
+
+  // Anonymous on purpose: someone deciding whether to sign up has to see what a
+  // plan costs before they have an account to see it with.
+  it("does not require a session", async () => {
+    const dependencies = healthyDependencies();
+    const app = createApp(dependencies, { corsOrigin: "https://deev.test" });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/plans" });
+
+    expect(response.statusCode).toBe(200);
+    expect(dependencies.customerSession.getCurrent).not.toHaveBeenCalled();
     await app.close();
   });
 });

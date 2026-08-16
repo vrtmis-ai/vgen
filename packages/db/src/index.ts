@@ -8,6 +8,7 @@ export * from "./authRepository";
 export * from "./walletRepository";
 export * from "./catalogRepository";
 export * from "./pricingRepository";
+export * from "./plansRepository";
 export * from "./frontendTelemetryRepository";
 export * from "./generationRepository";
 export * from "./outbox";
