@@ -4,21 +4,14 @@
  * `signOut` is real: it calls the port and clears the cached account, which is
  * everything that step involves.
  *
- * `signIn` and `signUp` are still navigation stubs, and deliberately so. The
- * API and the port behind them are done — see `useAuth()` — but the screen they
- * should open does not exist yet, and it belongs to whoever owns the UI. Wiring
- * these to a route that 404s would be worse than warning.
- *
- * To build that screen: run with NEXT_PUBLIC_DEMO_ANONYMOUS=1 so the app starts
- * signed out, call `useAuth()` from the screen, and point these two at it.
+ * `signIn` and `signUp` now open the screen in app/(auth)/ — the two entry
+ * points the landing page offers, kept apart because they open the same screen
+ * in different modes and the address bar should say which.
  */
 import type { useAuth } from "../../features/session/useAuth";
 
-const NOT_YET = "No sign-in screen yet. The port is ready — see useAuth() and docs/API.md.";
-
-function unavailable(action: string): void {
-  if (process.env.NODE_ENV !== "production") console.warn(`[auth] ${action}: ${NOT_YET}`);
-}
+export const SIGN_IN_PATH = "/signin";
+export const SIGN_UP_PATH = "/signup";
 
 export interface AuthActions {
   signIn: () => void;
@@ -29,11 +22,14 @@ export interface AuthActions {
 /**
  * Takes the mutations rather than calling `useAuth()` itself, because it is used
  * from a plain object in the session gate's value and a hook cannot be.
+ *
+ * `navigate` comes in the same way and for the same reason — the gate holds the
+ * router; this stays a plain function so the whole object can be built inline.
  */
-export function createAuthActions(auth: ReturnType<typeof useAuth>): AuthActions {
+export function createAuthActions(auth: ReturnType<typeof useAuth>, navigate: (path: string) => void): AuthActions {
   return {
-    signIn: () => unavailable("signIn"),
-    signUp: () => unavailable("signUp"),
+    signIn: () => navigate(SIGN_IN_PATH),
+    signUp: () => navigate(SIGN_UP_PATH),
     signOut: () => auth.logout.mutate(),
   };
 }
