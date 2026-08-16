@@ -34,6 +34,7 @@
 
 import { COIN_USD, MARGIN, coinsForVariantId, priceCoins } from "./pricing";
 import { FAMILIES, defaultInput, variantControls } from "./models";
+import planList from "./plans.rows.json";
 import type { InputMap } from "../components/controls";
 
 export { COIN_USD };
@@ -65,44 +66,46 @@ export interface Plan {
   popular?: boolean;
 }
 
-export const PLANS: Plan[] = [
-  { id: "starter", name: "Starter", coinsPerMonth: 30, bonus: 0, tier: 1, monthlyUsd: 1.5, group: "entry", tag: "test" },
-  { id: "basic", name: "Basic", coinsPerMonth: 80, bonus: 0, tier: 1, monthlyUsd: 4, group: "entry" },
-  { id: "flow", name: "Flow", coinsPerMonth: 150, bonus: 0, tier: 1, monthlyUsd: 7.5, group: "entry" },
-  { id: "plus", name: "Plus", coinsPerMonth: 500, bonus: 25, tier: 1, monthlyUsd: 25, group: "entry", tag: "gift" },
-  {
-    id: "pro",
-    name: "Pro",
-    coinsPerMonth: 1000,
-    bonus: 100,
-    tier: 2,
-    monthlyUsd: 49,
-    annualUsdPerMonth: 39,
-    group: "main",
-    tag: "popular",
-    popular: true,
-  },
-  // bonus raised 200 → 300: at 200 this plan gave FEWER coins per Toman than Pro
-  // (22.22 vs 22.45), so doubling your spend bought you less. See assertLadder().
-  { id: "studio", name: "Studio", coinsPerMonth: 2000, bonus: 300, tier: 3, monthlyUsd: 99, annualUsdPerMonth: 80, group: "main" },
-  // Bonus trimmed 450 → 350 (owner decision 2026-08-02). At 450 the annual cycle
-  // cleared only 1.264×, under the floor below; 100 coins out of 3450 is 2.9% to
-  // the user and lifts both cycles — annual to 1.301×, monthly to 1.660×. Chosen
-  // over raising the annual price because that would have pushed the single
-  // ZarinPal transaction from 222M to 230M Toman, and whether the gateway even
-  // accepts 222M is still an open question (HANDOFF §6).
-  {
-    id: "creator",
-    name: "Creator",
-    coinsPerMonth: 3000,
-    bonus: 350,
-    tier: 3,
-    monthlyUsd: 139,
-    annualUsdPerMonth: 109,
-    group: "main",
-    tag: "best",
-  },
-];
+/**
+ * The ladder, read from the list the database is seeded from.
+ *
+ * It used to be written out here, which meant the card a customer bought from
+ * and the row a subscription pointed at were two facts that happened to agree.
+ * `src/data/plans.rows.json` is now the one copy: `pnpm plans:publish` writes it
+ * into `plans`, and `GET /api/v1/plans` serves it back.
+ *
+ * The screens still read the file rather than the route, the same way they did
+ * for the catalogue before it was ported — a plan card has to render in demo
+ * mode with no server at all. CI diffs the file against what the database
+ * serves, so the two cannot drift.
+ */
+/** One row of `plans.rows.json`. Generated, never hand-edited. */
+interface StoredPlan {
+  code: string;
+  name: string;
+  tier: Tier;
+  baseCoins: number;
+  bonusCoins: number;
+  monthlyUsd: number;
+  annualUsdPerMonth: number | null;
+  group: "entry" | "main";
+  tag: Plan["tag"] | null;
+  popular: boolean;
+  sortOrder: number;
+}
+
+export const PLANS: Plan[] = (planList as { rows: StoredPlan[] }).rows.map((row) => ({
+  id: row.code,
+  name: row.name,
+  coinsPerMonth: row.baseCoins,
+  bonus: row.bonusCoins,
+  tier: row.tier,
+  monthlyUsd: row.monthlyUsd,
+  ...(row.annualUsdPerMonth === null ? {} : { annualUsdPerMonth: row.annualUsdPerMonth }),
+  group: row.group,
+  ...(row.tag ? { tag: row.tag } : {}),
+  ...(row.popular ? { popular: true } : {}),
+}));
 
 /** Total coins a plan grants each month. */
 export function monthlyCoins(plan: Plan): number {
@@ -241,40 +244,27 @@ export function auditPlans(): string[] {
    tier 3 — flagship models (Studio / Creator only)
    NOTE: real enforcement happens in the backend phase; the UI reads this map
    to communicate access on plan cards (and later to lock model pages). */
-export const MODEL_MIN_TIER: Record<string, Tier> = {
-  "z-image": 1,
-  qwen: 1,
-  "grok-image": 1,
-  seedream: 1,
-  "gpt-image": 1,
-  wan: 1,
-  hailuo: 1,
-  recraft: 1, // 0.5–1 credit — cheapest thing in the catalogue
-  elevenlabs: 1, // 6–14 credits per 1000 characters
-  topaz: 1, // a utility; upscaling someone's own file shouldn't need a big plan
-  "nano-banana": 2,
-  flux: 2,
-  imagen: 2,
-  ideogram: 2,
-  seedance: 2,
-  kling: 2,
-  "gemini-omni": 2, // 63–210 credits per video, in Kling's range
-  // 16 credits/s at 768p, 26 at 2K — so 80 to 390 per clip depending on length.
-  // That straddles Kling and Seedance rather than Veo, which is why it is 2 and
-  // not 3. check-combos.ts caught this being absent, and absent means LOCKED on
-  // every plan, which would have shipped a new flagship nobody could run.
-  "minimax-h3": 2,
-  veo: 3,
-};
+/**
+ * Minimum tier per family, read off the catalogue.
+ *
+ * This used to be a hand-kept map beside the plan ladder, which made it a second
+ * list of facts about the catalogue that nothing forced to agree with the
+ * catalogue. Four families added later were missing from it entirely. `minTier`
+ * is a field on the family now — declared where the family is, carried into
+ * `provider_models.capabilities`, and served by `GET /catalog` — so a family
+ * cannot exist without one.
+ */
+export const MODEL_MIN_TIER: Record<string, Tier> = Object.fromEntries(FAMILIES.map((family) => [family.id, family.minTier]));
 
 /**
- * Minimum tier for a family. An unlisted family LOCKS rather than unlocks.
+ * Minimum tier for a family. An unknown family LOCKS rather than unlocks.
  *
  * This defaulted to tier 1, which failed in the giveaway direction: four
  * families added later — gemini-omni, elevenlabs, topaz, recraft — were silently
  * available on the cheapest plan, and Gemini Omni costs up to 210 KIE credits a
- * video. Missing config should cost us a sale, never the margin.
- * `scripts/check-combos.ts` now fails if any family is unlisted.
+ * video. Missing config should cost us a sale, never the margin. The type now
+ * makes `minTier` required on a family, so the only way to reach the fallback
+ * is to ask about a family that does not exist.
  */
 export function minTierFor(familyId: string): Tier {
   return MODEL_MIN_TIER[familyId] ?? 3;

@@ -70,6 +70,8 @@ export const FamilySchema = z.object({
   name: z.string().min(1),
   vendor: z.string().min(1),
   kind: z.enum(["image", "video", "audio"]),
+  /** Lowest `plans.tier` that may run this family. Never defaulted — an absent tier locks. */
+  minTier: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   blurb: z.string(),
   badge: z.string().optional(),
   grad: z.string(),

@@ -5,6 +5,7 @@ export * from "./session";
 export * from "./catalog";
 export * from "./telemetry";
 export * from "./generation";
+export * from "./plans";
 
 export const DependencyHealthSchema = z.object({
   database: z.enum(["up", "down"]),

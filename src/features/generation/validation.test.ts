@@ -11,6 +11,7 @@ const family: Family = {
   name: "Family",
   vendor: "Vendor",
   kind: "video",
+  minTier: 1,
   blurb: "",
   grad: "linear-gradient(#000,#111)",
   maxPrompt: 20,

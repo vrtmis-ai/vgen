@@ -20,3 +20,10 @@ src/data/catalog.snapshot.json
 # are diffed, and neither is hand-edited.
 src/data/pricing.rows.json
 src/data/pricing.expected.json
+
+# The plan ladder. `plans.rows.json` is what the database is seeded from;
+# `plans.snapshot.json` is what it serves back, diffed in CI so the card and the
+# table cannot disagree about what a plan costs. Both generated, neither
+# hand-edited, and Prettier's object collapsing would break the diff forever.
+src/data/plans.rows.json
+src/data/plans.snapshot.json

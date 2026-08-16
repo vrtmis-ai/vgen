@@ -34,6 +34,7 @@ calls the frontend makes have no route on the server yet.**
 | `session.getCurrent()` | `GET /session`             | `routes/session.ts`                    | **Live** |
 | `auth.*` (5 methods)   | `POST /auth/*`             | `routes/auth.ts`                       | **Live** |
 | `catalog.list()`       | `GET /catalog`             | `routes/catalog.ts`                    | **Live** |
+| _(not wired yet)_      | `GET /plans`               | `routes/plans.ts`                      | **Live** |
 | `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`                     | **Live** |
 | `generation.quote()`   | `POST /generation/quotes`  | —                                      | **404**  |
 | `generation.create()`  | `POST /generation/jobs`    | `POST /jobs` (different path and body) | **404**  |
@@ -293,6 +294,56 @@ Not a normal frontend surface: it needs a staff role, a separate cookie, and a
 confirmed second factor. If you are building admin screens, ask first — the
 sign-in is two steps and the session authorises nothing between them.
 
+### `GET /plans`
+
+The plan ladder. Public on purpose: someone deciding whether to sign up has to
+see what a plan costs before they have an account to see it with.
+
+```jsonc
+{
+  "plans": [
+    {
+      "code": "pro",
+      "name": "Pro",
+      "tier": 2,
+      "coinsPerTerm": 1100,
+      "baseCoins": 1000,
+      "bonusCoins": 100,
+      "termDays": 30,
+      "monthlyUsd": 49,
+      "annualUsdPerMonth": 39,
+      "group": "main",
+      "tag": "popular",
+      "popular": true,
+    },
+  ],
+}
+```
+
+Schema: `PlanSchema` in `packages/contracts/src/plans.ts`. Ordered the way the
+cards are meant to read — do not sort it.
+
+Four things worth knowing:
+
+- **Prices are USD.** The coin economy pivots on USD, so the Toman figure a
+  customer sees is a conversion applied at the edge and a rate change moves one
+  number instead of every plan row.
+- **`annualUsdPerMonth: null` is not the same as "same as monthly".** Null means
+  the plan has no annual option and the toggle should not appear; an equal price
+  would mean a discount of zero.
+- **`termDays` is 30 on every plan, annual ones included.** Annual is a payment
+  cadence, not a longer grant — twelve months are paid up front but coins still
+  arrive monthly and still expire after thirty days.
+- **`coinsPerTerm` is the total; `baseCoins` + `bonusCoins` is the same number
+  split the way the card shows it** ("500 + 25"). Charge against the total.
+
+**Tier gating.** `plans.tier` is compared against a family's `minTier`, which is
+a new required field on every family in `GET /catalog`. An account with no plan
+is tier 1, not tier 0 — it holds a 12-coin signup gift and the cheapest tier-1
+models cost about a coin, so tier 1 is what makes that gift spendable. Nothing
+enforces this server-side yet; `src/lib/access.tsx` does it in the browser, and
+the quote route is where it becomes real.
+
 ## Pricing
 
 Prices live in `model_prices`, one row per (model, feature, **selector**) —
@@ -329,6 +380,10 @@ moved. CI runs that check over all 738 of them.
 
 So you can tell a gap from a bug:
 
+- **The Plans screen still reads a file.** `GET /plans` is live, but nothing in
+  `AppServices` calls it — the screen reads `src/data/plans.snapshot.json`, the
+  committed copy CI diffs against the database. Porting it to the route is UI
+  work, and the payload above is what it will get.
 - **A quote route.** Prices are now in Postgres and resolvable server-side —
   see Pricing below — but `POST /generation/quotes` does not exist yet, so
   nothing hands the browser a signed price. That is the next phase.

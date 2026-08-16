@@ -1,0 +1,99 @@
+{
+  "plans": [
+    {
+      "code": "starter",
+      "name": "Starter",
+      "tier": 1,
+      "coinsPerTerm": 30,
+      "baseCoins": 30,
+      "bonusCoins": 0,
+      "termDays": 30,
+      "monthlyUsd": 1.5,
+      "annualUsdPerMonth": null,
+      "group": "entry",
+      "tag": "test",
+      "popular": false
+    },
+    {
+      "code": "basic",
+      "name": "Basic",
+      "tier": 1,
+      "coinsPerTerm": 80,
+      "baseCoins": 80,
+      "bonusCoins": 0,
+      "termDays": 30,
+      "monthlyUsd": 4,
+      "annualUsdPerMonth": null,
+      "group": "entry",
+      "popular": false
+    },
+    {
+      "code": "flow",
+      "name": "Flow",
+      "tier": 1,
+      "coinsPerTerm": 150,
+      "baseCoins": 150,
+      "bonusCoins": 0,
+      "termDays": 30,
+      "monthlyUsd": 7.5,
+      "annualUsdPerMonth": null,
+      "group": "entry",
+      "popular": false
+    },
+    {
+      "code": "plus",
+      "name": "Plus",
+      "tier": 1,
+      "coinsPerTerm": 525,
+      "baseCoins": 500,
+      "bonusCoins": 25,
+      "termDays": 30,
+      "monthlyUsd": 25,
+      "annualUsdPerMonth": null,
+      "group": "entry",
+      "tag": "gift",
+      "popular": false
+    },
+    {
+      "code": "pro",
+      "name": "Pro",
+      "tier": 2,
+      "coinsPerTerm": 1100,
+      "baseCoins": 1000,
+      "bonusCoins": 100,
+      "termDays": 30,
+      "monthlyUsd": 49,
+      "annualUsdPerMonth": 39,
+      "group": "main",
+      "tag": "popular",
+      "popular": true
+    },
+    {
+      "code": "studio",
+      "name": "Studio",
+      "tier": 3,
+      "coinsPerTerm": 2300,
+      "baseCoins": 2000,
+      "bonusCoins": 300,
+      "termDays": 30,
+      "monthlyUsd": 99,
+      "annualUsdPerMonth": 80,
+      "group": "main",
+      "popular": false
+    },
+    {
+      "code": "creator",
+      "name": "Creator",
+      "tier": 3,
+      "coinsPerTerm": 3350,
+      "baseCoins": 3000,
+      "bonusCoins": 350,
+      "termDays": 30,
+      "monthlyUsd": 139,
+      "annualUsdPerMonth": 109,
+      "group": "main",
+      "tag": "best",
+      "popular": false
+    }
+  ]
+}

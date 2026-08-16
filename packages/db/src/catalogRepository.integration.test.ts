@@ -22,6 +22,7 @@ const familyPresentation = (id: string, name: string) => ({
   name,
   vendor: "DEEV Test",
   kind: "image" as const,
+  minTier: 1 as const,
   blurb: `${name} description`,
   grad: "linear-gradient(135deg,#111,#333)",
   controls: [],

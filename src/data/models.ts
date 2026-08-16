@@ -112,6 +112,16 @@ export interface Family {
   name: string;
   vendor: string;
   kind: ModelKind;
+  /**
+   * Lowest plan tier that may run this family. Compared against `plans.tier`.
+   *
+   * Stated per family and never defaulted: an unlisted family used to fall
+   * through to tier 1 — the cheapest pack — so four families added later were
+   * silently available on it, one of them costing up to 210 provider credits a
+   * video. A missing tier must cost a sale, never the margin, and
+   * `check-combos.ts` fails the build if one is absent.
+   */
+  minTier: 1 | 2 | 3;
   blurb: string;
   badge?: string;
   grad: string;
@@ -259,6 +269,7 @@ export const FAMILIES: Family[] = [
     name: "Nano Banana",
     vendor: "Google",
     kind: "image",
+    minTier: 2,
     blurb: "مدل تصویریِ گوگل؛ کیفیت و فهم بالا",
     badge: "محبوب",
     grad: "linear-gradient(135deg,#f6d365,#fda085)",
@@ -341,6 +352,7 @@ export const FAMILIES: Family[] = [
     name: "Seedream",
     vendor: "ByteDance",
     kind: "image",
+    minTier: 1,
     blurb: "واقع‌گرایی بالا و رنگ‌بندی سینمایی",
     badge: "محبوب",
     grad: "linear-gradient(135deg,#2bd2c0,#1e6cff)",
@@ -374,6 +386,7 @@ export const FAMILIES: Family[] = [
     name: "GPT Image",
     vendor: "OpenAI",
     kind: "image",
+    minTier: 1,
     blurb: "مدل تصویری OpenAI؛ دقیق در دنبال‌کردن پرامپت",
     badge: "OpenAI",
     grad: "linear-gradient(135deg,#43e97b,#38f9d7)",
@@ -428,6 +441,7 @@ export const FAMILIES: Family[] = [
     name: "Flux 2",
     vendor: "Black Forest Labs",
     kind: "image",
+    minTier: 2,
     blurb: "ترکیب‌بندی و نور درجه‌یک",
     grad: "linear-gradient(135deg,#30cfd0,#330867)",
     cover: "https://file.aiquickdraw.com/static//kie-maket/17604346335909arn4y6a.webp",
@@ -451,6 +465,7 @@ export const FAMILIES: Family[] = [
     name: "Imagen 4",
     vendor: "Google",
     kind: "image",
+    minTier: 2,
     blurb: "کیفیت بالا و طبیعی از گوگل",
     badge: "Google",
     grad: "linear-gradient(135deg,#4facfe,#00f2fe)",
@@ -475,6 +490,7 @@ export const FAMILIES: Family[] = [
     name: "Ideogram V3",
     vendor: "Ideogram",
     kind: "image",
+    minTier: 2,
     blurb: "بهترین برای متن، لوگو و پوستر",
     badge: "متن و لوگو",
     grad: "linear-gradient(135deg,#ff9a9e,#fecfef)",
@@ -519,6 +535,7 @@ export const FAMILIES: Family[] = [
     name: "Qwen Image",
     vendor: "Alibaba",
     kind: "image",
+    minTier: 1,
     blurb: "سریع و مقرون‌به‌صرفه",
     badge: "ارزان",
     grad: "linear-gradient(135deg,#a18cd1,#fbc2eb)",
@@ -552,6 +569,7 @@ export const FAMILIES: Family[] = [
     name: "Z-Image",
     vendor: "Tongyi",
     kind: "image",
+    minTier: 1,
     blurb: "اقتصادی برای تست‌های سریع",
     badge: "ارزان‌ترین",
     grad: "linear-gradient(135deg,#89f7fe,#66a6ff)",
@@ -575,6 +593,7 @@ export const FAMILIES: Family[] = [
     maxPrompt: 20000,
     vendor: "ByteDance",
     kind: "video",
+    minTier: 2,
     blurb: "ویدیوی واقع‌گرا با صدا؛ متن یا عکس به ویدیو",
     badge: "پرچم‌دار",
     grad: "linear-gradient(135deg,#4b6cf7,#9b4bf7)",
@@ -672,6 +691,7 @@ export const FAMILIES: Family[] = [
     maxPrompt: 2500,
     vendor: "Kuaishou",
     kind: "video",
+    minTier: 2,
     blurb: "حرکت سینمایی و چندنما؛ تا ۱۵ ثانیه",
     badge: "سینمایی",
     grad: "linear-gradient(135deg,#f7c948,#f86a3b)",
@@ -841,6 +861,7 @@ export const FAMILIES: Family[] = [
     maxPrompt: 5000,
     vendor: "MiniMax",
     kind: "video",
+    minTier: 2,
     blurb: "یک مدل برای همه‌چیز: متن، عکس یا مرجع به ویدیوی ۲K با صدای همگام",
     badge: "جدید",
     grad: "linear-gradient(135deg,#f7734b,#f74b9b)",
@@ -874,6 +895,7 @@ export const FAMILIES: Family[] = [
     maxPrompt: 5000, // 2.6, 2.7 and R2V — but 2.5 is far tighter, see below
     vendor: "Alibaba",
     kind: "video",
+    minTier: 1,
     blurb: "ویدیوی روان و اقتصادی",
     badge: "ارزان",
     grad: "linear-gradient(135deg,#ff5db1,#7b4dff)",
@@ -1114,6 +1136,7 @@ export const FAMILIES: Family[] = [
     maxPrompt: 5000,
     vendor: "MiniMax",
     kind: "video",
+    minTier: 1,
     blurb: "حرکت طبیعی و چهره‌های واقعی؛ عکس به ویدیو",
     badge: "MiniMax",
     grad: "linear-gradient(135deg,#ee9ca7,#ffdde1)",
@@ -1151,6 +1174,7 @@ export const FAMILIES: Family[] = [
     maxPrompt: 20000,
     vendor: "Google",
     kind: "video",
+    minTier: 2,
     blurb: "ویدیو و صدای همزمان؛ ورودی عکس اختیاری",
     badge: "جدید",
     grad: "linear-gradient(135deg,#34d399,#3b82f6)",
@@ -1194,6 +1218,7 @@ export const FAMILIES: Family[] = [
     name: "Veo 3.1",
     vendor: "Google",
     kind: "video",
+    minTier: 3,
     blurb: "پرچم‌دارِ ویدیوی گوگل؛ کیفیت سینمایی و صدا",
     badge: "جدید",
     grad: "linear-gradient(135deg,#0ea5e9,#6366f1)",
@@ -1225,6 +1250,7 @@ export const FAMILIES: Family[] = [
     name: "Grok Imagine",
     vendor: "xAI",
     kind: "image",
+    minTier: 1,
     blurb: "تصویرسازِ سریعِ xAI",
     badge: "xAI",
     grad: "linear-gradient(135deg,#3b3f46,#1c1f24)",
@@ -1249,6 +1275,7 @@ export const FAMILIES: Family[] = [
     name: "ElevenLabs",
     vendor: "ElevenLabs",
     kind: "audio",
+    minTier: 1,
     blurb: "متن به گفتار؛ طبیعی و چندزبانه — فارسی هم پشتیبانی می‌شود",
     badge: "صدا",
     grad: "linear-gradient(135deg,#22d3ee,#0f766e)",
@@ -1298,6 +1325,7 @@ export const FAMILIES: Family[] = [
     name: "Topaz",
     vendor: "Topaz Labs",
     kind: "image",
+    minTier: 1,
     blurb: "بزرگ‌نمایی تصویر با حفظ جزئیات",
     badge: "ابزار",
     grad: "linear-gradient(135deg,#64748b,#1e293b)",
@@ -1351,6 +1379,7 @@ export const FAMILIES: Family[] = [
     name: "Recraft",
     vendor: "Recraft",
     kind: "image",
+    minTier: 1,
     blurb: "بزرگ‌نمایی سریع و حذف پس‌زمینه",
     badge: "ابزار",
     grad: "linear-gradient(135deg,#a78bfa,#4c1d95)",

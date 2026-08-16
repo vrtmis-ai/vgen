@@ -12,7 +12,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "migration:check": "vitest run --config vitest.integration.config.ts"
+    "migration:check": "vitest run --config vitest.integration.config.ts",
+    "plans:snapshot": "tsx src/exportPlansSnapshot.ts"
   },
   "dependencies": {
     "@vgen/contracts": "workspace:*",
