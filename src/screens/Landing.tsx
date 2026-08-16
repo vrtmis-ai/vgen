@@ -5,7 +5,6 @@ import { FAMILIES, getFamily, type Family } from "../data/models";
 import { COMMUNITY } from "../data/community";
 import { PLANS, monthlyCoins, toman, annualDiscountPct, effectiveUsd, type Plan } from "../data/plans";
 import { minCoinsForFamily } from "../data/pricing";
-import { Marquee } from "../components/Marquee";
 import { ModelMark } from "../components/ModelMark";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
@@ -646,53 +645,6 @@ function Hero({ onSignUp }: { onSignUp: () => void }) {
         </div>
       </motion.div>
     </div>
-  );
-}
-
-/* ---------------------------------------------------------------------------
-   The strip under the shot.
-
-   The reference puts a label against a vertical rule and lets the row run off
-   the far edge — the shape reads as "these, and more of them" in a way a centred
-   caption over a grid does not.
-
-   What it is a strip OF is the part that changes. The original is eight
-   companies' logos under "Powering the best teams", which for us would be a
-   claim we cannot make and eight trademarks we have no licence to ship — the
-   exact thing VendorMark exists in this repo to avoid. The equivalent that is
-   both true and a better pitch is the catalogue: these are models you can run
-   on this page today, resolved from FAMILIES so the row cannot drift from what
-   is actually for sale.
-   --------------------------------------------------------------------------- */
-function ModelStrip() {
-  const { t } = useI18n();
-  return (
-    <section className="relative pb-2 pt-10 md:pt-14">
-      <div className="relative m-auto max-w-[1200px] px-6 lg:px-12">
-        <div className="flex flex-col items-center gap-4 md:flex-row md:gap-0">
-          {/* The rule is on the *inline end* of the label, which is its left in
-              Persian and its right in English — `border-e`, not `border-r`. */}
-          <div className="md:max-w-44 md:border-e md:pe-6" style={{ borderColor: "var(--vg-border-subtle)" }}>
-            <p className="text-center text-[12.5px] leading-[1.7] md:text-end" style={{ color: "var(--vg-text-muted)" }}>
-              {t("lp_models_title")}
-            </p>
-          </div>
-
-          <div className="relative w-full py-6 md:w-[calc(100%-11rem)]">
-            <Marquee seconds={46} label={t("lp_models_title")}>
-              {HERO_MODELS.map((f) => (
-                <span key={f.id} className="flex shrink-0 items-center gap-2 px-7">
-                  <ModelMark familyId={f.id} vendor={f.vendor} size={18} />
-                  <span className="whitespace-nowrap text-[13px] font-medium" style={{ color: "var(--vg-text-secondary)" }} lang="en">
-                    {f.name}
-                  </span>
-                </span>
-              ))}
-            </Marquee>
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -1455,7 +1407,10 @@ export default function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; 
           sections later is answering it to nobody. */}
       <TopNav onSignIn={onSignIn} onSignUp={onSignUp} />
       <Hero onSignUp={onSignUp} />
-      <ModelStrip />
+      {/* There used to be a marquee strip here carrying `lp_models_title`, and
+          then section 01 below carrying the same sentence again — the same claim
+          twice with no scroll between them. The strip went: section 01 does
+          everything it did and more, with all nineteen grouped and priced. */}
       <Models />
       <Reel />
       <TryIt onSignUp={onSignUp} />
