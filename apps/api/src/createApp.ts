@@ -6,6 +6,7 @@ import { registerCatalogRoute, type CustomerCatalogApplication } from "./routes/
 import { registerPlansRoute, type CustomerPlansApplication } from "./routes/plans";
 import { registerWalletRoute, type CustomerWalletApplication } from "./routes/wallet";
 import { registerGenerationJobsRoute, type GenerationJobsApplication } from "./routes/jobs";
+import { registerGenerationQuotesRoute, type GenerationQuotesApplication } from "./routes/quotes";
 import cors from "@fastify/cors";
 import {
   registerFrontendTelemetryRoute,
@@ -30,6 +31,7 @@ export interface ApiDependencies {
   customerPlans: CustomerPlansApplication;
   frontendTelemetry: FrontendTelemetryApplication;
   generationJobs: GenerationJobsApplication;
+  generationQuotes: GenerationQuotesApplication;
 }
 
 export interface ApiOptions {
@@ -64,6 +66,7 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   registerPlansRoute(app, dependencies.customerPlans);
   registerWalletRoute(app, dependencies.customerSession, dependencies.customerWallet);
   registerFrontendTelemetryRoute(app, dependencies.frontendTelemetry, options.telemetryRateLimit, options.telemetryRateLimiter);
+  registerGenerationQuotesRoute(app, dependencies.customerSession, dependencies.generationQuotes);
   registerGenerationJobsRoute(app, dependencies.customerSession, dependencies.generationJobs);
 
   app.get("/health/live", async () => ({ status: "ok" }));

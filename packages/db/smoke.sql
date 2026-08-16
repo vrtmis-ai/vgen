@@ -200,6 +200,15 @@ BEGIN
     'expired term still granting entitlements';
 
   -- 16. an order in Toman carries the dollar rate it was sold at
+  --
+  -- Close the live rate before opening a new one: only one rate per pair may
+  -- be open at a time, and this is the move the seeder makes when the rate
+  -- changes. It used to insert blind, which worked only while fx_rates
+  -- happened to be empty — publishing the plans now seeds a live USD/IRR row,
+  -- and a smoke test that depends on nothing having been seeded is testing
+  -- the wrong database.
+  UPDATE fx_rates SET valid_to = now()
+    WHERE base_currency = 'USD' AND quote_currency = 'IRR' AND valid_to IS NULL;
   INSERT INTO fx_rates (quote_currency, rate, source) VALUES ('IRR', 1150000, 'manual')
     RETURNING id INTO rate;
   INSERT INTO orders (account_id, user_id, plan_id, micro_credits, amount, currency,

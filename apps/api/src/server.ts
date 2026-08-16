@@ -9,6 +9,7 @@ import {
   PostgresPlansRepository,
   PostgresFrontendTelemetryRepository,
   PostgresGenerationRepository,
+  PostgresQuotesRepository,
   PostgresWalletRepository,
 } from "@vgen/db";
 import { createRedisFixedWindowRateLimiter, createRedisHealthAdapter, createS3StorageHealthAdapter } from "@vgen/adapters";
@@ -146,6 +147,7 @@ const app = createApp(
     customerPlans: new PostgresPlansRepository(sql),
     frontendTelemetry: new PostgresFrontendTelemetryRepository(sql),
     generationJobs: new PostgresGenerationRepository(sql),
+    generationQuotes: new PostgresQuotesRepository(sql),
   },
   {
     corsOrigin: webOrigin,

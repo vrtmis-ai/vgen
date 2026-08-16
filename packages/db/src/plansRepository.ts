@@ -18,6 +18,7 @@ interface PlanRow {
   term_days: number;
   price_amount: string;
   annual_price_amount: string | null;
+  max_concurrent_jobs: number;
   presentation: {
     group?: string;
     tag?: string;
@@ -45,12 +46,13 @@ function toPlan(row: PlanRow): Plan {
     group: row.presentation.group === "main" ? "main" : "entry",
     ...(row.presentation.tag ? { tag: row.presentation.tag as NonNullable<Plan["tag"]> } : {}),
     popular: row.presentation.popular === true,
+    maxConcurrentJobs: row.max_concurrent_jobs,
   };
 }
 
 const SELECT_COLUMNS = `
   code, name, tier, micro_credits_per_term, term_days,
-  price_amount, annual_price_amount, presentation
+  price_amount, annual_price_amount, max_concurrent_jobs, presentation
 `;
 
 export class PostgresPlansRepository {

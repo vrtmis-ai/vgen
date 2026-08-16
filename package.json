@@ -35,7 +35,8 @@
     "check:pricing": "tsx scripts/check-pricing.ts",
     "catalog:snapshot": "pnpm --filter @vgen/db catalog:snapshot",
     "plans:publish": "tsx scripts/publish-plans.ts",
-    "plans:snapshot": "pnpm --filter @vgen/db plans:snapshot"
+    "plans:snapshot": "pnpm --filter @vgen/db plans:snapshot",
+    "unlimited:publish": "tsx scripts/publish-unlimited.ts"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.3.0",

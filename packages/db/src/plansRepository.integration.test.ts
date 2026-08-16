@@ -40,8 +40,16 @@ interface PlanOverrides {
  * `pnpm plans:publish` — so without this, `list()` returns them alongside the
  * fixtures and every ordering assertion is about the wrong rows. Safe because
  * `inRollback` throws the whole transaction away afterwards.
+ *
+ * Subscriptions go first. `plans` is referenced by every purchase, so deleting
+ * plans alone works only against a database nobody has ever bought anything
+ * on — which is true of a fresh CI container and false of any machine someone
+ * has actually signed in and quoted on. Failing there is a worse bug than it
+ * looks, because it fails in `clearPlans` and reads as nine broken plan tests
+ * rather than as one stale row.
  */
 async function clearPlans(tx: Sql): Promise<void> {
+  await tx`delete from subscriptions`;
   await tx`delete from plans`;
 }
 

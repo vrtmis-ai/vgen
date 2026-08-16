@@ -24,6 +24,7 @@ interface SnapshotPlan {
   group: "entry" | "main";
   tag?: string;
   popular: boolean;
+  maxConcurrentJobs: number;
 }
 
 const plans = (snapshot as { plans: SnapshotPlan[] }).plans;
@@ -49,6 +50,19 @@ describe("the committed plan snapshot", () => {
     expect(stored?.group).toBe(plan.group);
     expect(stored?.tag).toBe(plan.tag);
     expect(stored?.popular).toBe(plan.popular ?? false);
+    expect(stored?.maxConcurrentJobs).toBe(plan.maxConcurrentJobs);
+  });
+
+  // Paying more must never buy you less parallelism. The coins ladder has an
+  // audit for exactly this inversion (`auditPlans`) because it shipped broken
+  // once; this is the same rule for the other thing a plan sells.
+  it("never lets a dearer plan run fewer generations at once", () => {
+    const byPrice = [...PLANS].sort((a, b) => a.monthlyUsd - b.monthlyUsd);
+    for (let i = 1; i < byPrice.length; i++) {
+      const cheaper = byPrice[i - 1]!;
+      const dearer = byPrice[i]!;
+      expect(dearer.maxConcurrentJobs).toBeGreaterThanOrEqual(cheaper.maxConcurrentJobs);
+    }
   });
 
   // Annual is a payment cadence, not a longer grant: twelve months are paid up

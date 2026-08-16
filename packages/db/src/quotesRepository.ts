@@ -1,0 +1,205 @@
+import type { Sql } from "postgres";
+import { COIN_USD, KIE_CREDIT_USD } from "@vgen/core";
+import { PostgresEntitlementsRepository, type Tier, type UnlimitedGrant } from "./entitlementsRepository";
+import { PostgresPricingRepository, PriceUnavailableError } from "./pricingRepository";
+import { hashGenerationParams, type GenerationParams } from "./generationRepository";
+
+/**
+ * What a generation costs this account, decided by the server.
+ *
+ * Three questions are answered here, in this order, because each only makes
+ * sense once the one before it has an answer:
+ *
+ *   1. does this variant exist, and what feature does it serve
+ *   2. does this account's plan reach it at all          <- the tier gate
+ *   3. is it free for them today, and if not, what is the price
+ *
+ * Every one of those used to be answered in the browser. `src/lib/access.tsx`
+ * draws a padlock and `src/data/pricing.ts` computes a number, and both were
+ * advisory: curl has never seen a padlock, and a price the client computes is
+ * a price the client can edit. This file is where they stop being advice.
+ */
+
+/** How long a quote is good for. Long enough to fill in a prompt, short
+ *  enough that a price change reaches customers within the minute. */
+const QUOTE_TTL_MS = 5 * 60 * 1000;
+
+export interface QuoteRequest {
+  userId: string;
+  variantId: string;
+  params: GenerationParams;
+  prompt?: string | undefined;
+  clipSeconds?: number | undefined;
+}
+
+export interface QuotedGeneration {
+  id: string;
+  coins: number;
+  expiresAt: number;
+  /** Present only when the price is zero because of a grant. */
+  unlimited?: { remainingToday: number | null; dailyCap: number | null };
+  /** What the account has in flight against what its plan allows. */
+  concurrency: { running: number; limit: number };
+}
+
+export type QuoteResult =
+  | { outcome: "quoted"; quote: QuotedGeneration }
+  | { outcome: "unknown_account" }
+  | { outcome: "unknown_variant" }
+  | { outcome: "tier_too_low"; requiredTier: Tier; currentTier: Tier }
+  | { outcome: "not_offered" }
+  | { outcome: "no_price" };
+
+interface CatalogRow {
+  id: string;
+  capabilities: {
+    family?: { minTier?: number };
+    variant?: { featureCode?: string; controls?: unknown };
+  };
+}
+
+/**
+ * Billable seconds, taken from the settings rather than from the client.
+ *
+ * `duration` is a control on the variant, so it arrives inside params and is
+ * already bounded by the catalogue. `clipSeconds` describes an attached asset
+ * and is the one quantity the server cannot yet check — see the contract.
+ */
+function billableSeconds(params: GenerationParams, clipSeconds: number | undefined): number | undefined {
+  const duration = params.duration;
+  if (typeof duration === "number") return duration;
+  if (typeof duration === "string" && duration.trim() !== "" && Number.isFinite(Number(duration))) return Number(duration);
+  return clipSeconds;
+}
+
+export class PostgresQuotesRepository {
+  private readonly entitlements: PostgresEntitlementsRepository;
+  private readonly pricing: PostgresPricingRepository;
+
+  constructor(private readonly sql: Sql) {
+    this.entitlements = new PostgresEntitlementsRepository(sql);
+    this.pricing = new PostgresPricingRepository(sql);
+  }
+
+  async create(request: QuoteRequest): Promise<QuoteResult> {
+    // The session carries a user; credits, subscriptions and quotes are all
+    // scoped by account. Personal account for now — a team member quoting
+    // against their team's balance is what account_members is for, and no
+    // route creates a team yet.
+    const [user] = await this.sql<{ personal_account_id: string | null }[]>`
+      select personal_account_id from users where id = ${request.userId} limit 1
+    `;
+    const accountId = user?.personal_account_id;
+    if (!accountId) return { outcome: "unknown_account" };
+
+    // The catalogue row the customer picked. Matched on the variant id inside
+    // capabilities — ours — rather than on external_model_id, which belongs to
+    // whichever provider happens to serve it.
+    const [model] = await this.sql<CatalogRow[]>`
+      select model.id, model.capabilities
+      from provider_models model
+      join providers provider on provider.id = model.provider_id
+      where model.capabilities -> 'variant' ->> 'id' = ${request.variantId}
+        and model.capabilities ? 'variant'
+        and model.is_active and provider.is_active
+      limit 1
+    `;
+    if (!model) return { outcome: "unknown_variant" };
+
+    const featureCode = model.capabilities.variant?.featureCode;
+    if (!featureCode) return { outcome: "unknown_variant" };
+
+    const [feature] = await this.sql<{ id: string }[]>`
+      select id from features where code = ${featureCode} and is_active limit 1
+    `;
+    if (!feature) return { outcome: "unknown_variant" };
+
+    // ---- the tier gate -------------------------------------------------
+    // An unknown minTier locks rather than unlocks. Missing configuration
+    // should cost a sale, never the margin: the four families that were once
+    // missing from the hand-kept tier map were all expensive ones.
+    const requiredTier = (model.capabilities.family?.minTier ?? 3) as Tier;
+    const currentTier = await this.entitlements.tierForAccount(accountId);
+    if (currentTier < requiredTier) return { outcome: "tier_too_low", requiredTier, currentTier };
+
+    // ---- free, or priced ------------------------------------------------
+    const available = await this.entitlements.availability(model.id, feature.id, accountId, currentTier);
+    const granted = available !== null && (available.remaining === null || available.remaining > 0);
+
+    let priceId: string | null = null;
+    let coins = 0;
+    let microCredits = 0;
+    let providerUnits = 0;
+    let grant: UnlimitedGrant | null = null;
+
+    if (granted) {
+      grant = available.grant;
+    } else {
+      try {
+        const price = await this.pricing.priceFor({
+          providerModelId: model.id,
+          featureId: feature.id,
+          params: request.params,
+          seconds: billableSeconds(request.params, request.clipSeconds),
+          characters: request.prompt?.length,
+        });
+        priceId = price.priceId;
+        coins = price.coins;
+        microCredits = price.microCredits;
+        providerUnits = price.providerUnits;
+      } catch (error) {
+        if (error instanceof PriceUnavailableError) return { outcome: error.code === "not_offered" ? "not_offered" : "no_price" };
+        throw error;
+      }
+    }
+
+    // The rate a customer was shown, recorded on the quote so it stays
+    // answerable after the rate moves. NOT NULL on the column, so a database
+    // without one cannot quote at all — which is the loud failure it should be.
+    const [fx] = await this.sql<{ rate: string }[]>`
+      select rate from fx_rates
+      where base_currency = 'USD' and quote_currency = 'IRR' and valid_to is null
+      limit 1
+    `;
+    if (!fx) throw new Error("no live USD/IRR rate in fx_rates; run pnpm plans:publish");
+
+    // What this generation costs us and what it earns, both in USD micros.
+    //
+    // A granted generation records a cost of zero, which is the honest number:
+    // the PixVerse subscriptions are a fixed monthly bill that one more image
+    // does not move. The cost is real, it simply is not attributable per job —
+    // provider_statements is where that reconciles.
+    const costUsdMicros = Math.round(providerUnits * KIE_CREDIT_USD * 1_000_000);
+    const sellUsdMicros = Math.round(coins * COIN_USD * 1_000_000);
+
+    const expiresAt = new Date(Date.now() + QUOTE_TTL_MS);
+    const [quote] = await this.sql<{ id: string; expires_at: Date }[]>`
+      insert into quotes (
+        account_id, created_by, params_hash,
+        provider_model_id, feature_id, price_id, entitlement_id,
+        provider_cost_usd_micros, sell_price_micro_credits,
+        exchange_rate_irr_per_usd, margin_usd_micros, expires_at
+      ) values (
+        ${accountId}, ${request.userId}, ${Buffer.from(hashGenerationParams(request.params))},
+        ${model.id}, ${feature.id}, ${priceId}, ${grant?.id ?? null},
+        ${costUsdMicros}, ${microCredits},
+        ${Math.round(Number(fx.rate))}, ${sellUsdMicros - costUsdMicros}, ${expiresAt}
+      )
+      returning id, expires_at
+    `;
+    if (!quote) throw new Error("quote insert returned no row");
+
+    const concurrency = await this.entitlements.concurrencyFor(accountId);
+
+    return {
+      outcome: "quoted",
+      quote: {
+        id: quote.id,
+        coins,
+        expiresAt: quote.expires_at.getTime(),
+        concurrency,
+        ...(grant ? { unlimited: { remainingToday: available!.remaining, dailyCap: grant.dailyCap } } : {}),
+      },
+    };
+  }
+}

@@ -12,7 +12,8 @@
       "annualUsdPerMonth": null,
       "group": "entry",
       "tag": "test",
-      "popular": false
+      "popular": false,
+      "maxConcurrentJobs": 1
     },
     {
       "code": "basic",
@@ -25,7 +26,8 @@
       "monthlyUsd": 4,
       "annualUsdPerMonth": null,
       "group": "entry",
-      "popular": false
+      "popular": false,
+      "maxConcurrentJobs": 2
     },
     {
       "code": "flow",
@@ -38,7 +40,8 @@
       "monthlyUsd": 7.5,
       "annualUsdPerMonth": null,
       "group": "entry",
-      "popular": false
+      "popular": false,
+      "maxConcurrentJobs": 2
     },
     {
       "code": "plus",
@@ -52,7 +55,8 @@
       "annualUsdPerMonth": null,
       "group": "entry",
       "tag": "gift",
-      "popular": false
+      "popular": false,
+      "maxConcurrentJobs": 3
     },
     {
       "code": "pro",
@@ -66,7 +70,8 @@
       "annualUsdPerMonth": 39,
       "group": "main",
       "tag": "popular",
-      "popular": true
+      "popular": true,
+      "maxConcurrentJobs": 4
     },
     {
       "code": "studio",
@@ -79,7 +84,8 @@
       "monthlyUsd": 99,
       "annualUsdPerMonth": 80,
       "group": "main",
-      "popular": false
+      "popular": false,
+      "maxConcurrentJobs": 6
     },
     {
       "code": "creator",
@@ -93,7 +99,8 @@
       "annualUsdPerMonth": 109,
       "group": "main",
       "tag": "best",
-      "popular": false
+      "popular": false,
+      "maxConcurrentJobs": 8
     }
   ]
 }

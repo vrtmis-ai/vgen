@@ -11,7 +11,8 @@
       "group": "entry",
       "tag": "test",
       "popular": false,
-      "sortOrder": 0
+      "sortOrder": 0,
+      "maxConcurrentJobs": 1
     },
     {
       "code": "basic",
@@ -24,7 +25,8 @@
       "group": "entry",
       "tag": null,
       "popular": false,
-      "sortOrder": 1
+      "sortOrder": 1,
+      "maxConcurrentJobs": 2
     },
     {
       "code": "flow",
@@ -37,7 +39,8 @@
       "group": "entry",
       "tag": null,
       "popular": false,
-      "sortOrder": 2
+      "sortOrder": 2,
+      "maxConcurrentJobs": 2
     },
     {
       "code": "plus",
@@ -50,7 +53,8 @@
       "group": "entry",
       "tag": "gift",
       "popular": false,
-      "sortOrder": 3
+      "sortOrder": 3,
+      "maxConcurrentJobs": 3
     },
     {
       "code": "pro",
@@ -63,7 +67,8 @@
       "group": "main",
       "tag": "popular",
       "popular": true,
-      "sortOrder": 4
+      "sortOrder": 4,
+      "maxConcurrentJobs": 4
     },
     {
       "code": "studio",
@@ -76,7 +81,8 @@
       "group": "main",
       "tag": null,
       "popular": false,
-      "sortOrder": 5
+      "sortOrder": 5,
+      "maxConcurrentJobs": 6
     },
     {
       "code": "creator",
@@ -89,7 +95,8 @@
       "group": "main",
       "tag": "best",
       "popular": false,
-      "sortOrder": 6
+      "sortOrder": 6,
+      "maxConcurrentJobs": 8
     }
   ]
 }

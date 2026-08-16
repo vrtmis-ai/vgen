@@ -29,6 +29,14 @@ export const PlanSchema = z.object({
   group: z.enum(["entry", "main"]),
   tag: z.enum(["test", "gift", "popular", "best"]).optional(),
   popular: z.boolean(),
+  /**
+   * Generations this plan may have in flight at once.
+   *
+   * A perk the customer feels rather than a throttle: queueing behind your own
+   * jobs is what a heavier plan buys you out of. Shown on the card, enforced by
+   * the API at submission — never by the browser.
+   */
+  maxConcurrentJobs: z.number().int().positive(),
 });
 
 export const PlanListSchema = z.object({

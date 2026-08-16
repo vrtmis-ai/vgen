@@ -26,7 +26,7 @@ The port is the same either way — `AppServices` in
 ## What is actually wired
 
 This is the part worth reading twice. The HTTP adapters were written against a
-planned surface; the server has since been rebuilt, and **four of the eight
+planned surface; the server has since been rebuilt, and **three of the eight
 calls the frontend makes have no route on the server yet.**
 
 | `AppServices` call     | Frontend requests          | Server route                           | Status   |
@@ -36,13 +36,14 @@ calls the frontend makes have no route on the server yet.**
 | `catalog.list()`       | `GET /catalog`             | `routes/catalog.ts`                    | **Live** |
 | _(not wired yet)_      | `GET /plans`               | `routes/plans.ts`                      | **Live** |
 | `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`                     | **Live** |
-| `generation.quote()`   | `POST /generation/quotes`  | —                                      | **404**  |
+| _(not wired yet)_      | `POST /generation/quotes`  | `routes/quotes.ts`                     | **Live** |
 | `generation.create()`  | `POST /generation/jobs`    | `POST /jobs` (different path and body) | **404**  |
 | `generation.getJob()`  | `GET /generation/jobs/:id` | —                                      | **404**  |
 | `gallery.list()`       | `GET /gallery`             | —                                      | **404**  |
 
-So in `production` mode today, session, auth, catalog and wallet work;
-generation and gallery do not. **In `demo` mode everything works**, which is why
+So in `production` mode today, session, auth, catalog, wallet, plans and
+quoting work; job submission and gallery do not. **In `demo` mode everything
+works**, which is why
 UI work is unblocked and should stay on demo mode until this table says
 otherwise.
 
@@ -315,6 +316,7 @@ see what a plan costs before they have an account to see it with.
       "group": "main",
       "tag": "popular",
       "popular": true,
+      "maxConcurrentJobs": 4,
     },
   ],
 }
@@ -323,7 +325,7 @@ see what a plan costs before they have an account to see it with.
 Schema: `PlanSchema` in `packages/contracts/src/plans.ts`. Ordered the way the
 cards are meant to read — do not sort it.
 
-Four things worth knowing:
+Five things worth knowing:
 
 - **Prices are USD.** The coin economy pivots on USD, so the Toman figure a
   customer sees is a conversion applied at the edge and a rate change moves one
@@ -336,13 +338,115 @@ Four things worth knowing:
   arrive monthly and still expire after thirty days.
 - **`coinsPerTerm` is the total; `baseCoins` + `bonusCoins` is the same number
   split the way the card shows it** ("500 + 25"). Charge against the total.
+- **`maxConcurrentJobs` is how many generations the plan may have in flight at
+  once** — 1 on Starter up to 8 on Creator, and 1 for an account with no plan.
+  It is a perk, not a throttle: queueing behind your own jobs is what a dearer
+  plan buys you out of. The ladder is monotonic with price and a unit test
+  enforces that, because paying more must never buy less parallelism.
 
-**Tier gating.** `plans.tier` is compared against a family's `minTier`, which is
-a new required field on every family in `GET /catalog`. An account with no plan
-is tier 1, not tier 0 — it holds a 12-coin signup gift and the cheapest tier-1
-models cost about a coin, so tier 1 is what makes that gift spendable. Nothing
-enforces this server-side yet; `src/lib/access.tsx` does it in the browser, and
-the quote route is where it becomes real.
+**Tier gating.** `plans.tier` is compared against a family's `minTier`, a
+required field on every family in `GET /catalog`. An account with no plan is
+tier 1, not tier 0 — it holds a 12-coin signup gift and the cheapest tier-1
+models cost about a coin, so tier 1 is what makes that gift spendable.
+
+**This is now enforced on the server**, in `POST /generation/quotes`. It used to
+be browser-only, which meant it was not enforced at all: `src/lib/access.tsx`
+draws a padlock and curl has never seen a padlock. Keep drawing the padlock —
+it is much better UX than a 403 — but the padlock is now a mirror of the rule
+rather than the rule.
+
+### `POST /generation/quotes`
+
+What a generation costs **this** account. Authenticated, unlike `GET /plans`:
+the price depends on the plan's tier and on how much of today's free allowance
+is left, and neither question has an answer for a stranger.
+
+```jsonc
+// request
+{
+  "variantId": "nano-banana-pro",
+  "params": { "resolution": "1K" },
+  "prompt": "a city at night", // priced only by the per-1k-character models
+  "clipSeconds": 8, // only for models billed by an attached clip's length
+}
+```
+
+```jsonc
+// 200
+{
+  "id": "0199...",
+  "coins": 0,
+  "expiresAt": 1755353400000,
+  "unlimited": { "remainingToday": 47, "dailyCap": 50 },
+  "concurrency": { "running": 2, "limit": 4 },
+}
+```
+
+Note what the request does **not** contain: no feature, no model id, no price.
+Those are catalogue facts the server looks up from `variantId`. A request that
+could name them is a request that could ask to be billed as something cheaper.
+
+- **`coins` is authoritative, and `0` is a real answer** — see Unlimited below.
+- **`unlimited` is present only when the zero came from a grant** rather than
+  from a zero price, so you can say *why* it is free and what is left.
+- **`concurrency` is always present.** Price is not the only reason a
+  generation might not start. Quoting is deliberately **not** refused when the
+  account is full — the price is still the price, and a client that knows it is
+  at 4 of 4 can say so instead of finding out by being rejected.
+- **Quotes expire in five minutes** and are bound to a hash of `params`, so a
+  cheap quote cannot be spent on an expensive job.
+- **Asking the price consumes nothing.** The free allowance is spent at job
+  submission, never here — a quote a customer never acts on must not cost them
+  part of their day.
+
+| Status | Meaning                                                              |
+| ------ | -------------------------------------------------------------------- |
+| 401    | Not signed in                                                         |
+| 403    | `tier_too_low` — body carries `requiredTier` and `currentTier`         |
+| 404    | `unknown_variant`                                                     |
+| 409    | `not_offered` / `no_price` — the variant exists, those settings do not |
+
+403 rather than 402 on tier: the account is not short of money, it is on the
+wrong plan, and the fix is an upgrade rather than a top-up.
+
+## Unlimited generation
+
+Some models cost us nothing per generation, and those are quoted at **zero
+coins** rather than at a discount.
+
+KIE bills per image. A PixVerse Pro+ subscription reached through useapi.net
+bills a flat monthly fee and then nothing per image — past a daily per-account
+threshold it throttles into a slower queue instead of charging. That is a
+different billing model for the same picture, not a cheaper price, which is why
+it lives in `unlimited_entitlements` rather than as a zero row in
+`model_prices`. A zero price would say "this costs nothing"; a grant says "this
+account may run this, N times a day, unmetered".
+
+Today: **Nano Banana Pro and Nano Banana 2, free on tier 3 (Studio and
+Creator), 50 a day per account.**
+
+The grant sits one tier above the model's own `minTier` of 2 on purpose, and
+the gap is the point: tier 1 cannot reach Nano Banana at all, **tier 2 reaches
+it and pays**, tier 3 gets it free. Close that gap and nobody who can use the
+model ever pays for it — the grant would stop being a reason to upgrade and
+become a write-off of the revenue line.
+
+What a UI needs to know:
+
+- **The same variant is served by two providers and the customer never sees
+  that.** `GET /catalog` returns exactly one Nano Banana Pro. The second
+  provider's row exists in `provider_models` but carries no `variant` in its
+  capabilities, and the catalogue query excludes rows without one — otherwise
+  the model would render twice and half the picks would be wrong.
+- **Past the daily allowance the customer is charged, not refused.** The quote
+  simply comes back with the normal price and no `unlimited` block. "You have
+  had your fifty free, this one costs four coins" needs no new UI to say.
+- **The daily counter resets at midnight Tehran time**, not UTC. A UTC reset
+  lands at 03:30 local, which would hand someone a second allowance mid-evening
+  and none the next.
+- **Free does not mean instant.** The upstream pool is roughly six concurrent
+  generations for the entire customer base, so a free generation may queue. It
+  is never charged for waiting.
 
 ## Pricing
 
@@ -381,14 +485,20 @@ moved. CI runs that check over all 738 of them.
 So you can tell a gap from a bug:
 
 - **The Plans screen still reads a file.** `GET /plans` is live, but nothing in
-  `AppServices` calls it — the screen reads `src/data/plans.snapshot.json`, the
-  committed copy CI diffs against the database. Porting it to the route is UI
-  work, and the payload above is what it will get.
-- **A quote route.** Prices are now in Postgres and resolvable server-side —
-  see Pricing below — but `POST /generation/quotes` does not exist yet, so
-  nothing hands the browser a signed price. That is the next phase.
-- **Generation submission end to end.** `POST /jobs` exists; the quote and
-  job-status routes the frontend expects do not.
+  `AppServices` calls it — the screen imports `PLANS` from `src/data/plans.ts`,
+  which reads the generated `src/data/plans.rows.json`. (`plans.snapshot.json` is
+  the separate copy exported *from* the database, which CI diffs against it.)
+  Both are generated: **do not hand-edit either.** Porting the screen to the
+  route is UI work, and the payload above is what it will get.
+- **Generation submission end to end.** `POST /generation/quotes` is live and
+  `POST /jobs` exists as a route, but the handler behind it still throws
+  `GenerationNotImplementedError` — nothing creates a job row, holds credits or
+  spends a quote. Two consequences worth knowing while building against this:
+  the free daily allowance is never actually decremented (nothing consumes it),
+  and `concurrency.running` is always 0 (nothing creates in-flight jobs). Both
+  become live in the jobs phase; the counters and the limits they are checked
+  against are already in the database and tested.
+- **The job-status route.** `GET /generation/jobs/:id` does not exist.
 - **Gallery.** No server route. Demo mode returns an empty page.
 - **The queue consumer.** Jobs can be created; nothing processes them.
 - **Payments.** Plans render and price correctly; nothing charges.
