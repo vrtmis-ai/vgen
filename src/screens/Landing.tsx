@@ -365,6 +365,40 @@ function TopNav({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => 
  */
 const HERO_VIDEO: string | null = null;
 
+/**
+ * The cheapest way in, computed rather than written down.
+ *
+ * A hero that names a price and a plans table that disagrees with it is the
+ * worst possible pair, and a hardcoded number gets there the first time
+ * somebody edits the ladder. This reads the same `PLANS` rows the pricing
+ * section does, so the two cannot drift.
+ *
+ * Sorted by *effective* monthly USD rather than taken from the top of the list:
+ * "cheapest" has to mean cheapest, not first. `PLANS` is already only what is
+ * sold — retirement is handled upstream, at publish — so there is nothing to
+ * filter out here.
+ */
+const ENTRY_PLAN = [...PLANS].sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false))[0];
+
+/**
+ * Real work, behind the words.
+ *
+ * The brief asks for a hero backed by actual outputs rather than stock imagery,
+ * and the catalogue already carries them — these are the covers the model rows
+ * use, so nothing here is a picture chosen to flatter the product.
+ *
+ * Stills only. Several covers are video, and a hero that autoplays six clips
+ * before anyone has scrolled spends the connection this audience has least of,
+ * to decorate a layer that sits at 22% opacity under a vignette.
+ *
+ * `Art` is what makes this safe to ship: it paints the family's own gradient
+ * first and layers the image over it only if it loads. The covers are currently
+ * hotlinked from a third-party CDN — see the note in models.ts — so on a
+ * connection that cannot reach it the hero degrades to a field of real
+ * per-model colour rather than to holes.
+ */
+const HERO_BACKDROP = FAMILIES.filter((f) => f.cover && !isVideoUrl(f.cover)).slice(0, 6);
+
 function Hero({ onSignUp }: { onSignUp: () => void }) {
   const { t, n } = useI18n();
   const frame = useRef<HTMLDivElement>(null);
@@ -414,7 +448,7 @@ function Hero({ onSignUp }: { onSignUp: () => void }) {
             `playsInline` — without that last one iOS Safari takes a backgrounded
             decorative video fullscreen on play, which would hand the whole
             screen to something that is meant to be scenery. */}
-        {HERO_VIDEO && (
+        {HERO_VIDEO ? (
           <video
             src={HERO_VIDEO}
             autoPlay
@@ -423,6 +457,25 @@ function Hero({ onSignUp }: { onSignUp: () => void }) {
             playsInline
             className="pointer-events-none absolute inset-0 size-full object-cover opacity-40"
           />
+        ) : (
+          /* The work itself, as the ground.
+             Six real catalogue covers on a grid, sunk to 22% and blurred, so it
+             reads as texture rather than as a gallery competing with the
+             headline — the hero's job is the sentence, and a legible thumbnail
+             behind a word is a second thing to look at.
+
+             It moves with the key light rather than on its own: one parallax
+             rate for everything at this depth, or the layers start sliding past
+             each other and the frame stops being a frame. */
+          <motion.div style={{ y: lightY }} className="pointer-events-none absolute inset-0">
+            <div className="grid h-full w-full grid-cols-2 md:grid-cols-3" style={{ opacity: 0.22, filter: "blur(2px)" }}>
+              {HERO_BACKDROP.map((f) => (
+                <div key={f.id} className="relative overflow-hidden">
+                  <Art family={f} />
+                </div>
+              ))}
+            </div>
+          </motion.div>
         )}
 
         {/* Key light. Furthest back, so it moves least. */}
@@ -503,6 +556,25 @@ function Hero({ onSignUp }: { onSignUp: () => void }) {
             >
               {t("lp_hero_sub")}
             </motion.p>
+
+            {/* The price of entry, in the hero, where the question is asked.
+                Every other landing page in this category makes you scroll to the
+                pricing table to find out whether you can afford it, and for this
+                audience that is the *first* question rather than the last —
+                "can I pay at all" is the whole reason this product exists.
+
+                Derived from the same PLANS rows the pricing section reads, so
+                the hero cannot end up advertising a number the table contradicts.
+                It links to that table rather than restating it. */}
+            {ENTRY_PLAN && (
+              <motion.p variants={riseItem} className="mt-6 text-[13.5px]" style={{ color: "var(--vg-text-muted)" }}>
+                <a href="#plans" className="vg-ease hover:text-[color:var(--vg-text-secondary)]">
+                  {t("lp_hero_from")
+                    .replace("{n}", n(toman(effectiveUsd(ENTRY_PLAN, false))))
+                    .replace("{c}", n(monthlyCoins(ENTRY_PLAN)))}
+                </a>
+              </motion.p>
+            )}
 
             {/* Two actions, side by side — the reference's shape.
                 The second is deliberately NOT "log in": the nav already carries

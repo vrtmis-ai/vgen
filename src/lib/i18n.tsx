@@ -44,6 +44,8 @@ const dict = {
     lp_hero_sub: "بهترین مدل‌های تصویر و ویدیوی دنیا، یک‌جا و به فارسی. بنویس چه می‌خواهی، بقیه‌اش با ما.",
     lp_cta_start: "شروع کن",
     lp_cta_secondary: "مدل‌ها و قیمت‌ها",
+    /** {n} تومان ماهانه، {c} سکه — هر دو از PLANS مشتق می‌شوند. */
+    lp_hero_from: "شروع از {n} تومان در ماه — {c} سکه",
     lp_nav_models: "مدل‌ها",
     lp_nav_features: "امکانات",
     lp_nav_plans: "قیمت‌ها",
@@ -359,6 +361,7 @@ const dict = {
     lp_hero_sub: "The world's best image and video models, in one place. Describe what you want — we handle the rest.",
     lp_cta_start: "Get started",
     lp_cta_secondary: "Models and pricing",
+    lp_hero_from: "From {n} toman a month — {c} coins",
     lp_nav_models: "Models",
     lp_nav_features: "Features",
     lp_nav_plans: "Pricing",
