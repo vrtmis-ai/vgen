@@ -5,6 +5,7 @@ import { FAMILIES, getFamily, type Family } from "../data/models";
 import { COMMUNITY } from "../data/community";
 import { PLANS, monthlyCoins, toman, annualDiscountPct, effectiveUsd, type Plan } from "../data/plans";
 import { minCoinsForFamily } from "../data/pricing";
+import { Marquee } from "../components/Marquee";
 import { ModelMark } from "../components/ModelMark";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
@@ -71,14 +72,30 @@ function Art({ family }: { family?: Family | undefined }) {
     `light` puts a soft key behind the section, alternating side down the page.
     Without it the body below the hero goes flat grey and the shot ends up
     looking like a hat on a spreadsheet. */
-function Section({ children, className, light }: { children: React.ReactNode; className?: string; light?: "start" | "end" }) {
+function Section({
+  children,
+  className,
+  light,
+  id,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  light?: "start" | "end";
+  /** Only where something links to the section — an anchor needs a target. */
+  id?: string;
+}) {
   const lit = light ? `vg-lit ${light === "end" ? "vg-lit-end" : ""}` : "";
   return (
     /* The rhythm was 56/96. The hero and the closing card both fill a viewport,
        so at that spacing everything between them read as one continuous slab —
        the page had a frame and no chapters. 80/144 is what makes a section
        arrive rather than continue. */
-    <section className={`relative mx-auto w-full max-w-[1200px] px-5 py-20 sm:px-8 md:py-36 ${lit} ${className ?? ""}`}>{children}</section>
+    <section
+      {...(id ? { id } : {})}
+      className={`relative mx-auto w-full max-w-[1200px] px-5 py-20 sm:px-8 md:py-36 ${lit} ${className ?? ""}`}
+    >
+      {children}
+    </section>
   );
 }
 
@@ -230,7 +247,29 @@ function TopNav({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => 
    `min-h-[100dvh]`, never `h-screen` — on iOS Safari the toolbar collapse
    changes `vh` mid-scroll and the whole shot jumps.
    --------------------------------------------------------------------------- */
-function Hero({ onSignIn }: { onSignIn: () => void }) {
+/**
+ * The hero's moving backdrop, once there is one to ship.
+ *
+ * `null` today, and that is a working state rather than a stub: the frame
+ * already carries a designed background — bloom, grain, the subject glow and the
+ * vignette over it — so nothing is missing while this is empty, and no request
+ * goes out for a file that is not there. The same discipline as
+ * `ModelMark`'s SHIPPED_MARKS and the mascot slot above: a name here is somebody
+ * saying the asset exists, not a guess that it might.
+ *
+ * Put the file in `public/brand/` and name it here. It must be a *local* path.
+ * The reference this was taken from streams its hero video from a third-party
+ * CDN, which is the one thing that cannot come along: an asset on a foreign host
+ * is the part of the page most likely to hang for the audience this product is
+ * built for, and it would hang behind everything else on the first screen.
+ *
+ * Keep it short, silent and dark. It plays under type that has to stay readable,
+ * which is why it renders at low opacity with the vignette on top rather than at
+ * full strength.
+ */
+const HERO_VIDEO: string | null = null;
+
+function Hero({ onSignUp }: { onSignUp: () => void }) {
   const { t, n } = useI18n();
   const frame = useRef<HTMLDivElement>(null);
   const [mascotFailed, onMascotError] = useImageFallback();
@@ -246,125 +285,214 @@ function Hero({ onSignIn }: { onSignIn: () => void }) {
   const typeFade = useTransform(scrollYProgress, [0, 0.72], [1, 0]);
 
   return (
-    <div ref={frame} className="vg-grain relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden">
-      {/* Key light. Furthest back, so it moves least. */}
-      <motion.div style={{ y: lightY }} className="vg-bloom pointer-events-none absolute inset-0" aria-hidden />
+    <div ref={frame} className="relative">
+      {/* THE CARD.
+          The reference's defining move, and the reason the marquee alone did not
+          make this look like it: the scene is an inset rounded card with a
+          hairline edge, not a full-bleed background. `inset-1` leaves a sliver of
+          page showing all the way round, so the shot reads as something placed on
+          the page rather than as the page itself — which is what lets a 3rem
+          corner radius look deliberate instead of like a rounded browser window.
 
-      {/* The subject.
-          Drawn whether or not the artwork has landed: the glow is the mascot's
-          own veins bleeding into the air, and on its own it already reads as
-          something standing in the dark. When brand/deev-mascot.png exists it
-          drops into this frame with nothing else to change — which is why the
-          slot is built now rather than waiting for the file. */}
-      <motion.div
-        style={{ y: subjectY }}
-        className="pointer-events-none absolute inset-x-0 bottom-0 top-[12%] flex items-end justify-center"
+          Everything that used to be a layer of the full-viewport scene lives in
+          here now: video, bloom, subject, vignette, grain. They did not change,
+          they got a frame. */}
+      <div
+        className="vg-grain absolute inset-1 overflow-hidden rounded-3xl lg:rounded-[3rem]"
+        style={{ border: "1px solid var(--vg-border-subtle)" }}
         aria-hidden
       >
-        <div className="relative h-full w-full max-w-[560px]">
-          <div className="vg-subject-glow absolute inset-x-0 bottom-[8%] top-[18%]" />
-          {!mascotFailed && (
-            <img
-              src="/brand/deev-mascot.png"
-              alt=""
-              onError={onMascotError}
-              className="absolute inset-x-0 bottom-0 mx-auto h-[86%] w-auto object-contain"
-              style={{ filter: "drop-shadow(0 0 60px rgb(var(--vg-primary-rgb) / 0.25))" }}
-            />
-          )}
+        {/* Furthest back of all, under the key light. Muted, looping and
+            `playsInline` — without that last one iOS Safari takes a backgrounded
+            decorative video fullscreen on play, which would hand the whole
+            screen to something that is meant to be scenery. */}
+        {HERO_VIDEO && (
+          <video
+            src={HERO_VIDEO}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="pointer-events-none absolute inset-0 size-full object-cover opacity-40"
+          />
+        )}
+
+        {/* Key light. Furthest back, so it moves least. */}
+        <motion.div style={{ y: lightY }} className="vg-bloom pointer-events-none absolute inset-0" />
+
+        {/* The subject.
+            Drawn whether or not the artwork has landed: the glow is the mascot's
+            own veins bleeding into the air, and on its own it already reads as
+            something standing in the dark. When brand/deev-mascot.png exists it
+            drops into this frame with nothing else to change.
+
+            It sits at the far edge rather than the centre now — the type took the
+            start of the card, and a subject on the centre line would be standing
+            behind the headline instead of beside it. */}
+        <motion.div
+          style={{ y: subjectY }}
+          className="pointer-events-none absolute inset-y-0 bottom-0 end-0 top-[12%] flex w-full items-end justify-end lg:w-[55%]"
+        >
+          <div className="relative h-full w-full max-w-[560px]">
+            <div className="vg-subject-glow absolute inset-x-0 bottom-[8%] top-[18%]" />
+            {!mascotFailed && (
+              <img
+                src="/brand/deev-mascot.png"
+                alt=""
+                onError={onMascotError}
+                className="absolute inset-x-0 bottom-0 mx-auto h-[86%] w-auto object-contain"
+                style={{ filter: "drop-shadow(0 0 60px rgb(var(--vg-primary-rgb) / 0.25))" }}
+              />
+            )}
+          </div>
+        </motion.div>
+
+        {/* Falloff, over the subject and under the type — this is the layer that
+            turns a lit page into a framed one. */}
+        <div className="vg-vignette pointer-events-none absolute inset-0" />
+      </div>
+
+      {/* THE TYPE, low and at the start edge.
+          The reference's `lg:pt-72` is not padding, it is blocking: it drops the
+          text into the lower third so the upper two thirds are picture. Centred
+          type would fight that — the whole point of the tall top pad is that the
+          frame gets to be a frame before the words arrive.
+
+          `text-start` and `lg:ms-0`, never `text-left` and `lg:ml-0`. Under RTL
+          the logical properties put the block against the right edge, which is
+          the start of the line in Persian; the physical ones would pin it to the
+          left and read as a mistake. */}
+      <motion.div style={{ y: typeY, opacity: typeFade }} className="relative z-[2] py-24 md:pb-32 lg:pb-36 lg:pt-72">
+        <div className="mx-auto flex max-w-[1200px] flex-col px-6 lg:block lg:px-12">
+          <motion.div
+            variants={riseParent}
+            initial="hidden"
+            animate="show"
+            className="mx-auto max-w-lg text-center lg:mx-0 lg:ms-0 lg:max-w-full lg:text-start"
+          >
+            <motion.span
+              variants={riseItem}
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.32em]"
+              style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-latin)" }}
+              lang="en"
+            >
+              <Sparkle size={11} weight="fill" />
+              Artificial Intelligence
+            </motion.span>
+
+            <motion.h1
+              variants={riseItem}
+              className="mt-8 max-w-[16ch] text-balance text-[clamp(2.5rem,6.5vw,4.75rem)] font-extrabold leading-[1.08] lg:mt-10"
+              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+            >
+              {t("lp_hero_title")}
+            </motion.h1>
+
+            <motion.p
+              variants={riseItem}
+              className="mt-8 max-w-[46ch] text-balance text-[15px] leading-[2] md:text-[16.5px]"
+              style={{ color: "var(--vg-text-secondary)" }}
+            >
+              {t("lp_hero_sub")}
+            </motion.p>
+
+            {/* Two actions, side by side — the reference's shape.
+                The second is deliberately NOT "log in": the nav already carries
+                that, two paces above, and a screen offering the same door twice
+                has not given anyone a second option. The reference's own second
+                button is a demo request, which is the same idea — a smaller ask
+                for someone not ready for the first one. Ours goes to the reel,
+                because the answer to "is this any good" is the work, and the work
+                is already on the page.
+
+                Ghost, not filled, so there is still one obvious answer. */}
+            <motion.div
+              variants={riseItem}
+              className="mt-12 flex flex-col items-center gap-2 sm:flex-row sm:justify-center lg:justify-start"
+            >
+              <button
+                onClick={onSignUp}
+                className="vg-ease group flex items-center gap-3 rounded-full ps-8 pe-2 text-[15px] font-bold active:scale-[0.98]"
+                style={{
+                  height: "var(--vg-cta-height)",
+                  background: "var(--vg-primary)",
+                  color: "var(--vg-text-on-primary)",
+                  /* The one glow in the product, and it belongs here: in a lit
+                     frame the brightest object should look like it emits. */
+                  boxShadow: "0 0 48px rgb(var(--vg-primary-rgb) / 0.35)",
+                }}
+              >
+                {t("lp_cta_start")}
+                <span
+                  className="vg-ease grid size-9 place-items-center rounded-full group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5"
+                  style={{ background: "rgb(0 0 0 / 0.14)" }}
+                >
+                  <ArrowLeft size={15} weight="bold" className="ltr:-scale-x-100" />
+                </span>
+              </button>
+              <a
+                href="#models"
+                className="vg-ease flex items-center rounded-full px-6 text-[15px] font-semibold hover:bg-[color:var(--vg-surface-overlay)] active:scale-[0.98]"
+                style={{ height: "var(--vg-cta-height)", color: "var(--vg-text-secondary)" }}
+              >
+                {t("lp_cta_secondary")}
+              </a>
+            </motion.div>
+
+            <motion.p variants={riseItem} className="mt-5 text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
+              {t("lp_gift_note").replace("{n}", n(12))}
+            </motion.p>
+          </motion.div>
         </div>
       </motion.div>
-
-      {/* Falloff, over the subject and under the type — this is the layer that
-          turns a lit page into a framed one. */}
-      <div className="vg-vignette pointer-events-none absolute inset-0" aria-hidden />
-
-      {/* Type, inside the frame. Closest to the viewer, so it moves most and is
-          the first thing to leave as the shot is scrolled past. */}
-      <motion.div
-        style={{ y: typeY, opacity: typeFade }}
-        className="relative z-[2] mx-auto w-full max-w-[900px] px-5 pb-16 pt-28 text-center sm:px-8"
-      >
-        <motion.div variants={riseParent} initial="hidden" animate="show">
-          <motion.span
-            variants={riseItem}
-            className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.32em]"
-            style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-latin)" }}
-            lang="en"
-          >
-            <Sparkle size={11} weight="fill" />
-            Artificial Intelligence
-          </motion.span>
-
-          {/* Bigger than the split version and centred on purpose: in a frame
-              the subject sits on the centre line, and type that ducks to one
-              side to avoid it is type that has lost the argument with the
-              image. */}
-          <motion.h1
-            variants={riseItem}
-            className="mx-auto mt-6 max-w-[15ch] text-[clamp(2.75rem,7.5vw,5.75rem)] font-extrabold leading-[1.08]"
-            style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-          >
-            {t("lp_hero_title")}
-          </motion.h1>
-
-          <motion.p
-            variants={riseItem}
-            className="mx-auto mt-6 max-w-[46ch] text-[15px] leading-[2] md:text-[16.5px]"
-            style={{ color: "var(--vg-text-secondary)" }}
-          >
-            {t("lp_hero_sub")}
-          </motion.p>
-
-          {/* The proof, in the hero rather than four screens down.
-              "Every model in one place" is the whole pitch, and it was being
-              made as a section the reader had to scroll to and then verify. The
-              vendor marks say it before the sentence claiming it has finished
-              being read — and they are the real catalogue, in catalogue order,
-              so the row cannot drift from what the product actually sells. */}
-          <motion.ul variants={riseItem} className="mx-auto mt-8 flex max-w-[760px] flex-wrap items-center justify-center gap-x-5 gap-y-3">
-            {HERO_MODELS.map((f) => (
-              <li key={f.id} className="flex items-center gap-1.5">
-                <ModelMark familyId={f.id} vendor={f.vendor} size={16} />
-                <span className="text-[12.5px] font-medium" style={{ color: "var(--vg-text-secondary)" }} lang="en">
-                  {f.name}
-                </span>
-              </li>
-            ))}
-          </motion.ul>
-
-          <motion.div variants={riseItem} className="mt-10 flex flex-col items-center gap-3">
-            <button
-              onClick={onSignIn}
-              className="vg-ease group flex items-center gap-3 rounded-full ps-8 pe-2 text-[15px] font-bold active:scale-[0.98]"
-              style={{
-                height: "var(--vg-cta-height)",
-                background: "var(--vg-primary)",
-                color: "var(--vg-text-on-primary)",
-                /* The one glow in the product, and it belongs here: in a lit
-                   frame the brightest object should look like it emits. */
-                boxShadow: "0 0 48px rgb(var(--vg-primary-rgb) / 0.35)",
-              }}
-            >
-              {t("lp_cta_start")}
-              <span
-                className="vg-ease grid size-9 place-items-center rounded-full group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5"
-                style={{ background: "rgb(0 0 0 / 0.14)" }}
-              >
-                <ArrowLeft size={15} weight="bold" className="ltr:-scale-x-100" />
-              </span>
-            </button>
-            <span className="text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
-              {t("lp_gift_note").replace("{n}", n(12))}
-            </span>
-          </motion.div>
-        </motion.div>
-      </motion.div>
-
-      {/* The seam out of the shot. The mascot's crack, used once, where the
-          frame ends and the page begins. */}
-      <hr className="vg-vein absolute inset-x-0 bottom-0 z-[2] w-full" aria-hidden />
     </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   The strip under the shot.
+
+   The reference puts a label against a vertical rule and lets the row run off
+   the far edge — the shape reads as "these, and more of them" in a way a centred
+   caption over a grid does not.
+
+   What it is a strip OF is the part that changes. The original is eight
+   companies' logos under "Powering the best teams", which for us would be a
+   claim we cannot make and eight trademarks we have no licence to ship — the
+   exact thing VendorMark exists in this repo to avoid. The equivalent that is
+   both true and a better pitch is the catalogue: these are models you can run
+   on this page today, resolved from FAMILIES so the row cannot drift from what
+   is actually for sale.
+   --------------------------------------------------------------------------- */
+function ModelStrip() {
+  const { t } = useI18n();
+  return (
+    <section className="relative pb-2 pt-10 md:pt-14">
+      <div className="relative m-auto max-w-[1200px] px-6 lg:px-12">
+        <div className="flex flex-col items-center gap-4 md:flex-row md:gap-0">
+          {/* The rule is on the *inline end* of the label, which is its left in
+              Persian and its right in English — `border-e`, not `border-r`. */}
+          <div className="md:max-w-44 md:border-e md:pe-6" style={{ borderColor: "var(--vg-border-subtle)" }}>
+            <p className="text-center text-[12.5px] leading-[1.7] md:text-end" style={{ color: "var(--vg-text-muted)" }}>
+              {t("lp_models_title")}
+            </p>
+          </div>
+
+          <div className="relative w-full py-6 md:w-[calc(100%-11rem)]">
+            <Marquee seconds={46} label={t("lp_models_title")}>
+              {HERO_MODELS.map((f) => (
+                <span key={f.id} className="flex shrink-0 items-center gap-2 px-7">
+                  <ModelMark familyId={f.id} vendor={f.vendor} size={18} />
+                  <span className="whitespace-nowrap text-[13px] font-medium" style={{ color: "var(--vg-text-secondary)" }} lang="en">
+                    {f.name}
+                  </span>
+                </span>
+              ))}
+            </Marquee>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -410,7 +538,7 @@ function Models() {
   const { t, n } = useI18n();
   const shown = FAMILIES.slice(0, 12);
   return (
-    <Section light="start">
+    <Section light="start" id="models">
       <Heading index="01" sub={t("lp_models_sub")}>
         {t("lp_models_title")}
       </Heading>
@@ -738,7 +866,8 @@ export default function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; 
        `clip` trims the paint without creating a scroll container. */
     <div className="relative z-10 min-h-[100dvh] [overflow-x:clip]">
       <TopNav onSignIn={onSignIn} onSignUp={onSignUp} />
-      <Hero onSignIn={onSignUp} />
+      <Hero onSignUp={onSignUp} />
+      <ModelStrip />
       <Reel />
       <Models />
       <Features />
