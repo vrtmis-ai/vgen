@@ -12,6 +12,15 @@ afterAll(async () => {
   await sql.end();
 });
 
+/** The presentation blob, spelled out — `Record<string, unknown>` is not JSON to the driver. */
+interface Presentation {
+  group: "entry" | "main";
+  popular: boolean;
+  baseCoins: number;
+  bonusCoins: number;
+  tag?: string;
+}
+
 interface PlanOverrides {
   code: string;
   tier?: number;
@@ -21,7 +30,7 @@ interface PlanOverrides {
   sortOrder?: number;
   isPublic?: boolean;
   isActive?: boolean;
-  presentation?: Record<string, unknown>;
+  presentation?: Presentation;
 }
 
 /**
@@ -37,15 +46,16 @@ async function clearPlans(tx: Sql): Promise<void> {
 }
 
 async function seedPlan(tx: Sql, plan: PlanOverrides): Promise<void> {
+  const coins = plan.coins ?? 100;
+  const presentation: Presentation = plan.presentation ?? { group: "entry", popular: false, baseCoins: coins, bonusCoins: 0 };
   await tx`
     insert into plans (
       code, name, tier, micro_credits_per_term, term_days,
       price_amount, currency, annual_price_amount, presentation,
       sort_order, is_public, is_active
     ) values (
-      ${plan.code}, ${plan.code.toUpperCase()}, ${plan.tier ?? 1}, ${(plan.coins ?? 100) * 1_000_000}, 30,
-      ${plan.usd ?? 10}, 'USD', ${plan.annualUsd ?? null},
-      ${tx.json(plan.presentation ?? { group: "entry", popular: false, baseCoins: plan.coins ?? 100, bonusCoins: 0 })},
+      ${plan.code}, ${plan.code.toUpperCase()}, ${plan.tier ?? 1}, ${coins * 1_000_000}, 30,
+      ${plan.usd ?? 10}, 'USD', ${plan.annualUsd ?? null}, ${tx.json({ ...presentation })},
       ${plan.sortOrder ?? 0}, ${plan.isPublic ?? true}, ${plan.isActive ?? true}
     )
   `;
