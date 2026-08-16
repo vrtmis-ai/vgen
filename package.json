@@ -61,6 +61,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@lobehub/icons-static-svg": "^1.94.0",
     "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "^4.3.1",
     "@testing-library/jest-dom": "7.0.1",
@@ -76,7 +77,6 @@
     "jsdom": "30.0.1",
     "postgres": "^3.4.9",
     "prettier": "3.9.6",
-    "simple-icons": "^16.28.0",
     "tailwindcss": "^4.3.1",
     "tsx": "^4.20.6",
     "typescript": "^5.7.2",

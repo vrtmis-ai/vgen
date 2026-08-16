@@ -1,6 +1,6 @@
 "use client";
 
-import { FAMILY_MARK_PATHS, VENDOR_MARK_PATHS, VENDOR_MARK_VIEWBOX } from "../data/vendorMarks";
+import { FAMILY_MARKS, VENDOR_MARKS } from "../data/vendorMarks";
 import { VendorMark } from "./VendorMark";
 
 /**
@@ -33,17 +33,21 @@ import { VendorMark } from "./VendorMark";
  * and that is a working state rather than a gap.
  */
 export function ModelMark({ familyId, vendor, size = 16 }: { familyId?: string; vendor: string; size?: number }) {
-  // The model's own mark first — Gemini's logo beside "Gemini Omni" is right in
-  // a way Google's general one is not — then its maker's, then the monogram.
-  const path = (familyId ? FAMILY_MARK_PATHS[familyId] : undefined) ?? VENDOR_MARK_PATHS[vendor];
-  if (!path) return <VendorMark vendor={vendor} size={size} />;
+  // The model's own mark first — Kling's logo beside "Kling" is right in a way
+  // Kuaishou's is not — then its maker's, then the monogram.
+  const mark = (familyId ? FAMILY_MARKS[familyId] : undefined) ?? VENDOR_MARKS[vendor];
+  if (!mark) return <VendorMark vendor={vendor} size={size} />;
 
   return (
     /* aria-hidden, like VendorMark: every place this appears, the model or
        vendor name is already in the adjacent text, and announcing the brand a
-       second time is noise. */
+       second time is noise.
+
+       Every path, not the first. Google's mark is four and ByteDance's is four;
+       rendering one of them draws a quarter of the logo, which looks like a
+       glitch rather than like a brand. */
     <svg
-      viewBox={VENDOR_MARK_VIEWBOX}
+      viewBox={mark.viewBox}
       width={size}
       height={size}
       fill="currentColor"
@@ -52,7 +56,9 @@ export function ModelMark({ familyId, vendor, size = 16 }: { familyId?: string; 
       className="shrink-0"
       style={{ width: size, height: size, color: "var(--vg-text-secondary)" }}
     >
-      <path d={path} />
+      {mark.paths.map((d, i) => (
+        <path key={i} d={d} />
+      ))}
     </svg>
   );
 }
