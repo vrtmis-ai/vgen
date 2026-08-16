@@ -18,7 +18,7 @@ const VoidSchema = z.undefined();
  * `invalid_credentials`, `otp_exhausted`, …). Callers should branch on `.code`,
  * never on the message.
  */
-export function createHttpAuthService(client: HttpClient): AppServices["auth"] {
+export function createHttpAuthService(client: HttpClient, baseUrl: string): AppServices["auth"] {
   return {
     async startPhoneVerification(input, options) {
       return client.request("/auth/otp/start", {
@@ -66,6 +66,19 @@ export function createHttpAuthService(client: HttpClient): AppServices["auth"] {
         schema: AuthedSessionSchema,
         signal: options?.signal,
       });
+    },
+
+    async startProviderSignIn(provider) {
+      /* The one call here that is not a request.
+         `client.request` would be wrong twice over: the browser has to *arrive*
+         at the provider carrying the HttpOnly state cookie the API sets on this
+         redirect, and an XHR neither follows the cross-origin hop nor keeps that
+         cookie. So this leaves the page, and nothing after it runs.
+
+         `assign` rather than `replace`: the back button should bring someone who
+         changed their mind back to the sign-in screen, not to whatever preceded
+         it. */
+      globalThis.location.assign(`${baseUrl.replace(/\/+$/, "")}/auth/${provider}`);
     },
 
     async logout(options) {

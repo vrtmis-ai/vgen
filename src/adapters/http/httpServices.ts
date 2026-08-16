@@ -11,7 +11,7 @@ export function createHttpServices(baseUrl: string, getAccessToken?: () => Promi
   const client = createHttpClient({ baseUrl, ...(getAccessToken ? { getAccessToken } : {}) });
   return {
     session: createHttpSessionService(client),
-    auth: createHttpAuthService(client),
+    auth: createHttpAuthService(client, baseUrl),
     catalog: createHttpCatalogService(client),
     wallet: createHttpWalletService(client),
     generation: createHttpGenerationService(client),

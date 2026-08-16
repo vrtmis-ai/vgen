@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppServices } from "../../runtime/AppServices";
-import type { LoginInput, RegisterInput, StartPhoneVerificationInput, VerifyPhoneInput } from "../../runtime/contracts/auth";
+import type { LoginInput, OAuthProvider, RegisterInput, StartPhoneVerificationInput, VerifyPhoneInput } from "../../runtime/contracts/auth";
 import { appQueryKeys } from "./useSession";
 
 /**
@@ -48,6 +48,13 @@ export function useAuth() {
     onSuccess: refreshIdentity,
   });
 
+  const startProviderSignIn = useMutation({
+    mutationFn: (provider: OAuthProvider) => services.auth.startProviderSignIn(provider),
+    // Demo mode signs in locally and needs the refetch. In production the page
+    // has already left by the time this would run, so it costs nothing there.
+    onSuccess: refreshIdentity,
+  });
+
   const logout = useMutation({
     mutationFn: () => services.auth.logout(),
     // Everything cached belonged to the account that just left. Clearing beats
@@ -59,5 +66,5 @@ export function useAuth() {
     },
   });
 
-  return { startPhoneVerification, verifyPhone, register, login, logout };
+  return { startPhoneVerification, verifyPhone, register, login, startProviderSignIn, logout };
 }

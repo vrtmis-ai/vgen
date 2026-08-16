@@ -1,5 +1,12 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type { LoginInput, PhoneVerificationStarted, RegisterInput, StartPhoneVerificationInput, VerifyPhoneInput } from "./contracts/auth";
+import type {
+  LoginInput,
+  OAuthProvider,
+  PhoneVerificationStarted,
+  RegisterInput,
+  StartPhoneVerificationInput,
+  VerifyPhoneInput,
+} from "./contracts/auth";
 import type { CatalogSnapshot } from "./contracts/catalog";
 import type { GalleryPage, GalleryQuery } from "./contracts/gallery";
 import type { CreateGenerationRequest, GenerationJob, GenerationQuote, QuoteGenerationRequest } from "./contracts/generation";
@@ -25,6 +32,16 @@ export interface AppServices {
     verifyPhone(input: VerifyPhoneInput, options?: RequestOptions): Promise<Session>;
     register(input: RegisterInput, options?: RequestOptions): Promise<Session>;
     login(input: LoginInput, options?: RequestOptions): Promise<Session>;
+    /**
+     * Hands the browser to an identity provider.
+     *
+     * Unlike every other call here this is a *navigation*, not a request, and in
+     * production it does not return — the page is gone. It cannot be a fetch:
+     * the OAuth handshake sets an HttpOnly state cookie and a same-origin XHR
+     * both fails CORS and drops that cookie. Failures come back as
+     * `?auth=<code>` on the landing page rather than as a rejected promise.
+     */
+    startProviderSignIn(provider: OAuthProvider, options?: RequestOptions): Promise<void>;
     logout(options?: RequestOptions): Promise<void>;
   };
   catalog: {
