@@ -64,6 +64,15 @@ export interface Plan {
   group: "entry" | "main";
   tag?: "test" | "gift" | "popular" | "best"; // label key, translated in UI
   popular?: boolean;
+  /**
+   * How many generations this plan may have in flight at once.
+   *
+   * A real perk rather than a throttle dressed as one: waiting behind your own
+   * queue is the thing a heavy user notices first, and it is what a dearer plan
+   * is buying. Enforced server-side at job submission — the browser shows it,
+   * the API decides it.
+   */
+  maxConcurrentJobs: number;
 }
 
 /**
@@ -92,6 +101,7 @@ interface StoredPlan {
   tag: Plan["tag"] | null;
   popular: boolean;
   sortOrder: number;
+  maxConcurrentJobs: number;
 }
 
 export const PLANS: Plan[] = (planList as { rows: StoredPlan[] }).rows.map((row) => ({
@@ -105,7 +115,22 @@ export const PLANS: Plan[] = (planList as { rows: StoredPlan[] }).rows.map((row)
   group: row.group,
   ...(row.tag ? { tag: row.tag } : {}),
   ...(row.popular ? { popular: true } : {}),
+  maxConcurrentJobs: row.maxConcurrentJobs,
 }));
+
+/**
+ * Simultaneous generations for an account with no plan.
+ *
+ * One. A signup gift is a trial, and a trial that can saturate the queue is a
+ * free account being used as a batch pipeline.
+ */
+export const FREE_CONCURRENT_JOBS = 1;
+
+/** How many generations this account may run at once. */
+export function concurrencyForPlan(planId: string | null | undefined): number {
+  if (!planId) return FREE_CONCURRENT_JOBS;
+  return PLANS.find((p) => p.id === planId)?.maxConcurrentJobs ?? FREE_CONCURRENT_JOBS;
+}
 
 /** Total coins a plan grants each month. */
 export function monthlyCoins(plan: Plan): number {

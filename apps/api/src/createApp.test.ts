@@ -31,6 +31,17 @@ function healthyDependencies(): ApiDependencies {
         },
       })),
     },
+    generationQuotes: {
+      create: vi.fn(async () => ({
+        outcome: "quoted" as const,
+        quote: {
+          id: "44444444-4444-4444-8444-444444444444",
+          coins: 4,
+          expiresAt: 1_700_000_000_000,
+          concurrency: { running: 0, limit: 3 },
+        },
+      })),
+    },
   };
 }
 
@@ -455,6 +466,7 @@ describe("the plan ladder", () => {
         group: "main" as const,
         tag: "popular" as const,
         popular: true,
+        maxConcurrentJobs: 4,
       },
     ]);
     const app = createApp(dependencies, { corsOrigin: "https://deev.test" });

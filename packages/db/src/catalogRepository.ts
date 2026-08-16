@@ -27,6 +27,15 @@ export class PostgresCatalogRepository implements CustomerCatalogRepository {
       from provider_models model
       join providers provider on provider.id = model.provider_id
       where model.is_active and provider.is_active
+        -- A provider_models row without presentation is a way to run something,
+        -- not something to offer. The same logical model reached through a
+        -- second provider — a Nano Banana served free by a subscription
+        -- account rather than metered by KIE — is genuinely a second row here,
+        -- because routing, attempts and health are all per provider. But it is
+        -- not a second entry in the shop, and without this guard it would
+        -- render as a duplicate variant the customer could pick the wrong one
+        -- of. A 'variant' key in capabilities is what makes a row a catalog entry.
+        and model.capabilities ? 'variant'
       order by
         (model.capabilities ->> 'familyOrder')::int asc,
         (model.capabilities ->> 'variantOrder')::int asc

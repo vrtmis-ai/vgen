@@ -103,7 +103,6 @@ jobs:
         run: docker compose up -d --wait postgres
 
       - run: pnpm db:migrate
-      - run: pnpm backend:test:integration
 
       # The catalog's end-to-end proof. `pnpm test` already asserts the
       # committed snapshot equals FAMILIES; this asserts the database serves
@@ -141,6 +140,39 @@ jobs:
       - run: pnpm plans:snapshot
       - name: The database must serve the committed plan snapshot
         run: git diff --exit-code -- src/data/plans.snapshot.json
+
+      # Unlimited access. Seeded last because it looks the catalogue up by
+      # variant id — a grant can only point at a model that already exists, and
+      # the seeder refuses rather than inventing one.
+      #
+      # There is no snapshot to diff here on purpose: nothing in the browser
+      # reads a grant. The customer learns a generation is free from the quote,
+      # which is the server telling them, and the integration tests are what
+      # hold that. What this step proves is that the seeder is idempotent and
+      # that the grants it writes point at rows the catalogue really has.
+      - run: pnpm unlimited:publish
+      - name: Seeding grants twice writes nothing the second time
+        run: pnpm unlimited:publish | grep -q 'already current'
+
+      # The catalogue must be unchanged by all of the above. The unlimited
+      # seeder adds provider_models rows for a second provider, and if the
+      # catalogue query ever stopped excluding them every customer would see
+      # Nano Banana twice.
+      - run: pnpm catalog:snapshot
+      - name: Serving rows must stay out of the catalogue
+        run: git diff --exit-code -- src/data/catalog.snapshot.json
+
+      # Integration tests run last, against a seeded database rather than an
+      # empty one.
+      #
+      # They used to run immediately after the migrations, which was fine while
+      # every one of them built its own fixtures. The quote tests do not: what
+      # a generation costs, which plan reaches it and whether it is free are all
+      # configuration, so a quote test written against invented rows would prove
+      # the code works on a catalogue nobody ships. Against the seeded rows it
+      # proves the shipped configuration behaves. Every test rolls back, so
+      # ordering them after the seeders costs nothing.
+      - run: pnpm backend:test:integration
 
       # The schema's own test: assertions in one transaction ending in ROLLBACK,
       # so it is safe against any database.
