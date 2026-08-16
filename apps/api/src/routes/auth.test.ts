@@ -29,7 +29,9 @@ function authDouble() {
     signInWithPhone: vi.fn(async () => user),
     registerWithPassword: vi.fn(async () => user),
     loginWithPassword: vi.fn(async () => user),
-    signInWithOAuth: vi.fn(async () => user),
+    signInWithOAuth: vi.fn(
+      async (_provider: string, _providerUid: string, _email: string | null, _displayName: string | null, _context?: unknown) => user,
+    ),
     createSession: vi.fn(async (_userId: string, _ip?: string, _userAgent?: string) => ({
       token: "tok-abc",
       expiresAt: new Date(Date.now() + 86_400_000),
@@ -44,6 +46,7 @@ function build(
     auth?: ReturnType<typeof authDouble>;
     limiters?: AuthRateLimiters;
     google?: Parameters<typeof registerAuthRoutes>[2]["google"];
+    microsoft?: Parameters<typeof registerAuthRoutes>[2]["microsoft"];
   } = {},
 ) {
   const auth = overrides.auth ?? authDouble();
@@ -57,6 +60,7 @@ function build(
       limiters: overrides.limiters ?? openLimiters(),
       webOrigin: "https://deev.test",
       ...(overrides.google ? { google: overrides.google } : {}),
+      ...(overrides.microsoft ? { microsoft: overrides.microsoft } : {}),
     },
   );
   return { app, auth };
@@ -372,6 +376,107 @@ describe("Google sign-in", () => {
     const cookie = cookieOf(response);
     expect(cookie).toContain("deev_oauth_state=;");
     expect(cookie).toContain("deev_session=tok-abc");
+    await app.close();
+  });
+});
+
+describe("Microsoft sign-in", () => {
+  const microsoft = {
+    createAuthorizationUrl: () => ({
+      url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?x=1",
+      state: "state-ms",
+    }),
+    exchangeCode: vi.fn(async () => ({
+      subject: "microsoft-1",
+      email: "person@example.com",
+      emailVerified: true,
+      displayName: "P",
+    })),
+  };
+
+  beforeEach(() => microsoft.exchangeCode.mockClear());
+
+  it("is not registered at all when Microsoft is not configured", async () => {
+    const { app } = build();
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/auth/microsoft" });
+
+    expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("sends the browser to Microsoft with a state cookie", async () => {
+    const { app } = build({ microsoft: microsoft as never });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/auth/microsoft" });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toContain("login.microsoftonline.com");
+    expect(cookieOf(response)).toContain("deev_oauth_state=state-ms");
+    await app.close();
+  });
+
+  it("refuses a callback whose state does not match the cookie", async () => {
+    const { app, auth } = build({ microsoft: microsoft as never });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/microsoft/callback?code=abc&state=forged",
+      headers: { cookie: "deev_oauth_state=state-ms" },
+    });
+
+    expect(response.headers.location).toBe("https://deev.test/?auth=failed");
+    expect(microsoft.exchangeCode).not.toHaveBeenCalled();
+    expect(auth.createSession).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  // The identity is filed under the provider that issued it. Getting this wrong
+  // would collide two people's subject claims in one UNIQUE (provider,
+  // provider_uid) row and hand one of them the other's account.
+  it("files the identity under microsoft, not the other provider", async () => {
+    const { app, auth } = build({ microsoft: microsoft as never });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/microsoft/callback?code=abc&state=state-ms",
+      headers: { cookie: "deev_oauth_state=state-ms" },
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("https://deev.test");
+    expect(auth.signInWithOAuth.mock.calls[0]?.slice(0, 2)).toEqual(["microsoft", "microsoft-1"]);
+    expect(cookieOf(response)).toContain("deev_session=tok-abc");
+    await app.close();
+  });
+
+  // Each provider is configured on its own, so one being present must not drag
+  // the other's endpoints into existence.
+  it("does not register Google just because Microsoft is configured", async () => {
+    const { app } = build({ microsoft: microsoft as never });
+
+    expect((await app.inject({ method: "GET", url: "/api/v1/auth/google" })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: "/api/v1/auth/microsoft" })).statusCode).toBe(302);
+    await app.close();
+  });
+
+  // An address the provider would not vouch for arrives as null, and has to
+  // stay null all the way to the repository — that argument is what decides
+  // between linking to an existing account and creating a new one.
+  it("passes an unverified address through as null", async () => {
+    const unverified = {
+      createAuthorizationUrl: () => ({ url: "https://login.microsoftonline.com/common", state: "state-ms" }),
+      exchangeCode: vi.fn(async () => ({ subject: "microsoft-2", email: null, emailVerified: false, displayName: "P" })),
+    };
+    const { app, auth } = build({ microsoft: unverified as never });
+
+    await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/microsoft/callback?code=abc&state=state-ms",
+      headers: { cookie: "deev_oauth_state=state-ms" },
+    });
+
+    expect(auth.signInWithOAuth.mock.calls[0]?.[2]).toBeNull();
     await app.close();
   });
 });
