@@ -1,6 +1,6 @@
 "use client";
 
-import { VENDOR_MARK_PATHS, VENDOR_MARK_VIEWBOX } from "../data/vendorMarks";
+import { FAMILY_MARK_PATHS, VENDOR_MARK_PATHS, VENDOR_MARK_VIEWBOX } from "../data/vendorMarks";
 import { VendorMark } from "./VendorMark";
 
 /**
@@ -32,8 +32,10 @@ import { VendorMark } from "./VendorMark";
  * no icon upstream — OpenAI among them — so their families keep the monogram,
  * and that is a working state rather than a gap.
  */
-export function ModelMark({ vendor, size = 16 }: { vendor: string; size?: number }) {
-  const path = VENDOR_MARK_PATHS[vendor];
+export function ModelMark({ familyId, vendor, size = 16 }: { familyId?: string; vendor: string; size?: number }) {
+  // The model's own mark first — Gemini's logo beside "Gemini Omni" is right in
+  // a way Google's general one is not — then its maker's, then the monogram.
+  const path = (familyId ? FAMILY_MARK_PATHS[familyId] : undefined) ?? VENDOR_MARK_PATHS[vendor];
   if (!path) return <VendorMark vendor={vendor} size={size} />;
 
   return (
@@ -55,9 +57,6 @@ export function ModelMark({ vendor, size = 16 }: { vendor: string; size?: number
   );
 }
 
-/* No per-model tier, and no `familyId` prop to hang one on.
-   An earlier version carried both against the day a model publishes its own
-   mark. That day needs a code change regardless — the artwork would have to
-   arrive as inline path data like the vendor marks, not as a file behind an
-   `<img>`, for the colour reason above — so the prop was doing nothing but
-   asking every caller to pass an id that went unread. */
+/* `familyId` is optional because most families have no mark of their own — only
+   Gemini Omni and Qwen Image do today. Callers that pass it get the better
+   answer; callers that do not still get the maker's. */

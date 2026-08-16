@@ -60,7 +60,8 @@ const SLIDER_MODELS = [
 ];
 
 export function HeroSection({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) {
-  const { t, n } = useI18n();
+  const { t, n, lang } = useI18n();
+  const rtl = lang === "fa";
 
   return (
     <>
@@ -152,10 +153,18 @@ export function HeroSection({ onSignIn, onSignUp }: { onSignIn: () => void; onSi
                 </p>
               </div>
               <div className="relative py-6 md:w-[calc(100%-11rem)]">
-                <InfiniteSlider durationOnHover={20} duration={40} gap={112}>
+                {/* No `durationOnHover`, deliberately.
+                    The demo passes `speedOnHover` and `speed`, which this
+                    component does not accept — they are silently dropped, so the
+                    original never enables the hover path at all. Passing the real
+                    prop names "fixed" that and broke the loop: on hover it swaps
+                    the infinite animation for a ONE-SHOT tween to the end, and
+                    when that completes the row simply stops. Which is exactly the
+                    "it scrolls past and finishes" you saw. */}
+                <InfiniteSlider duration={40} gap={112}>
                   {SLIDER_MODELS.map((f) => (
                     <div key={f.id} className="flex items-center gap-2.5">
-                      <ModelMark vendor={f.vendor} size={22} />
+                      <ModelMark familyId={f.id} vendor={f.vendor} size={22} />
                       <span className="whitespace-nowrap text-[15px] font-medium" style={{ color: "var(--vg-text-secondary)" }} lang="en">
                         {f.name}
                       </span>
@@ -163,16 +172,31 @@ export function HeroSection({ onSignIn, onSignUp }: { onSignIn: () => void; onSi
                   ))}
                 </InfiniteSlider>
 
+                {/* Both edges, and both mirrored for RTL.
+                    These sit on logical sides (`start-0`/`end-0`) but a CSS
+                    gradient angle and ProgressiveBlur's `direction` are both
+                    physical, so under RTL they pointed the wrong way: the strip
+                    on the right faded from its inner edge outward instead of the
+                    reverse, which is why only one end appeared to blur and why
+                    the row came out of it early. */}
                 <div
                   className="absolute inset-y-0 start-0 w-20"
-                  style={{ background: "linear-gradient(to right, var(--vg-canvas), transparent)" }}
+                  style={{ background: `linear-gradient(${rtl ? "to left" : "to right"}, var(--vg-canvas), transparent)` }}
                 />
                 <div
                   className="absolute inset-y-0 end-0 w-20"
-                  style={{ background: "linear-gradient(to left, var(--vg-canvas), transparent)" }}
+                  style={{ background: `linear-gradient(${rtl ? "to right" : "to left"}, var(--vg-canvas), transparent)` }}
                 />
-                <ProgressiveBlur className="pointer-events-none absolute start-0 top-0 h-full w-20" direction="left" blurIntensity={1} />
-                <ProgressiveBlur className="pointer-events-none absolute end-0 top-0 h-full w-20" direction="right" blurIntensity={1} />
+                <ProgressiveBlur
+                  className="pointer-events-none absolute start-0 top-0 h-full w-20"
+                  direction={rtl ? "right" : "left"}
+                  blurIntensity={1}
+                />
+                <ProgressiveBlur
+                  className="pointer-events-none absolute end-0 top-0 h-full w-20"
+                  direction={rtl ? "left" : "right"}
+                  blurIntensity={1}
+                />
               </div>
             </div>
           </div>
