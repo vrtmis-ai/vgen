@@ -120,8 +120,10 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     if (wait !== null) return tooMany(reply, wait);
 
     try {
-      await auth.verifyPhoneCode(phone, body.code);
-      const user = await auth.signInWithPhone(phone, {
+      // One call, because the code must not be spent unless the sign-in
+      // succeeds. Verifying and signing in as two steps meant the 403 asking
+      // for an invite code also destroyed the code needed to supply one.
+      const user = await auth.signInWithPhoneCode(phone, body.code, {
         ...(body.inviteCode ? { inviteCode: body.inviteCode } : {}),
         ...(body.deviceFingerprint ? { deviceFingerprint: body.deviceFingerprint } : {}),
         ip: request.ip,

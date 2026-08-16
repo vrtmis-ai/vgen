@@ -27,6 +27,9 @@ function authDouble() {
     startPhoneVerification: vi.fn(async (_phone: string, _ip?: string) => ({ code: "123456", expiresAt: new Date(1_000) })),
     verifyPhoneCode: vi.fn(async () => undefined),
     signInWithPhone: vi.fn(async () => user),
+    // Verifying and signing in are one call now, so that a refused signup does
+    // not spend the code it was refused for.
+    signInWithPhoneCode: vi.fn(async (_phone: string, _code: string, _context?: unknown) => user),
     registerWithPassword: vi.fn(async () => user),
     loginWithPassword: vi.fn(async () => user),
     signInWithOAuth: vi.fn(
@@ -167,13 +170,13 @@ describe("verifying a code", () => {
 
     await app.inject({ method: "POST", url: "/api/v1/auth/otp/verify", payload: { ...payload, inviteCode: "apple-deev" } });
 
-    expect(auth.signInWithPhone).toHaveBeenCalledWith("+989121234567", expect.objectContaining({ inviteCode: "apple-deev" }));
+    expect(auth.signInWithPhoneCode).toHaveBeenCalledWith("+989121234567", "123456", expect.objectContaining({ inviteCode: "apple-deev" }));
     await app.close();
   });
 
   it("refuses a signup with no invite while early access is on", async () => {
     const auth = authDouble();
-    auth.signInWithPhone = vi.fn(async () => {
+    auth.signInWithPhoneCode = vi.fn(async () => {
       throw new AuthError("invite_required", "DEEV is in early access");
     });
     const { app } = build({ auth });
@@ -188,7 +191,7 @@ describe("verifying a code", () => {
 
   it("records a failed attempt without issuing a session", async () => {
     const auth = authDouble();
-    auth.verifyPhoneCode = vi.fn(async () => {
+    auth.signInWithPhoneCode = vi.fn(async () => {
       throw new AuthError("otp_invalid", "wrong");
     });
     const { app } = build({ auth });
@@ -203,7 +206,7 @@ describe("verifying a code", () => {
 
   it("answers 429 when the code budget is exhausted", async () => {
     const auth = authDouble();
-    auth.verifyPhoneCode = vi.fn(async () => {
+    auth.signInWithPhoneCode = vi.fn(async () => {
       throw new AuthError("otp_exhausted", "too many");
     });
     const { app } = build({ auth });

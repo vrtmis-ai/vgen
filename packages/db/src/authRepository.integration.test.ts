@@ -58,15 +58,18 @@ describe("the early access gate", () => {
 });
 
 describe("phone sign-in", () => {
-  it("accepts the code it issued, once", async () => {
+  it("accepts the code it issued", async () => {
     await inRollback(sql, async (tx) => {
       const repository = auth(tx);
       const number = phone("10");
       const { code } = await repository.startPhoneVerification(number, "1.2.3.4");
 
       await expect(repository.verifyPhoneCode(number, code)).resolves.toBeUndefined();
-      // Consumed: replaying the same code must not work.
-      await expect(repository.verifyPhoneCode(number, code)).rejects.toMatchObject({ code: "otp_invalid" });
+      // Checking a code no longer spends it, so asking twice is allowed. What
+      // spends it is signing in — see "spends the code once the sign-in
+      // actually happens". The two came apart because being told an invite is
+      // needed used to destroy the code needed to supply one.
+      await expect(repository.verifyPhoneCode(number, code)).resolves.toBeUndefined();
     });
   });
 
@@ -82,6 +85,73 @@ describe("phone sign-in", () => {
       // Even the right code is refused once the budget is spent, so guessing is
       // bounded by the row and not only by the rate limiter.
       await expect(repository.verifyPhoneCode(number, code)).rejects.toMatchObject({ code: "otp_exhausted" });
+    });
+  });
+
+  // The bug this pair exists to stop coming back: the 403 that asks for an
+  // invite used to be the same request that destroyed the code needed to
+  // supply one, so every invite-gated phone signup dead-ended on "that code is
+  // not right" about a code the user had typed correctly.
+  it("does not spend the code when the signup is refused for want of an invite", async () => {
+    await inRollback(sql, async (tx) => {
+      const repository = auth(tx);
+      const number = phone("13");
+      const { code } = await repository.startPhoneVerification(number);
+
+      await expect(repository.signInWithPhoneCode(number, code)).rejects.toMatchObject({ code: "invite_required" });
+
+      const invite = await usableInvite(tx, "second-try");
+      const user = await repository.signInWithPhoneCode(number, code, { inviteCode: invite });
+      expect(user.id).toBeTruthy();
+    });
+  });
+
+  it("does not spend the code when the invite turns out to be invalid either", async () => {
+    await inRollback(sql, async (tx) => {
+      const repository = auth(tx);
+      const number = phone("14");
+      const { code } = await repository.startPhoneVerification(number);
+
+      await expect(repository.signInWithPhoneCode(number, code, { inviteCode: "no-such-code" })).rejects.toMatchObject({
+        code: "invite_invalid",
+      });
+
+      const invite = await usableInvite(tx, "the-real-one");
+      await expect(repository.signInWithPhoneCode(number, code, { inviteCode: invite })).resolves.toMatchObject({
+        id: expect.any(String),
+      });
+    });
+  });
+
+  // The other half of the same guarantee. Releasing the code on a failed
+  // signup must not turn into never spending it at all.
+  it("spends the code once the sign-in actually happens", async () => {
+    await inRollback(sql, async (tx) => {
+      const repository = auth(tx);
+      const number = phone("15");
+      const invite = await usableInvite(tx, "spend-once");
+      const { code } = await repository.startPhoneVerification(number);
+
+      await repository.signInWithPhoneCode(number, code, { inviteCode: invite });
+
+      await expect(repository.signInWithPhoneCode(number, code)).rejects.toMatchObject({ code: "otp_invalid" });
+    });
+  });
+
+  // A refused signup still costs an attempt. The counter is what bounds
+  // guessing, so it must survive the rollback that releases the code.
+  it("still counts the attempt when the signup is rolled back", async () => {
+    await inRollback(sql, async (tx) => {
+      const repository = auth(tx);
+      const number = phone("16");
+      const { code } = await repository.startPhoneVerification(number);
+
+      await expect(repository.signInWithPhoneCode(number, code)).rejects.toMatchObject({ code: "invite_required" });
+
+      const [row] = await tx<{ attempts: number }[]>`
+        select attempts from phone_verifications where phone = ${number} order by sent_at desc limit 1
+      `;
+      expect(row?.attempts).toBe(1);
     });
   });
 
