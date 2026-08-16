@@ -4,11 +4,11 @@ import { mockApi } from "./fixtures";
 /**
  * The port, exercised through the running app rather than through a unit test.
  *
- * These drive it from the browser console because there is no sign-in screen
- * yet — that is the UI owner's work, and this spec exists so that when it
- * arrives the seam underneath it is known to work. What is asserted is the part
- * a screen depends on and cannot mock: that calling the port moves the whole app
- * between the landing page and the workspace.
+ * The sign-in half now has a screen of its own — see `auth.spec.ts` and
+ * `src/screens/Auth.test.tsx`. What stays here is the direction that has no
+ * screen: signing out, driven from Profile. It asserts the part a screen depends
+ * on and cannot mock — that calling the port moves the whole app between the
+ * workspace and the landing page.
  */
 test("signing out through the port returns the app to the landing page", async ({ page }) => {
   await mockApi(page);

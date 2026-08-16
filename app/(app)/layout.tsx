@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { ApiError } from "../../src/adapters/http/client";
 import { startKieRates } from "../../src/lib/kieRates";
 import { AppLoading } from "../../src/components/AppLoading";
@@ -35,8 +36,9 @@ import type { CatalogSnapshot } from "../../src/runtime/contracts/catalog";
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
   const online = useOnlineStatus();
+  const router = useRouter();
   const auth = useAuth();
-  const authActions = createAuthActions(auth);
+  const authActions = createAuthActions(auth, (path) => router.push(path));
   const sessionQuery = useSession();
   const session = sessionQuery.data ?? { status: "loading" as const, host: "web" as const };
   const authed = session.status === "authed";

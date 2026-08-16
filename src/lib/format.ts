@@ -12,3 +12,20 @@ export function faNum(value: number | string): string {
   // real miss if FA_DIGITS were ever edited.
   return String(value).replace(/[0-9]/g, (d) => FA_DIGITS[Number(d)] ?? d);
 }
+
+/**
+ * The inverse of `faNum`, for a value that has to go back to the server.
+ *
+ * A Persian keyboard produces ۰-۹ and an Arabic one ٠-٩, but `OtpCodeSchema` is
+ * `/^\d{6}$/` and the auth bodies are `.strict()` — so a code typed in Persian
+ * digits comes back `validation_failed`, on the one screen where the user has no
+ * way to guess what is wrong with six digits they can see are correct.
+ *
+ * Phone numbers deliberately do NOT go through this. The server normalises those
+ * itself, precisely so two spellings of one number cannot become two accounts
+ * with two free trials; formatting them here would be the client quietly taking
+ * over a decision that has to be made in one place.
+ */
+export function latinDigits(value: string): string {
+  return value.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0)).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+}
