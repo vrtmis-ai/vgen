@@ -1,54 +1,63 @@
 "use client";
 
-import { useImageFallback } from "../lib/useImageFallback";
+import { VENDOR_MARK_PATHS, VENDOR_MARK_VIEWBOX } from "../data/vendorMarks";
 import { VendorMark } from "./VendorMark";
 
 /**
- * The families whose own mark we ship, and are therefore allowed to ship.
+ * A model's mark, in two tiers: its maker's logo, then a monogram.
  *
- * This list is the permission, not the file. `VendorMark` exists because
- * trademarked logos are not ours to ship, so each entry here is a decision that
- * one particular brand's guidelines allow its mark to indicate compatibility —
- * a per-brand check, not a blanket one. A file appearing in `public/` is not
- * that decision; a name appearing here is.
+ * The logo tier is what earns the model wall. A grid of letter-circles borrows
+ * nobody's credibility — the entire point of naming Veo and Kling is that a
+ * visitor already trusts Google and Kuaishou — and it cannot be the model's own
+ * logo, because "Veo", "Kling" and "Nano Banana" are products of an age that
+ * mostly have no published mark to use. The maker's does exist.
  *
- * It is also what keeps the landing page quiet. Deriving "do we have artwork?"
- * from whether the request 404s means the marquee page of the product opens by
- * firing one failed request per model and waiting for each to fail before the
- * monogram appears — nine of them, on connections where that is not free.
+ * Three Google families therefore show the same Google logo. That was the
+ * argument against doing this at all, and it was wrong: the model's name sits
+ * directly beside the mark, so nothing is ambiguous, and one real logo repeated
+ * is worth more than three different letters nobody recognises.
  *
- * Empty is a correct state: every model falls back to its vendor monogram,
- * exactly as before this component existed.
+ * ## Inline, not an <img>
+ *
+ * The first pass wrote SVG files to `public/` and pointed an `<img>` at them.
+ * That ships a logo nobody can see: an SVG loaded through `<img>` is an isolated
+ * document, page CSS does not reach inside it, and the file's `currentColor`
+ * resolves against its own default — black, on a near-black canvas. Half of
+ * these brands are `#000000`.
+ *
+ * Inlining the path fixes it at the root and costs no request, which matters
+ * here because the model wall draws nineteen of these at once.
+ *
+ * `VendorMark` remains the floor. Seven of the catalogue's thirteen vendors have
+ * no icon upstream — OpenAI among them — so their families keep the monogram,
+ * and that is a working state rather than a gap.
  */
-const SHIPPED_MARKS = new Set<string>([]);
-
-/**
- * A model's own mark, with the vendor monogram as the floor.
- *
- * Why not `VendorMark` on its own: three of the models worth naming — Nano
- * Banana, Veo and Gemini Omni — are all Google, so a row of vendor marks shows
- * the same logo three times and reads as one company rather than as a catalogue.
- * A product row has to carry product marks. Until `SHIPPED_MARKS` has entries
- * that is still what the row shows; this component is the seam that fixes it one
- * brand at a time, not a fix on its own.
- */
-export function ModelMark({ familyId, vendor, size = 16 }: { familyId: string; vendor: string; size?: number }) {
-  const [failed, onError] = useImageFallback();
-
-  // A file can still be removed under us — the runtime fallback stays as the
-  // floor beneath the list, so a stale entry degrades instead of leaving a hole.
-  if (failed || !SHIPPED_MARKS.has(familyId)) return <VendorMark vendor={vendor} size={size} />;
+export function ModelMark({ vendor, size = 16 }: { vendor: string; size?: number }) {
+  const path = VENDOR_MARK_PATHS[vendor];
+  if (!path) return <VendorMark vendor={vendor} size={size} />;
 
   return (
-    <img
-      src={`/brand/models/${familyId}.svg`}
-      alt=""
-      aria-hidden
+    /* aria-hidden, like VendorMark: every place this appears, the model or
+       vendor name is already in the adjacent text, and announcing the brand a
+       second time is noise. */
+    <svg
+      viewBox={VENDOR_MARK_VIEWBOX}
       width={size}
       height={size}
-      onError={onError}
-      className="shrink-0 object-contain"
-      style={{ width: size, height: size }}
-    />
+      fill="currentColor"
+      aria-hidden
+      focusable="false"
+      className="shrink-0"
+      style={{ width: size, height: size, color: "var(--vg-text-secondary)" }}
+    >
+      <path d={path} />
+    </svg>
   );
 }
+
+/* No per-model tier, and no `familyId` prop to hang one on.
+   An earlier version carried both against the day a model publishes its own
+   mark. That day needs a code change regardless — the artwork would have to
+   arrive as inline path data like the vendor marks, not as a file behind an
+   `<img>`, for the colour reason above — so the prop was doing nothing but
+   asking every caller to pass an id that went unread. */

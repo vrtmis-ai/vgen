@@ -689,7 +689,7 @@ function Reel() {
             </div>
             <figcaption className="grid gap-1.5">
               <span className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: "var(--vg-text-secondary)" }}>
-                <ModelMark familyId={p.familyId} vendor={getFamily(p.familyId)?.vendor ?? ""} size={14} />
+                <ModelMark vendor={getFamily(p.familyId)?.vendor ?? ""} size={14} />
                 <span lang="en">{getFamily(p.familyId)?.name ?? p.familyId}</span>
               </span>
               {/* The prompt is English in the seed data and will often be
@@ -885,13 +885,11 @@ function Models() {
                   className="vg-ease flex flex-col items-center gap-2 rounded-card p-4 text-center hover:-translate-y-0.5"
                   style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
                 >
-                  {/* ModelMark, not VendorMark. Three of these are Google, so
-                      vendor monograms put the same blue G on three tiles and the
-                      wall reads as one company — the opposite of the point. This
-                      still falls back to the monogram today, but the moment a
-                      model's own artwork is cleared it appears here with nothing
-                      to change. */}
-                  <ModelMark familyId={f.id} vendor={f.vendor} size={26} />
+                  {/* The maker's real logo where one exists, a monogram where it
+                      does not. Seven of these stay lettered — OpenAI among them,
+                      which is the conspicuous one — because simple-icons has no
+                      mark for them. */}
+                  <ModelMark vendor={f.vendor} size={26} />
                   <span className="truncate text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }} lang="en">
                     {f.name}
                   </span>

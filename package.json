@@ -36,7 +36,8 @@
     "catalog:snapshot": "pnpm --filter @vgen/db catalog:snapshot",
     "plans:publish": "tsx scripts/publish-plans.ts",
     "plans:snapshot": "pnpm --filter @vgen/db plans:snapshot",
-    "unlimited:publish": "tsx scripts/publish-unlimited.ts"
+    "unlimited:publish": "tsx scripts/publish-unlimited.ts",
+    "marks:publish": "tsx scripts/publish-vendor-marks.ts"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.3.0",
@@ -44,12 +45,12 @@
     "@fontsource-variable/syne": "^5.3.0",
     "@phosphor-icons/react": "^2.1.10",
     "@tanstack/react-query": "5.101.4",
+    "@vgen/core": "workspace:*",
     "framer-motion": "^12.42.0",
     "next": "^16.3.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "zod": "4.4.3",
-    "@vgen/core": "workspace:*"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -68,6 +69,7 @@
     "jsdom": "30.0.1",
     "postgres": "^3.4.9",
     "prettier": "3.9.6",
+    "simple-icons": "^16.28.0",
     "tailwindcss": "^4.3.1",
     "tsx": "^4.20.6",
     "typescript": "^5.7.2",
