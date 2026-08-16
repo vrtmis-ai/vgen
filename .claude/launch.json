@@ -2,9 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "_comment": "Invoke next's bin directly rather than `npm run dev`. Going through npm inserts an npm process and a cmd shim between the launcher and next, and on stop only the outermost process is killed — the next-server survives holding its port, outlives the app, and makes the following launch fail on EADDRINUSE. Killing next itself tears down the forked server and the turbopack pool with it.",
       "name": "vgen-web-pricing",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev", "-p", "5183"],
       "port": 5183,
       "autoPort": true
     }

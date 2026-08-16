@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { ArrowLeft, Check, CaretDown, EnvelopeSimple, Sparkle } from "@phosphor-icons/react";
+import { ArrowLeft, Check, CaretDown, DeviceMobile, Sparkle } from "@phosphor-icons/react";
 import { FAMILIES, getFamily, type Family } from "../data/models";
 import { COMMUNITY } from "../data/community";
 import { PLANS, monthlyCoins, toman, annualDiscountPct, effectiveUsd, type Plan } from "../data/plans";
 import { minCoinsForFamily } from "../data/pricing";
+import { ModelMark } from "../components/ModelMark";
 import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
@@ -25,6 +26,22 @@ import { BRAND } from "../data/brand";
    are computed from the live rate table, and the plan cards read the same
    PLANS rows the buy screen does — a landing page that lies about the price is
    worse than no landing page. */
+
+/**
+ * The names that make someone stop — not the first six in catalogue order.
+ *
+ * The row used to be `FAMILIES.slice(0, 6)`, which is whatever happens to sit at
+ * the top of the catalogue. That is the wrong selection for a hero: this row's
+ * job is recognition, so it has to be the models a visitor has already heard of
+ * and would be surprised to find here. Chosen by name rather than by position.
+ *
+ * Resolved against the real catalogue and filtered, so a model that is ever
+ * retired drops out of the row instead of advertising something we stopped
+ * selling. Order is this list's, not the catalogue's — video first, because that
+ * is the expensive thing people come for.
+ */
+export const HERO_MODEL_IDS = ["veo", "kling", "seedance", "wan", "minimax-h3", "nano-banana", "gpt-image", "gemini-omni", "elevenlabs"];
+const HERO_MODELS = HERO_MODEL_IDS.map((id) => FAMILIES.find((f) => f.id === id)).filter((f): f is Family => f != null);
 
 const FAQ_KEYS: { q: TKey; a: TKey }[] = [
   { q: "lp_faq1_q", a: "lp_faq1_a" },
@@ -57,7 +74,28 @@ function Art({ family }: { family?: Family | undefined }) {
 function Section({ children, className, light }: { children: React.ReactNode; className?: string; light?: "start" | "end" }) {
   const lit = light ? `vg-lit ${light === "end" ? "vg-lit-end" : ""}` : "";
   return (
-    <section className={`relative mx-auto w-full max-w-[1200px] px-5 py-14 sm:px-8 md:py-24 ${lit} ${className ?? ""}`}>{children}</section>
+    /* The rhythm was 56/96. The hero and the closing card both fill a viewport,
+       so at that spacing everything between them read as one continuous slab —
+       the page had a frame and no chapters. 80/144 is what makes a section
+       arrive rather than continue. */
+    <section className={`relative mx-auto w-full max-w-[1200px] px-5 py-20 sm:px-8 md:py-36 ${lit} ${className ?? ""}`}>{children}</section>
+  );
+}
+
+/**
+ * Sections rise as they arrive, once.
+ *
+ * `whileInView` with `once`, not a scroll scrub: a scrubbed reveal ties content
+ * to scroll position and reverses when the user scrolls back, which reads as the
+ * page being unsure. Arriving once is the thing that makes a chapter feel like
+ * it starts. framer-motion honours prefers-reduced-motion through the
+ * MotionConfig in app/providers.tsx, so this needs no guard of its own.
+ */
+function Rise({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <motion.div variants={riseParent} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} className={className}>
+      {children}
+    </motion.div>
   );
 }
 
@@ -70,15 +108,27 @@ function Heading({ index, children, sub }: { index: string; children: React.Reac
   return (
     <div className="mb-9 md:mb-12">
       <div className="flex items-center gap-4">
-        <span className="vg-chapter shrink-0 text-[11px] font-semibold" style={{ color: "var(--vg-primary)" }} lang="en">
+        {/* Faint, not accent. A slate number is a mark on the page, not something
+            to do — and it was spending accent on every section heading, which is
+            most of why the pricing viewport ended up with seven blue things and
+            no answer to "which button". The vein beside it already carries the
+            colour. */}
+        <span className="vg-chapter shrink-0 text-[11px] font-semibold" style={{ color: "var(--vg-text-faint)" }} lang="en">
           {index}
         </span>
         {/* The rule reaches away from the mark toward the far edge, so the eye
             is pulled across the section rather than parked on the number. */}
         <hr className="vg-vein min-w-0 flex-1" aria-hidden />
       </div>
+      {/* 32/52, up from 26/34.
+          A section heading that is only 8px larger than the body around it is
+          not a heading, it is a bold paragraph — which is what made the middle
+          of this page read as one continuous slab. The reference sites this is
+          measured against carry their structure entirely on type scale and
+          space, with no boxes at all, and their section headings run to double
+          the body size or more. */}
       <h2
-        className="mt-4 max-w-[22ch] text-[26px] font-bold leading-[1.25] md:text-[34px]"
+        className="mt-4 max-w-[20ch] text-[32px] font-extrabold leading-[1.2] md:text-[52px]"
         style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
       >
         {children}
@@ -266,6 +316,23 @@ function Hero({ onSignIn }: { onSignIn: () => void }) {
             {t("lp_hero_sub")}
           </motion.p>
 
+          {/* The proof, in the hero rather than four screens down.
+              "Every model in one place" is the whole pitch, and it was being
+              made as a section the reader had to scroll to and then verify. The
+              vendor marks say it before the sentence claiming it has finished
+              being read — and they are the real catalogue, in catalogue order,
+              so the row cannot drift from what the product actually sells. */}
+          <motion.ul variants={riseItem} className="mx-auto mt-8 flex max-w-[760px] flex-wrap items-center justify-center gap-x-5 gap-y-3">
+            {HERO_MODELS.map((f) => (
+              <li key={f.id} className="flex items-center gap-1.5">
+                <ModelMark familyId={f.id} vendor={f.vendor} size={16} />
+                <span className="text-[12.5px] font-medium" style={{ color: "var(--vg-text-secondary)" }} lang="en">
+                  {f.name}
+                </span>
+              </li>
+            ))}
+          </motion.ul>
+
           <motion.div variants={riseItem} className="mt-10 flex flex-col items-center gap-3">
             <button
               onClick={onSignIn}
@@ -347,13 +414,14 @@ function Models() {
       <Heading index="01" sub={t("lp_models_sub")}>
         {t("lp_models_title")}
       </Heading>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6">
+      <Rise className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6">
         {shown.map((f) => {
           const p = minCoinsForFamily(f);
           return (
-            <div
+            <motion.div
               key={f.id}
-              className="vg-ease flex flex-col items-center gap-2 rounded-xl p-3.5 text-center hover:-translate-y-0.5"
+              variants={riseItem}
+              className="vg-ease flex flex-col items-center gap-2 rounded-card p-4 text-center hover:-translate-y-0.5"
               style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
             >
               <VendorMark vendor={f.vendor} size={26} />
@@ -363,10 +431,10 @@ function Models() {
               <span className="text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
                 {p == null ? t("home_price_na") : `${t("home_price_from")} ${n(p)}`}
               </span>
-            </div>
+            </motion.div>
           );
         })}
-      </div>
+      </Rise>
     </Section>
   );
 }
@@ -382,26 +450,35 @@ function Features() {
   return (
     <Section light="end">
       <Heading index="02">{t("lp_features_title")}</Heading>
-      <div className="grid gap-3 md:grid-cols-3">
+      {/* Three claims, and each one is the answer to a real objection about
+          using this from Iran — so they get room to be read rather than being
+          three equal boxes skimmed at a glance. Taller cards, a heading that
+          carries weight, and they arrive one after another instead of all at
+          once, which is what makes a reader take them one at a time. */}
+      {/* No cards.
+          These were three bordered boxes, and three identical boxes in a row
+          read as a table rather than as three claims — which is most of why the
+          middle of the page went flat while the hero and the closing did not. A
+          box is a weak container: it says "these things are the same kind of
+          thing", which the reader already knew. The structure now comes from
+          type scale and space, with a hairline seam above each column standing
+          in for the border that used to surround it. */}
+      <Rise className="grid gap-12 md:grid-cols-3 md:gap-8">
         {items.map(({ k, d }) => (
-          <div
-            key={k}
-            className="vg-ease relative overflow-hidden rounded-2xl p-6 hover:-translate-y-0.5"
-            style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)", backgroundImage: "var(--vg-cool-leak)" }}
-          >
-            {/* The crack again, one per card, at the top edge — the same mark
-                the seams use, so the cards belong to the same object as the
-                rest of the page. */}
+          <motion.div key={k} variants={riseItem} className="relative pt-7">
             <hr className="vg-vein absolute inset-x-0 top-0" aria-hidden />
-            <h3 className="text-[17px] font-bold" style={{ color: "var(--vg-text)" }}>
+            <h3
+              className="text-[26px] font-bold leading-[1.35] md:text-[32px]"
+              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+            >
               {t(k)}
             </h3>
-            <p className="mt-2 text-[13.5px] leading-[1.9]" style={{ color: "var(--vg-text-muted)" }}>
+            <p className="mt-4 max-w-[38ch] text-[14px] leading-[2.05]" style={{ color: "var(--vg-text-muted)" }}>
               {t(d)}
             </p>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </Rise>
     </Section>
   );
 }
@@ -434,9 +511,16 @@ function Plans({ onSignIn }: { onSignIn: () => void }) {
               key={String(v)}
               onClick={() => setAnnual(v)}
               aria-pressed={annual === v}
-              className="vg-ease rounded-pill px-4 py-2 text-[12.5px] font-medium"
+              className="vg-ease rounded-pill px-4 py-2 text-[12.5px] font-semibold"
               style={
-                annual === v ? { background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" } : { color: "var(--vg-text-muted)" }
+                // A segmented control, not an action: it changes what you are
+                // looking at, it does not commit you to anything. The design
+                // system's own rule for this is a raised pill and full-strength
+                // text — accent here was a third blue competing with the plan
+                // buttons it sits above.
+                annual === v
+                  ? { background: "var(--vg-surface-overlay)", color: "var(--vg-text)", boxShadow: "inset 0 1px 0 rgb(255 255 255 / 0.06)" }
+                  : { color: "var(--vg-text-faint)" }
               }
             >
               {v ? t("lp_annual") : t("lp_monthly")}
@@ -464,11 +548,17 @@ function PlanCard({ plan, annual, onSignIn }: { plan: Plan; annual: boolean; onS
   const off = annualDiscountPct(plan);
   const unavailable = annual && plan.annualUsdPerMonth == null;
   return (
+    /* The recommended plan has to win on more than a badge.
+       Two identical accent buttons side by side is a choice with no
+       recommendation in it — the eye has nowhere to go, so it goes nowhere. The
+       popular card keeps the solid fill and gets its own light behind it; the
+       other one drops to an outline. Same information, one obvious answer. */
     <div
-      className="relative flex flex-col rounded-md p-6"
+      className={`relative flex flex-col rounded-card p-6 md:p-7 ${plan.popular ? "md:-my-3 md:py-10" : ""}`}
       style={{
         background: "var(--vg-surface)",
         border: `1px solid ${plan.popular ? "var(--vg-primary)" : "var(--vg-border-subtle)"}`,
+        ...(plan.popular ? { boxShadow: "0 0 60px -12px rgb(var(--vg-primary-rgb) / 0.28)" } : {}),
       }}
     >
       {plan.popular && (
@@ -505,10 +595,23 @@ function PlanCard({ plan, annual, onSignIn }: { plan: Plan; annual: boolean; onS
         </span>
       )}
 
+      {/* Bottom-aligned, so the two buttons line up even when one card carries a
+          discount line the other does not. The padding is on the wrapper because
+          `mt-auto` collapses to nothing on a full card and would let the button
+          touch the price. */}
+      <div className="mt-auto grid pt-7" />
       <button
         onClick={onSignIn}
-        className="mt-6 rounded-md py-3 text-[13.5px] font-semibold active:scale-[0.98]"
-        style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+        className="vg-ease rounded-card py-3.5 text-[13.5px] font-semibold active:scale-[0.98]"
+        style={
+          plan.popular
+            ? {
+                background: "var(--vg-primary)",
+                color: "var(--vg-text-on-primary)",
+                boxShadow: "0 0 32px rgb(var(--vg-primary-rgb) / 0.28), inset 0 1px 0 rgb(255 255 255 / 0.25)",
+              }
+            : { background: "transparent", color: "var(--vg-text-secondary)", border: "1px solid var(--vg-border)" }
+        }
       >
         {t("lp_cta_start")}
       </button>
@@ -584,8 +687,12 @@ function Closing({ onSignIn }: { onSignIn: () => void }) {
       <div className="vg-vignette pointer-events-none absolute inset-0" aria-hidden />
       <hr className="vg-vein absolute inset-x-0 top-0" aria-hidden />
       <Section className="relative z-[1] text-center">
+        {/* Raised with the section headings, which just went to 52px and were
+            about to match it. The ladder has to stay hero > closing > section:
+            the last frame rhymes with the first, and a finale the same size as
+            the chapter before it is not a finale. */}
         <h2
-          className="mx-auto max-w-[18ch] text-[clamp(1.9rem,5vw,3.25rem)] font-extrabold leading-[1.2]"
+          className="mx-auto max-w-[18ch] text-[clamp(2.25rem,6vw,4rem)] font-extrabold leading-[1.15]"
           style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
         >
           {t("lp_closing_title")}
@@ -601,8 +708,14 @@ function Closing({ onSignIn }: { onSignIn: () => void }) {
               boxShadow: "0 0 48px rgb(var(--vg-primary-rgb) / 0.35)",
             }}
           >
-            <EnvelopeSimple size={17} weight="bold" />
-            {t("lp_email")}
+            {/* Phone, not email — and the line underneath is why.
+                "No password, one verification and you are in" is true of the OTP
+                route and false of the email one, which takes a password of at
+                least ten characters. This button used to promise passwordless
+                email sign-in, which no route has ever served; harmless while it
+                went nowhere, and a contradiction the moment /signin existed. */}
+            <DeviceMobile size={17} weight="bold" />
+            {t("lp_phone")}
           </button>
         </div>
         <p className="mt-5 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
