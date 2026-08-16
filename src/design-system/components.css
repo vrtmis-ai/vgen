@@ -847,11 +847,80 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Marquee — a row that travels without anything measuring it.
+
+   The track holds the row twice and moves by 50% of its own width, which is
+   exactly one copy however wide that copy turns out to be. That is what makes
+   this survive a late-loading font, a language switch, or a catalogue that grows
+   by one model: nothing here knows or cares how wide the content is.
+
+   Edges are masked rather than cut. A hard crop says the row ends at the
+   viewport; a fade says it continues past it, which is the truth.
+   --------------------------------------------------------------------------- */
+.vg-marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+}
+
+.vg-marquee__track {
+  display: flex;
+  inline-size: max-content;
+  animation: vg-marquee var(--vg-marquee-duration, 40s) linear infinite;
+}
+
+.vg-marquee__run {
+  display: flex;
+  align-items: center;
+}
+
+/* Reading a name off a moving row is the point, so stopping has to be possible.
+   focus-within as well as hover: anything tabbable inside must be able to hold
+   still while it is being used, and a keyboard has no hover. */
+.vg-marquee:hover .vg-marquee__track,
+.vg-marquee:focus-within .vg-marquee__track {
+  animation-play-state: paused;
+}
+
+/* RTL: the row travels the other way, so new items arrive from the side the
+   reader is heading toward. Same rule as the skeleton sweep above. */
+[dir="rtl"] .vg-marquee__track {
+  animation-name: vg-marquee-rtl;
+}
+
+@keyframes vg-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes vg-marquee-rtl {
+  to {
+    transform: translateX(50%);
+  }
+}
+
 /* Reduced motion: the token file collapses transition *durations*, but looping
    animations declare their own, so they must be stopped here. Do not simply
    hide them — the user still needs to know something is loading. Each falls
    back to a static state that still reads as "in progress". */
 @media (prefers-reduced-motion: reduce) {
+  /* A stopped marquee would otherwise be a row truncated at the viewport edge.
+     It becomes a scrollable row instead, and the echo copy goes away — it exists
+     only to make the loop seamless, and duplicated content in something the user
+     now scrolls by hand is just wrong. */
+  .vg-marquee {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .vg-marquee__track {
+    animation: none;
+  }
+  .vg-marquee__run--echo {
+    display: none;
+  }
+
   .vg-skeleton::after {
     animation: none;
     transform: none;

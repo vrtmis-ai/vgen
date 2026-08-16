@@ -43,6 +43,13 @@ const dict = {
     lp_hero_title: "ایده‌هایت را به واقعیتِ سینمایی تبدیل کن",
     lp_hero_sub: "بهترین مدل‌های تصویر و ویدیوی دنیا، یک‌جا و به فارسی. بنویس چه می‌خواهی، بقیه‌اش با ما.",
     lp_cta_start: "شروع کن",
+    lp_cta_secondary: "مدل‌ها و قیمت‌ها",
+    lp_nav_models: "مدل‌ها",
+    lp_nav_features: "امکانات",
+    lp_nav_plans: "قیمت‌ها",
+    lp_nav_faq: "سؤال‌ها",
+    lp_nav_open: "باز کردن منو",
+    lp_nav_close: "بستن منو",
     lp_gift_note: "{n} سکه هدیه، بدون نیاز به کارت",
     lp_models_title: "یک پلتفرم، تمام مدل‌ها",
     lp_models_sub: "به‌جای اشتراک جدا برای هرکدام، با یک حساب به همه‌شان دسترسی داری و فقط بابت چیزی که می‌سازی پول می‌دهی.",
@@ -77,6 +84,69 @@ const dict = {
     lp_email: "ادامه با ایمیل",
     lp_no_password: "بدون رمز عبور. فقط یک بار تأیید و تمام.",
     lp_footer: "ساخته‌شده برای فارسی‌زبان‌ها",
+
+    // ── 02 showcase ────────────────────────────────────────────────────────
+    lp_showcase_title: "ساخته‌شده با دیو",
+    lp_showcase_sub: "هر کدام کار یک کاربر است، با همان مدل و همان پرامپتی که زیرش نوشته شده.",
+    lp_showcase_by: "از",
+
+    // ── 03 interactive demo ────────────────────────────────────────────────
+    lp_try_title: "قیمتش را همین حالا ببین",
+    lp_try_sub: "مدل را انتخاب کن و بنویس چه می‌خواهی. هزینه‌اش را پیش از ساختن حساب می‌بینی — همان عددی که بعداً روی دکمه خواهی دید.",
+    lp_try_model_label: "مدل",
+    lp_try_prompt_label: "چه می‌خواهی بسازی؟",
+    lp_try_placeholder: "یک فضانورد تنها که کنار ایستگاه فضایی نئونی شناور است…",
+    lp_try_cost: "هزینهٔ این ساخت",
+    lp_try_cost_na: "قیمت این ترکیب متغیر است",
+    lp_try_coins: "سکه",
+    lp_try_empty: "چیزی بنویس تا قیمت را ببینی",
+    lp_try_cta: "بساز",
+    lp_try_note: "برای ساختن باید وارد شوی. پرامپتت را نگه می‌داریم.",
+
+    // ── 04 comparison ──────────────────────────────────────────────────────
+    lp_vs_title: "چرا از داخل ایران با دیو",
+    lp_vs_sub: "مسئله کیفیت مدل نیست — همه به یک مدل‌ها وصل‌اند. مسئله این است که کدام‌شان اجازه می‌دهند پول بدهی.",
+    lp_vs_us: "دیو",
+    lp_vs_them: "سرویس‌های خارجی",
+    lp_vs_pay: "پرداخت با کارت ایرانی",
+    lp_vs_pay_them: "کارت خارجی لازم است",
+    lp_vs_vpn: "بدون فیلترشکن",
+    lp_vs_vpn_them: "معمولاً بدون VPN باز نمی‌شود",
+    lp_vs_currency: "قیمت به تومان",
+    lp_vs_currency_them: "دلاری، با نرخ روز",
+    lp_vs_models: "همهٔ مدل‌ها با یک حساب",
+    lp_vs_models_them: "برای هرکدام اشتراک جدا",
+    lp_vs_lang: "فارسی، راست‌به‌چپ",
+    lp_vs_lang_them: "انگلیسی",
+
+    // ── 05 how it works ────────────────────────────────────────────────────
+    lp_how_title: "سه قدم تا خروجی",
+    lp_how_1: "مدل را انتخاب کن",
+    lp_how_1_d: "برای هر کاری یک مدل بهتر است. کنار اسم هرکدام نوشته چه می‌کند و چقدر می‌گیرد.",
+    lp_how_2: "بنویس چه می‌خواهی",
+    lp_how_2_d: "به فارسی بنویس. تنظیمات را هم می‌توانی دست نزنی — پیش‌فرض‌ها برای شروع درست‌اند.",
+    lp_how_3: "تحویل بگیر",
+    lp_how_3_d: "خروجی در گالری خودت می‌نشیند. تا وقتی خودت منتشرش نکنی، خصوصی است.",
+
+    // ── 07 trust ───────────────────────────────────────────────────────────
+    lp_trust_title: "پیش از اینکه پول بدهی",
+    lp_trust_price: "قیمت را قبل از ساخت می‌بینی",
+    lp_trust_price_d: "عدد سکه روی دکمه است، نه بعد از کسر شدن. اگر ترکیبی قابل قیمت‌گذاری نباشد، اصلاً فروخته نمی‌شود.",
+    lp_trust_own: "خروجی مال خودت است",
+    lp_trust_own_d: "هیچ‌چیز بدون اجازه‌ات عمومی نمی‌شود، و موقع انتشار دقیقاً گفته می‌شود چه چیزی دیده خواهد شد.",
+    lp_trust_expiry: "انقضای سکه‌ها شفاف است",
+    lp_trust_expiry_d:
+      "تاریخ انقضای هر بسته در کیف پولت نوشته شده. سکه‌ها به ماه بعد منتقل نمی‌شوند و این را پیش از خرید می‌گوییم، نه بعدش.",
+
+    // ── 11 footer ──────────────────────────────────────────────────────────
+    lp_footer_product: "محصول",
+    lp_footer_company: "دربارهٔ ما",
+    lp_footer_legal: "قوانین",
+    lp_footer_contact: "تماس",
+    lp_footer_terms: "شرایط استفاده",
+    lp_footer_privacy: "حریم خصوصی",
+    lp_footer_refund: "قوانین سکه و بازگشت",
+    lp_footer_rights: "همهٔ حقوق محفوظ است.",
     // auth (the sign-in screen). The previous block described an email
     // one-time-code flow that no route ever served: OTP is sent to a PHONE, and
     // email pairs with a password. See docs/API.md.
@@ -271,6 +341,13 @@ const dict = {
     lp_hero_title: "Turn your ideas into cinematic reality",
     lp_hero_sub: "The world's best image and video models, in one place. Describe what you want — we handle the rest.",
     lp_cta_start: "Get started",
+    lp_cta_secondary: "Models and pricing",
+    lp_nav_models: "Models",
+    lp_nav_features: "Features",
+    lp_nav_plans: "Pricing",
+    lp_nav_faq: "FAQ",
+    lp_nav_open: "Open menu",
+    lp_nav_close: "Close menu",
     lp_gift_note: "{n} free coins, no card needed",
     lp_models_title: "One platform, every model",
     lp_models_sub: "Instead of a separate subscription for each, one account reaches all of them and you pay only for what you make.",
@@ -306,6 +383,70 @@ const dict = {
     lp_email: "Continue with email",
     lp_no_password: "No password. One verification and you are in.",
     lp_footer: "Built for Persian speakers",
+
+    // ── 02 showcase ────────────────────────────────────────────────────────
+    lp_showcase_title: "Made with DEEV",
+    lp_showcase_sub: "Each one is a user's work, with the model and the prompt that produced it written underneath.",
+    lp_showcase_by: "by",
+
+    // ── 03 interactive demo ────────────────────────────────────────────────
+    lp_try_title: "See the price right now",
+    lp_try_sub:
+      "Pick a model and say what you want. You get the cost before you make an account — the same number you will see on the button later.",
+    lp_try_model_label: "Model",
+    lp_try_prompt_label: "What do you want to make?",
+    lp_try_placeholder: "A lone astronaut drifting past a neon space station…",
+    lp_try_cost: "This generation costs",
+    lp_try_cost_na: "This combination is priced per settings",
+    lp_try_coins: "coins",
+    lp_try_empty: "Write something to see the price",
+    lp_try_cta: "Make it",
+    lp_try_note: "You need an account to generate. We keep your prompt.",
+
+    // ── 04 comparison ──────────────────────────────────────────────────────
+    lp_vs_title: "Why DEEV, from inside Iran",
+    lp_vs_sub: "It is not about model quality — everyone connects to the same models. It is about which of them will let you pay.",
+    lp_vs_us: "DEEV",
+    lp_vs_them: "Services abroad",
+    lp_vs_pay: "Pay with an Iranian card",
+    lp_vs_pay_them: "Foreign card required",
+    lp_vs_vpn: "No VPN needed",
+    lp_vs_vpn_them: "Usually will not open without one",
+    lp_vs_currency: "Priced in toman",
+    lp_vs_currency_them: "In dollars, at today's rate",
+    lp_vs_models: "Every model on one account",
+    lp_vs_models_them: "A separate subscription each",
+    lp_vs_lang: "Persian, right to left",
+    lp_vs_lang_them: "English",
+
+    // ── 05 how it works ────────────────────────────────────────────────────
+    lp_how_title: "Three steps to an output",
+    lp_how_1: "Pick a model",
+    lp_how_1_d: "Different jobs want different models. Each one says what it does and what it costs, right next to its name.",
+    lp_how_2: "Say what you want",
+    lp_how_2_d: "Write it in Persian. You can leave the settings alone — the defaults are right to start with.",
+    lp_how_3: "Take delivery",
+    lp_how_3_d: "The output lands in your own gallery. It stays private until you publish it yourself.",
+
+    // ── 07 trust ───────────────────────────────────────────────────────────
+    lp_trust_title: "Before you pay",
+    lp_trust_price: "You see the price before you generate",
+    lp_trust_price_d: "The coin figure is on the button, not on the receipt. If a combination cannot be priced, it is not sold at all.",
+    lp_trust_own: "The output is yours",
+    lp_trust_own_d: "Nothing becomes public without your say-so, and publishing tells you exactly what will be visible.",
+    lp_trust_expiry: "Coin expiry is stated plainly",
+    lp_trust_expiry_d:
+      "Every pack's expiry date is in your wallet. Coins do not roll over, and we say so before you buy rather than after.",
+
+    // ── 11 footer ──────────────────────────────────────────────────────────
+    lp_footer_product: "Product",
+    lp_footer_company: "About",
+    lp_footer_legal: "Legal",
+    lp_footer_contact: "Contact",
+    lp_footer_terms: "Terms of use",
+    lp_footer_privacy: "Privacy",
+    lp_footer_refund: "Coins and refunds",
+    lp_footer_rights: "All rights reserved.",
     auth_signin_title: "Sign in to DEEV",
     auth_signup_title: "Create an account",
     auth_signin_sub: "Use your phone number or your email.",
