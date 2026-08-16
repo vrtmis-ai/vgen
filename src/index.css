@@ -89,25 +89,32 @@
   --color-ink3: var(--vg-text-muted); /* #A8A29E — captions, metadata */
   --color-ink-invert: var(--vg-canvas);
 
-  /* accent — the system's orange. Two changes worth knowing about:
-     · the hex moved from #FF5C00 to #E95F18, deeper and less saturated;
-     · text ON the fill is now WHITE, not near-black. The system pairs the
-       fill with #FFFFFF and reserves --vg-primary-soft (#FFB598) for orange
-       used AS text, where the fill colour fails contrast at body sizes.
-     The scarcity rule survives the move and gets stricter: two orange elements
-     on one screen means one of them is wrong. */
-  --color-accent: var(--vg-primary); /* #E95F18 */
-  --color-accent2: var(--vg-primary-press); /* #C94E10 — pressed */
+  /* accent — this file's old name for the brand colour. It is DEEV's blue now,
+     rgb(0 180 255); it was orange twice before that (#FF5C00, then #E95F18).
+     Every alias below resolves through a token, so none of them needed touching
+     when the brand moved — which is the point of the indirection.
+
+     Ink on the fill is NEAR-BLACK, not white. This block used to claim the
+     opposite and even annotated --color-on-accent as #FFFFFF, while the token it
+     aliases has always been #1a1a1a. Two files in one design system disagreeing
+     about a contrast pair is worse than either answer being wrong; tokens.css is
+     the authority and it measures 7.44:1 on today's blue.
+
+     The scarcity rule outlives every repaint: two brand-filled elements on one
+     screen means one of them is wrong. */
+  --color-accent: var(--vg-primary);
+  --color-accent2: var(--vg-primary-press);
   --color-accent-tint: var(--vg-primary-a20);
   --color-accent-wash: var(--vg-primary-a10);
   --color-accent-soft: var(--color-accent-tint); /* deprecated alias */
-  --color-on-accent: var(--vg-text-on-primary); /* #FFFFFF */
+  --color-on-accent: var(--vg-text-on-primary); /* near-black, per tokens.css */
 
-  /* Blue is new to this app and has no old name to map. It is the counterweight
-     the system is built around — orange means "act", blue means "know" — and it
-     is what keeps orange findable. Model badges, links, info, background tasks. */
-  --color-info: var(--vg-accent); /* #9DCAFF — blue as text/icon */
-  --color-info-fill: var(--vg-accent-strong); /* #1995F1 — blue as a fill */
+  /* The informational counterweight — model badges, links, info, background
+     tasks. The system was built on "act" and "know" being different hues, and
+     since the rebrand they are not: primary sits at ~198° and this at ~207°.
+     See 3b in tokens.css for what that costs and where it shows. */
+  --color-info: var(--vg-accent); /* as text/icon */
+  --color-info-fill: var(--vg-accent-strong); /* as a fill */
   --color-on-info: var(--vg-accent-deep); /* #002440 — text on that fill */
 
   /* semantic */
@@ -137,11 +144,12 @@
   --shadow-soft: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
   --shadow-pop: var(--vg-shadow-modal);
   --shadow-lift: var(--vg-shadow-sheet);
-  /* was 0 14px 36px -16px rgba(255,92,0,0.45) — an orange glow spilling onto
-     neighbouring surfaces under btn-accent, the FAB, the prompt-bar arrow and
-     Profile's CTA. Four uncounted sources of ambient orange, and a coloured
-     shadow none of the three references use — contradicting this file's own
-     "flat accent (no glow)" header. Aliased so all four sites change at once. */
+  /* was 0 14px 36px -16px rgba(255,92,0,0.45) — a hardcoded brand-coloured glow
+     spilling onto neighbouring surfaces under btn-accent, the FAB, the
+     prompt-bar arrow and Profile's CTA. Four uncounted sources of ambient
+     colour, and a coloured shadow none of the three references use —
+     contradicting this file's own "flat accent (no glow)" header. Aliased so
+     all four sites change at once, and so a rebrand cannot strand them. */
   /* The system DOES want a glow on the primary CTA — outer bloom plus a 1px
      inner top highlight, so the button reads as a lit physical surface. That is
      the opposite of the old "flat accent, no glow" rule, and it is deliberate:
@@ -393,9 +401,11 @@ input {
 }
 
 .btn-accent {
-  /* The brighter primary, not the pressed shade. Dark ink on #C94E10 measures
-     3.8:1 and fails; on #E95F18 it measures 4.97:1. The press shade belongs in
-     :active, which is where it now lives. */
+  /* The brighter primary, not the pressed shade. Measured on the orange this
+     was written for, dark ink on the press shade #C94E10 gave 3.8:1 and failed
+     while the base #E95F18 gave 4.97:1. The press shade belongs in :active,
+     which is where it now lives — and the reasoning holds for any brand colour,
+     since a press shade is darker by construction. */
   background: var(--color-accent);
   color: var(--color-on-accent);
   box-shadow: var(--shadow-accent);
@@ -426,9 +436,9 @@ input {
    free to mean "this is the one". */
 .btn-quiet {
   background: var(--color-accent-soft);
-  /* primary-soft, not the accent itself: #E95F18 as type on a dark surface
-     fails AA at body sizes, which is the rule the token exists for. The fill
-     may be the accent; the letters may not. */
+  /* primary-soft, not the brand colour itself: the full-strength fill as *type*
+     on a dark surface fails AA at body sizes, which is the rule this token
+     exists for. The fill may be the brand colour; the letters may not. */
   color: var(--vg-primary-soft);
   transition:
     transform 0.18s var(--ease-out),

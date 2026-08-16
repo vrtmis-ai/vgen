@@ -1,5 +1,12 @@
 # Integration
 
+> [!CAUTION]
+> **Predates the DEEV rebrand.** The wiring below is still correct — it is how
+> tokens reach the app — but every colour it names as an example is not. The
+> brand is DEEV's blue, `rgb(0 180 255)`, not the `#E95F18` orange quoted here.
+> `src/design-system/tokens.css` is the authority. See the caution at the top of
+> `DESIGN.md` for what else moved.
+
 Wiring this design system into the VGen codebase. Pick the section that matches
 the stack; the first one applies to everything.
 
