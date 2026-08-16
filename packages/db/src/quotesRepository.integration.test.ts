@@ -221,22 +221,24 @@ describe("quoting a model covered by an unlimited grant", () => {
   });
 
   /**
-   * An account below the grant's tier never generates for free — it either
-   * pays, or cannot reach the model at all.
+   * The gap between the two tiers is where the money is.
    *
-   * Which of the two depends on configuration rather than on code: today the
-   * grant's min_tier (2) equals Nano Banana's own minTier (2), so tier 1 is
-   * locked out of the model entirely and there is no paying customer for it.
-   * Setting the grant to tier 3 would produce a paid quote here instead. The
-   * assertion is written to hold either way, because what must never happen —
-   * a free generation for an account the grant does not cover — is the same in
-   * both worlds.
+   * The grant sits one tier above the model's own minTier on purpose: Nano
+   * Banana needs tier 2, the grant needs tier 3. That leaves exactly one band —
+   * tier 2 — that can reach the model and still pays for it, and that band is
+   * the entire reason the grant is a reason to upgrade rather than a write-off.
+   * Close the gap and nobody who can use the model ever pays for it.
+   *
+   * So this asserts the paying band exists and is charged. Written off the
+   * seeded numbers rather than hard-coded, so it follows the configuration if
+   * the tiers are ever moved — and skips rather than lies if the gap is closed.
    */
-  it("never gives a free quote to an account below the grant's tier", async () => {
+  it("charges the band that reaches the model but not the grant", async () => {
     await inRollback(sql, async (tx) => {
       const granted = await grantedVariant(tx);
-      if (!granted || granted.minTier <= 1) return;
-      const { userId } = await makeUser(tx);
+      if (!granted || granted.minTier <= granted.modelMinTier) return;
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, granted.modelMinTier);
 
       const result = await new PostgresQuotesRepository(tx).create({
         userId,
@@ -244,14 +246,26 @@ describe("quoting a model covered by an unlimited grant", () => {
         params: granted.params,
       });
 
-      if (granted.modelMinTier > 1) {
-        expect(result.outcome).toBe("tier_too_low");
-        return;
-      }
       expect(result.outcome).toBe("quoted");
       if (result.outcome !== "quoted") return;
       expect(result.quote.coins).toBeGreaterThan(0);
       expect(result.quote.unlimited).toBeUndefined();
+    });
+  });
+
+  /** And below the model's own tier there is nothing to buy at any price. */
+  it("locks an account that cannot reach the model at all", async () => {
+    await inRollback(sql, async (tx) => {
+      const granted = await grantedVariant(tx);
+      if (!granted || granted.modelMinTier <= 1) return;
+      const { userId } = await makeUser(tx);
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId,
+        variantId: granted.variantId,
+        params: granted.params,
+      });
+      expect(result.outcome).toBe("tier_too_low");
     });
   });
 

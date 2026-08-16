@@ -422,8 +422,14 @@ it lives in `unlimited_entitlements` rather than as a zero row in
 `model_prices`. A zero price would say "this costs nothing"; a grant says "this
 account may run this, N times a day, unmetered".
 
-Today: **Nano Banana Pro and Nano Banana 2, free for tier 2 and above, 50 a day
-per account.**
+Today: **Nano Banana Pro and Nano Banana 2, free on tier 3 (Studio and
+Creator), 50 a day per account.**
+
+The grant sits one tier above the model's own `minTier` of 2 on purpose, and
+the gap is the point: tier 1 cannot reach Nano Banana at all, **tier 2 reaches
+it and pays**, tier 3 gets it free. Close that gap and nobody who can use the
+model ever pays for it — the grant would stop being a reason to upgrade and
+become a write-off of the revenue line.
 
 What a UI needs to know:
 

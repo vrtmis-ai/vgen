@@ -79,8 +79,15 @@ const ACCOUNTS = [
  * scripts/spike-kie.ts verified KIE's, against the real endpoint rather than
  * the docs, and that is the phase that would find a rename.
  *
- * minTier 2 = Pro and above. An account with no plan is tier 1, so this is
- * "paid, and not the entry plans".
+ * minTier 3 = Studio and Creator.
+ *
+ * Deliberately one tier above Nano Banana's own minTier of 2, which is what
+ * keeps it a perk rather than a write-off. Setting the two equal would mean
+ * nobody who can reach the model pays for it — tier 1 locked out, tier 2 and
+ * up free — so the grant would not add a reason to upgrade, it would delete
+ * the revenue line. At 3, Pro pays the normal price and the top two plans stop
+ * paying, which is a reason to move up rather than a discount for everyone
+ * already past the door.
  *
  * dailyCap 50 is per account per day, and it is what keeps the word
  * "unlimited" survivable rather than what walks it back: the upstream
@@ -88,8 +95,8 @@ const ACCOUNTS = [
  * without a ceiling drains the day for everybody else.
  */
 const GRANTS = [
-  { variantId: "nano-banana-pro", externalModelId: "nano-banana-pro", featureCode: "image_generate", minTier: 2, dailyCap: 50 },
-  { variantId: "nano-banana-2", externalModelId: "nano-banana-2", featureCode: "image_generate", minTier: 2, dailyCap: 50 },
+  { variantId: "nano-banana-pro", externalModelId: "nano-banana-pro", featureCode: "image_generate", minTier: 3, dailyCap: 50 },
+  { variantId: "nano-banana-2", externalModelId: "nano-banana-2", featureCode: "image_generate", minTier: 3, dailyCap: 50 },
 ] as const;
 
 const sql = postgres(databaseUrl, { max: 1 });
