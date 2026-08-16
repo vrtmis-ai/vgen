@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { DotField } from "../components/DotField";
+import { VendorMark } from "../components/VendorMark";
 import { BRAND } from "../data/brand";
 import { useAuth } from "../features/session/useAuth";
 import { useSession } from "../features/session/useSession";
@@ -23,6 +24,7 @@ import { useI18n, type TKey } from "../lib/i18n";
 import { EASE_OUT } from "../lib/motion";
 import { ApiError } from "../runtime/apiError";
 import { SIGN_IN_PATH, SIGN_UP_PATH } from "../runtime/providers/authActions";
+import type { OAuthProvider } from "../runtime/contracts/auth";
 
 /* The screen `authActions.signIn` had nowhere to send anyone.
    `AppServices.auth` and both adapters landed in #5; this is the surface on top
@@ -53,67 +55,139 @@ type Method = "phone" | "email";
 const CODE_LENGTH = 6;
 const emptyCode = () => Array.from({ length: CODE_LENGTH }, () => "");
 
-/** Which message a failure gets. Branch on `code`, never on `message`. */
-function messageFor(error: unknown): TKey {
-  if (!(error instanceof ApiError)) return "auth_err_generic";
+/** What a failure looks like once the screen is done with it. */
+interface Failure {
+  key: TKey;
+  /** Substituted into `{n}` — only ever a duration, and only when we know one. */
+  amount?: string | undefined;
+}
+
+/**
+ * Which message a failure gets. Branch on `code`, never on `message`.
+ *
+ * `step` is here because one code is genuinely ambiguous. A malformed phone
+ * number comes back as `validation_failed`, which on the email form means the
+ * email or the password and on the phone form can only mean the number — so the
+ * generic "something in the form is wrong" is right in one place and needlessly
+ * vague in the other. Demo mode throws `invalid_phone` for the same input, which
+ * the API has no such code for; both now land on the same message, so the screen
+ * does not change what it says between the mode it was built in and production.
+ */
+function messageFor(error: unknown, step: "phone" | "code" | "email"): Failure {
+  if (!(error instanceof ApiError)) return { key: "auth_err_generic" };
   switch (error.code) {
     case "invite_required":
-      return "auth_err_invite_required";
+      return { key: "auth_err_invite_required" };
     case "invite_invalid":
-      return "auth_err_invite_invalid";
+      return { key: "auth_err_invite_invalid" };
     case "otp_invalid":
-      return "auth_err_otp_invalid";
+      return { key: "auth_err_otp_invalid" };
     case "otp_expired":
-      return "auth_err_otp_expired";
+      return { key: "auth_err_otp_expired" };
     case "otp_exhausted":
-      return "auth_err_otp_exhausted";
+      return { key: "auth_err_otp_exhausted" };
     case "invalid_credentials":
-      return "auth_err_invalid_credentials";
+      return { key: "auth_err_invalid_credentials" };
     case "account_taken":
-      return "auth_err_account_taken";
+      return { key: "auth_err_account_taken" };
+    case "account_suspended":
+      // Terminal, and the only failure on this screen that retrying cannot fix.
+      // It used to fall through to "something went wrong, please try again",
+      // which sends someone to hammer a door that has been locked deliberately.
+      return { key: "auth_err_account_suspended" };
     case "rate_limited":
-      return "auth_err_rate_limited";
+      // The server says how long in `Retry-After`, and docs/API.md asks callers
+      // to surface the wait rather than silently retry. "Wait a moment" when the
+      // exact number is sitting in the error is a worse answer than the one we
+      // already have.
+      return error.retryAfterMs === undefined
+        ? { key: "auth_err_rate_limited" }
+        : { key: "auth_err_rate_limited_in", amount: clock(Math.ceil(error.retryAfterMs / 1000)) };
     case "invalid_phone":
-      return "auth_err_invalid_phone";
+      return { key: "auth_err_invalid_phone" };
     case "validation_failed":
     case "invalid_request":
-      return "auth_err_validation";
+      return { key: step === "phone" ? "auth_err_invalid_phone" : "auth_err_validation" };
     default:
-      return "auth_err_generic";
+      return { key: "auth_err_generic" };
   }
 }
+
+/** Nothing the user can do on this step will change the answer. */
+const TERMINAL_FOR_CODE: readonly TKey[] = ["auth_err_otp_exhausted", "auth_err_otp_expired", "auth_err_account_suspended"];
+
+/**
+ * Both providers are offered, because nothing the browser can read says which
+ * are configured — a provider without credentials has no route at all
+ * server-side, and `GET /session` does not list them. A button for an
+ * unconfigured provider navigates to a 404. Closing that needs the API to say,
+ * which is the backend owner's call.
+ *
+ * The mark is `VendorMark`'s monogram rather than either company's logo, for the
+ * same reason the model row uses one: a trademark is not ours to ship until
+ * somebody has read that brand's terms.
+ */
+const PROVIDERS: { id: OAuthProvider; vendor: string; label: TKey }[] = [
+  { id: "google", vendor: "Google", label: "auth_with_google" },
+  { id: "microsoft", vendor: "Microsoft", label: "auth_with_microsoft" },
+];
 
 const isInviteFailure = (error: unknown) =>
   error instanceof ApiError && (error.code === "invite_required" || error.code === "invite_invalid");
 
 /**
- * How long the resend button stays disabled.
+ * One minute — and it is deliberately the same minute twice.
  *
- * Deliberately NOT the server's `expiresAt`, which docs/API.md suggests counting
- * to. That value is how long the *code* stays valid — five minutes — and using
- * it here locks someone who mistyped their number out of trying again for five
- * minutes. The server has no resend cooldown at all; what it has is a budget,
- * `otp.send` in 0005_security.sql: five texts per phone per hour. A minute is
- * the interval a user expects, and it spends that budget at a sane rate.
+ * A code lives for sixty seconds, and sixty seconds is also how long the resend
+ * button stays disabled. That is one clock with two readings rather than two
+ * clocks: the instant the code dies is the instant a new one can be asked for,
+ * so there is never a gap where the screen is holding a dead code and refusing
+ * to replace it, and never a window where two codes are live at once.
+ *
+ * It also spends the SMS budget sanely — `otp.send` in 0005_security.sql allows
+ * five texts per phone per hour, which a one-minute floor cannot exhaust by
+ * accident.
+ *
+ * **The server does not agree yet.** It issues codes valid for five minutes, so
+ * until that is shortened this screen is the stricter of the two: it will call a
+ * code expired while the API would still take it. Being stricter is the safe
+ * direction — nobody is told a live code is dead *and* left with no way forward,
+ * because expiry and resend unlock together — but it is a real divergence and
+ * the backend owner has to close it.
  */
-const RESEND_COOLDOWN_SECONDS = 60;
+const CODE_LIFETIME_MS = 60_000;
 
 /** m:ss. A raw "297 seconds" is a number nobody converts in their head. */
 function clock(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-/** Seconds left on the resend cooldown, ticking once a second. */
-function useResendCooldown(sentAt: number | null): number {
-  const [left, setLeft] = useState(0);
+function remainingSeconds(deadline: number | null): number {
+  if (deadline === null) return 0;
+  return Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+}
+
+/**
+ * Whole seconds until a moment, re-read from the wall clock every render.
+ *
+ * The value is *derived*, not stored — the interval exists only to force the
+ * re-render, and the number itself always comes from `Date.now()`. Holding it in
+ * state instead is what produces the classic one-frame lie: state seeded at zero
+ * renders "expired" for the single frame between the code being sent and the
+ * first tick, and a backgrounded tab that misses ticks resumes counting from
+ * wherever it left off rather than from the truth.
+ */
+function useSecondsUntil(deadline: number | null): number {
+  const [, tick] = useState(0);
   useEffect(() => {
-    if (sentAt === null) return;
-    const tick = () => setLeft(Math.max(0, RESEND_COOLDOWN_SECONDS - Math.floor((Date.now() - sentAt) / 1000)));
-    tick();
-    const id = setInterval(tick, 1000);
+    if (deadline === null) return;
+    const id = setInterval(() => {
+      tick((n) => n + 1);
+      if (deadline <= Date.now()) clearInterval(id);
+    }, 1000);
     return () => clearInterval(id);
-  }, [sentAt]);
-  return left;
+  }, [deadline]);
+  return remainingSeconds(deadline);
 }
 
 /**
@@ -277,7 +351,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const { t, lang } = useI18n();
   const router = useRouter();
   const session = useSession();
-  const { startPhoneVerification, verifyPhone, login, register } = useAuth();
+  const { startPhoneVerification, verifyPhone, login, register, startProviderSignIn } = useAuth();
 
   const [method, setMethod] = useState<Method>("phone");
 
@@ -288,12 +362,26 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const [invite, setInvite] = useState("");
 
   const [sentAt, setSentAt] = useState<number | null>(null);
+  const [serverExpiresAt, setServerExpiresAt] = useState<number | null>(null);
   const [inviteNeeded, setInviteNeeded] = useState(false);
-  const [failure, setFailure] = useState<TKey | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
   const [leaving, setLeaving] = useState(false);
 
-  const secondsLeft = useResendCooldown(sentAt);
+  /** Digits in the reader's own script. A clock is the only number this screen prints. */
+  const localDigits = (value: string) => (lang === "fa" ? faNum(value) : value);
+
   const codeSent = sentAt !== null;
+  /* The shorter of our minute and whatever the server actually granted.
+     Ours is the shorter of the two today, and taking the minimum is what keeps
+     that from being an assumption: if the API ever hands back a code with less
+     than a minute left on it, the screen follows the API rather than promising
+     time the server will not honour. */
+  const deadline = sentAt === null ? null : Math.min(sentAt + CODE_LIFETIME_MS, serverExpiresAt ?? Number.POSITIVE_INFINITY);
+  const secondsLeft = useSecondsUntil(deadline);
+  /* One clock, two readings: at zero the code is dead *and* resend is unlocked,
+     which is why there is no state here where the screen is holding an expired
+     code and refusing to replace it. */
+  const codeExpired = codeSent && secondsLeft === 0;
 
   // Covers both halves of the same question: someone who is already signed in
   // should never see this screen, and someone who just signed in should not have
@@ -312,28 +400,28 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const pending = startPhoneVerification.isPending || verifyPhone.isPending || login.isPending || register.isPending;
 
   /** Every submit fails the same way, so the reset and the catch live in one place. */
-  async function run(action: () => Promise<unknown>) {
+  async function run(step: "phone" | "code" | "email", action: () => Promise<unknown>) {
     setFailure(null);
     try {
       await action();
     } catch (error) {
-      setFailure(messageFor(error));
+      setFailure(messageFor(error, step));
       if (isInviteFailure(error)) setInviteNeeded(true);
     }
   }
 
-  const sendCode = (event: FormEvent) => {
-    event.preventDefault();
-    // Sent as typed. The server normalises, and it has to be the only thing that does.
-    return run(async () => {
-      await startPhoneVerification.mutateAsync({ phone: phone.trim() });
+  /** Sending and resending are the same act, so they restart the same clock. */
+  const requestCode = () =>
+    run("phone", async () => {
+      // Sent as typed. The server normalises, and it has to be the only thing that does.
+      const started = await startPhoneVerification.mutateAsync({ phone: phone.trim() });
       setSentAt(Date.now());
+      setServerExpiresAt(started.expiresAt);
       setDigits(emptyCode());
     });
-  };
 
   const submitCode = () =>
-    void run(() =>
+    void run("code", () =>
       verifyPhone.mutateAsync({
         phone: phone.trim(),
         code: digits.join(""),
@@ -343,20 +431,34 @@ export default function Auth({ mode }: { mode: AuthMode }) {
 
   const submitEmail = (event: FormEvent) => {
     event.preventDefault();
-    void run(() =>
+    void run("email", () =>
       mode === "signin"
         ? login.mutateAsync({ email: email.trim(), password })
         : register.mutateAsync({ email: email.trim(), password, inviteCode: invite.trim() || undefined }),
     );
   };
 
-  const failureText = failure ? t(failure) : undefined;
+  // `{n}` is only ever a duration here, and it is isolated with `bdi` wherever it
+  // is rendered, so a Persian sentence keeps its own direction around it.
+  const failureText = failure ? t(failure.key).replace("{n}", failure.amount ?? "") : undefined;
   // One message per screen, on the field it belongs to. Everything else falls
   // through to the field that owns the step.
-  const onInvite = inviteNeeded && (failure === "auth_err_invite_required" || failure === "auth_err_invite_invalid");
+  const onInvite = inviteNeeded && (failure?.key === "auth_err_invite_required" || failure?.key === "auth_err_invite_invalid");
   const onCode = codeSent && !onInvite;
+  const onPhoneForm = !codeSent && method === "phone";
   const onEmailForm = method === "email" && !onInvite;
   const codeComplete = digits.every((digit) => digit !== "");
+  /* A failure that resending cannot fix — out of attempts, or suspended. Kept
+     apart from expiry because the two disagree about what to tell someone, and
+     this one is right: "get a new code" is bad advice when the next code will be
+     refused too. */
+  const terminalFailure = failure != null && TERMINAL_FOR_CODE.includes(failure.key);
+  /* Expired, out of attempts, or suspended: three different sentences for the
+     same situation, which is that this code will never be accepted. The boxes
+     and the submit go dead together so the screen stops inviting a keystroke it
+     is going to reject — and resend is unlocked in every one of these states, so
+     the way out is the one control still lit. */
+  const codeRefused = codeExpired || terminalFailure;
 
   /* In RTL, forward is leftward. Sliding a "next" step in from the left is
      walking backwards, so the sign flips with the language. */
@@ -468,21 +570,59 @@ export default function Auth({ mode }: { mode: AuthMode }) {
                     groupLabel={t("auth_code_label")}
                     digitLabel={(index) => t("auth_code_digit").replace("{n}", lang === "fa" ? faNum(index + 1) : String(index + 1))}
                     describedBy={undefined}
-                    disabled={pending}
+                    disabled={pending || codeRefused}
                   />
-                  {onCode && failureText && (
-                    <p role="alert" className="text-center text-[12.5px]" style={{ color: "var(--vg-danger)" }}>
-                      {failureText}
-                    </p>
-                  )}
+
+                  {/* One line, three things to say, in the one place someone is
+                      looking while they wait for a text.
+
+                      Newest true thing wins, and the order matters. A failure
+                      resending cannot fix comes first, because "get a new code"
+                      is bad advice when the next one will be refused too. Expiry
+                      comes next — it outranks an ordinary failure because it
+                      happened *after* it: a stale "that code is not right" while
+                      the boxes sit disabled tells someone to correct something
+                      they can no longer type into. Then the failure itself, and
+                      failing all of that, the clock: a hint while there is time,
+                      amber inside the last ten seconds, because "0:47" and "0:06"
+                      are not the same news.
+
+                      Running out is not an error the server reported, it is
+                      something this screen observed, so nothing sets `failure` and
+                      the message has to come from the clock.
+
+                      `role="alert"` on everything except the live countdown,
+                      which would interrupt a screen reader once a second all the
+                      way down. */}
+                  {onCode &&
+                    (terminalFailure ? (
+                      <p role="alert" className="text-center text-[12.5px] leading-[1.7]" style={{ color: "var(--vg-danger)" }}>
+                        {failureText}
+                      </p>
+                    ) : codeExpired ? (
+                      <p role="alert" className="text-center text-[12.5px] leading-[1.7]" style={{ color: "var(--vg-danger)" }}>
+                        {t("auth_code_expired")}
+                      </p>
+                    ) : failureText ? (
+                      <p role="alert" className="text-center text-[12.5px] leading-[1.7]" style={{ color: "var(--vg-danger)" }}>
+                        {failure?.amount ? <Countdown template={t(failure.key)} value={localDigits(failure.amount)} /> : failureText}
+                      </p>
+                    ) : (
+                      <p
+                        className="text-center text-[12.5px] leading-[1.7]"
+                        style={{ color: secondsLeft <= 10 ? "var(--vg-warning)" : "var(--vg-text-faint)" }}
+                      >
+                        <Countdown template={t("auth_code_expires_in")} value={localDigits(clock(secondsLeft))} />
+                      </p>
+                    ))}
 
                   {inviteField}
 
                   <button
                     type="submit"
-                    disabled={pending || !codeComplete}
+                    disabled={pending || !codeComplete || codeRefused}
                     className={submitPill}
-                    style={submitStyle(pending || !codeComplete)}
+                    style={submitStyle(pending || !codeComplete || codeRefused)}
                   >
                     {verifyPhone.isPending ? t("auth_verifying") : t("auth_verify")}
                   </button>
@@ -494,6 +634,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
                       style={{ color: "var(--vg-text-faint)" }}
                       onClick={() => {
                         setSentAt(null);
+                        setServerExpiresAt(null);
                         setFailure(null);
                       }}
                     >
@@ -503,16 +644,17 @@ export default function Auth({ mode }: { mode: AuthMode }) {
                       type="button"
                       disabled={secondsLeft > 0 || pending}
                       className="vg-ease"
-                      style={{ color: secondsLeft > 0 ? "var(--vg-text-faint)" : "var(--vg-accent)" }}
-                      onClick={() =>
-                        void run(async () => {
-                          await startPhoneVerification.mutateAsync({ phone: phone.trim() });
-                          setSentAt(Date.now());
-                        })
-                      }
+                      /* Once the code is dead this is the only way forward, so it
+                         stops being a quiet accent link and takes the weight the
+                         submit button just gave up. */
+                      style={{
+                        color: secondsLeft > 0 ? "var(--vg-text-faint)" : "var(--vg-accent)",
+                        fontWeight: codeRefused ? 700 : 400,
+                      }}
+                      onClick={() => void requestCode()}
                     >
                       {secondsLeft > 0 ? (
-                        <Countdown template={t("auth_resend_in")} value={lang === "fa" ? faNum(clock(secondsLeft)) : clock(secondsLeft)} />
+                        <Countdown template={t("auth_resend_in")} value={localDigits(clock(secondsLeft))} />
                       ) : (
                         t("auth_resend")
                       )}
@@ -520,8 +662,16 @@ export default function Auth({ mode }: { mode: AuthMode }) {
                   </div>
                 </form>
               ) : method === "phone" ? (
-                <form className="grid gap-5" onSubmit={(event) => void sendCode(event)}>
-                  <PillField label={t("auth_phone_label")} hint={t("auth_phone_hint")} error={failureText}>
+                <form
+                  className="grid gap-5"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void requestCode();
+                  }}
+                >
+                  {/* Gated like the other two steps. It was showing whatever the
+                      last failure was regardless of which form produced it. */}
+                  <PillField label={t("auth_phone_label")} hint={t("auth_phone_hint")} error={onPhoneForm ? failureText : undefined}>
                     {({ id, describedBy }) => (
                       <input
                         id={id}
@@ -596,6 +746,42 @@ export default function Auth({ mode }: { mode: AuthMode }) {
               )}
             </motion.div>
           </AnimatePresence>
+
+          {!codeSent && (
+            <>
+              {/* An additional door, not the main one — and the layout has to say
+                  so. Neither provider is dependably reachable from Iran without a
+                  VPN, so giving these the accent fill would point most visitors
+                  at the one route that will hang for them. Outline, below the
+                  form, under a rule that reads as "or, if you can". */}
+              <div className="mt-8 flex items-center gap-3" aria-hidden>
+                <hr className="min-w-0 flex-1" style={{ borderColor: "var(--vg-border-subtle)" }} />
+                <span className="text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+                  {t("auth_or")}
+                </span>
+                <hr className="min-w-0 flex-1" style={{ borderColor: "var(--vg-border-subtle)" }} />
+              </div>
+
+              <div className="mt-5 grid gap-2.5">
+                {PROVIDERS.map(({ id, vendor, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    disabled={startProviderSignIn.isPending}
+                    onClick={() => void run("email", () => startProviderSignIn.mutateAsync(id))}
+                    className="vg-ease flex w-full items-center justify-center gap-2.5 rounded-full border py-3 text-[13.5px] font-semibold disabled:opacity-60"
+                    style={{ borderColor: "var(--vg-border)", background: "rgb(255 255 255 / 0.02)", color: "var(--vg-text-secondary)" }}
+                  >
+                    <VendorMark vendor={vendor} size={18} />
+                    {t(label)}
+                  </button>
+                ))}
+                <p className="px-1 text-center text-[11.5px] leading-[1.7]" style={{ color: "var(--vg-text-faint)" }}>
+                  {t("auth_provider_note")}
+                </p>
+              </div>
+            </>
+          )}
 
           {!codeSent && (
             <div className="mt-8 flex flex-col items-center gap-4 text-[12.5px]">
