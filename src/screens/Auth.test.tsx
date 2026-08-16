@@ -22,6 +22,10 @@ import Auth, { type AuthMode } from "./Auth";
 const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => nav }));
 
+// The screen holds the collapse animation for 900ms before navigating, so the
+// default 1s waitFor window would be a coin flip on a loaded machine.
+const LANDED = { timeout: 3000 };
+
 function renderAuth(services: AppServices, mode: AuthMode = "signin") {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -33,6 +37,12 @@ function renderAuth(services: AppServices, mode: AuthMode = "signin") {
       </LanguageProvider>
     </QueryClientProvider>,
   );
+}
+
+/** Typing runs through the keyboard, not one box, because focus advances itself. */
+async function typeCode(user: ReturnType<typeof userEvent.setup>, code: string) {
+  await user.click(await screen.findByLabelText("Digit 1 of 6"));
+  await user.keyboard(code);
 }
 
 describe("the sign-in screen", () => {
@@ -47,14 +57,14 @@ describe("the sign-in screen", () => {
     // should get through the phone route on one field.
     expect(screen.queryByLabelText("Invite code")).not.toBeInTheDocument();
 
-    await user.type(await screen.findByLabelText("Verification code"), "123456");
+    await typeCode(user, "123456");
     await user.click(screen.getByRole("button", { name: "Verify and sign in" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("You need an invite code to continue.");
     await user.type(screen.getByLabelText("Invite code"), "DEEV-EARLY");
     await user.click(screen.getByRole("button", { name: "Verify and sign in" }));
 
-    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/"), LANDED);
   });
 
   it("sends a code typed in Persian digits as the digits the contract accepts", async () => {
@@ -65,7 +75,7 @@ describe("the sign-in screen", () => {
 
     await user.type(screen.getByLabelText("Mobile number"), "09123456789");
     await user.click(screen.getByRole("button", { name: "Send code" }));
-    await user.type(await screen.findByLabelText("Verification code"), "۱۲۳۴۵۶");
+    await typeCode(user, "۱۲۳۴۵۶");
     await user.click(screen.getByRole("button", { name: "Verify and sign in" }));
 
     // OtpCodeSchema is /^\d{6}$/ and the bodies are .strict(), so Persian digits
@@ -73,11 +83,39 @@ describe("the sign-in screen", () => {
     await waitFor(() => expect(verifyPhone).toHaveBeenCalledWith(expect.objectContaining({ code: "123456" })));
   });
 
+  it("keeps the verify button shut until all six boxes are filled", async () => {
+    const user = userEvent.setup();
+    renderAuth(createDemoServices({ startAnonymous: true }));
+
+    await user.type(screen.getByLabelText("Mobile number"), "09123456789");
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+
+    await typeCode(user, "123");
+    expect(screen.getByRole("button", { name: "Verify and sign in" })).toBeDisabled();
+
+    await user.keyboard("456");
+    expect(screen.getByRole("button", { name: "Verify and sign in" })).toBeEnabled();
+  });
+
+  it("fills the whole row from one paste, the way a code arrives", async () => {
+    const user = userEvent.setup();
+    renderAuth(createDemoServices({ startAnonymous: true }));
+
+    await user.type(screen.getByLabelText("Mobile number"), "09123456789");
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+
+    await user.click(await screen.findByLabelText("Digit 1 of 6"));
+    await user.paste("123456");
+
+    expect(screen.getByLabelText("Digit 6 of 6")).toHaveValue("6");
+    expect(screen.getByRole("button", { name: "Verify and sign in" })).toBeEnabled();
+  });
+
   it("reports a rejected password as a credentials failure, not an invite one", async () => {
     const user = userEvent.setup();
     renderAuth(createDemoServices({ startAnonymous: true }));
 
-    await user.click(screen.getByRole("button", { name: "Email" }));
+    await user.click(screen.getByRole("button", { name: "Use email instead" }));
     await user.type(screen.getByLabelText("Email"), "someone@deev.local");
     await user.type(screen.getByLabelText("Password"), "short");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
@@ -90,7 +128,7 @@ describe("the sign-in screen", () => {
     const user = userEvent.setup();
     renderAuth(createDemoServices({ startAnonymous: true }), "signup");
 
-    await user.click(screen.getByRole("button", { name: "Email" }));
+    await user.click(screen.getByRole("button", { name: "Use email instead" }));
     await user.type(screen.getByLabelText("Email"), "taken@deev.local");
     await user.type(screen.getByLabelText("Password"), "correct-horse-battery");
     await user.click(screen.getByRole("button", { name: "Create account" }));
@@ -101,6 +139,6 @@ describe("the sign-in screen", () => {
   it("sends a visitor who is already signed in back to the app", async () => {
     renderAuth(createDemoServices());
 
-    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/"), LANDED);
   });
 });
