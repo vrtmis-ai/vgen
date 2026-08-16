@@ -34,7 +34,14 @@
     // `{ prompt: undefined }` and `{}` are the same to TS without this and
     // different to JSON.stringify. Worth having in place before any request body
     // is written against these types.
-    "exactOptionalPropertyTypes": true
+    "exactOptionalPropertyTypes": true,
+    // shadcn convention. Components copied from that ecosystem import as
+    // `@/components/ui/...` and `@/lib/utils`, so the alias points at `src/`
+    // and those paths resolve without editing every pasted file.
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": [
     "next-env.d.ts",
