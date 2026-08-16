@@ -37,6 +37,23 @@ export const PhoneVerificationStartedSchema = z.object({
  */
 export const AuthedSessionSchema = SessionSchema;
 
+/**
+ * The identity providers the API has routes for.
+ *
+ * Not a list of what is *reachable* — each provider is registered server-side
+ * only when its credentials are configured, and nothing the browser can read
+ * says which ones are. Both are offered; a provider that is not configured
+ * answers 404 at the point the button navigates. Closing that needs the API to
+ * say which providers exist, which it does not do yet.
+ *
+ * Worth remembering when deciding how much weight these get on a screen:
+ * neither Google nor Microsoft is dependably reachable from Iran without a VPN.
+ * They are an additional door, not the main one — phone OTP is the route that
+ * works.
+ */
+export const OAUTH_PROVIDERS = ["google", "microsoft"] as const;
+export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+
 export interface StartPhoneVerificationInput {
   phone: string;
 }

@@ -123,6 +123,20 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
       return session;
     },
 
+    async startProviderSignIn(provider) {
+      /* Signs you in rather than navigating.
+         In production this hands the browser to Google or Microsoft and the page
+         is gone; there is nothing to hand it to here. Resolving without changing
+         the session would be worse than either: the button would look wired,
+         nothing would happen, and the screen would have no way to tell that from
+         a provider that is merely slow.
+
+         No invite gate on this path, matching the server — `signInWithOAuth`
+         links onto an existing user or creates one, and early access is enforced
+         at the routes that take a credential. */
+      state.set(authedAs(`demo-${provider}@deev.local`));
+    },
+
     async logout() {
       state.set(ANONYMOUS);
     },

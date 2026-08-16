@@ -10,6 +10,9 @@ const VENDORS: Record<string, { m: string; c: string }> = {
   Ideogram: { m: "I", c: "#EC4899" },
   Kuaishou: { m: "K", c: "#F97316" },
   MiniMax: { m: "M", c: "#F43F5E" },
+  // Not a model vendor — the sign-in screen's identity providers borrow this map
+  // rather than shipping either company's logo. Google was already here.
+  Microsoft: { m: "M", c: "#00A4EF" },
   xAI: { m: "X", c: "#A1A1AA" },
   Tongyi: { m: "T", c: "#6366F1" },
 };

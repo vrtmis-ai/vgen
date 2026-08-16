@@ -8,10 +8,12 @@ const AUTHED = {
   user: { id: "u1", methods: ["email"], emailNormalized: "a@b.co", locale: "fa" },
 };
 
+const BASE_URL = "https://api.test/api/v1";
+
 function harness(response: Response) {
   const fetchImpl = vi.fn().mockResolvedValue(response);
-  const client = createHttpClient({ baseUrl: "https://api.test/api/v1", fetchImpl: fetchImpl as unknown as typeof fetch });
-  return { auth: createHttpAuthService(client), fetchImpl };
+  const client = createHttpClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
+  return { auth: createHttpAuthService(client, BASE_URL), fetchImpl };
 }
 
 const json = (body: unknown, status = 200) =>

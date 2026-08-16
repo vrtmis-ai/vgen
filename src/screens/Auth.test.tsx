@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDemoServices } from "../adapters/demo/demoServices";
 import { LanguageProvider } from "../lib/i18n";
+import { ApiError } from "../runtime/apiError";
 import { AppServicesProvider, type AppServices } from "../runtime/AppServices";
 import Auth, { type AuthMode } from "./Auth";
 
@@ -140,5 +141,125 @@ describe("the sign-in screen", () => {
     renderAuth(createDemoServices());
 
     await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/"), LANDED);
+  });
+
+  it("hands the browser to a provider when its button is pressed", async () => {
+    const user = userEvent.setup();
+    const services = createDemoServices({ startAnonymous: true });
+    const startProviderSignIn = vi.spyOn(services.auth, "startProviderSignIn");
+    renderAuth(services);
+
+    await user.click(screen.getByRole("button", { name: "Continue with Microsoft" }));
+
+    // The id, not the label — in production this becomes a path segment.
+    await waitFor(() => expect(startProviderSignIn).toHaveBeenCalledWith("microsoft"));
+  });
+
+  it("says how long to wait when the server tells it", async () => {
+    const user = userEvent.setup();
+    const services = createDemoServices({ startAnonymous: true });
+    vi.spyOn(services.auth, "login").mockRejectedValue(
+      new ApiError({ code: "rate_limited", message: "slow down", status: 429, retryAfterMs: 90_000 }),
+    );
+    renderAuth(services);
+
+    await user.click(screen.getByRole("button", { name: "Use email instead" }));
+    await user.type(screen.getByLabelText("Email"), "someone@deev.local");
+    await user.type(screen.getByLabelText("Password"), "correct-horse-battery");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    // Retry-After is on the error already; "wait a moment" while holding the
+    // number is the answer this replaced.
+    expect(await screen.findByRole("alert")).toHaveTextContent("Try again in 1:30.");
+  });
+
+  it("tells someone their account is suspended instead of asking them to retry", async () => {
+    const user = userEvent.setup();
+    const services = createDemoServices({ startAnonymous: true });
+    vi.spyOn(services.auth, "login").mockRejectedValue(new ApiError({ code: "account_suspended", message: "suspended", status: 403 }));
+    renderAuth(services);
+
+    await user.click(screen.getByRole("button", { name: "Use email instead" }));
+    await user.type(screen.getByLabelText("Email"), "someone@deev.local");
+    await user.type(screen.getByLabelText("Password"), "correct-horse-battery");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("This account is suspended.");
+  });
+});
+
+/**
+ * The code's minute, which is also the resend cooldown's minute.
+ *
+ * Fake timers because the alternative is a test that really waits sixty seconds.
+ * `shouldAdvanceTime` keeps the microtask-driven parts of react-query and the
+ * demo adapter moving on their own; only the countdown's interval is pushed by
+ * hand.
+ */
+describe("the code's minute", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function sendCode() {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderAuth(createDemoServices({ startAnonymous: true }));
+    await user.type(screen.getByLabelText("Mobile number"), "09123456789");
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+    await screen.findByLabelText("Digit 1 of 6");
+    return user;
+  }
+
+  /**
+   * The clock and the timers have to move together.
+   *
+   * The countdown is derived from `Date.now()` on every render rather than
+   * decremented, which is what keeps it honest when a tab is backgrounded and
+   * misses ticks — so advancing the interval alone re-renders the same number
+   * forever. `setSystemTime` moves what the component reads; `advanceTimersByTime`
+   * fires the interval that makes it read again.
+   */
+  async function passTime(ms: number) {
+    await act(async () => {
+      vi.setSystemTime(Date.now() + ms);
+      vi.advanceTimersByTime(ms);
+    });
+  }
+
+  it("closes the form when the code runs out, and leaves resend as the way on", async () => {
+    await sendCode();
+
+    expect(screen.getByLabelText("Digit 1 of 6")).toBeEnabled();
+    // Named for what it is doing: counting, and refusing, until the code dies.
+    expect(screen.getByRole("button", { name: /Send again in/ })).toBeDisabled();
+
+    await passTime(61_000);
+
+    // Dead code, dead boxes: the screen stops inviting a keystroke it would
+    // reject. Resend unlocks on the same tick, so there is no state where the
+    // code is expired and nothing can be done about it.
+    expect(await screen.findByRole("alert")).toHaveTextContent("That code has run out.");
+    expect(screen.getByLabelText("Digit 1 of 6")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Verify and sign in" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send again" })).toBeEnabled();
+  });
+
+  it("lets expiry overrule the wrong-code message it arrives after", async () => {
+    const user = await sendCode();
+
+    await user.click(screen.getByLabelText("Digit 1 of 6"));
+    await user.paste("111111");
+    await user.click(screen.getByRole("button", { name: "Verify and sign in" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("That code is not right.");
+
+    await passTime(61_000);
+
+    // Leaving the older message up would tell someone to correct a code in boxes
+    // that are now disabled — advice they cannot take, about the wrong problem.
+    expect(await screen.findByRole("alert")).toHaveTextContent("That code has run out.");
   });
 });
