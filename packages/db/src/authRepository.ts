@@ -104,7 +104,7 @@ export class PostgresAuthRepository {
   }
 
   /**
-   * Consumes a code, counting the attempt whether or not it was right.
+   * Checks a code and counts the attempt, whether or not it was right.
    *
    * One statement, and that is the whole point. The obvious version — read the
    * row, compare, UPDATE the counter, then throw — loses the increment: the
@@ -112,20 +112,19 @@ export class PostgresAuthRepository {
    * attacker gets unlimited guesses at a six-digit code and the attempts column
    * sits at zero the entire time.
    *
-   * Here the UPDATE always runs and always increments; `consumed_at` is only
-   * set when the code was right, unexpired and within budget. The comparisons
-   * see the pre-increment value, and the failure is decided afterwards from
-   * what came back.
+   * Here the UPDATE always runs and always increments. The comparisons see the
+   * pre-increment value, and the failure is decided afterwards from what came
+   * back.
+   *
+   * It deliberately does NOT consume the code — `consumePhoneCode` does, and
+   * only once the sign-in it authorises has actually happened. See
+   * `signInWithPhoneCode` for why those had to come apart.
    */
   async verifyPhoneCode(phoneE164: string, code: string): Promise<void> {
     const codeHash = hashToken(code);
-    const [attempt] = await this.sql<{ consumed: boolean; expired: boolean; exhausted: boolean; code_ok: boolean }[]>`
+    const [attempt] = await this.sql<{ correct: boolean; expired: boolean; exhausted: boolean }[]>`
       update phone_verifications
-      set attempts = attempts + 1,
-          consumed_at = case
-            when code_hash = ${codeHash} and expires_at > now() and attempts < max_attempts then now()
-            else null
-          end
+      set attempts = attempts + 1
       where id = (
         select id from phone_verifications
         where phone = ${phoneE164} and consumed_at is null
@@ -133,17 +132,78 @@ export class PostgresAuthRepository {
         limit 1
       )
       returning
-        consumed_at is not null as consumed,
-        expires_at <= now()    as expired,
-        attempts > max_attempts as exhausted,
-        code_hash = ${codeHash} as code_ok
+        code_hash = ${codeHash} as correct,
+        expires_at <= now()     as expired,
+        attempts > max_attempts as exhausted
     `;
 
     if (!attempt) throw new AuthError("otp_invalid", "No verification is pending for this number");
-    if (attempt.consumed) return;
     if (attempt.expired) throw new AuthError("otp_expired", "That code has expired");
     if (attempt.exhausted) throw new AuthError("otp_exhausted", "Too many attempts");
-    throw new AuthError("otp_invalid", "That code is not correct");
+    if (!attempt.correct) throw new AuthError("otp_invalid", "That code is not correct");
+  }
+
+  /**
+   * Spends the code. Returns false if someone else already did.
+   *
+   * The `consumed_at is null` predicate is the mutex: two requests racing with
+   * the same correct code both reach here, one wins the row lock, and the other
+   * re-evaluates the predicate after it commits and updates nothing.
+   */
+  private async consumePhoneCode(tx: TransactionSql, phoneE164: string, code: string): Promise<boolean> {
+    const consumed = await tx<{ id: string }[]>`
+      update phone_verifications
+      set consumed_at = now()
+      where id = (
+        select id from phone_verifications
+        where phone = ${phoneE164} and code_hash = ${hashToken(code)} and consumed_at is null
+        order by sent_at desc
+        limit 1
+      )
+      returning id
+    `;
+    return consumed.length > 0;
+  }
+
+  /**
+   * Verify a code and sign in, spending the code only if the sign-in happened.
+   *
+   * These used to be two calls in the route with nothing joining them, and the
+   * order was fatal: `verifyPhoneCode` committed `consumed_at` the moment the
+   * code matched, then `signInWithPhone` threw `invite_required`. So the 403
+   * that ASKED for an invite code was the same request that destroyed the code
+   * needed to supply one. Every invite-gated phone signup — the route most
+   * Iranian users take — dead-ended on "that code is not right", about a code
+   * the user had just typed correctly, with the resend button disabled for
+   * another minute.
+   *
+   * The three things that all have to hold at once, and why the split is shaped
+   * like this:
+   *
+   *   - a wrong guess must still be counted, so the attempt lands in its own
+   *     committed statement OUTSIDE the transaction below, where no rollback
+   *     can reach it;
+   *   - a refused signup must leave the code usable, so the consume is INSIDE
+   *     the transaction and goes back when the signup throws;
+   *   - two requests must not both spend one code, so the consume keeps its
+   *     `consumed_at is null` predicate and stays the mutex it always was.
+   */
+  async signInWithPhoneCode(phoneE164: string, code: string, context: SignupContext = {}): Promise<CustomerSessionUser> {
+    await this.verifyPhoneCode(phoneE164, code);
+
+    return (await atomically(this.sql)(async (tx) => {
+      if (!(await this.consumePhoneCode(tx, phoneE164, code))) {
+        throw new AuthError("otp_invalid", "That code has already been used");
+      }
+      // Bound to the transaction, so an invite failure inside `createAccount`
+      // rolls the consume back with it. Calling `this.signInWithPhone` would
+      // run on the pool connection instead and commit the account separately.
+      //
+      // The cast is postgres.js's type split, not a lie about the value: a
+      // TransactionSql is a Sql that also has savepoint(), and `atomically`
+      // already picks between begin() and savepoint() so nesting works.
+      return new PostgresAuthRepository(tx as unknown as Sql, this.phonePepper).signInWithPhone(phoneE164, context);
+    })) as CustomerSessionUser;
   }
 
   // ------------------------------------------------------------------ signup
