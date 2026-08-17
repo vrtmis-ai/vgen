@@ -42,11 +42,12 @@ calls the frontend makes has no route on the server yet.**
 | `gallery.list()`       | `GET /gallery`             | —                                      | **404**  |
 
 So in `production` mode today, session, auth, catalog, wallet, plans, quoting
-and job submission all work; only the gallery does not. Nothing _runs_ a job
-yet — the queue has no consumer — so a submitted job stays `queued`. **In
-`demo` mode everything works**, which is why
-UI work is unblocked and should stay on demo mode until this table says
-otherwise.
+and job submission all work; only the gallery does not. A submitted job now
+genuinely runs — the worker consumes the queue, calls the provider and settles
+the money — but there is nowhere to _see_ the result yet, because the gallery
+route and the storage that backs it are the next phase. **In `demo` mode
+everything works**, which is why UI work is unblocked and should stay on demo
+mode until this table says otherwise.
 
 `catalog.list()` used to carry a caveat here — the route was live but the tables
 were empty. That is fixed: all 19 families and 44 variants are in Postgres, and
@@ -446,6 +447,73 @@ request.
 The same shape, scoped to the caller. Somebody else's job is a **404, not a
 403** — a job id is not a capability, and a 403 would confirm it exists.
 
+Poll this after submitting. `status` walks `queued` → `running` → `succeeded`
+or `failed`; the terminal states are final and nothing moves afterwards.
+
+## What happens after a job is queued
+
+`apps/worker` does two things: it drains the outbox onto BullMQ, and it
+consumes that queue. The consumer is `runGeneration` in
+`apps/worker/src/runGeneration.ts`, and it is worth knowing what it guarantees
+because the UI's error states follow from it.
+
+1. **Claim.** The job goes `running`. A job already claimed by a worker that
+   then died is re-claimable, so a crash mid-generation does not strand the
+   customer's credits.
+2. **Pick a credential.** `provider_credentials` is a pool; the picker takes
+   the least-recently-used active account for that provider and prefers one
+   with daily headroom. The row stores the _name_ of an environment variable,
+   never a token.
+3. **Call the provider.** Every call writes a `job_attempts` row — the request
+   bytes, the response bytes, the HTTP status, the latency, what it cost in the
+   provider's own units, and which credential served it.
+4. **Settle.** On success: the outputs become `assets` rows and `capture_hold`
+   charges the quoted price. On failure: `release_hold` gives every coin back,
+   and a granted job gets its slice of the day's allowance back too.
+
+**A user never pays for a generation they did not get.** That is the one
+invariant the whole phase exists to hold, and every exit from the runner either
+captures because a file exists or releases because one does not.
+
+A transient failure — a dead socket, a 5xx — is retried by the queue with
+exponential backoff and settles nothing in between, so a flaky network does not
+turn into a stream of holds and releases on somebody's ledger. A refusal
+(rejected prompt, unknown model, missing credential) settles immediately: the
+answer will not change, and making somebody wait through five backoffs to be
+told no is worse than telling them now.
+
+The `error_code` on a failed job is the provider's own where there is one, or
+one of ours:
+
+| `error_code`             | Means                                                         |
+| ------------------------ | ------------------------------------------------------------- |
+| `provider_unavailable`   | No adapter for that provider — configuration, not weather     |
+| `credential_unavailable` | No active credential, or its secret is not in the environment |
+| `submit_failed`          | The provider would not accept the task                        |
+| `poll_failed`            | The provider stopped answering about a task it accepted       |
+| `provider_timeout`       | Accepted, never finished                                      |
+| `no_output`              | Reported success and returned no files                        |
+
+`no_output` is a failure on purpose. Capturing a hold there would charge
+somebody for an empty gallery.
+
+### KIE is wired; useapi is not
+
+`packages/adapters/src/providers/kie.ts` is written against the shapes
+`scripts/spike-kie.ts` verified on the live API — including the two the docs do
+not tell you: a 200 can carry a failure (the task id's absence is the error),
+and `resultJson` is a JSON string nested inside the JSON body.
+
+There is **no useapi adapter**, and that is deliberate rather than unfinished.
+No token for their API exists in any environment we control, so the external
+model ids on the serving rows came from a published list rather than from a
+call that returned 200 — and an adapter written against a guess would typecheck
+while being wrong. `createGenerationProvider` returns null for it, the runner
+turns that into `provider_unavailable`, and the customer is refunded in full.
+Which means **unlimited generations currently quote free, submit, and then
+fail** — costing nobody anything, but producing no picture. Wiring it needs a
+`USEAPI_*` token and a spike like KIE's.
+
 ## Unlimited generation
 
 Some models cost us nothing per generation, and those are quoted at **zero
@@ -527,18 +595,21 @@ So you can tell a gap from a bug:
   the separate copy exported _from_ the database, which CI diffs against it.)
   Both are generated: **do not hand-edit either.** Porting the screen to the
   route is UI work, and the payload above is what it will get.
-- **Anything that actually runs a generation.** Quoting and submission are both
-  live, and a submitted job gets a real row, a real credit hold and a real
-  outbox event — but **nothing consumes the queue**, so a job stays `queued`
-  forever and no picture ever comes back. That is the next phase: a worker, the
-  useapi/KIE provider adapters, and `capture_hold` on success or `release_hold`
-  on failure.
+- **Anywhere to see a finished generation.** The worker runs jobs and files
+  their outputs as `assets` rows, but those rows point at the provider's own
+  URLs, which expire — `storage_provider = 'external'` is what marks them — and
+  there is no `GET /gallery` to read them back. That is the next phase: a
+  storage adapter, reference uploads, and signed expiring read URLs.
+- **useapi, so unlimited generation cannot actually generate.** A tier-3
+  customer is quoted free, the submission succeeds, and the job then fails with
+  `provider_unavailable` and a full refund of the day's allowance. Nothing is
+  charged and nothing is lost, but nothing is produced either. Needs a token
+  and a spike — see "KIE is wired; useapi is not" above.
 - **`GET /catalog` does not say which OAuth providers are configured.** Each is
   registered server-side only when its credentials are set, and nothing the
   browser can read says which — so a button for an unconfigured provider
   navigates into a 404.
 - **Gallery.** No server route. Demo mode returns an empty page.
-- **The queue consumer.** Jobs can be created; nothing processes them.
 - **Payments.** Plans render and price correctly; nothing charges.
 - **A sign-in screen.** The port and both adapters are done — see
   Authentication. The screen itself is UI work.

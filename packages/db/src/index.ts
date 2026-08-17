@@ -13,6 +13,7 @@ export * from "./entitlementsRepository";
 export * from "./quotesRepository";
 export * from "./frontendTelemetryRepository";
 export * from "./generationRepository";
+export * from "./jobRunnerRepository";
 export * from "./outbox";
 export * from "./transaction";
 

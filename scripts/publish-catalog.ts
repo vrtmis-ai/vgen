@@ -95,6 +95,25 @@ try {
     `;
     if (!provider) throw new Error("provider upsert returned no row");
 
+    // The key the worker calls with. One row rather than none because the pool
+    // picker is the only way a job gets a credential, and a provider with no
+    // credential row is a provider the worker refuses to call — which would
+    // make KIE the special case instead of the ordinary one.
+    //
+    // secret_ref is the name of an environment variable, never the key. The
+    // table's own comment asks for this: a leaked database dump must not be a
+    // leaked KIE account.
+    await tx`
+      insert into provider_credentials (provider_id, label, secret_ref, is_active)
+      values (${provider.id}, 'kie-primary', 'KIE_API_KEY', true)
+      on conflict (provider_id, label) do update set
+        secret_ref = excluded.secret_ref,
+        is_active = true
+      where
+        provider_credentials.secret_ref is distinct from excluded.secret_ref
+        or provider_credentials.is_active is distinct from true
+    `;
+
     const featureRows = await tx<{ id: string; code: string }[]>`select id, code from features`;
     const featureIdByCode = new Map(featureRows.map((row) => [row.code, row.id]));
 
