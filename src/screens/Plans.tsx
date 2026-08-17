@@ -15,28 +15,29 @@
    `currentPlanId` / `expiresAt` come from the backend once it exists; App passes
    null today, so the screen honestly renders the no-plan case rather than
    inventing one. */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   ArrowRight,
   CalendarCheck,
   CaretDown,
   CheckCircle,
-  Gift,
   ImageSquare,
+  Info,
   Lightning,
+  LockKey,
+  MusicNotes,
   Sparkle,
   VideoCamera,
   X,
+  XCircle,
 } from "@phosphor-icons/react";
 import {
+  PLANS,
   toman,
+  monthlyCoins,
   annualDiscountPct,
   annualTotalUsd,
   effectiveUsd,
-  estImages,
-  estVideos,
-  IMAGE_ANCHOR_NAME,
-  VIDEO_ANCHOR_NAME,
   buildBenchmarks,
   outputsPerMonth,
   KIND_LABEL,
@@ -44,12 +45,101 @@ import {
   type Plan,
   type PricingAccount,
 } from "../data/plans";
-import { usePlanLadder } from "../features/plans/PlansProvider";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
 
 const TAG_KEY = { test: "w_tag_test", gift: "w_tag_gift", popular: "w_tag_popular", best: "w_tag_best" } as const;
+const PLAN_AUDIENCE_KEY = {
+  starter: "pl_for_starter",
+  basic: "pl_for_basic",
+  flow: "pl_for_flow",
+  plus: "pl_for_plus",
+  pro: "pl_for_pro",
+  studio: "pl_for_studio",
+  creator: "pl_for_creator",
+} as const;
+const MAX_FESTIVAL_BONUS = Math.max(...PLANS.map((plan) => plan.bonus));
+const DEMO_FESTIVAL_SECONDS = 3 * 24 * 60 * 60 + 8 * 60 * 60 + 30 * 60;
+const PLAN_TOOL_KEYS = [
+  "pl_tool_image",
+  "pl_tool_video",
+  "pl_tool_lipsync",
+  "pl_tool_motion",
+  "pl_tool_edit",
+  "pl_tool_music",
+  "pl_tool_speech",
+  "pl_tool_chat",
+] as const;
+
+function PlanFeatures({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
+  const { t } = useI18n();
+  return (
+    <div className="border-t border-line pt-3">
+      <p className="text-[10.5px] font-semibold text-ink2">{t("pl_engines_title")}</p>
+      <div className={`mt-2 grid grid-cols-2 ${compact ? "gap-1" : "gap-1.5"}`}>
+        {PLAN_TOOL_KEYS.map((key) => (
+          <span key={key} className={`plans-tool-chip rounded-lg px-2 text-ink2 ${compact ? "py-1 text-[9px]" : "py-1.5 text-[10px]"}`}>
+            {t(key)}
+          </span>
+        ))}
+      </div>
+      <p className={`${compact ? "mt-2 text-[9px]" : "mt-2.5 text-[10px]"} leading-relaxed text-ink3`}>
+        {t(plan.tier >= 3 ? "pl_models_tier_3" : plan.tier >= 2 ? "pl_models_tier_2" : "pl_models_tier_1")}
+      </p>
+    </div>
+  );
+}
+
+function UnlimitedBenefit({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
+  const { t, n } = useI18n();
+  if (plan.tier < 2) return null;
+  const isProTrial = plan.id === "pro";
+  return (
+    <div className={`rounded-xl border border-[#ff982f]/30 bg-[#ff982f]/[0.08] ${compact ? "p-2" : "p-3"}`}>
+      <div className="flex items-center gap-2 text-[11px] font-bold text-[#ffad55]">
+        <Sparkle size={13} weight="fill" />
+        {t(isProTrial ? "pl_unlimited_7d_title" : "pl_unlimited_title")}
+      </div>
+      <p className={`${compact ? "mt-1" : "mt-1.5"} text-[10px] leading-relaxed text-ink2`}>
+        {isProTrial ? t("pl_unlimited_7d_sub") : t("pl_unlimited_sub").replace("{n}", n(50))}
+      </p>
+    </div>
+  );
+}
+
+function PlanAccessList({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
+  const { t, n } = useI18n();
+  const rows = [
+    { key: "tools", active: true, label: t("pl_all_studios") },
+    { key: "advanced", active: plan.tier >= 2, label: t("pl_access_advanced") },
+    { key: "flagship", active: plan.tier >= 3, label: t("pl_access_flagship") },
+    {
+      key: "unlimited",
+      active: plan.tier >= 2,
+      label: t(plan.id === "pro" ? "pl_access_unlimited_7d" : plan.tier >= 3 ? "pl_access_unlimited_daily" : "pl_access_unlimited"),
+    },
+    { key: "parallel", active: true, label: t("pl_parallel").replace("{n}", n(plan.maxConcurrentJobs)) },
+    { key: "training", active: true, label: t("pl_benefit_training") },
+  ];
+
+  return (
+    <div className={`border-t border-line ${compact ? "pt-2 text-[10px]" : "pt-3 text-[11.5px]"}`}>
+      <p className={`${compact ? "mb-1.5" : "mb-2"} font-semibold text-ink2`}>{t("pl_access_title")}</p>
+      <div className={`grid ${compact ? "grid-cols-2 gap-x-3 gap-y-1.5" : "grid-cols-1 gap-2"}`}>
+        {rows.map((row) => {
+          const Icon = row.active ? CheckCircle : XCircle;
+          return (
+            <span key={row.key} className={`flex items-start gap-2 ${row.active ? "text-ink2" : "text-ink3/60"}`}>
+              <Icon size={compact ? 11 : 13} weight="fill" className={`mt-0.5 shrink-0 ${row.active ? "text-accent" : "text-ink3/45"}`} />
+              <span className={row.active ? "" : "line-through decoration-ink3/35"}>{row.label}</span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Benchmark rows, grouped into their families, order preserved.
@@ -97,6 +187,9 @@ function byFamily(rows: Benchmark[]): FamilyGroup[] {
 
 type Cycle = "monthly" | "annual";
 
+/** Best annual saving across the catalogue — the number worth putting on the toggle. */
+const MAX_ANNUAL_SAVE = Math.max(...PLANS.map(annualDiscountPct));
+
 /** What the buy button actually commits the user to, spelled out. */
 function buyKey(plan: Plan, cycle: Cycle): "pl_buy_30" | "pl_buy_12m" {
   return cycle === "annual" && plan.annualUsdPerMonth != null ? "pl_buy_12m" : "pl_buy_30";
@@ -121,37 +214,57 @@ function TagChip({ plan }: { plan: Plan }) {
 
 function Estimates({ plan, compact }: { plan: Plan; compact?: boolean }) {
   const { t, n } = useI18n();
-  const images = estImages(plan);
-  const videos = estVideos(plan);
-  // Null means the anchor model lost its rate row. Drop that half of the line
-  // rather than printing a figure derived from nothing — and if both are gone,
-  // there is nothing honest left to say here.
-  if (images == null && videos == null) return null;
-  // Named, and stacked rather than strung across one line — the way theirs
-  // reads. "≈۱٬۶۷۵ تصویر" is a number you have to take on faith; "۱٬۶۷۵ تصویر
-  // با GPT Image" is one you can go and check against the studio. On a catalog
-  // whose models differ by 50x that distinction is the whole value of the line.
-  //
-  // The model name is Latin inside an RTL sentence, so it needs `bdi` or the
-  // digits either side of it reorder around the wrong edge.
-  const rows: { icon: typeof ImageSquare; count: number; unit: string; model: string | null }[] = [];
-  if (images != null) rows.push({ icon: ImageSquare, count: images, unit: t("w_est_img"), model: IMAGE_ANCHOR_NAME });
-  if (videos != null) rows.push({ icon: VideoCamera, count: videos, unit: t("w_est_vid"), model: VIDEO_ANCHOR_NAME });
+  const [showInfo, setShowInfo] = useState(false);
+  const benchmarks = buildBenchmarks();
+  const cheapest = (kind: Benchmark["kind"]) =>
+    benchmarks
+      .filter((row) => row.kind === kind && row.coins != null && row.coins > 0)
+      .reduce<Benchmark | null>((best, row) => (!best || (row.coins ?? Infinity) < (best.coins ?? Infinity) ? row : best), null);
+  const imageBenchmark = cheapest("image");
+  const videoBenchmark = cheapest("video");
+  const audioBenchmark = cheapest("audio");
+  if (!imageBenchmark && !videoBenchmark && !audioBenchmark) return null;
+
+  const rows: { icon: typeof ImageSquare; count: number; unit: string }[] = [];
+  for (const [benchmark, icon, unit] of [
+    [imageBenchmark, ImageSquare, t("w_est_img")],
+    [videoBenchmark, VideoCamera, t("w_est_vid")],
+    [audioBenchmark, MusicNotes, t("pl_est_audio")],
+  ] as const) {
+    if (!benchmark) continue;
+    const count = outputsPerMonth(plan, benchmark);
+    if (count != null) rows.push({ icon, count, unit });
+  }
 
   return (
-    <div className={`flex flex-col gap-1 ${compact ? "text-[11px]" : "text-[12px]"} text-ink2`}>
-      {rows.map(({ icon: Icon, count, unit, model }) => (
-        <span key={unit} className="flex items-center gap-1.5">
-          <Icon size={compact ? 12 : 14} className="shrink-0 text-accent" />
-          <span className="tabular-nums font-semibold text-ink">{n(count)}</span>
-          {unit}
-          {model && (
-            <span className="truncate text-ink3">
-              {t("w_est_with")} <bdi>{model}</bdi>
-            </span>
-          )}
-        </span>
-      ))}
+    <div>
+      <div className="relative mb-2 flex items-center gap-1.5">
+        <p className="text-[10px] font-medium text-ink3">{t("pl_cheapest_outputs")}</p>
+        <button
+          type="button"
+          aria-label={t("pl_estimate_info_label")}
+          aria-expanded={showInfo}
+          onClick={() => setShowInfo((value) => !value)}
+          onBlur={() => setShowInfo(false)}
+          className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-ink3 transition-colors hover:bg-white/5 hover:text-ink"
+        >
+          <Info size={13} weight="bold" />
+        </button>
+        {showInfo && (
+          <div className="absolute end-0 top-7 z-20 w-full max-w-[230px] rounded-xl border border-line bg-card2 p-3 text-[10px] font-normal leading-relaxed text-ink2 shadow-2xl">
+            {t("pl_estimate_info")}
+          </div>
+        )}
+      </div>
+      <div className="grid gap-1.5 text-ink2" style={{ gridTemplateColumns: `repeat(${rows.length}, minmax(0, 1fr))` }}>
+        {rows.map(({ icon: Icon, count, unit }) => (
+          <div key={unit} className="rounded-xl bg-black/15 px-1.5 py-2 text-center">
+            <Icon size={compact ? 12 : 14} className="mx-auto text-accent" />
+            <span className={`${compact ? "text-[14px]" : "text-[17px]"} mt-1 block tabular-nums font-bold text-ink`}>{n(count)}</span>
+            <span className="block text-[9px]">{unit}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -159,12 +272,7 @@ function Estimates({ plan, compact }: { plan: Plan; compact?: boolean }) {
 /** Monthly ⇄ yearly switch. Yearly carries the saving so the choice is legible. */
 function CycleToggle({ cycle, onChange }: { cycle: Cycle; onChange: (c: Cycle) => void }) {
   const { t, n, lang } = useI18n();
-  const plans = usePlanLadder();
   const pct = lang === "fa" ? "٪" : "%";
-  // The best saving on offer, read off the ladder that is actually being shown.
-  // It used to be a module constant computed at import time, which is a promise
-  // about prices made before the prices arrived.
-  const maxSave = Math.max(0, ...plans.map(annualDiscountPct));
   return (
     <div className="mx-4 mb-5 flex rounded-full border border-line bg-card p-1">
       {(["monthly", "annual"] as const).map((c) => {
@@ -177,19 +285,85 @@ function CycleToggle({ cycle, onChange }: { cycle: Cycle; onChange: (c: Cycle) =
             style={on ? { background: "var(--color-accent)", color: "var(--color-on-accent)" } : { color: "var(--color-ink2)" }}
           >
             {t(c === "monthly" ? "pl_monthly" : "pl_annual")}
-            {c === "annual" && maxSave > 0 && (
+            {c === "annual" && MAX_ANNUAL_SAVE > 0 && (
               <span
                 className="rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold"
                 style={on ? { background: "rgba(0,0,0,0.18)" } : { background: "var(--color-accent-soft)", color: "var(--color-accent)" }}
               >
                 {pct}
-                {n(maxSave)} {t("pl_save")}
+                {n(MAX_ANNUAL_SAVE)} {t("pl_save")}
               </span>
             )}
           </button>
         );
       })}
     </div>
+  );
+}
+
+/** Visual campaign timer. Replace DEMO_FESTIVAL_SECONDS with an API-provided
+ * end timestamp when campaigns are connected; the presentation stays intact. */
+function FestivalBanner({ onSeePlans }: { onSeePlans: () => void }) {
+  const { t, n, lang } = useI18n();
+  const [remaining, setRemaining] = useState(DEMO_FESTIVAL_SECONDS);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setRemaining((value) => (value > 0 ? value - 1 : 0)), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const days = Math.floor(remaining / 86400);
+  const hours = Math.floor((remaining % 86400) / 3600);
+  const minutes = Math.floor((remaining % 3600) / 60);
+  const seconds = remaining % 60;
+  const pad = (value: number) => n(value).padStart(2, lang === "fa" ? "۰" : "0");
+  const clock = [
+    { value: days, label: "pl_festival_days" },
+    { value: hours, label: "pl_festival_hours" },
+    { value: minutes, label: "pl_festival_minutes" },
+    { value: seconds, label: "pl_festival_seconds" },
+  ] as const;
+
+  return (
+    <section className="plans-festival-banner relative mb-8 overflow-hidden rounded-bezel border border-line bg-card px-5 py-5 md:px-7">
+      <div className="relative grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex rounded-full bg-accent px-3 py-1 text-[10px] font-bold text-on-accent">
+              {t("pl_festival_badge")}
+            </span>
+            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-medium text-white/75">
+              {t("pl_festival_limited")}
+            </span>
+          </div>
+          <h2 className="mt-3 max-w-[600px] font-display text-[24px] font-extrabold leading-tight md:text-[30px]">
+            {t("pl_festival_title")}
+          </h2>
+          <p className="mt-2 max-w-[620px] text-[12px] leading-relaxed text-white/70 md:text-[13px]">
+            {t("pl_festival_sub").replace("{n}", n(MAX_FESTIVAL_BONUS))}
+          </p>
+          <button onClick={onSeePlans} className="plans-modern-cta mt-4 gap-2 px-4 py-2.5 text-[12px] font-bold">
+            {t("pl_festival_cta")}
+            <ArrowRight size={14} weight="bold" className="rtl:rotate-180" />
+          </button>
+        </div>
+
+        <div className="plans-festival-clock rounded-2xl border border-line p-3">
+          <div className="mb-3 flex items-center gap-2 text-[10.5px] font-medium text-white/65">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#ffcf5a] shadow-[0_0_12px_#ffcf5a]" />
+            {t("pl_festival_timer")}
+          </div>
+          <div className="grid grid-cols-4 gap-2" dir="ltr">
+            {clock.map(({ value, label }) => (
+              <div key={label} className="plans-countdown-cell min-w-[52px] rounded-xl px-2 py-2.5 text-center md:min-w-[62px]">
+                <strong className="block font-display text-[20px] font-bold tabular-nums text-white md:text-[23px]">{pad(value)}</strong>
+                <span className="mt-1 block text-[9px] text-white/50">{t(label)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -204,6 +378,7 @@ function Price({ plan, cycle, account }: { plan: Plan; cycle: Cycle; account?: P
   const perMonth = effectiveUsd(plan, annual, account);
   const total = annualTotalUsd(plan, account);
   const off = annualDiscountPct(plan);
+  const annualSaving = annual && total != null ? Math.max(0, effectiveUsd(plan, false, account) * 12 - total) : 0;
 
   return (
     <>
@@ -225,63 +400,151 @@ function Price({ plan, cycle, account }: { plan: Plan; cycle: Cycle; account?: P
           {t("pl_today")}: {n(toman(total))} {t("w_toman")} ({t("pl_billed_annual")})
         </div>
       )}
+      {annualSaving > 0 && (
+        <div className="mt-1 text-[10.5px] text-[#ff9b42]">{t("pl_save_amount").replace("{n}", n(toman(annualSaving)))}</div>
+      )}
       {cycle === "annual" && plan.annualUsdPerMonth == null && <div className="mt-1 text-[10.5px] text-ink3">{t("pl_monthly_only")}</div>}
     </>
   );
 }
 
-/** Big tiered plan — the money cards. */
-function PlanCard({ plan, cycle, current, account }: { plan: Plan; cycle: Cycle; current: boolean; account?: PricingAccount | undefined }) {
+function PlanFlipShell({
+  plan,
+  cycle,
+  account,
+  compact = false,
+  children,
+}: {
+  plan: Plan;
+  cycle: Cycle;
+  account?: PricingAccount | undefined;
+  compact?: boolean;
+  children: ReactNode;
+}) {
   const { t, n } = useI18n();
+  const [flipped, setFlipped] = useState(false);
+  const audienceKey = PLAN_AUDIENCE_KEY[plan.id as keyof typeof PLAN_AUDIENCE_KEY];
+  const accents: Record<string, string> = {
+    starter: "#77808c",
+    basic: "#5b8ea9",
+    flow: "#5ba88e",
+    plus: "#8a70d6",
+    pro: "#00b4ff",
+    studio: "#795cff",
+    creator: "#ff793f",
+  };
+
   return (
-    <div
-      /* 82% of the viewport is a phone affordance — it leaves the next card
-         peeking so the row reads as scrollable. Above `md` the row becomes a
-         grid, so the card must stop being sized against the viewport. */
-      className="flex w-[82%] shrink-0 snap-center flex-col gap-3.5 rounded-bezel border bg-card p-4 md:w-auto"
-      style={{ borderColor: current ? "var(--color-accent)" : plan.popular ? "var(--color-accent)" : "var(--color-line)" }}
+    <article
+      className={`plans-flip-card ${compact ? "plans-flip-card--compact" : ""}`}
+      style={{ "--plan-color": accents[plan.id] ?? "var(--color-accent)" } as CSSProperties}
+      onMouseEnter={() => setFlipped(true)}
+      onMouseLeave={() => setFlipped(false)}
     >
-      <div className="flex items-center justify-between">
-        <span className="font-display text-[15px] font-semibold tracking-wide text-accent">{plan.name}</span>
-        {current ? (
-          <span className="flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-0.5 text-[10px] font-medium text-accent">
-            <CheckCircle size={11} weight="fill" />
-            {t("pl_current")}
-          </span>
-        ) : (
-          <TagChip plan={plan} />
-        )}
-      </div>
-
-      <div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="font-display text-[30px] font-semibold leading-none tabular-nums">{n(plan.coinsPerTerm)}</span>
-          <span className="text-[13px] text-ink2">{t("pl_coins_month")}</span>
-        </div>
-        {plan.bonusCoins > 0 && (
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-400">
-            <Gift size={12} weight="fill" />
-            {n(plan.bonusCoins)} {t("w_gift")}
+      <div className={`plans-flip-card__stage ${flipped ? "is-flipped" : ""}`}>
+        <div className="plans-flip-card__face plans-flip-card__front" onClick={() => setFlipped(true)}>
+          <div className="plans-flip-card__wash" aria-hidden />
+          <div className="relative z-10 flex min-w-0 items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-display text-[18px] font-bold tracking-wide" style={{ color: "var(--plan-color)" }}>
+                {plan.name}
+              </p>
+              {audienceKey && <p className="mt-1 text-[11px] text-ink3">{t(audienceKey)}</p>}
+            </div>
+            <TagChip plan={plan} />
           </div>
-        )}
-      </div>
 
-      <Estimates plan={plan} />
+          <div className="plans-flip-visual" aria-hidden>
+            <img src={`/plan-art/${plan.id}.png`} alt="" loading="lazy" />
+            <span className="plans-flip-visual__veil" />
+          </div>
 
-      <div className="border-t border-line pt-3">
-        <Price plan={plan} cycle={cycle} account={account} />
-        {/* Only the recommended plan gets the accent fill. Seven filled buttons
-            on one screen is the system's own "if two things are orange, one of
-            them is wrong" — and on a pricing table it also throws away the one
-            job the colour can do here, which is point at a plan. */}
-        <button
-          className={`${plan.popular || current ? "btn-accent" : "btn-quiet"} mt-3 flex w-full items-center justify-center rounded-2xl py-3 text-[13.5px] font-bold`}
-          disabled={current}
-        >
-          {t(current ? "pl_current" : buyKey(plan, cycle))}
-        </button>
+          <div className="relative z-10 mt-auto">
+            <div className="flex items-end justify-between gap-3 border-b border-line pb-4">
+              <div>
+                <p className="text-[10px] text-ink3">{t("pl_plan_credit")}</p>
+                <p className="mt-1 font-display text-[28px] font-bold tabular-nums">
+                  {n(monthlyCoins(plan))} <span className="text-[11px] font-normal text-ink2">{t("w_coins")}</span>
+                </p>
+              </div>
+              {plan.bonus > 0 && (
+                <span className="rounded-full bg-[#ff982f]/10 px-2.5 py-1 text-[10px] text-[#ffad55]">
+                  +{n(plan.bonus)} {t("w_gift")}
+                </span>
+              )}
+            </div>
+            <div className={`mt-4 gap-3 ${compact ? "grid" : "flex items-end justify-between"}`}>
+              <div className="plans-flip-price min-w-0 text-start">
+                <Price plan={plan} cycle={cycle} account={account} />
+              </div>
+              <span
+                className={`flex items-center gap-1.5 text-[10px] font-semibold ${compact ? "justify-self-end" : ""}`}
+                style={{ color: "var(--plan-color)" }}
+              >
+                {t("pl_flip_details")}
+                <ArrowRight size={12} className="rtl:rotate-180" />
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="plans-flip-card__face plans-flip-card__back">
+          <div className="z-20 -mx-4 -mt-4 mb-2 flex items-center justify-between gap-2 border-b border-line bg-card/95 px-4 py-2.5 backdrop-blur">
+            <div className="min-w-0">
+              <p className="font-display text-[15px] font-bold" style={{ color: "var(--plan-color)" }}>
+                {plan.name}
+              </p>
+              <p className="text-[9px] text-ink3">{t("pl_flip_back_sub")}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFlipped(false)}
+              className="rounded-lg border border-line px-2.5 py-1.5 text-[10px] text-ink2 hover:bg-card2"
+            >
+              {t("pl_flip_front")}
+            </button>
+          </div>
+          {children}
+        </div>
       </div>
-    </div>
+    </article>
+  );
+}
+
+/** Big tiered plan — the money cards. */
+function PlanCard({
+  plan,
+  cycle,
+  current,
+  account,
+  onSelect,
+}: {
+  plan: Plan;
+  cycle: Cycle;
+  current: boolean;
+  account?: PricingAccount | undefined;
+  onSelect: (plan: Plan) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <PlanFlipShell plan={plan} cycle={cycle} account={account}>
+      <div className="plans-flip-card__data flex flex-col gap-2">
+        <div className="plans-credit-panel rounded-2xl border border-line p-2.5">
+          <Estimates plan={plan} compact />
+        </div>
+
+        <PlanAccessList plan={plan} compact />
+
+        <UnlimitedBenefit plan={plan} compact />
+        <PlanFeatures plan={plan} compact />
+
+        <div className="plans-flip-card__cta mt-auto shrink-0 border-t border-line pt-2">
+          <button onClick={() => onSelect(plan)} className="plans-modern-cta w-full py-3 text-[13.5px] font-bold" disabled={current}>
+            {t(current ? "pl_current" : buyKey(plan, cycle))}
+          </button>
+        </div>
+      </div>
+    </PlanFlipShell>
   );
 }
 
@@ -291,41 +554,128 @@ function EntryCard({
   cycle,
   current,
   account,
+  onSelect,
 }: {
   plan: Plan;
   cycle: Cycle;
   current: boolean;
   account?: PricingAccount | undefined;
+  onSelect: (plan: Plan) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <PlanFlipShell plan={plan} cycle={cycle} account={account} compact>
+      <div className="plans-flip-card__data flex flex-col gap-2">
+        <div className="plans-credit-panel rounded-xl border border-line p-2.5">
+          <Estimates plan={plan} compact />
+        </div>
+        <PlanAccessList plan={plan} compact />
+        <UnlimitedBenefit plan={plan} compact />
+        <PlanFeatures plan={plan} compact />
+        <button
+          onClick={() => onSelect(plan)}
+          className="plans-modern-cta plans-flip-card__cta mt-auto w-full shrink-0 py-2.5 text-[12px] font-bold"
+          disabled={current}
+        >
+          {t(current ? "pl_current" : buyKey(plan, cycle))}
+        </button>
+      </div>
+    </PlanFlipShell>
+  );
+}
+
+/**
+ * Frontend-owned checkout review. It deliberately stops before order creation:
+ * selecting and explaining a purchase belongs here, while creating an order,
+ * reserving its price and returning a gateway URL belongs to the payments API.
+ */
+function CheckoutSheet({
+  plan,
+  cycle,
+  account,
+  onClose,
+}: {
+  plan: Plan;
+  cycle: Cycle;
+  account?: PricingAccount | undefined;
+  onClose: () => void;
 }) {
   const { t, n } = useI18n();
+  const annual = cycle === "annual" && plan.annualUsdPerMonth != null;
+  const monthlyPrice = effectiveUsd(plan, annual, account);
+  const total = annual ? annualTotalUsd(plan, account) : monthlyPrice;
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
+
   return (
-    <div
-      className="relative flex flex-col gap-2 rounded-card border bg-card p-3.5"
-      style={{ borderColor: current ? "var(--color-accent)" : "var(--color-line)" }}
-    >
-      {plan.tag && !current && (
-        <span className="absolute -top-2 start-3">
-          <TagChip plan={plan} />
-        </span>
-      )}
-      <div className="flex items-baseline justify-between">
-        <span className="font-display text-[12.5px] font-semibold tracking-wide text-accent">{plan.name}</span>
-        <span className="flex items-baseline gap-1">
-          <span className="text-[19px] font-semibold tabular-nums">{n(plan.coinsPerTerm)}</span>
-          <span className="text-[11px] text-ink2">{t("w_coins")}</span>
-        </span>
-      </div>
-      <Estimates plan={plan} compact />
-      <div className="mt-0.5">
-        <Price plan={plan} cycle={cycle} account={account} />
-      </div>
-      {/* Entry plans are never the recommendation, so they are never filled. */}
-      <button
-        className={`${current ? "btn-accent" : "btn-quiet"} mt-1 flex items-center justify-center rounded-xl py-2 text-[12px] font-bold`}
-        disabled={current}
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="presentation">
+      <button className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-label={t("pl_checkout_close")} onClick={onClose} />
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="checkout-title"
+        className="relative z-10 w-full max-w-[480px] rounded-t-[28px] border border-line bg-card p-5 shadow-2xl md:rounded-[28px] md:p-6"
       >
-        {t(current ? "pl_current" : buyKey(plan, cycle))}
-      </button>
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line2 md:hidden" />
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] text-ink3">DEEV</p>
+            <h2 id="checkout-title" className="mt-0.5 text-[20px] font-bold">
+              {t("pl_checkout_title")}
+            </h2>
+          </div>
+          <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full bg-card2" aria-label={t("pl_checkout_close")}>
+            <X size={16} weight="bold" />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-bezel border border-accent/40 bg-accent-soft/30 p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[11px] text-ink3">{t("pl_checkout_plan")}</p>
+              <bdi className="mt-1 block font-display text-[22px] font-semibold text-accent">{plan.name}</bdi>
+            </div>
+            <div className="text-end">
+              <p className="text-[11px] text-ink3">{t("pl_checkout_allowance")}</p>
+              <p className="mt-1 text-[20px] font-semibold tabular-nums">
+                {n(monthlyCoins(plan))} <span className="text-[11px] font-normal text-ink2">{t("w_coins")}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <dl className="mt-4 divide-y divide-line rounded-bezel border border-line px-4">
+          <div className="flex items-center justify-between py-3 text-[12.5px]">
+            <dt className="text-ink2">{t("pl_checkout_cycle")}</dt>
+            <dd className="font-medium">{t(annual ? "pl_checkout_annual_cycle" : "pl_checkout_monthly_cycle")}</dd>
+          </div>
+          <div className="flex items-center justify-between py-3 text-[12.5px]">
+            <dt className="text-ink2">{t("pl_checkout_due")}</dt>
+            <dd className="font-semibold tabular-nums">
+              {n(toman(total ?? monthlyPrice))} {t("w_toman")}
+            </dd>
+          </div>
+        </dl>
+
+        <p className="mt-3 text-[11px] leading-relaxed text-ink3">{t(annual ? "pl_checkout_annual_hint" : "pl_checkout_monthly_hint")}</p>
+
+        <button className="plans-modern-cta mt-5 w-full gap-2 py-3.5 text-[13px] font-bold" disabled>
+          <LockKey size={15} weight="fill" />
+          {t("pl_checkout_unavailable")}
+        </button>
+        <p className="mt-2 text-center text-[10.5px] leading-relaxed text-ink3">{t("pl_checkout_backend_note")}</p>
+      </section>
     </div>
   );
 }
@@ -343,15 +693,14 @@ function EntryCard({
  * stated setting printed next to the model name so the number can be checked.
  * A model whose rate has gone missing shows a dash, never an invented count.
  */
-function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId: string | null }) {
+function ComparisonTable({ currentPlanId }: { currentPlanId: string | null }) {
   const { t, n } = useI18n();
-  const plans = usePlanLadder();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // Every tier, cheapest first — the table scrolls, so there is no reason to
   // hide half the ladder. A comparison that omits the plan you are on is not
   // one you can act from.
-  const cols = [...plans].sort((a, b) => a.coinsPerTerm - b.coinsPerTerm);
+  const cols = [...PLANS].sort((a, b) => monthlyCoins(a) - monthlyCoins(b));
   // Built at render, not at module load: some rates arrive from the live table
   // after mount, and a list frozen at import time would quote the fallbacks
   // forever.
@@ -392,9 +741,9 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
             <tr>
               <th className="sticky w-[34%] p-3 align-bottom sm:w-[26%]" style={{ insetInlineStart: 0, background: "var(--color-bg)" }} />
               {cols.map((p) => {
-                const lead = p.popular || p.code === currentPlanId;
+                const lead = p.popular || p.id === currentPlanId;
                 return (
-                  <th key={p.code} className="px-2 py-3 align-bottom text-center">
+                  <th key={p.id} className="px-2 py-3 align-bottom text-center">
                     <span className="flex items-center justify-center gap-1.5">
                       <bdi className="text-[17px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)" }}>
                         {p.name}
@@ -404,7 +753,7 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                           className="rounded px-1 py-px text-[9px] font-bold"
                           style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}
                         >
-                          {p.code === currentPlanId ? t("pl_current") : "بهترین"}
+                          {p.id === currentPlanId ? t("pl_current") : "بهترین"}
                         </span>
                       )}
                     </span>
@@ -418,7 +767,7 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                         table answers "how much can I make", which is a question
                         about the allowance, not the bill. */}
                     <span className="mt-1 block whitespace-nowrap text-[12px] font-normal text-ink2">
-                      <span className="vg-numeric">{n(p.coinsPerTerm)}</span> سکه
+                      <span className="vg-numeric">{n(monthlyCoins(p))}</span> سکه
                     </span>
                   </th>
                 );
@@ -483,7 +832,7 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                           {cols.map((p) => {
                             const v = outputsPerMonth(p, b);
                             return (
-                              <td key={p.code} className="px-2 py-2 text-center align-bottom" style={{ borderTop: rule }}>
+                              <td key={p.id} className="px-2 py-2 text-center align-bottom" style={{ borderTop: rule }}>
                                 {v == null || v === 0 ? (
                                   // A plan whose month does not buy even one is
                                   // an ×, not a zero. Zero reads as a number you
@@ -554,9 +903,9 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                               <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5">
                                 {cols.map((p) => {
                                   const v = outputsPerMonth(p, b);
-                                  const lead = p.popular || p.code === currentPlanId;
+                                  const lead = p.popular || p.id === currentPlanId;
                                   return (
-                                    <div key={p.code} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5">
+                                    <div key={p.id} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5">
                                       <bdi
                                         className="truncate text-[11.5px]"
                                         style={{ color: lead ? "var(--color-accent)" : "var(--color-ink2)" }}
@@ -596,7 +945,6 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink3">
         اعداد سقف‌اند: سکه‌ها بین مدل‌ها مشترک‌اند، پس اگر از چند مدل استفاده کنی تعدادها بین‌شان تقسیم می‌شود.
-        {cycle === "annual" && " سکه‌ی ماهانه‌ی پلن سالانه همان مقدار است؛ فقط قیمتش کمتر می‌شود."}
         {" ترکیبی که پرووایدر نمی‌فروشد در جدول نمی‌آید."}
       </p>
     </section>
@@ -617,8 +965,8 @@ export default function Plans({
   onBack: () => void;
 }) {
   const { t, n, lang } = useI18n();
-  const plans = usePlanLadder();
   const [cycle, setCycle] = useState<Cycle>("monthly");
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
   // Switching cycle re-lays out the cards, and an RTL snap container anchors to
   // the far end when its content resizes — which dumped the user on the most
@@ -628,9 +976,9 @@ export default function Plans({
     carRef.current?.scrollTo({ left: 0 });
   }, [cycle]);
 
-  const current = plans.find((p) => p.code === currentPlanId) ?? null;
-  const main = plans.filter((p) => p.group === "main");
-  const entry = plans.filter((p) => p.group === "entry");
+  const current = PLANS.find((p) => p.id === currentPlanId) ?? null;
+  const main = PLANS.filter((p) => p.group === "main");
+  const entry = PLANS.filter((p) => p.group === "entry");
 
   // The date that matters is the next grant to expire, not "when the plan ends".
   // A user can hold a plan bucket and a gift bucket at once, and the gift almost
@@ -647,7 +995,7 @@ export default function Plans({
        carousel at any width, so a 1440px window got a phone strip down the
        middle. It now runs in a 1100px container, and the two rows that were
        carousels become grids from `md`. */
-    <div className="relative z-10 mx-auto min-h-[100dvh] w-full max-w-[1100px] px-4 pb-10 pt-4 md:px-8">
+    <div className="plans-art-page relative z-10 mx-auto min-h-[100dvh] w-full max-w-[1100px] px-4 pb-10 pt-4 md:px-8">
       <div className="mb-5 flex items-center gap-3">
         <button
           onClick={onBack}
@@ -658,6 +1006,24 @@ export default function Plans({
         </button>
         <div className="text-[15px] font-medium">{t("pl_title")}</div>
       </div>
+
+      <FestivalBanner onSeePlans={() => document.getElementById("plan-cards")?.scrollIntoView({ behavior: "smooth", block: "start" })} />
+
+      <section className="mb-7 px-1 py-2 text-center">
+        <p className="text-[11px] font-semibold text-accent">{t("pl_hero_eyebrow")}</p>
+        <h1 className="plans-reference-title mx-auto mt-2 max-w-[760px] font-display text-[30px] font-extrabold leading-[1.3] md:text-[42px]">
+          {t("pl_hero_title")}
+        </h1>
+        <p className="mx-auto mt-3 max-w-[650px] text-[12.5px] leading-7 text-ink2 md:text-[14px]">{t("pl_hero_sub")}</p>
+        <div className="mx-auto mt-5 flex max-w-[850px] flex-wrap justify-center gap-x-5 gap-y-2 text-[11px] text-ink2">
+          {["pl_benefit_models", "pl_benefit_payment", "pl_benefit_training", "pl_benefit_support", "pl_benefit_shared"].map((key) => (
+            <span key={key} className="flex items-center gap-1.5">
+              <CheckCircle size={12} weight="fill" className="text-accent" />
+              {t(key as "pl_benefit_models")}
+            </span>
+          ))}
+        </div>
+      </section>
 
       {/* Balance and the not-subscribed notice sit side by side once there is
           room — they are two halves of the same "where you stand" statement. */}
@@ -710,7 +1076,7 @@ export default function Plans({
           side by side; a plain grid from `md`, where they can and where a
           horizontal scroll hides two thirds of the catalogue behind a gesture
           nobody makes with a mouse. */}
-      <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] text-ink2">
+      <div id="plan-cards" className="mb-2.5 flex scroll-mt-5 items-center gap-1.5 text-[12.5px] text-ink2">
         <Lightning size={14} weight="fill" className="text-accent" />
         {t("pl_main_group")}
       </div>
@@ -719,23 +1085,20 @@ export default function Plans({
         className="no-scrollbar mb-7 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 md:grid md:grid-cols-3 md:overflow-visible"
       >
         {main.map((p) => (
-          <PlanCard key={p.code} plan={p} cycle={cycle} current={p.code === currentPlanId} account={account} />
+          <PlanCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} account={account} onSelect={setSelectedPlan} />
         ))}
       </div>
 
       <div className="mb-2.5 text-[12.5px] text-ink2">{t("pl_entry_group")}</div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
         {entry.map((p) => (
-          <EntryCard key={p.code} plan={p} cycle={cycle} current={p.code === currentPlanId} account={account} />
+          <EntryCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} account={account} onSelect={setSelectedPlan} />
         ))}
       </div>
 
-      <ComparisonTable cycle={cycle} currentPlanId={currentPlanId} />
+      <ComparisonTable currentPlanId={currentPlanId} />
 
-      {/* Owner trimmed this to the expiry line alone. The "no auto-renewal" fact
-          it used to spell out now lives in the button itself — "خرید ۳۰ روزه"
-          says the same thing without a paragraph of fine print. */}
-      <p className="mt-6 text-center text-[11px] leading-relaxed text-ink3">{t("pl_expiry_note")}</p>
+      {selectedPlan && <CheckoutSheet plan={selectedPlan} cycle={cycle} account={account} onClose={() => setSelectedPlan(null)} />}
     </div>
   );
 }

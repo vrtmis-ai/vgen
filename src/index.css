@@ -454,6 +454,304 @@ input {
   cursor: default;
 }
 
+/* Pricing CTAs share the cards' clean digital finish. */
+.plans-modern-cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 177, 99, 0.5);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffad5a, #ff7a32 58%, #f96629);
+  color: #170b04;
+  box-shadow:
+    0 12px 28px rgba(255, 113, 43, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  transition:
+    transform 180ms ease,
+    filter 180ms ease,
+    box-shadow 180ms ease;
+}
+.plans-modern-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 18%, rgba(255, 255, 255, 0.2) 46%, transparent 68%);
+  transform: translateX(-120%);
+  transition: transform 450ms ease;
+}
+.plans-modern-cta:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: saturate(1.08) brightness(1.04);
+  box-shadow:
+    0 16px 34px rgba(255, 113, 43, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+.plans-modern-cta:hover:not(:disabled)::before {
+  transform: translateX(120%);
+}
+.plans-modern-cta:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+.plans-modern-cta:focus-visible {
+  outline: 2px solid #ff9a4a;
+  outline-offset: 3px;
+}
+.plans-modern-cta:disabled {
+  border-color: var(--color-line);
+  background: var(--color-card2);
+  color: var(--color-ink3);
+  box-shadow: none;
+  cursor: default;
+}
+
+/* ---- plans: creative studio atmosphere ----------------------
+   Pricing is still a decision screen, but DEEV sells creative output rather
+   than accounting software. These lights stay behind the content and the
+   surfaces remain dark enough for the existing contrast tokens. */
+.plans-festival-banner {
+  background:
+    radial-gradient(circle at 84% 10%, rgba(255, 126, 32, 0.2), transparent 28%), linear-gradient(120deg, #181513, #111214 58%, #17120f),
+    var(--color-card);
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.065);
+}
+.plans-festival-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  pointer-events: none;
+  background: linear-gradient(90deg, #ff6b2c, #ffb347 58%, #ff7247);
+}
+.plans-festival-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.35) 0.7px, transparent 0.8px);
+  background-size: 13px 13px;
+  mask-image: linear-gradient(90deg, transparent 12%, black 75%, transparent);
+}
+.plans-festival-clock {
+  background: rgba(5, 5, 6, 0.5);
+  box-shadow:
+    0 16px 35px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+.plans-countdown-cell {
+  background: linear-gradient(180deg, rgba(255, 143, 56, 0.09), rgba(255, 255, 255, 0.025));
+  border: 1px solid rgba(255, 150, 67, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+.plans-reference-title {
+  color: transparent;
+  background: linear-gradient(92deg, #ffc45c, #ff943f 58%, #ff6b6b);
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+.plans-plan-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+@media (hover: hover) {
+  .plans-plan-card:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      0 34px 85px rgba(0, 0, 0, 0.38),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+}
+.plans-plan-card::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  inset: 0 0 auto;
+  height: 2px;
+}
+.plans-plan-card--pro {
+  background: linear-gradient(150deg, rgba(0, 180, 255, 0.075), var(--color-card) 35%);
+}
+.plans-plan-card--pro::before {
+  background: #00b4ff;
+}
+.plans-plan-card--studio {
+  background: linear-gradient(150deg, rgba(127, 91, 255, 0.08), var(--color-card) 35%);
+}
+.plans-plan-card--studio::before {
+  background: #795cff;
+}
+.plans-plan-card--creator {
+  background: linear-gradient(150deg, rgba(255, 112, 47, 0.105), var(--color-card) 35%);
+}
+.plans-plan-card--creator::before {
+  background: #ff793f;
+}
+.plans-credit-panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.018));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.plans-tool-chip {
+  background: rgba(255, 255, 255, 0.032);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.plans-entry-card {
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(255, 126, 46, 0.035), var(--color-card) 34%);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+.plans-entry-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 143, 61, 0.65), transparent);
+}
+
+/* Flip pricing cards: concise decision data on the face, full plan details on
+   the reverse. Hover handles pointer devices; the face itself is tappable on
+   touch screens. */
+.plans-flip-card {
+  width: 82%;
+  height: 680px;
+  flex-shrink: 0;
+  scroll-snap-align: center;
+  perspective: 2000px;
+}
+.plans-flip-card--compact {
+  width: 100%;
+  height: 680px;
+}
+.plans-flip-card__stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.plans-flip-card__stage.is-flipped {
+  transform: rotateY(180deg);
+}
+[dir="rtl"] .plans-flip-card__stage.is-flipped {
+  transform: rotateY(-180deg);
+}
+.plans-flip-card__face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--plan-color) 7%, var(--color-card)), var(--color-card) 38%);
+  box-shadow:
+    0 24px 65px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.plans-flip-card__front {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  cursor: pointer;
+}
+.plans-flip-card__back {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow: hidden;
+  transform: rotateY(180deg);
+}
+.plans-flip-card__data {
+  min-height: 0;
+  flex: 1;
+}
+.plans-flip-card__cta {
+  position: relative;
+  z-index: 2;
+}
+[dir="rtl"] .plans-flip-card__back {
+  transform: rotateY(-180deg);
+}
+.plans-flip-card__wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--plan-color) 20%, transparent), transparent 28%),
+    linear-gradient(145deg, color-mix(in srgb, var(--plan-color) 5%, transparent), transparent 48%);
+}
+.plans-flip-visual {
+  position: relative;
+  z-index: 1;
+  width: min(92%, 260px);
+  height: 290px;
+  margin: 28px auto 22px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--plan-color) 28%, transparent);
+  border-radius: 24px;
+  background: #0b0b0c;
+  box-shadow:
+    0 24px 55px color-mix(in srgb, var(--plan-color) 18%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.plans-flip-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition:
+    transform 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 500ms ease;
+}
+.plans-flip-card:hover .plans-flip-visual img {
+  transform: scale(1.05);
+  filter: saturate(1.08) contrast(1.04);
+}
+.plans-flip-visual__veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 58%, rgba(7, 7, 8, 0.78));
+}
+.plans-flip-card--compact .plans-flip-price .font-display {
+  font-size: 19px;
+}
+.plans-flip-card--compact .plans-flip-card__back {
+  padding: 14px;
+}
+.plans-flip-card--compact .plans-flip-card__back > :first-child {
+  margin-inline: -14px;
+  margin-top: -14px;
+  padding-inline: 14px;
+}
+@media (min-width: 768px) {
+  .plans-flip-card {
+    width: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plans-flip-card__stage {
+    transition-duration: 1ms;
+  }
+  .plans-flip-visual img {
+    transition: none;
+  }
+}
+
 /* ---- motion helpers ----------------------------------------- */
 @keyframes vg-shimmer {
   100% {
