@@ -9,6 +9,17 @@ Object.defineProperty(window, "scrollTo", {
   value: vi.fn(),
 });
 
+/**
+ * jsdom implements `window.scrollTo` and nothing else — an element has no
+ * `scrollTo` at all, so a carousel resetting its own scroll position throws
+ * rather than doing nothing. The plans screen does exactly that when the
+ * billing cycle changes, which took its whole suite down.
+ */
+Object.defineProperty(Element.prototype, "scrollTo", {
+  configurable: true,
+  value: vi.fn(),
+});
+
 class TestResizeObserver implements ResizeObserver {
   observe() {}
   unobserve() {}

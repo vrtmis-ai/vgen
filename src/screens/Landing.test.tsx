@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../lib/i18n";
 import { FAMILIES } from "../data/models";
+import { PLAN_LADDER } from "../data/planLadder";
 import Landing, { HERO_MODEL_IDS } from "./Landing";
 
 // English, so the button assertions below read as the labels a reviewer sees.
@@ -12,7 +13,7 @@ describe("Landing authentication actions", () => {
   it("renders the DEEV product name", () => {
     render(
       <LanguageProvider initialLang="en">
-        <Landing onSignIn={vi.fn()} onSignUp={vi.fn()} />
+        <Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -26,7 +27,7 @@ describe("Landing authentication actions", () => {
 
     render(
       <LanguageProvider initialLang="en">
-        <Landing onSignIn={onSignIn} onSignUp={onSignUp} />
+        <Landing plans={PLAN_LADDER} onSignIn={onSignIn} onSignUp={onSignUp} />
       </LanguageProvider>,
     );
 
@@ -62,7 +63,7 @@ describe("Landing hero model row", () => {
   it("shows every one of them to the visitor", () => {
     render(
       <LanguageProvider initialLang="en">
-        <Landing onSignIn={vi.fn()} onSignUp={vi.fn()} />
+        <Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />
       </LanguageProvider>,
     );
 

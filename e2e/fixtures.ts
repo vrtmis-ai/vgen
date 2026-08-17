@@ -1,5 +1,15 @@
 import type { Page, Route } from "@playwright/test";
 import { FAMILIES } from "../src/data/models";
+/**
+ * The snapshot itself, not `PLAN_LADDER` from `src/data/plans`.
+ *
+ * Playwright runs these files through Node's own ESM loader rather than a
+ * bundler, and Node insists on the import attribute below for JSON. Reaching
+ * through `plans.ts` would pull in the pricing tables' JSON imports as well,
+ * which do not carry one — and do not need one, because everything else that
+ * imports them is bundled. The file is already the exact `GET /plans` payload.
+ */
+import planPayload from "../src/data/plans.snapshot.json" with { type: "json" };
 
 export interface ApiScenario {
   anonymous?: boolean;
@@ -24,6 +34,8 @@ export async function mockApi(page: Page, scenario: ApiScenario = {}): Promise<v
     ),
   );
   await page.route("**/api/v1/catalog", (route) => json(route, { version: "e2e-v1", publishedAt: 1, families: FAMILIES }));
+  // Served to anonymous visitors too — the landing page prices two plans from it.
+  await page.route("**/api/v1/plans", (route) => json(route, planPayload));
   await page.route("**/api/v1/wallet", (route) => json(route, { spendable: 1000, grants: [] }));
   await page.route("**/api/v1/gallery**", (route) => json(route, { items: [] }));
   await page.route("**/api/v1/generation/quotes", (route) => {

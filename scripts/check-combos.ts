@@ -24,6 +24,7 @@ import { fileURLToPath } from "node:url";
 import { FAMILIES, variantControls, type Control } from "../src/data/models";
 import { priceCoins } from "../src/data/pricing";
 import { MODEL_MIN_TIER, auditPlans } from "../src/data/plans";
+import { PLAN_LADDER } from "../src/data/planLadder";
 import type { InputMap, InputValue } from "../src/components/controls";
 
 // keys that select a rate row; varying anything else can't change the price
@@ -140,7 +141,7 @@ async function main() {
   // than its cycle's margin floor, and the estimate anchors must still have rates. The
   // ladder check used to run as a bare call during module evaluation, so a bad
   // edit threw before React mounted — a blank screen instead of a failed build.
-  const planProblems = auditPlans();
+  const planProblems = auditPlans(PLAN_LADDER);
   if (planProblems.length) {
     console.error(`${planProblems.length} problems in the plan table:`);
     for (const p of planProblems) console.error(`  ${p}`);

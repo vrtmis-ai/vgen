@@ -3,7 +3,8 @@ import { motion, useMotionValueEvent, useScroll, useTransform } from "framer-mot
 import { ArrowLeft, Check, CaretDown, DeviceMobile, List, Sparkle, X } from "@phosphor-icons/react";
 import { FAMILIES, getFamily, type Family } from "../data/models";
 import { COMMUNITY } from "../data/community";
-import { PLANS, monthlyCoins, toman, annualDiscountPct, effectiveUsd, type Plan } from "../data/plans";
+import { toman, annualDiscountPct, effectiveUsd } from "../data/plans";
+import type { Plan } from "../runtime/contracts/plans";
 import { minCoinsForFamily } from "../data/pricing";
 import { Marquee } from "../components/Marquee";
 import { ModelMark } from "../components/ModelMark";
@@ -983,13 +984,14 @@ function Trust() {
 }
 
 /* ---------- plans ----------
-   Real rows from plans.ts. The landing shows the two "main" plans; the full
-   ladder lives on the buy screen, and duplicating it here would be a second
-   place to forget to update. */
-function Plans({ onSignIn }: { onSignIn: () => void }) {
+   The two "main" plans, off the same `GET /plans` ladder the buy screen prices
+   from. The full ladder lives on that screen; repeating it here would be a
+   second place to forget to update, and quoting it from a compiled-in copy
+   would be a landing page advertising a price the database has moved on from. */
+function Plans({ plans, onSignIn }: { plans: readonly Plan[]; onSignIn: () => void }) {
   const { t, n } = useI18n();
   const [annual, setAnnual] = useState(false);
-  const main = PLANS.filter((p) => p.group === "main").slice(0, 2);
+  const main = plans.filter((p) => p.group === "main").slice(0, 2);
   return (
     <Section light="start" id="plans">
       {/* Heading and billing switch on one row at desktop. Stacked and centred,
@@ -1030,7 +1032,7 @@ function Plans({ onSignIn }: { onSignIn: () => void }) {
 
       <div className="mx-auto grid max-w-[840px] gap-3 md:grid-cols-2">
         {main.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} annual={annual} onSignIn={onSignIn} />
+          <PlanCard key={plan.code} plan={plan} annual={annual} onSignIn={onSignIn} />
         ))}
       </div>
 
@@ -1072,7 +1074,7 @@ function PlanCard({ plan, annual, onSignIn }: { plan: Plan; annual: boolean; onS
         {plan.name}
       </span>
       <span className="mt-1 text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
-        {n(monthlyCoins(plan))} {t("lp_coins_month")}
+        {n(plan.coinsPerTerm)} {t("lp_coins_month")}
       </span>
 
       <div className="mt-5 flex items-baseline gap-1.5">
@@ -1309,7 +1311,12 @@ function Footer() {
 }
 
 /* ============================================================ */
-export default function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) {
+/**
+ * `plans` is a prop rather than a context read because this is the one screen
+ * that renders with nobody signed in, above the whole authenticated tree — the
+ * providers the app shell mounts are not there yet.
+ */
+export default function Landing({ plans, onSignIn, onSignUp }: { plans: readonly Plan[]; onSignIn: () => void; onSignUp: () => void }) {
   return (
     /* `overflow-x: clip`, not `hidden`. The section lights are meant to spill
        past their section — that overhang is what stops them looking like boxes
@@ -1335,7 +1342,7 @@ export default function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; 
       <TryIt onSignUp={onSignUp} />
       <Comparison />
       <HowItWorks />
-      <Plans onSignIn={onSignUp} />
+      <Plans plans={plans} onSignIn={onSignUp} />
       <Trust />
       <Faq />
       <Closing onSignIn={onSignUp} />

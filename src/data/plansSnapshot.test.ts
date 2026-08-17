@@ -1,63 +1,68 @@
 import { describe, expect, it } from "vitest";
-import snapshot from "./plans.snapshot.json";
-import { PLANS, monthlyCoins, type Plan } from "./plans";
+import rowList from "./plans.rows.json";
+import { PLAN_LADDER } from "./planLadder";
 
 /**
  * Half of a two-part guarantee, and neither half is worth much alone.
  *
- * This half is offline: the committed snapshot says the same thing as the plan
- * ladder the screens render. The other half runs in CI against a real database
- * — reseed, re-export, diff — and says the database serves this snapshot.
- * Together they mean the table bills exactly what the card advertises, which is
- * the one thing a pricing page must never get wrong.
+ * This half is offline: the ladder the app renders — `plans.snapshot.json`, the
+ * database's own export — says the same thing as `plans.rows.json`, the file the
+ * seeder is fed. The other half runs in CI against a real database: reseed,
+ * re-export, diff. Together they mean the table bills exactly what the card
+ * advertises, which is the one thing a pricing page must never get wrong.
+ *
+ * It used to compare the snapshot against a `PLANS` array declared in
+ * `plans.ts`. That array is gone — screens read `GET /plans` now — so the
+ * comparison is between the seeder's input and its output, which is the step
+ * that could actually drop a field.
  */
-interface SnapshotPlan {
+interface StoredPlan {
   code: string;
   name: string;
   tier: 1 | 2 | 3;
-  coinsPerTerm: number;
   baseCoins: number;
   bonusCoins: number;
-  termDays: number;
   monthlyUsd: number;
   annualUsdPerMonth: number | null;
   group: "entry" | "main";
-  tag?: string;
+  tag: string | null;
   popular: boolean;
+  sortOrder: number;
   maxConcurrentJobs: number;
 }
 
-const plans = (snapshot as { plans: SnapshotPlan[] }).plans;
-const byCode = new Map(plans.map((plan) => [plan.code, plan]));
+const rows = (rowList as { rows: StoredPlan[] }).rows;
+const byCode = new Map(PLAN_LADDER.map((plan) => [plan.code, plan]));
 
 describe("the committed plan snapshot", () => {
-  it("covers every plan on the ladder, in the same order", () => {
-    expect(plans.map((plan) => plan.code)).toEqual(PLANS.map((plan) => plan.id));
+  it("covers every seeded plan, in the order the rows declare", () => {
+    const seeded = [...rows].sort((a, b) => a.sortOrder - b.sortOrder).map((row) => row.code);
+    expect(PLAN_LADDER.map((plan) => plan.code)).toEqual(seeded);
   });
 
-  it.each(PLANS.map((plan): [string, Plan] => [plan.id, plan]))("matches %s coin for coin", (code, plan) => {
-    const stored = byCode.get(code);
-    expect(stored).toBeDefined();
+  it.each(rows.map((row): [string, StoredPlan] => [row.code, row]))("matches %s coin for coin", (code, row) => {
+    const served = byCode.get(code);
+    expect(served).toBeDefined();
 
     // The number a customer is buying. If only one assertion survived, this one.
-    expect(stored?.coinsPerTerm).toBe(monthlyCoins(plan));
-    expect(stored?.baseCoins).toBe(plan.coinsPerMonth);
-    expect(stored?.bonusCoins).toBe(plan.bonus);
-    expect(stored?.monthlyUsd).toBe(plan.monthlyUsd);
-    expect(stored?.annualUsdPerMonth).toBe(plan.annualUsdPerMonth ?? null);
-    expect(stored?.tier).toBe(plan.tier);
-    expect(stored?.name).toBe(plan.name);
-    expect(stored?.group).toBe(plan.group);
-    expect(stored?.tag).toBe(plan.tag);
-    expect(stored?.popular).toBe(plan.popular ?? false);
-    expect(stored?.maxConcurrentJobs).toBe(plan.maxConcurrentJobs);
+    expect(served?.coinsPerTerm).toBe(row.baseCoins + row.bonusCoins);
+    expect(served?.baseCoins).toBe(row.baseCoins);
+    expect(served?.bonusCoins).toBe(row.bonusCoins);
+    expect(served?.monthlyUsd).toBe(row.monthlyUsd);
+    expect(served?.annualUsdPerMonth).toBe(row.annualUsdPerMonth);
+    expect(served?.tier).toBe(row.tier);
+    expect(served?.name).toBe(row.name);
+    expect(served?.group).toBe(row.group);
+    expect(served?.tag).toBe(row.tag ?? undefined);
+    expect(served?.popular).toBe(row.popular);
+    expect(served?.maxConcurrentJobs).toBe(row.maxConcurrentJobs);
   });
 
   // Paying more must never buy you less parallelism. The coins ladder has an
   // audit for exactly this inversion (`auditPlans`) because it shipped broken
   // once; this is the same rule for the other thing a plan sells.
   it("never lets a dearer plan run fewer generations at once", () => {
-    const byPrice = [...PLANS].sort((a, b) => a.monthlyUsd - b.monthlyUsd);
+    const byPrice = [...PLAN_LADDER].sort((a, b) => a.monthlyUsd - b.monthlyUsd);
     for (let i = 1; i < byPrice.length; i++) {
       const cheaper = byPrice[i - 1]!;
       const dearer = byPrice[i]!;
@@ -70,6 +75,6 @@ describe("the committed plan snapshot", () => {
   // which is where the annual margin comes from. A 365-day term here would mean
   // someone gets a year of coins on day one.
   it("grants monthly on every plan, annual ones included", () => {
-    for (const plan of plans) expect(plan.termDays).toBe(30);
+    for (const plan of PLAN_LADDER) expect(plan.termDays).toBe(30);
   });
 });
