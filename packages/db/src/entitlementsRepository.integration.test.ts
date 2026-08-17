@@ -1,6 +1,6 @@
 import type { Sql, TransactionSql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { PostgresEntitlementsRepository, type UnlimitedGrant } from "./entitlementsRepository";
+import { PostgresEntitlementsRepository } from "./entitlementsRepository";
 import { connect, inRollback, makeUser } from "./integrationHarness";
 
 let sql: Sql;
@@ -269,12 +269,6 @@ describe("finding an unlimited grant", () => {
 });
 
 describe("the daily allowance", () => {
-  const grantOf = (f: Fixture, dailyCap: number | null): UnlimitedGrant => ({
-    id: f.grantId,
-    servingModelId: f.servingModelId,
-    dailyCap,
-  });
-
   it("reports a full allowance before anything is spent", async () => {
     await inRollback(sql, async (tx) => {
       const f = await seed(tx, { dailyCap: 3 });
@@ -287,8 +281,8 @@ describe("the daily allowance", () => {
     await inRollback(sql, async (tx) => {
       const f = await seed(tx, { dailyCap: 3 });
       const repo = new PostgresEntitlementsRepository(tx);
-      expect(await repo.claim(asTx(tx), grantOf(f, 3), f.accountId)).toBe(1);
-      expect(await repo.claim(asTx(tx), grantOf(f, 3), f.accountId)).toBe(2);
+      expect(await repo.claim(asTx(tx), f.grantId, f.accountId)).toBe(1);
+      expect(await repo.claim(asTx(tx), f.grantId, f.accountId)).toBe(2);
       const available = await repo.availability(f.catalogModelId, f.featureId, f.accountId, 2);
       expect(available).toMatchObject({ used: 2, remaining: 1 });
     });
@@ -299,9 +293,9 @@ describe("the daily allowance", () => {
     await inRollback(sql, async (tx) => {
       const f = await seed(tx, { dailyCap: 2 });
       const repo = new PostgresEntitlementsRepository(tx);
-      expect(await repo.claim(asTx(tx), grantOf(f, 2), f.accountId)).toBe(1);
-      expect(await repo.claim(asTx(tx), grantOf(f, 2), f.accountId)).toBe(2);
-      expect(await repo.claim(asTx(tx), grantOf(f, 2), f.accountId)).toBeNull();
+      expect(await repo.claim(asTx(tx), f.grantId, f.accountId)).toBe(1);
+      expect(await repo.claim(asTx(tx), f.grantId, f.accountId)).toBe(2);
+      expect(await repo.claim(asTx(tx), f.grantId, f.accountId)).toBeNull();
       const available = await repo.availability(f.catalogModelId, f.featureId, f.accountId, 2);
       expect(available).toMatchObject({ used: 2, remaining: 0 });
     });
@@ -311,7 +305,7 @@ describe("the daily allowance", () => {
     await inRollback(sql, async (tx) => {
       const f = await seed(tx, { dailyCap: null });
       const repo = new PostgresEntitlementsRepository(tx);
-      for (let i = 1; i <= 5; i++) expect(await repo.claim(asTx(tx), grantOf(f, null), f.accountId)).toBe(i);
+      for (let i = 1; i <= 5; i++) expect(await repo.claim(asTx(tx), f.grantId, f.accountId)).toBe(i);
       const available = await repo.availability(f.catalogModelId, f.featureId, f.accountId, 2);
       expect(available).toMatchObject({ used: 5, remaining: null });
     });
@@ -322,12 +316,12 @@ describe("the daily allowance", () => {
     await inRollback(sql, async (tx) => {
       const f = await seed(tx, { dailyCap: 2 });
       const repo = new PostgresEntitlementsRepository(tx);
-      await repo.claim(asTx(tx), grantOf(f, 2), f.accountId);
-      await repo.claim(asTx(tx), grantOf(f, 2), f.accountId);
-      expect(await repo.claim(asTx(tx), grantOf(f, 2), f.accountId)).toBeNull();
+      await repo.claim(asTx(tx), f.grantId, f.accountId);
+      await repo.claim(asTx(tx), f.grantId, f.accountId);
+      expect(await repo.claim(asTx(tx), f.grantId, f.accountId)).toBeNull();
 
       await repo.release(asTx(tx), f.grantId, f.accountId);
-      expect(await repo.claim(asTx(tx), grantOf(f, 2), f.accountId)).toBe(2);
+      expect(await repo.claim(asTx(tx), f.grantId, f.accountId)).toBe(2);
     });
   });
 
@@ -336,7 +330,7 @@ describe("the daily allowance", () => {
     await inRollback(sql, async (tx) => {
       const f = await seed(tx, { dailyCap: 2 });
       const repo = new PostgresEntitlementsRepository(tx);
-      await repo.claim(asTx(tx), grantOf(f, 2), f.accountId);
+      await repo.claim(asTx(tx), f.grantId, f.accountId);
       await repo.release(asTx(tx), f.grantId, f.accountId);
       await repo.release(asTx(tx), f.grantId, f.accountId);
       const available = await repo.availability(f.catalogModelId, f.featureId, f.accountId, 2);
@@ -349,9 +343,9 @@ describe("the daily allowance", () => {
       const f = await seed(tx, { dailyCap: 1 });
       const other = await makeUser(tx);
       const repo = new PostgresEntitlementsRepository(tx);
-      expect(await repo.claim(asTx(tx), grantOf(f, 1), f.accountId)).toBe(1);
-      expect(await repo.claim(asTx(tx), grantOf(f, 1), f.accountId)).toBeNull();
-      expect(await repo.claim(asTx(tx), grantOf(f, 1), other.accountId)).toBe(1);
+      expect(await repo.claim(asTx(tx), f.grantId, f.accountId)).toBe(1);
+      expect(await repo.claim(asTx(tx), f.grantId, f.accountId)).toBeNull();
+      expect(await repo.claim(asTx(tx), f.grantId, other.accountId)).toBe(1);
     });
   });
 

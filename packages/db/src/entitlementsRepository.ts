@@ -98,7 +98,19 @@ export class PostgresEntitlementsRepository {
    * expected and fine: the queue is what absorbs the difference.
    */
   async concurrencyFor(accountId: string): Promise<Concurrency> {
-    const [row] = await this.sql<{ limit: number; running: number }[]>`
+    return this.concurrencyForTx(this.sql, accountId);
+  }
+
+  /**
+   * The same count, read inside a caller's transaction.
+   *
+   * Submission needs it under the same lock as the job insert. Read on its own
+   * connection it would be a number from before the row that is about to exist,
+   * which is how an account ends up with one more generation running than its
+   * plan allows.
+   */
+  async concurrencyForTx(tx: Sql | TransactionSql, accountId: string): Promise<Concurrency> {
+    const [row] = await (tx as Sql)<{ limit: number; running: number }[]>`
       select
         greatest(
           coalesce((
@@ -183,14 +195,22 @@ export class PostgresEntitlementsRepository {
    * Call this inside the transaction that creates the job. If the job insert
    * fails the claim rolls back with it, so a generation that never existed
    * cannot cost someone part of their day.
+   *
+   * The cap is read from the grant row inside the same statement rather than
+   * passed in. A caller-supplied ceiling is a ceiling a caller can get wrong,
+   * and the one thing standing between fifty free generations a day and
+   * unlimited ones should not travel through application code to get here.
    */
-  async claim(tx: TransactionSql, grant: UnlimitedGrant, accountId: string): Promise<number | null> {
-    const [row] = await tx<{ used: number }[]>`
+  async claim(tx: Sql | TransactionSql, entitlementId: string, accountId: string): Promise<number | null> {
+    const [row] = await (tx as Sql)<{ used: number }[]>`
       insert into unlimited_usage (entitlement_id, account_id, usage_date, used)
-      values (${grant.id}, ${accountId}, ${tx.unsafe(TEHRAN_TODAY)}, 1)
+      select ent.id, ${accountId}, ${(tx as Sql).unsafe(TEHRAN_TODAY)}, 1
+      from unlimited_entitlements ent
+      where ent.id = ${entitlementId}
       on conflict (entitlement_id, account_id, usage_date) do update
         set used = unlimited_usage.used + 1
-        where ${grant.dailyCap}::int is null or unlimited_usage.used < ${grant.dailyCap}
+        where (select ent.daily_cap from unlimited_entitlements ent where ent.id = ${entitlementId}) is null
+           or unlimited_usage.used < (select ent.daily_cap from unlimited_entitlements ent where ent.id = ${entitlementId})
       returning used
     `;
     return row?.used ?? null;
@@ -203,13 +223,13 @@ export class PostgresEntitlementsRepository {
    * plain decrement because releasing twice — a retry that both fails and is
    * cleaned up — must not push the counter below zero and hand out a free day.
    */
-  async release(tx: TransactionSql, grantId: string, accountId: string): Promise<void> {
-    await tx`
+  async release(tx: Sql | TransactionSql, grantId: string, accountId: string): Promise<void> {
+    await (tx as Sql)`
       update unlimited_usage
       set used = greatest(used - 1, 0)
       where entitlement_id = ${grantId}
         and account_id = ${accountId}
-        and usage_date = ${tx.unsafe(TEHRAN_TODAY)}
+        and usage_date = ${(tx as Sql).unsafe(TEHRAN_TODAY)}
     `;
   }
 }

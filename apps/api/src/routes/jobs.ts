@@ -1,11 +1,31 @@
 import { CreateGenerationJobSchema, GenerationIdempotencyKeySchema } from "@vgen/contracts";
-import type { CreateQueuedJobInput, CreateQueuedJobResult, GenerationParams } from "@vgen/db";
+import type { CreateQueuedJobInput, CreateQueuedJobResult, GenerationParams, QueuedGenerationJob } from "@vgen/db";
 import type { FastifyInstance } from "fastify";
 import type { CustomerSessionApplication } from "./session";
 
 export interface GenerationJobsApplication {
   createQueued(input: CreateQueuedJobInput): Promise<CreateQueuedJobResult>;
+  getForUser(jobId: string, userId: string): Promise<QueuedGenerationJob | null>;
 }
+
+/**
+ * Why a submission was refused, as a status code.
+ *
+ * 402 is the only one about money. The rest are all "the request cannot be
+ * honoured as sent" — a stale quote, a full account, an allowance that ran out
+ * — and a client can act on each differently, so they keep distinct codes even
+ * though several share a 409.
+ */
+const REFUSAL_STATUS: Record<string, { status: number; message: string }> = {
+  insufficient_credits: { status: 402, message: "Not enough credits to create this job." },
+  quote_unavailable: { status: 404, message: "Quote is not available." },
+  quote_expired: { status: 410, message: "That quote has expired. Ask for a new price." },
+  quote_spent: { status: 409, message: "That quote has already been used." },
+  params_mismatch: { status: 409, message: "These settings are not the ones that were quoted." },
+  idempotency_conflict: { status: 409, message: "That idempotency key was used for a different request." },
+  concurrency_reached: { status: 429, message: "You already have as many generations running as your plan allows." },
+  allowance_spent: { status: 409, message: "Your free generations for today ran out. Ask for a new price." },
+};
 
 export function registerGenerationJobsRoute(
   app: FastifyInstance,
@@ -28,12 +48,27 @@ export function registerGenerationJobsRoute(
     });
 
     if (result.outcome === "created" || result.outcome === "replayed") return reply.code(202).send(result.job);
-    if (result.outcome === "insufficient_credits") {
-      return reply.code(402).send({ error: { code: result.outcome, message: "Not enough credits to create this job." } });
+
+    const refusal = REFUSAL_STATUS[result.outcome];
+    return reply
+      .code(refusal?.status ?? 409)
+      .send({ error: { code: result.outcome, message: refusal?.message ?? "That job could not be created." } });
+  });
+
+  /**
+   * One job's progress. Scoped to the caller — a job id is not a capability.
+   *
+   * 404 rather than 403 for somebody else's job: whether a given id exists is
+   * not this caller's business, and a 403 would confirm it does.
+   */
+  app.get<{ Params: { jobId: string } }>("/api/v1/generation/jobs/:jobId", async (request, reply) => {
+    const session = await sessions.getCurrent(request);
+    if (session.status !== "authed") {
+      return reply.code(401).send({ error: { code: "unauthorized", message: "Authentication required." } });
     }
-    if (result.outcome === "quote_unavailable") {
-      return reply.code(404).send({ error: { code: result.outcome, message: "Quote is not available." } });
-    }
-    return reply.code(409).send({ error: { code: result.outcome, message: "Job request conflicts with the quote or idempotency key." } });
+
+    const job = await generationJobs.getForUser(request.params.jobId, session.user.id);
+    if (!job) return reply.code(404).send({ error: { code: "job_not_found", message: "No such job." } });
+    return reply.code(200).send(job);
   });
 }
