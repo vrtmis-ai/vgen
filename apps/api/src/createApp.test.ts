@@ -30,6 +30,13 @@ function healthyDependencies(): ApiDependencies {
           createdAt: 123,
         },
       })),
+      getForUser: vi.fn(async () => ({
+        id: "11111111-1111-4111-8111-111111111111",
+        status: "running" as const,
+        modelKey: "flux-test",
+        quotedCredits: 30,
+        createdAt: 123,
+      })),
     },
     generationQuotes: {
       create: vi.fn(async () => ({
@@ -44,6 +51,18 @@ function healthyDependencies(): ApiDependencies {
     },
   };
 }
+
+const authedSession = {
+  status: "authed" as const,
+  host: "web" as const,
+  user: {
+    id: "22222222-2222-4222-8222-222222222222",
+    methods: ["email"] as ["email"],
+    emailNormalized: "user@example.test",
+    locale: "fa" as const,
+    isTeam: false,
+  },
+};
 
 describe("generation job creation", () => {
   it("creates an authenticated queued job with an idempotency key", async () => {
@@ -92,6 +111,76 @@ describe("generation job creation", () => {
 
     expect(response.statusCode).toBe(401);
     expect(dependencies.generationJobs.createQueued).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  /**
+   * Each refusal gets its own code because a client acts on each differently:
+   * top up, re-quote, wait, or fix the request. Collapsing them into one 409
+   * would leave the UI guessing which.
+   */
+  it.each([
+    ["insufficient_credits", 402],
+    ["quote_unavailable", 404],
+    ["quote_expired", 410],
+    ["quote_spent", 409],
+    ["params_mismatch", 409],
+    ["idempotency_conflict", 409],
+    ["concurrency_reached", 429],
+    ["allowance_spent", 409],
+  ])("answers %s with %i", async (outcome, status) => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    dependencies.generationJobs.createQueued = vi.fn(async () => ({ outcome }) as never);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/jobs",
+      headers: { "idempotency-key": "generate:test-3" },
+      payload: { quoteId: "33333333-3333-4333-8333-333333333333", params: {} },
+    });
+
+    expect(response.statusCode).toBe(status);
+    expect(response.json()).toMatchObject({ error: { code: outcome } });
+    await app.close();
+  });
+});
+
+describe("reading a generation job", () => {
+  it("returns the caller's job", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/generation/jobs/abc" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: "running" });
+    expect(dependencies.generationJobs.getForUser).toHaveBeenCalledWith("abc", "22222222-2222-4222-8222-222222222222");
+    await app.close();
+  });
+
+  // A job id is not a capability: 404, not 403, so the reply does not confirm
+  // that somebody else's job exists.
+  it("answers 404 when the job is not the caller's", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    dependencies.generationJobs.getForUser = vi.fn(async () => null);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/generation/jobs/abc" });
+    expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("does not serve jobs to anonymous visitors", async () => {
+    const dependencies = healthyDependencies();
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/generation/jobs/abc" });
+    expect(response.statusCode).toBe(401);
+    expect(dependencies.generationJobs.getForUser).not.toHaveBeenCalled();
     await app.close();
   });
 });

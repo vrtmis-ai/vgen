@@ -7,7 +7,7 @@ claim here names the file it can be checked against.
 **Maintained by the backend owner.** If it disagrees with the code, the code is
 right and this file is a bug — say so.
 
-Last verified against `main` on 2026-08-15.
+Last verified against `main` on 2026-08-17.
 
 ## The two runtimes
 
@@ -26,8 +26,8 @@ The port is the same either way — `AppServices` in
 ## What is actually wired
 
 This is the part worth reading twice. The HTTP adapters were written against a
-planned surface; the server has since been rebuilt, and **three of the eight
-calls the frontend makes have no route on the server yet.**
+planned surface; the server has since been rebuilt, and **one of the eight
+calls the frontend makes has no route on the server yet.**
 
 | `AppServices` call     | Frontend requests          | Server route                           | Status   |
 | ---------------------- | -------------------------- | -------------------------------------- | -------- |
@@ -37,13 +37,14 @@ calls the frontend makes have no route on the server yet.**
 | _(not wired yet)_      | `GET /plans`               | `routes/plans.ts`                      | **Live** |
 | `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`                     | **Live** |
 | _(not wired yet)_      | `POST /generation/quotes`  | `routes/quotes.ts`                     | **Live** |
-| `generation.create()`  | `POST /generation/jobs`    | `POST /jobs` (different path and body) | **404**  |
-| `generation.getJob()`  | `GET /generation/jobs/:id` | —                                      | **404**  |
+| _(not wired yet)_      | `POST /generation/jobs`    | `POST /jobs` (different path and body) | **Live** |
+| _(not wired yet)_      | `GET /generation/jobs/:id` | `routes/jobs.ts`                       | **Live** |
 | `gallery.list()`       | `GET /gallery`             | —                                      | **404**  |
 
-So in `production` mode today, session, auth, catalog, wallet, plans and
-quoting work; job submission and gallery do not. **In `demo` mode everything
-works**, which is why
+So in `production` mode today, session, auth, catalog, wallet, plans, quoting
+and job submission all work; only the gallery does not. Nothing _runs_ a job
+yet — the queue has no consumer — so a submitted job stays `queued`. **In
+`demo` mode everything works**, which is why
 UI work is unblocked and should stay on demo mode until this table says
 otherwise.
 
@@ -139,15 +140,6 @@ Schema: `WalletSchema` in `src/runtime/contracts/wallet.ts`.
 (1 coin = 1,000,000) so nothing in the money path is a float; the API converts
 at the boundary. The UI only ever sees whole coins. Never do money arithmetic in
 a screen — ask for a field instead.
-
-### `POST /jobs`
-
-Exists and is authed, but the frontend does not call it yet (see the table
-above). Takes an `Idempotency-Key` header and a `{ quoteId, params }` body,
-answers `202` with the job. Returns `402 insufficient_credits`,
-`404 quote_unavailable`, or `409` on an idempotency or quote conflict.
-
-Source: `apps/api/src/routes/jobs.ts`.
 
 ### `POST /telemetry/errors`
 
@@ -388,7 +380,7 @@ could name them is a request that could ask to be billed as something cheaper.
 
 - **`coins` is authoritative, and `0` is a real answer** — see Unlimited below.
 - **`unlimited` is present only when the zero came from a grant** rather than
-  from a zero price, so you can say *why* it is free and what is left.
+  from a zero price, so you can say _why_ it is free and what is left.
 - **`concurrency` is always present.** Price is not the only reason a
   generation might not start. Quoting is deliberately **not** refused when the
   account is full — the price is still the price, and a client that knows it is
@@ -399,15 +391,60 @@ could name them is a request that could ask to be billed as something cheaper.
   submission, never here — a quote a customer never acts on must not cost them
   part of their day.
 
-| Status | Meaning                                                              |
-| ------ | -------------------------------------------------------------------- |
-| 401    | Not signed in                                                         |
+| Status | Meaning                                                                |
+| ------ | ---------------------------------------------------------------------- |
+| 401    | Not signed in                                                          |
 | 403    | `tier_too_low` — body carries `requiredTier` and `currentTier`         |
-| 404    | `unknown_variant`                                                     |
+| 404    | `unknown_variant`                                                      |
 | 409    | `not_offered` / `no_price` — the variant exists, those settings do not |
 
 403 rather than 402 on tier: the account is not short of money, it is on the
 wrong plan, and the fix is an upgrade rather than a top-up.
+
+### `POST /jobs`
+
+Turns a quote into a queued job. Requires an `Idempotency-Key` header.
+
+```jsonc
+// request — params must be byte-identical to what was quoted
+{ "quoteId": "0199…", "params": { "resolution": "1K" } }
+```
+
+```jsonc
+// 202
+{ "id": "0199…", "status": "queued", "modelKey": "gpt-image-2", "quotedCredits": 2, "createdAt": 1755353400000 }
+```
+
+One transaction does all of it: the credit hold (or the free-allowance claim),
+the job row, and the outbox event that tells the worker. Either all three exist
+or none do — a job with no hold generates for free, a hold with no job is money
+taken for nothing, and a job with no outbox row sits queued forever.
+
+- **Retry with the same `Idempotency-Key` and you get the original job back**,
+  not a second charge. Reuse that key for a _different_ quote and it is a 409 —
+  answering with the first job would be a lie about what was submitted.
+- **A quote is single-use.** The second submission against it is `quote_spent`.
+- **Coins are held, not charged.** What a generation actually costs is only
+  known once it has run; a failure must give all of it back.
+- **A granted generation holds nothing** and spends one of the day's allowance
+  instead. Ask for a price again and `remainingToday` has moved.
+
+| Status | Code                                                                           |
+| ------ | ------------------------------------------------------------------------------ |
+| 402    | `insufficient_credits`                                                         |
+| 404    | `quote_unavailable` — missing, or somebody else's                              |
+| 409    | `quote_spent` · `params_mismatch` · `idempotency_conflict` · `allowance_spent` |
+| 410    | `quote_expired` — ask for a new price                                          |
+| 429    | `concurrency_reached` — at the plan's `maxConcurrentJobs`                      |
+
+410 rather than 409 for an expired quote: the thing referenced genuinely used to
+exist and no longer does, and the fix is a fresh quote rather than a fixed
+request.
+
+### `GET /generation/jobs/:jobId`
+
+The same shape, scoped to the caller. Somebody else's job is a **404, not a
+403** — a job id is not a capability, and a 403 would confirm it exists.
 
 ## Unlimited generation
 
@@ -487,18 +524,19 @@ So you can tell a gap from a bug:
 - **The Plans screen still reads a file.** `GET /plans` is live, but nothing in
   `AppServices` calls it — the screen imports `PLANS` from `src/data/plans.ts`,
   which reads the generated `src/data/plans.rows.json`. (`plans.snapshot.json` is
-  the separate copy exported *from* the database, which CI diffs against it.)
+  the separate copy exported _from_ the database, which CI diffs against it.)
   Both are generated: **do not hand-edit either.** Porting the screen to the
   route is UI work, and the payload above is what it will get.
-- **Generation submission end to end.** `POST /generation/quotes` is live and
-  `POST /jobs` exists as a route, but the handler behind it still throws
-  `GenerationNotImplementedError` — nothing creates a job row, holds credits or
-  spends a quote. Two consequences worth knowing while building against this:
-  the free daily allowance is never actually decremented (nothing consumes it),
-  and `concurrency.running` is always 0 (nothing creates in-flight jobs). Both
-  become live in the jobs phase; the counters and the limits they are checked
-  against are already in the database and tested.
-- **The job-status route.** `GET /generation/jobs/:id` does not exist.
+- **Anything that actually runs a generation.** Quoting and submission are both
+  live, and a submitted job gets a real row, a real credit hold and a real
+  outbox event — but **nothing consumes the queue**, so a job stays `queued`
+  forever and no picture ever comes back. That is the next phase: a worker, the
+  useapi/KIE provider adapters, and `capture_hold` on success or `release_hold`
+  on failure.
+- **`GET /catalog` does not say which OAuth providers are configured.** Each is
+  registered server-side only when its credentials are set, and nothing the
+  browser can read says which — so a button for an unconfigured provider
+  navigates into a 404.
 - **Gallery.** No server route. Demo mode returns an empty page.
 - **The queue consumer.** Jobs can be created; nothing processes them.
 - **Payments.** Plans render and price correctly; nothing charges.
