@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, CaretDown, Lock, Sparkle, Stack } from "@phosphor-icons/react";
 import { defaultInput, variantControls, variantRefs, variantMaxPrompt, type Family, type Variant } from "../data/models";
-import { priceCoins } from "../data/pricing";
+import { priceCoins, priceRefusal } from "../data/pricing";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
@@ -91,6 +91,11 @@ export default function Generate({
   // 7.36s clip at 7.36 × the per-second rate loses the fraction on every job.
   const clipSeconds = videoFiles.reduce((longest, f) => Math.max(longest, Math.ceil(f.duration ?? 0)), 0);
   const price = priceCoins(variant, input, { chars, clipSeconds });
+  // Both mean "no number to show", and they are not the same thing to say. A
+  // refusal is the catalogue declining to sell a combination; anything else is
+  // our price list missing a row the catalogue still offers, which is a bug and
+  // should not be dressed up as a deliberate limit.
+  const refusal = price == null ? priceRefusal(variant, input, { chars, clipSeconds }) : null;
   // .mkv and iPhone HEVC .mov are both in the accept list and neither decodes
   // reliably in a browser, so `duration` can come back undefined. On a per-second
   // model that number *is* the price, and substituting anything for it sells a
@@ -336,7 +341,7 @@ export default function Generate({
                         ? validation.issues[0].message
                         : price != null
                           ? `≈ ${n(price)} ${t("g_est_for")}`
-                          : t("g_no_rate")}
+                          : t(refusal === "not_offered" ? "g_no_rate" : "g_no_price")}
         </div>
       </div>
     </div>

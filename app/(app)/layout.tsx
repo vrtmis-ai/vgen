@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "../../src/adapters/http/client";
 import { AppLoading } from "../../src/components/AppLoading";
+import { OAuthFailureNotice } from "../../src/components/OAuthFailureNotice";
 import { SystemState } from "../../src/components/SystemState";
 import { CatalogProvider } from "../../src/features/catalog/CatalogProvider";
 import { useCatalog, useSession, useWallet } from "../../src/features/session/useSession";
@@ -84,7 +85,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
   if (session.status === "loading") return <AppLoading label="در حال بررسی نشست کاربری…" />;
-  if (session.status === "anonymous") return <Landing onSignIn={authActions.signIn} onSignUp={authActions.signUp} />;
+  /* A social sign-in that fails lands back here, anonymous, with `?auth=<code>`
+     in the URL and no other trace — so the notice belongs on the one branch that
+     renders for a signed-out visitor, not inside the landing page's own markup. */
+  if (session.status === "anonymous")
+    return (
+      <>
+        <OAuthFailureNotice />
+        <Landing onSignIn={authActions.signIn} onSignUp={authActions.signUp} />
+      </>
+    );
   if (!walletQuery.data || !catalogQuery.data) return <AppLoading />;
 
   /* Everything below is signed in, so it all sits inside AccessProvider.

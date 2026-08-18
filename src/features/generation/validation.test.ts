@@ -84,14 +84,48 @@ describe("generation input validation", () => {
 });
 
 describe("generation error messages", () => {
+  // The codes are `docs/API.md`'s, not ours. Each expectation is a word only the
+  // right message contains, so a message can be reworded without touching this.
   it.each([
-    ["insufficient_balance", "اعتبار"],
-    ["locked_model", "پلن"],
-    ["unsupported_combination", "ترکیب"],
+    ["insufficient_credits", "شارژ"],
+    ["tier_too_low", "ارتقا"],
+    ["allowance_spent", "رایگان"],
+    ["not_offered", "ارائه نمی‌شود"],
+    ["params_mismatch", "قیمت‌گیری"],
+    ["concurrency_reached", "هم‌زمان"],
+    ["quote_expired", "منقضی"],
+    ["quote_spent", "قبلاً ثبت شده"],
+    ["no_price", "از سمت ماست"],
     ["provider_unavailable", "ارائه‌دهنده"],
+    ["no_output", "خروجی"],
+    ["request_timeout", "طول کشید"],
+    ["network_error", "اتصال اینترنت"],
   ])("maps %s to a safe actionable message", (code, expected) => {
     const error = new ApiError({ code, message: "raw provider details", status: 422 });
     expect(generationErrorMessage(error)).toContain(expected);
     expect(generationErrorMessage(error)).not.toContain("raw provider details");
+  });
+
+  it("gives a refunded job failure its own reassurance", () => {
+    // Every terminal job failure releases the hold, so each of these has to say
+    // the coins came back. A generic "try again" here reads as money lost.
+    for (const code of [
+      "provider_unavailable",
+      "credential_unavailable",
+      "submit_failed",
+      "poll_failed",
+      "provider_timeout",
+      "no_output",
+    ]) {
+      expect(generationErrorMessage(new ApiError({ code, message: "x", status: 500 }))).toContain("کم نشد");
+    }
+  });
+
+  it("does not answer to codes the API never sends", () => {
+    // The bug this file now guards: these three were the whole map, and the two
+    // refusals people actually hit were not in it.
+    for (const code of ["insufficient_balance", "locked_model", "unsupported_combination"]) {
+      expect(generationErrorMessage(new ApiError({ code, message: "x", status: 422 }))).toBe(generationErrorMessage(new Error("x")));
+    }
   });
 });
