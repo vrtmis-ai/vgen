@@ -4,8 +4,6 @@ import { CalendarCheck, CaretDown, Check, DeviceMobile, Gift, ImageSquare, Video
 import { getFamily, type Family } from "../data/models";
 import { COMMUNITY } from "../data/community";
 import {
-  PLANS,
-  monthlyCoins,
   toman,
   annualDiscountPct,
   annualTotalUsd,
@@ -14,8 +12,8 @@ import {
   estVideos,
   IMAGE_ANCHOR_NAME,
   VIDEO_ANCHOR_NAME,
-  type Plan,
 } from "../data/plans";
+import type { Plan } from "../runtime/contracts/plans";
 import { HeroSection } from "../components/blocks/hero-section-5";
 import { FeaturesBento } from "../components/blocks/bento-features";
 import { ModelMark } from "../components/ModelMark";
@@ -36,8 +34,8 @@ import { BRAND } from "../data/brand";
 
    Everything on it is real. The model row is the actual catalogue, the prices
    are computed from the live rate table, and the plan cards read the same
-   PLANS rows the buy screen does — a landing page that lies about the price is
-   worse than no landing page. */
+   `GET /plans` ladder the buy screen prices from — a landing page that lies
+   about the price is worse than no landing page. */
 
 /**
  * The names that make someone stop — not the first six in catalogue order.
@@ -228,11 +226,11 @@ type PlanCycle = "monthly" | "annual";
 
 const PLAN_TAG_KEY = { test: "w_tag_test", gift: "w_tag_gift", popular: "w_tag_popular", best: "w_tag_best" } as const;
 
-function Plans({ onSignIn }: { onSignIn: () => void }) {
+function Plans({ plans, onSignIn }: { plans: readonly Plan[]; onSignIn: () => void }) {
   const { t } = useI18n();
   const [annual, setAnnual] = useState(false);
   const [group, setGroup] = useState<Plan["group"]>("entry");
-  const activePlans = PLANS.filter((plan) => plan.group === group).sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false));
+  const activePlans = plans.filter((plan) => plan.group === group).sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false));
   const groupTone = group === "entry" ? { rgb: "92 175 255", hex: "#5cafff" } : { rgb: "255 57 126", hex: "#ff397e" };
 
   return (
@@ -335,7 +333,7 @@ function Plans({ onSignIn }: { onSignIn: () => void }) {
         className={`grid gap-3 ${group === "entry" ? "sm:grid-cols-2 xl:grid-cols-4" : "lg:grid-cols-3"}`}
       >
         {activePlans.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} annual={annual} onSignIn={onSignIn} compact={group === "entry"} />
+          <PlanCard key={plan.code} plan={plan} annual={annual} onSignIn={onSignIn} compact={group === "entry"} />
         ))}
       </motion.div>
 
@@ -438,7 +436,7 @@ function PlanCard({ plan, annual, onSignIn, compact = false }: { plan: Plan; ann
   if (compact) {
     return (
       <motion.article
-        data-testid={`landing-plan-${plan.id}`}
+        data-testid={`landing-plan-${plan.code}`}
         whileHover={{ y: -3 }}
         transition={{ type: "spring", stiffness: 300, damping: 24 }}
         className="relative flex flex-col gap-2 rounded-card border bg-card p-3.5"
@@ -454,7 +452,7 @@ function PlanCard({ plan, annual, onSignIn, compact = false }: { plan: Plan; ann
             {plan.name}
           </span>
           <span className="flex items-baseline gap-1">
-            <span className="text-[19px] font-semibold tabular-nums">{n(monthlyCoins(plan))}</span>
+            <span className="text-[19px] font-semibold tabular-nums">{n(plan.coinsPerTerm)}</span>
             <span className="text-[11px] text-ink2">{t("w_coins")}</span>
           </span>
         </div>
@@ -471,7 +469,7 @@ function PlanCard({ plan, annual, onSignIn, compact = false }: { plan: Plan; ann
 
   return (
     <motion.article
-      data-testid={`landing-plan-${plan.id}`}
+      data-testid={`landing-plan-${plan.code}`}
       whileHover={{ y: -4 }}
       transition={{ type: "spring", stiffness: 300, damping: 24 }}
       className="flex flex-col gap-3.5 rounded-bezel border bg-card p-4"
@@ -489,13 +487,13 @@ function PlanCard({ plan, annual, onSignIn, compact = false }: { plan: Plan; ann
 
       <div>
         <div className="flex items-baseline gap-1.5">
-          <span className="font-display text-[30px] font-semibold leading-none tabular-nums">{n(monthlyCoins(plan))}</span>
+          <span className="font-display text-[30px] font-semibold leading-none tabular-nums">{n(plan.coinsPerTerm)}</span>
           <span className="text-[13px] text-ink2">{t("pl_coins_month")}</span>
         </div>
-        {plan.bonus > 0 && (
+        {plan.bonusCoins > 0 && (
           <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-400">
             <Gift size={12} weight="fill" />
-            {n(plan.bonus)} {t("w_gift")}
+            {n(plan.bonusCoins)} {t("w_gift")}
           </div>
         )}
       </div>
@@ -716,7 +714,12 @@ function Footer() {
 }
 
 /* ============================================================ */
-export default function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) {
+/**
+ * `plans` is a prop rather than a context read because this is the one screen
+ * that renders with nobody signed in, above the whole authenticated tree — the
+ * providers the app shell mounts are not there yet.
+ */
+export default function Landing({ plans, onSignIn, onSignUp }: { plans: readonly Plan[]; onSignIn: () => void; onSignUp: () => void }) {
   return (
     /* `overflow-x: clip`, not `hidden`. The section lights are meant to spill
        past their section — that overhang is what stops them looking like boxes
@@ -740,10 +743,10 @@ export default function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; 
           so there is no TopNav here, and its slider is the model wall, so there
           is no separate Models section either. What could not come across
           verbatim is listed at the top of that file. */}
-      <HeroSection onSignIn={onSignIn} onSignUp={onSignUp} />
+      <HeroSection plans={plans} onSignIn={onSignIn} onSignUp={onSignUp} />
       <Features />
       <Reel />
-      <Plans onSignIn={onSignUp} />
+      <Plans plans={plans} onSignIn={onSignUp} />
       <Faq />
       <Closing onSignIn={onSignUp} />
       <Footer />

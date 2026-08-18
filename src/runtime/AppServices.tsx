@@ -9,6 +9,7 @@ import type {
 } from "./contracts/auth";
 import type { CatalogSnapshot } from "./contracts/catalog";
 import type { GalleryPage, GalleryQuery } from "./contracts/gallery";
+import type { Plan } from "./contracts/plans";
 import type { CreateGenerationRequest, GenerationJob, GenerationQuote, QuoteGenerationRequest } from "./contracts/generation";
 import type { Session } from "./contracts/session";
 import type { Wallet } from "./contracts/wallet";
@@ -46,6 +47,14 @@ export interface AppServices {
   };
   catalog: {
     list(options?: RequestOptions): Promise<CatalogSnapshot>;
+  };
+  /**
+   * The plan ladder. Public, unlike everything else here — someone deciding
+   * whether to sign up has to see what a plan costs before they have an account
+   * to see it with, so the landing page asks for this while anonymous.
+   */
+  plans: {
+    list(options?: RequestOptions): Promise<Plan[]>;
   };
   wallet: {
     getCurrent(options?: RequestOptions): Promise<Wallet>;

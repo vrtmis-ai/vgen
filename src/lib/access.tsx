@@ -1,5 +1,7 @@
 import { createContext, useContext, useMemo } from "react";
-import { cheapestPlanFor, familyUnlocked, minTierFor, tierForPlan, type Plan, type Tier } from "../data/plans";
+import { cheapestPlanFor, familyUnlocked, minTierFor, tierForPlan } from "../data/plans";
+import { usePlanLadder } from "../features/plans/PlansProvider";
+import type { Plan, Tier } from "../runtime/contracts/plans";
 
 /* ---------------------------------------------------------------------------
    Who is allowed to run what.
@@ -40,6 +42,14 @@ const Ctx = createContext<Access>({
   onUpgrade: () => {},
 });
 
+/**
+ * The ladder comes from `usePlanLadder()`, not from a file.
+ *
+ * Which plan unlocks a family is a fact about what is on sale, and what is on
+ * sale is whatever `GET /plans` says today. Reading a compiled-in copy here
+ * would mean a plan withdrawn from the database keeps being offered as the way
+ * past a padlock, and the customer who buys it finds the padlock still shut.
+ */
 export function AccessProvider({
   planId,
   onUpgrade,
@@ -49,15 +59,16 @@ export function AccessProvider({
   onUpgrade: () => void;
   children: React.ReactNode;
 }) {
+  const plans = usePlanLadder();
   const value = useMemo<Access>(
     () => ({
       planId,
-      tier: tierForPlan(planId),
-      can: (familyId) => familyUnlocked(familyId, planId),
-      needs: (familyId) => cheapestPlanFor(familyId),
+      tier: tierForPlan(plans, planId),
+      can: (familyId) => familyUnlocked(plans, familyId, planId),
+      needs: (familyId) => cheapestPlanFor(plans, familyId),
       onUpgrade,
     }),
-    [planId, onUpgrade],
+    [plans, planId, onUpgrade],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

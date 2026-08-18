@@ -10,7 +10,8 @@ import { ProgressiveBlur } from "@/components/ui/progressive-blur";
 import { ModelMark, hasModelMark } from "@/components/ModelMark";
 import { BRAND } from "@/data/brand";
 import { FAMILIES } from "@/data/models";
-import { PLANS, effectiveUsd, monthlyCoins, toman } from "@/data/plans";
+import { effectiveUsd, toman } from "@/data/plans";
+import type { Plan } from "@/runtime/contracts/plans";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +51,10 @@ const NAV_ITEMS: { label: TKey; href: string }[] = [
 ];
 
 /** Cheapest plan by effective monthly price, so the hero's figure follows the ladder. */
-const ENTRY_PLAN = [...PLANS].sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false))[0];
+/** Cheapest plan on the served ladder, so the hero cannot advertise a price
+    the plans section contradicts. A function rather than a module constant:
+    the ladder arrives from `GET /plans` at runtime and is not there at import. */
+const entryPlan = (plans: readonly Plan[]) => [...plans].sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false))[0];
 
 /**
  * Video leads, then image, then audio — the order the hero row uses.
@@ -67,7 +71,8 @@ const SLIDER_MODELS = [
   ...FAMILIES.filter((f) => f.kind === "audio"),
 ].filter((f) => hasModelMark(f.id, f.vendor));
 
-export function HeroSection({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) {
+export function HeroSection({ plans, onSignIn, onSignUp }: { plans: readonly Plan[]; onSignIn: () => void; onSignUp: () => void }) {
+  const ENTRY_PLAN = entryPlan(plans);
   const { t, n, lang } = useI18n();
   const rtl = lang === "fa";
 
@@ -129,14 +134,14 @@ export function HeroSection({ onSignIn, onSignUp }: { onSignIn: () => void; onSi
                 {/* The entry price, in the hero. Not part of the original block,
                     but part of the brief this replaces: for this audience "what
                     does it cost" is the first question rather than the last.
-                    Derived from the cheapest of `PLANS`, so the hero cannot
-                    advertise a number the pricing section contradicts. */}
+                    Derived from the cheapest plan the server serves, so the
+                    hero cannot advertise a number the plans section contradicts. */}
                 <p className="mt-6 text-sm" style={{ color: "var(--vg-text-muted)" }}>
                   {ENTRY_PLAN ? (
                     <a href="#plans" className="duration-150 hover:text-[color:var(--vg-text-secondary)]">
                       {t("lp_hero_from")
                         .replace("{n}", n(toman(effectiveUsd(ENTRY_PLAN, false))))
-                        .replace("{c}", n(monthlyCoins(ENTRY_PLAN)))}
+                        .replace("{c}", n(ENTRY_PLAN.coinsPerTerm))}
                     </a>
                   ) : (
                     t("lp_gift_note").replace("{n}", n(12))
