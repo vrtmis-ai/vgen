@@ -30,19 +30,29 @@ import type { CSSProperties, ReactNode } from "react";
 export function Marquee({
   children,
   seconds = 40,
+  reverse = false,
   className,
   label,
 }: {
   children: ReactNode;
   /** One full pass. Longer is slower; the row's width does not change it. */
   seconds?: number;
+  /**
+   * Travel the other way.
+   *
+   * `animation-direction` rather than a second pair of keyframes, so it composes
+   * with the RTL swap instead of fighting it: whichever keyframe the document's
+   * direction selected simply plays backwards. Two stacked rows want this — in
+   * lockstep they read as one tall band with a gap in it.
+   */
+  reverse?: boolean;
   className?: string;
   /** Names the row for a screen reader, which sees one copy rather than two. */
   label?: string;
 }) {
   return (
     <div
-      className={`vg-marquee ${className ?? ""}`}
+      className={`vg-marquee ${reverse ? "vg-marquee--reverse" : ""} ${className ?? ""}`}
       style={{ "--vg-marquee-duration": `${seconds}s` } as CSSProperties}
       {...(label ? { role: "group", "aria-label": label } : {})}
     >

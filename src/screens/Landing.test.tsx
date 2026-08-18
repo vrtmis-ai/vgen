@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../lib/i18n";
 import { FAMILIES } from "../data/models";
+import { PLANS, effectiveUsd, toman } from "../data/plans";
 import Landing, { HERO_MODEL_IDS } from "./Landing";
 
 // English, so the button assertions below read as the labels a reviewer sees.
@@ -31,12 +32,12 @@ describe("Landing authentication actions", () => {
     );
 
     const navigation = screen.getByRole("banner");
-    await user.click(within(navigation).getByRole("button", { name: "Log in" }));
+    await user.click(within(navigation).getByTestId("landing-login"));
 
     expect(onSignIn).toHaveBeenCalledOnce();
     expect(onSignUp).not.toHaveBeenCalled();
 
-    await user.click(within(navigation).getByRole("button", { name: "Start free" }));
+    await user.click(within(navigation).getByTestId("landing-signup"));
 
     expect(onSignIn).toHaveBeenCalledOnce();
     expect(onSignUp).toHaveBeenCalledOnce();
@@ -69,6 +70,81 @@ describe("Landing hero model row", () => {
     for (const id of HERO_MODEL_IDS) {
       const family = FAMILIES.find((f) => f.id === id)!;
       expect(screen.getAllByText(family.name).length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("Landing feature bento", () => {
+  it("puts the product features before the showcase", () => {
+    const { container } = render(
+      <LanguageProvider initialLang="en">
+        <Landing onSignIn={vi.fn()} onSignUp={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    const features = container.querySelector("#features");
+    const showcase = container.querySelector("#showcase");
+
+    expect(features).toBeInTheDocument();
+    expect(showcase).toBeInTheDocument();
+    expect(features!.compareDocumentPosition(showcase!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    const featureSection = within(features as HTMLElement);
+    expect(featureSection.queryByRole("navigation")).not.toBeInTheDocument();
+    expect(featureSection.getAllByRole("heading")).toHaveLength(8);
+    for (const feature of ["video", "image", "voice", "effects", "academy", "studio", "mcp"]) {
+      expect(featureSection.getByTestId(`feature-card-${feature}`)).toBeInTheDocument();
+    }
+  });
+});
+
+describe("Landing pricing", () => {
+  it("separates personal and professional plans while keeping the cheapest plan first in RTL", async () => {
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider initialLang="en">
+        <Landing onSignIn={vi.fn()} onSignUp={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    const personal = PLANS.filter((plan) => plan.group === "entry").sort((a, b) => a.monthlyUsd - b.monthlyUsd);
+    const professional = PLANS.filter((plan) => plan.group === "main").sort((a, b) => a.monthlyUsd - b.monthlyUsd);
+
+    for (const plan of personal) {
+      expect(screen.getByTestId(`landing-plan-${plan.id}`)).toHaveTextContent(plan.name);
+    }
+    for (const plan of professional) {
+      expect(screen.queryByTestId(`landing-plan-${plan.id}`)).not.toBeInTheDocument();
+    }
+
+    const personalGrid = screen.getByTestId("landing-plan-grid");
+    expect(personalGrid).toHaveAttribute("dir", "rtl");
+    expect(
+      within(personalGrid)
+        .getAllByTestId(/landing-plan-/)
+        .map((card) => card.dataset.testid),
+    ).toEqual(personal.map((plan) => `landing-plan-${plan.id}`));
+
+    const cheapest = [...PLANS].sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false))[0]!;
+    const cheapestCard = screen.getByTestId(`landing-plan-${cheapest.id}`);
+    expect(cheapestCard).toHaveTextContent(toman(effectiveUsd(cheapest, false)).toLocaleString("en-US"));
+    expect(within(cheapestCard).getByRole("button", { name: "Buy 30 days" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Professional plans" }));
+
+    for (const plan of professional) {
+      expect(screen.getByTestId(`landing-plan-${plan.id}`)).toHaveTextContent(plan.name);
+    }
+    for (const plan of personal) {
+      expect(screen.queryByTestId(`landing-plan-${plan.id}`)).not.toBeInTheDocument();
+    }
+    expect(screen.getAllByText("Unlimited Generation")).toHaveLength(2);
+    expect(screen.getAllByText("Nano Banana Pro · Nano Banana 2")).toHaveLength(2);
+    expect(document.body).not.toHaveTextContent(/(?:50|۵۰).*(?:daily|روزانه)/i);
+
+    await user.click(screen.getByRole("button", { name: "Yearly" }));
+    for (const plan of professional) {
+      expect(within(screen.getByTestId(`landing-plan-${plan.id}`)).getByRole("button", { name: "Buy 12 months" })).toBeInTheDocument();
     }
   });
 });

@@ -1,11 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { mockApi } from "./fixtures";
 
+// The header pair is queried by test id rather than by label: both words now
+// appear on the feature cards further down the page too, so an accessible-name
+// query stopped identifying the header and started matching whatever came first.
 test("anonymous users see the landing page", async ({ page }) => {
   await mockApi(page, { anonymous: true });
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "ورود", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "شروع رایگان", exact: true })).toBeVisible();
+  await expect(page.getByTestId("landing-login")).toBeVisible();
+  await expect(page.getByTestId("landing-signup")).toBeVisible();
 });
 
 // The two landing buttons open the same screen in different modes, so the thing
@@ -15,12 +18,12 @@ test("the landing page's two entry points open the two auth routes", async ({ pa
   await mockApi(page, { anonymous: true });
   await page.goto("/");
 
-  await page.getByRole("button", { name: "ورود", exact: true }).click();
+  await page.getByTestId("landing-login").click();
   await expect(page).toHaveURL(/\/signin$/);
   await expect(page.getByRole("heading", { name: "ورود به DEEV" })).toBeVisible();
 
   await page.goto("/");
-  await page.getByRole("button", { name: "شروع رایگان", exact: true }).click();
+  await page.getByTestId("landing-signup").click();
   await expect(page).toHaveURL(/\/signup$/);
   await expect(page.getByRole("heading", { name: "ساخت حساب" })).toBeVisible();
 });

@@ -1,13 +1,24 @@
-import { useId, useRef, useState } from "react";
-import { motion, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
-import { ArrowLeft, Check, CaretDown, DeviceMobile, List, Sparkle, X } from "@phosphor-icons/react";
-import { FAMILIES, getFamily, type Family } from "../data/models";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { CalendarCheck, CaretDown, Check, DeviceMobile, Gift, ImageSquare, VideoCamera } from "@phosphor-icons/react";
+import { getFamily, type Family } from "../data/models";
 import { COMMUNITY } from "../data/community";
-import { PLANS, monthlyCoins, toman, annualDiscountPct, effectiveUsd, type Plan } from "../data/plans";
-import { minCoinsForFamily } from "../data/pricing";
-import { Marquee } from "../components/Marquee";
+import {
+  PLANS,
+  monthlyCoins,
+  toman,
+  annualDiscountPct,
+  annualTotalUsd,
+  effectiveUsd,
+  estImages,
+  estVideos,
+  IMAGE_ANCHOR_NAME,
+  VIDEO_ANCHOR_NAME,
+  type Plan,
+} from "../data/plans";
+import { HeroSection } from "../components/blocks/hero-section-5";
+import { FeaturesBento } from "../components/blocks/bento-features";
 import { ModelMark } from "../components/ModelMark";
-import { VendorMark } from "../components/VendorMark";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { useI18n, type TKey } from "../lib/i18n";
@@ -36,13 +47,10 @@ import { BRAND } from "../data/brand";
  * job is recognition, so it has to be the models a visitor has already heard of
  * and would be surprised to find here. Chosen by name rather than by position.
  *
- * Resolved against the real catalogue and filtered, so a model that is ever
- * retired drops out of the row instead of advertising something we stopped
- * selling. Order is this list's, not the catalogue's — video first, because that
- * is the expensive thing people come for.
+ * The landing test resolves these names against the live catalogue so a rename
+ * or retirement cannot silently shrink the model band.
  */
 export const HERO_MODEL_IDS = ["veo", "kling", "seedance", "wan", "minimax-h3", "nano-banana", "gpt-image", "gemini-omni", "elevenlabs"];
-const HERO_MODELS = HERO_MODEL_IDS.map((id) => FAMILIES.find((f) => f.id === id)).filter((f): f is Family => f != null);
 
 const FAQ_KEYS: { q: TKey; a: TKey }[] = [
   { q: "lp_faq1_q", a: "lp_faq1_a" },
@@ -66,12 +74,8 @@ function Art({ family }: { family?: Family | undefined }) {
   );
 }
 
-/** Section shell. 96/32 on desktop, tighter on a phone — the export's rhythm
-    would waste a third of a small screen on empty space.
-
-    `light` puts a soft key behind the section, alternating side down the page.
-    Without it the body below the hero goes flat grey and the shot ends up
-    looking like a hat on a spreadsheet. */
+/** A wide, continuous section shell. The landing relies on content and scale
+    for hierarchy instead of drawing a divider around every chapter. */
 function Section({
   children,
   className,
@@ -84,15 +88,11 @@ function Section({
   /** Only where something links to the section — an anchor needs a target. */
   id?: string;
 }) {
-  const lit = light ? `vg-lit ${light === "end" ? "vg-lit-end" : ""}` : "";
   return (
-    /* The rhythm was 56/96. The hero and the closing card both fill a viewport,
-       so at that spacing everything between them read as one continuous slab —
-       the page had a frame and no chapters. 80/144 is what makes a section
-       arrive rather than continue. */
     <section
       {...(id ? { id } : {})}
-      className={`relative mx-auto w-full max-w-[1200px] px-5 py-20 sm:px-8 md:py-36 ${lit} ${className ?? ""}`}
+      {...(light ? { "data-light": light } : {})}
+      className={`relative mx-auto w-full max-w-[1600px] px-5 py-12 sm:px-8 md:py-16 lg:px-10 ${className ?? ""}`}
     >
       {children}
     </section>
@@ -116,42 +116,18 @@ function Rise({ children, className }: { children: React.ReactNode; className?: 
   );
 }
 
-/** A title card, not an `h2`.
-    Centred headings stacked down a page are the SaaS pattern this redesign is
-    trying to get out of. A chapter mark and a rule running off to the side is
-    how a film labels a section, and it also does something the centred version
-    could not: it tells the reader where they are in the page. */
+/** Section hierarchy comes from type, not numbered rules between blocks. */
 function Heading({ index, children, sub }: { index: string; children: React.ReactNode; sub?: string }) {
   return (
-    <div className="mb-9 md:mb-12">
-      <div className="flex items-center gap-4">
-        {/* Faint, not accent. A slate number is a mark on the page, not something
-            to do — and it was spending accent on every section heading, which is
-            most of why the pricing viewport ended up with seven blue things and
-            no answer to "which button". The vein beside it already carries the
-            colour. */}
-        <span className="vg-chapter shrink-0 text-[11px] font-semibold" style={{ color: "var(--vg-text-faint)" }} lang="en">
-          {index}
-        </span>
-        {/* The rule reaches away from the mark toward the far edge, so the eye
-            is pulled across the section rather than parked on the number. */}
-        <hr className="vg-vein min-w-0 flex-1" aria-hidden />
-      </div>
-      {/* 32/52, up from 26/34.
-          A section heading that is only 8px larger than the body around it is
-          not a heading, it is a bold paragraph — which is what made the middle
-          of this page read as one continuous slab. The reference sites this is
-          measured against carry their structure entirely on type scale and
-          space, with no boxes at all, and their section headings run to double
-          the body size or more. */}
+    <div className="mb-7 md:mb-9" data-section={index}>
       <h2
-        className="mt-4 max-w-[20ch] text-[32px] font-extrabold leading-[1.2] md:text-[52px]"
+        className="max-w-[22ch] text-balance text-[30px] font-extrabold leading-[1.2] md:text-[42px]"
         style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
       >
         {children}
       </h2>
       {sub && (
-        <p className="mt-3 max-w-[54ch] text-[13.5px] leading-[1.9]" style={{ color: "var(--vg-text-muted)" }}>
+        <p className="mt-2.5 max-w-[58ch] text-pretty text-[13.5px] leading-[1.85]" style={{ color: "var(--vg-text-muted)" }}>
           {sub}
         </p>
       )}
@@ -159,448 +135,25 @@ function Heading({ index, children, sub }: { index: string; children: React.Reac
   );
 }
 
-/* ---------- nav ---------- */
-
-/** The page's own sections. Anchors, not routes — this is one document. */
-const NAV_LINKS: { href: string; label: TKey }[] = [
-  { href: "#models", label: "lp_nav_models" },
-  { href: "#features", label: "lp_nav_features" },
-  { href: "#plans", label: "lp_nav_plans" },
-  { href: "#faq", label: "lp_nav_faq" },
-];
-
-function TopNav({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) {
-  const { t } = useI18n();
-  const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-
-  /* Glass on arrival, not at rest.
-     The bar used to carry its own background from the first frame, which put a
-     bordered pill directly on top of the hero card's bordered edge — two frames
-     stacked at the top of the screen, each undermining the other. Transparent
-     until the page has actually moved, the nav belongs to the shot; once there
-     is content sliding under it, the glass earns its keep.
-
-     `scrollY` rather than `scrollYProgress`: a fixed pixel threshold behaves the
-     same on a short page and a long one, where a percentage would trigger almost
-     immediately on one and far too late on the other. */
-  const { scrollY } = useScroll();
-  useMotionValueEvent(scrollY, "change", (y) => setScrolled(y > 24));
-
-  const linkClass = "vg-ease whitespace-nowrap text-[13px] hover:text-[color:var(--vg-text)]";
-
-  return (
-    /* Fixed, not sticky. A sticky header still occupies a row in the flow, and
-       the hero is a full-bleed card that has to start at the top of the page —
-       sticky would push it down by the height of the bar and break the inset. */
-    <header className="fixed inset-x-0 top-0 z-30 px-4 pt-4 sm:px-6">
-      <div
-        /* The blur lives here rather than on any scrolling surface: a
-           backdrop-filter over moving content repaints every frame and is the
-           usual cause of a landing page that stutters on a phone. */
-        className={`vg-ease mx-auto w-full max-w-[1180px] rounded-[1.75rem] pe-2 ps-6 ${scrolled ? "py-2.5" : "py-4"}`}
-        style={
-          scrolled
-            ? {
-                background: "var(--vg-glass)",
-                backdropFilter: "blur(var(--vg-blur))",
-                border: "1px solid var(--vg-border-subtle)",
-              }
-            : { background: "transparent", border: "1px solid transparent" }
-        }
-      >
-        <div className="flex items-center justify-between gap-6">
-          {/* Wordmark over tagline, as the brand sheet sets it. Light weight and
-              wide tracking, not the extrabold/tight it was — the logo is the one
-              piece of type whose treatment is not ours to choose. */}
-          <a href="#" className="flex shrink-0 flex-col leading-none" aria-label={BRAND.name}>
-            <span
-              className="text-[20px] font-light tracking-[0.34em]"
-              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-            >
-              {BRAND.name}
-            </span>
-            <span
-              className="mt-1.5 hidden text-[9.5px] font-medium uppercase tracking-[0.2em] sm:block"
-              style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-latin)" }}
-              lang="en"
-            >
-              {BRAND.tagline}
-            </span>
-          </a>
-
-          {/* The page has four chapters and the bar offered no way into any of
-              them. On a document this long that is the nav's actual job; the two
-              buttons were doing the whole thing alone. */}
-          <nav className="hidden lg:block">
-            <ul className="flex items-center gap-7">
-              {NAV_LINKS.map((l) => (
-                <li key={l.href}>
-                  <a href={l.href} className={linkClass} style={{ color: "var(--vg-text-secondary)" }}>
-                    {t(l.label)}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-          <div className="flex shrink-0 items-center gap-2">
-            {/* Outlined, not bare. Two actions with only one of them looking like
-                a control reads as "a link and a button" rather than as a second
-                and a first choice — the outline is what makes them a pair with a
-                clear order. */}
-            <button
-              onClick={onSignIn}
-              className="vg-ease hidden rounded-full px-4 py-2 text-[13px] font-medium hover:bg-[color:var(--vg-surface-overlay)] active:scale-[0.98] sm:block"
-              style={{ color: "var(--vg-text-secondary)", border: "1px solid var(--vg-border)" }}
-            >
-              {t("lp_login")}
-            </button>
-            <button
-              onClick={onSignUp}
-              className="vg-ease rounded-full px-5 py-2 text-[13px] font-semibold active:scale-[0.98]"
-              style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
-            >
-              {t("lp_signup")}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setOpen(!open)}
-              aria-expanded={open}
-              aria-label={t(open ? "lp_nav_close" : "lp_nav_open")}
-              className="vg-ease -me-1 grid size-9 place-items-center rounded-full lg:hidden"
-              style={{ color: "var(--vg-text-secondary)" }}
-            >
-              {open ? <X size={18} weight="bold" /> : <List size={18} weight="bold" />}
-            </button>
-          </div>
-        </div>
-
-        {/* The links again, stacked, for the widths that cannot show the row.
-            Inside the same pill rather than a full-screen overlay: there are four
-            of them, and covering the page to show four words is a sheet doing a
-            menu's job. */}
-        {open && (
-          <nav className="mt-4 border-t pt-4 lg:hidden" style={{ borderColor: "var(--vg-border-subtle)" }}>
-            <ul className="flex flex-col gap-4">
-              {NAV_LINKS.map((l) => (
-                <li key={l.href}>
-                  <a
-                    href={l.href}
-                    onClick={() => setOpen(false)}
-                    className={`${linkClass} block`}
-                    style={{ color: "var(--vg-text-secondary)" }}
-                  >
-                    {t(l.label)}
-                  </a>
-                </li>
-              ))}
-              <li className="sm:hidden">
-                <button
-                  onClick={onSignIn}
-                  className="vg-ease w-full rounded-full py-2.5 text-[13px] font-medium"
-                  style={{ color: "var(--vg-text-secondary)", border: "1px solid var(--vg-border)" }}
-                >
-                  {t("lp_login")}
-                </button>
-              </li>
-            </ul>
-          </nav>
-        )}
-      </div>
-    </header>
-  );
-}
-
-/* ---------- hero ---------- */
 /* ---------------------------------------------------------------------------
-   The hero, as a shot.
+   02 — the product beyond generation.
 
-   The previous two attempts were both layouts: a centred column, then an
-   asymmetric split. Recolouring one into the other is what "we just changed the
-   colours and rounded the corners" was pointing at, and it was fair — a split
-   with a thumbnail grid is an editorial SaaS pattern, and editorial is close to
-   the opposite of cinematic.
-
-   What makes a frame read as a shot is not the arrangement of boxes. It is that
-   there is ONE light source, the light falls off into darkness at the edges, the
-   subject stands in that light, and the type lives inside the frame rather than
-   beside it. So this is not a section containing elements — it is a full
-   viewport scene with layers at different depths:
-
-     bloom      the key light, an ellipse behind the subject
-     subject    DEEV, lit from within by its own veins
-     type       over the scene, not next to it
-     vignette   the falloff that turns a page into a frame
-     grain      film, so black is not flat
-
-   The layers move at different rates on scroll. That is the whole parallax: the
-   light drifts slowest because it is furthest away, the subject next, the type
-   fastest because it is closest to the viewer. Two transforms and no library
-   beyond the one already here.
-
-   `min-h-[100dvh]`, never `h-screen` — on iOS Safari the toolbar collapse
-   changes `vh` mid-scroll and the whole shot jumps.
+   The model band inside the hero answers "what can I use?". This answers the
+   next question: "what does DEEV help me do with it?" The grid comes before
+   the showcase so visitors meet the workflow before they meet its output.
    --------------------------------------------------------------------------- */
-/**
- * The hero's moving backdrop, once there is one to ship.
- *
- * `null` today, and that is a working state rather than a stub: the frame
- * already carries a designed background — bloom, grain, the subject glow and the
- * vignette over it — so nothing is missing while this is empty, and no request
- * goes out for a file that is not there. The same discipline as
- * `ModelMark`'s SHIPPED_MARKS and the mascot slot above: a name here is somebody
- * saying the asset exists, not a guess that it might.
- *
- * Put the file in `public/brand/` and name it here. It must be a *local* path.
- * The reference this was taken from streams its hero video from a third-party
- * CDN, which is the one thing that cannot come along: an asset on a foreign host
- * is the part of the page most likely to hang for the audience this product is
- * built for, and it would hang behind everything else on the first screen.
- *
- * Keep it short, silent and dark. It plays under type that has to stay readable,
- * which is why it renders at low opacity with the vignette on top rather than at
- * full strength.
- */
-const HERO_VIDEO: string | null = null;
-
-function Hero({ onSignUp }: { onSignUp: () => void }) {
-  const { t, n } = useI18n();
-  const frame = useRef<HTMLDivElement>(null);
-  const [mascotFailed, onMascotError] = useImageFallback();
-
-  /* Progress through the hero itself, not the page: `offset` ties 0 to the
-     frame's top meeting the viewport top and 1 to its bottom leaving it, so the
-     parallax is the same at every viewport height instead of drifting on tall
-     screens. */
-  const { scrollYProgress } = useScroll({ target: frame, offset: ["start start", "end start"] });
-  const lightY = useTransform(scrollYProgress, [0, 1], ["0%", "14%"]);
-  const subjectY = useTransform(scrollYProgress, [0, 1], ["0%", "26%"]);
-  const typeY = useTransform(scrollYProgress, [0, 1], ["0%", "44%"]);
-  const typeFade = useTransform(scrollYProgress, [0, 0.72], [1, 0]);
-
-  return (
-    /* `overflow-hidden` is load-bearing, and dropping it when this became a card
-       is what let the hero's type escape onto the sections below.
-
-       The type block is parallaxed down by up to 44% of the hero's height — that
-       is the point, it is the nearest layer — and a transform does not shrink
-       the box it moves out of. The old full-bleed hero clipped it, so it never
-       showed. A card that does not clip lets the headline slide out of its frame
-       and sit on top of the reel, which is exactly what was reported.
-
-       The fade is not a substitute for the clip. `typeFade` reaches zero at 72%
-       of the way through the frame, so between there and wherever the transform
-       carries it the type is still partly opaque and still outside the card. */
-    <div ref={frame} className="relative overflow-hidden">
-      {/* THE CARD.
-          The reference's defining move, and the reason the marquee alone did not
-          make this look like it: the scene is an inset rounded card with a
-          hairline edge, not a full-bleed background. `inset-1` leaves a sliver of
-          page showing all the way round, so the shot reads as something placed on
-          the page rather than as the page itself — which is what lets a 3rem
-          corner radius look deliberate instead of like a rounded browser window.
-
-          Everything that used to be a layer of the full-viewport scene lives in
-          here now: video, bloom, subject, vignette, grain. They did not change,
-          they got a frame. */}
-      <div
-        className="vg-grain absolute inset-1 overflow-hidden rounded-3xl lg:rounded-[3rem]"
-        style={{ border: "1px solid var(--vg-border-subtle)" }}
-        aria-hidden
-      >
-        {/* Furthest back of all, under the key light. Muted, looping and
-            `playsInline` — without that last one iOS Safari takes a backgrounded
-            decorative video fullscreen on play, which would hand the whole
-            screen to something that is meant to be scenery. */}
-        {HERO_VIDEO && (
-          <video
-            src={HERO_VIDEO}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="pointer-events-none absolute inset-0 size-full object-cover opacity-40"
-          />
-        )}
-
-        {/* Key light. Furthest back, so it moves least. */}
-        <motion.div style={{ y: lightY }} className="vg-bloom pointer-events-none absolute inset-0" />
-
-        {/* The subject.
-            Drawn whether or not the artwork has landed: the glow is the mascot's
-            own veins bleeding into the air, and on its own it already reads as
-            something standing in the dark. When brand/deev-mascot.png exists it
-            drops into this frame with nothing else to change.
-
-            It sits at the far edge rather than the centre now — the type took the
-            start of the card, and a subject on the centre line would be standing
-            behind the headline instead of beside it. */}
-        <motion.div
-          style={{ y: subjectY }}
-          className="pointer-events-none absolute inset-y-0 bottom-0 end-0 top-[12%] flex w-full items-end justify-end lg:w-[55%]"
-        >
-          <div className="relative h-full w-full max-w-[560px]">
-            <div className="vg-subject-glow absolute inset-x-0 bottom-[8%] top-[18%]" />
-            {!mascotFailed && (
-              <img
-                src="/brand/deev-mascot.png"
-                alt=""
-                onError={onMascotError}
-                className="absolute inset-x-0 bottom-0 mx-auto h-[86%] w-auto object-contain"
-                style={{ filter: "drop-shadow(0 0 60px rgb(var(--vg-primary-rgb) / 0.25))" }}
-              />
-            )}
-          </div>
-        </motion.div>
-
-        {/* Falloff, over the subject and under the type — this is the layer that
-            turns a lit page into a framed one. */}
-        <div className="vg-vignette pointer-events-none absolute inset-0" />
-      </div>
-
-      {/* THE TYPE, low and at the start edge.
-          The reference's `lg:pt-72` is not padding, it is blocking: it drops the
-          text into the lower third so the upper two thirds are picture. Centred
-          type would fight that — the whole point of the tall top pad is that the
-          frame gets to be a frame before the words arrive.
-
-          `text-start` and `lg:ms-0`, never `text-left` and `lg:ml-0`. Under RTL
-          the logical properties put the block against the right edge, which is
-          the start of the line in Persian; the physical ones would pin it to the
-          left and read as a mistake. */}
-      <motion.div style={{ y: typeY, opacity: typeFade }} className="relative z-[2] py-24 md:pb-32 lg:pb-36 lg:pt-72">
-        <div className="mx-auto flex max-w-[1200px] flex-col px-6 lg:block lg:px-12">
-          <motion.div
-            variants={riseParent}
-            initial="hidden"
-            animate="show"
-            className="mx-auto max-w-lg text-center lg:mx-0 lg:ms-0 lg:max-w-full lg:text-start"
-          >
-            <motion.span
-              variants={riseItem}
-              className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.32em]"
-              style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-latin)" }}
-              lang="en"
-            >
-              <Sparkle size={11} weight="fill" />
-              Artificial Intelligence
-            </motion.span>
-
-            <motion.h1
-              variants={riseItem}
-              className="mt-8 max-w-[16ch] text-balance text-[clamp(2.5rem,6.5vw,4.75rem)] font-extrabold leading-[1.08] lg:mt-10"
-              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-            >
-              {t("lp_hero_title")}
-            </motion.h1>
-
-            <motion.p
-              variants={riseItem}
-              className="mt-8 max-w-[46ch] text-balance text-[15px] leading-[2] md:text-[16.5px]"
-              style={{ color: "var(--vg-text-secondary)" }}
-            >
-              {t("lp_hero_sub")}
-            </motion.p>
-
-            {/* Two actions, side by side — the reference's shape.
-                The second is deliberately NOT "log in": the nav already carries
-                that, two paces above, and a screen offering the same door twice
-                has not given anyone a second option. The reference's own second
-                button is a demo request, which is the same idea — a smaller ask
-                for someone not ready for the first one. Ours goes to the reel,
-                because the answer to "is this any good" is the work, and the work
-                is already on the page.
-
-                Ghost, not filled, so there is still one obvious answer. */}
-            <motion.div
-              variants={riseItem}
-              className="mt-12 flex flex-col items-center gap-2 sm:flex-row sm:justify-center lg:justify-start"
-            >
-              <button
-                onClick={onSignUp}
-                className="vg-ease group flex items-center gap-3 rounded-full ps-8 pe-2 text-[15px] font-bold active:scale-[0.98]"
-                style={{
-                  height: "var(--vg-cta-height)",
-                  background: "var(--vg-primary)",
-                  color: "var(--vg-text-on-primary)",
-                  /* The one glow in the product, and it belongs here: in a lit
-                     frame the brightest object should look like it emits. */
-                  boxShadow: "0 0 48px rgb(var(--vg-primary-rgb) / 0.35)",
-                }}
-              >
-                {t("lp_cta_start")}
-                <span
-                  className="vg-ease grid size-9 place-items-center rounded-full group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5"
-                  style={{ background: "rgb(0 0 0 / 0.14)" }}
-                >
-                  <ArrowLeft size={15} weight="bold" className="ltr:-scale-x-100" />
-                </span>
-              </button>
-              <a
-                href="#models"
-                className="vg-ease flex items-center rounded-full px-6 text-[15px] font-semibold hover:bg-[color:var(--vg-surface-overlay)] active:scale-[0.98]"
-                style={{ height: "var(--vg-cta-height)", color: "var(--vg-text-secondary)" }}
-              >
-                {t("lp_cta_secondary")}
-              </a>
-            </motion.div>
-
-            <motion.p variants={riseItem} className="mt-5 text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
-              {t("lp_gift_note").replace("{n}", n(12))}
-            </motion.p>
-          </motion.div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-/* ---------------------------------------------------------------------------
-   The strip under the shot.
-
-   The reference puts a label against a vertical rule and lets the row run off
-   the far edge — the shape reads as "these, and more of them" in a way a centred
-   caption over a grid does not.
-
-   What it is a strip OF is the part that changes. The original is eight
-   companies' logos under "Powering the best teams", which for us would be a
-   claim we cannot make and eight trademarks we have no licence to ship — the
-   exact thing VendorMark exists in this repo to avoid. The equivalent that is
-   both true and a better pitch is the catalogue: these are models you can run
-   on this page today, resolved from FAMILIES so the row cannot drift from what
-   is actually for sale.
-   --------------------------------------------------------------------------- */
-function ModelStrip() {
+function Features() {
   const { t } = useI18n();
   return (
-    <section className="relative pb-2 pt-10 md:pt-14">
-      <div className="relative m-auto max-w-[1200px] px-6 lg:px-12">
-        <div className="flex flex-col items-center gap-4 md:flex-row md:gap-0">
-          {/* The rule is on the *inline end* of the label, which is its left in
-              Persian and its right in English — `border-e`, not `border-r`. */}
-          <div className="md:max-w-44 md:border-e md:pe-6" style={{ borderColor: "var(--vg-border-subtle)" }}>
-            <p className="text-center text-[12.5px] leading-[1.7] md:text-end" style={{ color: "var(--vg-text-muted)" }}>
-              {t("lp_models_title")}
-            </p>
-          </div>
-
-          <div className="relative w-full py-6 md:w-[calc(100%-11rem)]">
-            <Marquee seconds={46} label={t("lp_models_title")}>
-              {HERO_MODELS.map((f) => (
-                <span key={f.id} className="flex shrink-0 items-center gap-2 px-7">
-                  <ModelMark familyId={f.id} vendor={f.vendor} size={18} />
-                  <span className="whitespace-nowrap text-[13px] font-medium" style={{ color: "var(--vg-text-secondary)" }} lang="en">
-                    {f.name}
-                  </span>
-                </span>
-              ))}
-            </Marquee>
-          </div>
-        </div>
+    <Section id="features" light="end" className="scroll-mt-24">
+      <div className="sr-only">
+        <h2>{t("lp_features_title")}</h2>
+        <p>{t("lp_features_sub")}</p>
       </div>
-    </section>
+      <Rise>
+        <FeaturesBento />
+      </Rise>
+    </Section>
   );
 }
 
@@ -609,7 +162,7 @@ function ModelStrip() {
 
    The proof that any of this works is the work itself, and the hero has no room
    for it any more — a shot with a thumbnail grid in it is not a shot. So it
-   comes straight after, and it is edge to edge.
+   follows the product bento, and it is edge to edge.
 
    Full-bleed on purpose. A contained grid says "here are some samples"; frames
    running off both sides say the reel continues past the screen, which is both
@@ -621,7 +174,7 @@ function Reel() {
   const reel = [...COMMUNITY].sort((a, b) => b.likes - a.likes).slice(0, 8);
   return (
     <Section id="showcase">
-      <Heading index="02" sub={t("lp_showcase_sub")}>
+      <Heading index="03" sub={t("lp_showcase_sub")}>
         {t("lp_showcase_title")}
       </Heading>
 
@@ -645,7 +198,7 @@ function Reel() {
             </div>
             <figcaption className="grid gap-1.5">
               <span className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: "var(--vg-text-secondary)" }}>
-                <ModelMark familyId={p.familyId} vendor={getFamily(p.familyId)?.vendor ?? ""} size={14} />
+                <ModelMark vendor={getFamily(p.familyId)?.vendor ?? ""} size={14} />
                 <span lang="en">{getFamily(p.familyId)?.name ?? p.familyId}</span>
               </span>
               {/* The prompt is English in the seed data and will often be
@@ -666,455 +219,313 @@ function Reel() {
   );
 }
 
-/* ---------------------------------------------------------------------------
-   03 — the part you can touch before signing up.
-
-   The obvious version of this section generates something. It cannot: there is
-   no generation route yet (`POST /jobs` throws, per docs/API.md), and a visitor
-   here has no session to generate with. A box that pretends to run and then asks
-   for an account is the worst version of this — it spends the one piece of trust
-   the page has.
-
-   So it does the other real thing, and arguably the more useful one for someone
-   deciding whether to sign up: it prices the job. Pick a model, describe the
-   shot, and the coin cost appears — computed by `minCoinsForFamily` from the
-   same committed pricing rows the studio and the plan cards read. Nothing is
-   mocked and nothing is a round number chosen to look good.
-
-   That also makes it the section that answers the question this audience
-   actually has. "Can it make a video" is not in doubt; "what will it cost me in
-   toman" is.
-   --------------------------------------------------------------------------- */
-function TryIt({ onSignUp }: { onSignUp: () => void }) {
-  const { t, n } = useI18n();
-  const [familyId, setFamilyId] = useState(HERO_MODEL_IDS[0]!);
-  const [prompt, setPrompt] = useState("");
-  const promptId = useId();
-  const modelId = useId();
-
-  const family = FAMILIES.find((f) => f.id === familyId);
-  const coins = family ? minCoinsForFamily(family) : null;
-  const written = prompt.trim().length > 0;
-
-  return (
-    <Section light="end" id="try">
-      <Heading index="03" sub={t("lp_try_sub")}>
-        {t("lp_try_title")}
-      </Heading>
-
-      <Rise className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-        <motion.div variants={riseItem} className="grid gap-4">
-          <div className="grid gap-2">
-            <label htmlFor={modelId} className="px-1 text-[12.5px] font-semibold" style={{ color: "var(--vg-text-secondary)" }}>
-              {t("lp_try_model_label")}
-            </label>
-            <select
-              id={modelId}
-              value={familyId}
-              onChange={(event) => setFamilyId(event.target.value)}
-              className="vg-ease w-full rounded-card px-4 py-3.5 text-[14px] outline-none focus:border-accent"
-              style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border)", color: "var(--vg-text)" }}
-            >
-              {HERO_MODELS.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid gap-2">
-            <label htmlFor={promptId} className="px-1 text-[12.5px] font-semibold" style={{ color: "var(--vg-text-secondary)" }}>
-              {t("lp_try_prompt_label")}
-            </label>
-            <textarea
-              id={promptId}
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              rows={3}
-              placeholder={t("lp_try_placeholder")}
-              className="vg-ease w-full resize-none rounded-card px-4 py-3.5 text-[14px] leading-[1.9] outline-none focus:border-accent"
-              style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border)", color: "var(--vg-text)" }}
-            />
-          </div>
-        </motion.div>
-
-        {/* The price, and it is the only thing in this section that moves.
-            `aria-live="polite"` because it changes under a control the reader is
-            using but is not next to — a sighted user sees the number update, and
-            without this nobody else would know it had. */}
-        <motion.div
-          variants={riseItem}
-          className="grid gap-3 rounded-card p-6 md:w-[280px]"
-          style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
-        >
-          <span className="text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
-            {t("lp_try_cost")}
-          </span>
-          <span aria-live="polite" className="flex items-baseline gap-2">
-            {!written ? (
-              <span className="text-[13px] leading-[1.8]" style={{ color: "var(--vg-text-muted)" }}>
-                {t("lp_try_empty")}
-              </span>
-            ) : coins == null ? (
-              <span className="text-[13px] leading-[1.8]" style={{ color: "var(--vg-text-muted)" }}>
-                {t("lp_try_cost_na")}
-              </span>
-            ) : (
-              <>
-                <span
-                  className="text-[38px] font-extrabold leading-none"
-                  style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-                >
-                  {n(coins)}
-                </span>
-                <span className="text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
-                  {t("lp_try_coins")}
-                </span>
-              </>
-            )}
-          </span>
-
-          <button
-            onClick={onSignUp}
-            disabled={!written}
-            className="vg-ease mt-2 rounded-card py-3 text-[13.5px] font-semibold enabled:active:scale-[0.98]"
-            style={
-              written
-                ? { background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }
-                : { background: "var(--vg-surface-raised)", color: "var(--vg-text-faint)", cursor: "default" }
-            }
-          >
-            {t("lp_try_cta")}
-          </button>
-          <span className="text-[11.5px] leading-[1.7]" style={{ color: "var(--vg-text-faint)" }}>
-            {t("lp_try_note")}
-          </span>
-        </motion.div>
-      </Rise>
-    </Section>
-  );
-}
-
-/* ---------- one platform, every model ---------- */
-function Models() {
-  const { t, n } = useI18n();
-  const shown = FAMILIES.slice(0, 12);
-  return (
-    <Section light="start" id="models">
-      <Heading index="01" sub={t("lp_models_sub")}>
-        {t("lp_models_title")}
-      </Heading>
-      <Rise className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6">
-        {shown.map((f) => {
-          const p = minCoinsForFamily(f);
-          return (
-            <motion.div
-              key={f.id}
-              variants={riseItem}
-              className="vg-ease flex flex-col items-center gap-2 rounded-card p-4 text-center hover:-translate-y-0.5"
-              style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
-            >
-              <VendorMark vendor={f.vendor} size={26} />
-              <span className="truncate text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }} lang="en">
-                {f.name}
-              </span>
-              <span className="text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
-                {p == null ? t("home_price_na") : `${t("home_price_from")} ${n(p)}`}
-              </span>
-            </motion.div>
-          );
-        })}
-      </Rise>
-    </Section>
-  );
-}
-
-/* ---------------------------------------------------------------------------
-   04 — the comparison, on the one axis that decides it.
-
-   Not a feature matrix. Every service in this market reaches the same models, so
-   a row-by-row on capability is a tie that wastes the reader's time and invites
-   them to go check. The axis that is not a tie is access: whether someone in
-   Iran can pay at all.
-
-   "Services abroad" rather than named competitors. Naming them would mean
-   asserting facts about their current behaviour that we do not verify and that
-   change without telling us — and the claim does not need a name to land.
-   --------------------------------------------------------------------------- */
-function Comparison() {
-  const { t } = useI18n();
-  const rows: { ours: TKey; theirs: TKey }[] = [
-    { ours: "lp_vs_pay", theirs: "lp_vs_pay_them" },
-    { ours: "lp_vs_vpn", theirs: "lp_vs_vpn_them" },
-    { ours: "lp_vs_currency", theirs: "lp_vs_currency_them" },
-    { ours: "lp_vs_models", theirs: "lp_vs_models_them" },
-    { ours: "lp_vs_lang", theirs: "lp_vs_lang_them" },
-  ];
-  return (
-    <Section light="start" id="compare">
-      <Heading index="04" sub={t("lp_vs_sub")}>
-        {t("lp_vs_title")}
-      </Heading>
-
-      {/* A real table, not a grid of divs. Five rows of two compared values is
-          exactly what a table is for, and it is the difference between a screen
-          reader announcing "row 3, DEEV: priced in toman" and reading ten
-          disconnected fragments. */}
-      <Rise>
-        <motion.div variants={riseItem} className="overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-start">
-            <thead>
-              <tr>
-                <th className="w-1/2 px-4 py-4 text-start text-[13px] font-bold" style={{ color: "var(--vg-text)" }}>
-                  {t("lp_vs_us")}
-                </th>
-                <th className="w-1/2 px-4 py-4 text-start text-[13px] font-medium" style={{ color: "var(--vg-text-faint)" }}>
-                  {t("lp_vs_them")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.ours} style={{ borderTop: "1px solid var(--vg-border-subtle)" }}>
-                  <td className="px-4 py-5 align-top">
-                    <span className="flex items-start gap-2.5 text-[14px] leading-[1.8]" style={{ color: "var(--vg-text-secondary)" }}>
-                      {/* The tick carries meaning, so it is not decorative — but
-                          the row's own text already says what it says, and an
-                          icon repeating it would be announced twice. */}
-                      <Check size={15} weight="bold" className="mt-1 shrink-0" style={{ color: "var(--vg-primary)" }} aria-hidden />
-                      {t(row.ours)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-5 align-top text-[14px] leading-[1.8]" style={{ color: "var(--vg-text-faint)" }}>
-                    {t(row.theirs)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </motion.div>
-      </Rise>
-    </Section>
-  );
-}
-
-/* ---------------------------------------------------------------------------
-   05 — how it works, in the three steps it actually takes.
-   --------------------------------------------------------------------------- */
-function HowItWorks() {
-  const { t, n } = useI18n();
-  const steps: { k: TKey; d: TKey }[] = [
-    { k: "lp_how_1", d: "lp_how_1_d" },
-    { k: "lp_how_2", d: "lp_how_2_d" },
-    { k: "lp_how_3", d: "lp_how_3_d" },
-  ];
-  return (
-    <Section light="end" id="how">
-      <Heading index="05">{t("lp_how_title")}</Heading>
-      {/* An ordered list, because the order is the content. Numbered by the
-          list itself rather than by a hand-written glyph, so the count cannot
-          drift from the items. */}
-      <Rise className="grid gap-12 md:grid-cols-3 md:gap-8">
-        {steps.map(({ k, d }, i) => (
-          <motion.div key={k} variants={riseItem} className="relative pt-7">
-            <hr className="vg-vein absolute inset-x-0 top-0" aria-hidden />
-            <span
-              className="text-[13px] font-semibold"
-              style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-display)" }}
-              aria-hidden
-            >
-              {n(i + 1)}
-            </span>
-            <h3
-              className="mt-3 text-[24px] font-bold leading-[1.35] md:text-[28px]"
-              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-            >
-              {t(k)}
-            </h3>
-            <p className="mt-4 max-w-[38ch] text-[14px] leading-[2.05]" style={{ color: "var(--vg-text-muted)" }}>
-              {t(d)}
-            </p>
-          </motion.div>
-        ))}
-      </Rise>
-    </Section>
-  );
-}
-
-/* ---------------------------------------------------------------------------
-   07 — trust, placed where the doubt is.
-
-   Straight after the price, because that is where someone stops and asks what
-   happens if this goes wrong. Every line here is something the product already
-   does — the prices really are computed before submit, publishing really is
-   opt-in, expiry really is written in the wallet.
-
-   What is deliberately NOT here: a payment-gateway badge. ZarinPal is "coming
-   soon" in our own wallet copy and nothing charges yet, so a gateway logo would
-   be the one false claim on a page whose whole argument is that it is honest
-   about money. It goes in when payments do.
-   --------------------------------------------------------------------------- */
-function Trust() {
-  const { t } = useI18n();
-  const items: { k: TKey; d: TKey }[] = [
-    { k: "lp_trust_price", d: "lp_trust_price_d" },
-    { k: "lp_trust_own", d: "lp_trust_own_d" },
-    { k: "lp_trust_expiry", d: "lp_trust_expiry_d" },
-  ];
-  return (
-    <Section id="trust">
-      <Heading index="07">{t("lp_trust_title")}</Heading>
-      <Rise className="grid gap-10 md:grid-cols-3 md:gap-8">
-        {items.map(({ k, d }) => (
-          <motion.div key={k} variants={riseItem} className="relative pt-7">
-            <hr className="vg-vein absolute inset-x-0 top-0" aria-hidden />
-            <h3 className="text-[19px] font-bold leading-[1.5]" style={{ color: "var(--vg-text)" }}>
-              {t(k)}
-            </h3>
-            <p className="mt-3 max-w-[38ch] text-[13.5px] leading-[2]" style={{ color: "var(--vg-text-muted)" }}>
-              {t(d)}
-            </p>
-          </motion.div>
-        ))}
-      </Rise>
-    </Section>
-  );
-}
-
 /* ---------- plans ----------
-   Real rows from plans.ts. The landing shows the two "main" plans; the full
-   ladder lives on the buy screen, and duplicating it here would be a second
-   place to forget to update. */
+   The visual hierarchy mirrors the live /plans screen: credit and honest output
+   estimates first, then price and the purchase action. Landing keeps its group
+   tabs, while the card model stays recognisably the same as the app. */
+
+type PlanCycle = "monthly" | "annual";
+
+const PLAN_TAG_KEY = { test: "w_tag_test", gift: "w_tag_gift", popular: "w_tag_popular", best: "w_tag_best" } as const;
+
 function Plans({ onSignIn }: { onSignIn: () => void }) {
-  const { t, n } = useI18n();
+  const { t } = useI18n();
   const [annual, setAnnual] = useState(false);
-  const main = PLANS.filter((p) => p.group === "main").slice(0, 2);
+  const [group, setGroup] = useState<Plan["group"]>("entry");
+  const activePlans = PLANS.filter((plan) => plan.group === group).sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false));
+  const groupTone = group === "entry" ? { rgb: "92 175 255", hex: "#5cafff" } : { rgb: "255 57 126", hex: "#ff397e" };
+
   return (
-    <Section light="start" id="plans">
-      {/* Heading and billing switch on one row at desktop. Stacked and centred,
-          the switch read as a third heading; beside the title it reads as the
-          control for what is underneath it, which is what it is. */}
-      <div className="mb-9 flex flex-col gap-5 md:mb-12 md:flex-row md:items-end md:justify-between">
+    <Section light="start" id="plans" className="isolate">
+      <motion.div
+        key={`plan-wash-${group}`}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-[3%] top-[18%] -z-10 h-[72%] rounded-[50%] blur-3xl"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.45 }}
+        style={{
+          background: `radial-gradient(ellipse at 74% 20%, rgb(${groupTone.rgb} / 0.12), transparent 42%), radial-gradient(ellipse at 18% 74%, rgb(255 148 72 / 0.07), transparent 38%)`,
+        }}
+      />
+      <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0 flex-1">
-          <Heading index="06">{t("lp_plans_title")}</Heading>
+          <Heading index="07">{t("lp_plans_title")}</Heading>
+          <p className="mt-2 max-w-[620px] text-[14px] leading-7" style={{ color: "var(--vg-text-muted)" }}>
+            {t("lp_plans_sub")}
+          </p>
         </div>
-        <div
-          className="inline-flex shrink-0 self-start rounded-pill p-1 md:mb-12 md:self-end"
-          style={{ background: "var(--vg-surface-raised)" }}
-          role="group"
-          aria-label={t("lp_plans_title")}
-        >
-          {([false, true] as const).map((v) => (
-            <button
-              key={String(v)}
-              onClick={() => setAnnual(v)}
-              aria-pressed={annual === v}
-              className="vg-ease rounded-pill px-4 py-2 text-[12.5px] font-semibold"
-              style={
-                // A segmented control, not an action: it changes what you are
-                // looking at, it does not commit you to anything. The design
-                // system's own rule for this is a raised pill and full-strength
-                // text — accent here was a third blue competing with the plan
-                // buttons it sits above.
-                annual === v
-                  ? { background: "var(--vg-surface-overlay)", color: "var(--vg-text)", boxShadow: "inset 0 1px 0 rgb(255 255 255 / 0.06)" }
-                  : { color: "var(--vg-text-faint)" }
-              }
+        <div className="flex flex-wrap items-center gap-2 md:mb-12 md:justify-end">
+          <div
+            className="inline-flex shrink-0 rounded-pill p-1"
+            style={{ background: "var(--vg-surface-raised)" }}
+            role="group"
+            aria-label={t("lp_plans_group_label")}
+          >
+            {(["entry", "main"] as const).map((value) => (
+              <button
+                key={value}
+                onClick={() => {
+                  setGroup(value);
+                  if (value === "entry") setAnnual(false);
+                }}
+                aria-pressed={group === value}
+                className="vg-ease rounded-pill px-4 py-2 text-[12.5px] font-semibold"
+                style={
+                  group === value
+                    ? {
+                        background: `rgb(${value === "entry" ? "92 175 255" : "255 57 126"} / 0.16)`,
+                        color: value === "entry" ? "#9fd1ff" : "#ff8bb3",
+                        boxShadow: `inset 0 0 0 1px rgb(${value === "entry" ? "92 175 255" : "255 57 126"} / 0.32), 0 0 22px -12px rgb(${value === "entry" ? "92 175 255" : "255 57 126"} / 0.8)`,
+                      }
+                    : { color: "var(--vg-text-faint)" }
+                }
+              >
+                {t(value === "entry" ? "lp_plans_personal" : "lp_plans_professional")}
+              </button>
+            ))}
+          </div>
+
+          {group === "main" && (
+            <div
+              className="inline-flex shrink-0 rounded-pill p-1"
+              style={{ background: "var(--vg-surface-raised)" }}
+              role="group"
+              aria-label={t("lp_plans_cycle_label")}
             >
-              {v ? t("lp_annual") : t("lp_monthly")}
-            </button>
-          ))}
+              {([false, true] as const).map((value) => (
+                <button
+                  key={String(value)}
+                  onClick={() => setAnnual(value)}
+                  aria-pressed={annual === value}
+                  className="vg-ease rounded-pill px-4 py-2 text-[12.5px] font-semibold"
+                  style={
+                    annual === value
+                      ? {
+                          background: `rgb(${groupTone.rgb} / 0.16)`,
+                          color: groupTone.hex,
+                          boxShadow: `inset 0 0 0 1px rgb(${groupTone.rgb} / 0.28)`,
+                        }
+                      : { color: "var(--vg-text-faint)" }
+                  }
+                >
+                  {value ? t("lp_annual") : t("lp_monthly")}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[840px] gap-3 md:grid-cols-2">
-        {main.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} annual={annual} onSignIn={onSignIn} />
-        ))}
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <p className="text-[13px] font-semibold" style={{ color: "var(--vg-text-secondary)" }}>
+          {t(group === "entry" ? "lp_plans_entry" : "lp_plans_main")}
+        </p>
+        <p className="hidden text-[11px] sm:block" style={{ color: "var(--vg-text-faint)" }}>
+          {t("lp_plans_estimate_note")}
+        </p>
       </div>
+      <motion.div
+        key={group}
+        data-testid="landing-plan-grid"
+        dir="rtl"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22 }}
+        className={`grid gap-3 ${group === "entry" ? "sm:grid-cols-2 xl:grid-cols-4" : "lg:grid-cols-3"}`}
+      >
+        {activePlans.map((plan) => (
+          <PlanCard key={plan.id} plan={plan} annual={annual} onSignIn={onSignIn} compact={group === "entry"} />
+        ))}
+      </motion.div>
 
-      <p className="mt-5 text-center text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
-        {t("lp_plans_note").replace("{n}", n(30))}
-      </p>
+      <div
+        className="mt-5 flex flex-col items-center justify-center gap-1 text-center text-[12px] sm:flex-row sm:gap-2"
+        style={{ color: "var(--vg-text-faint)" }}
+      >
+        <span>{t("pl_expiry_note")}</span>
+        <span className="hidden sm:inline" aria-hidden="true">
+          ·
+        </span>
+        <span className="sm:hidden">{t("lp_plans_estimate_note")}</span>
+      </div>
     </Section>
   );
 }
 
-function PlanCard({ plan, annual, onSignIn }: { plan: Plan; annual: boolean; onSignIn: () => void }) {
-  const { t, n } = useI18n();
-  const usd = effectiveUsd(plan, annual);
-  const off = annualDiscountPct(plan);
-  const unavailable = annual && plan.annualUsdPerMonth == null;
+function LandingPlanTag({ plan }: { plan: Plan }) {
+  const { t } = useI18n();
+  if (!plan.tag) return null;
   return (
-    /* The recommended plan has to win on more than a badge.
-       Two identical accent buttons side by side is a choice with no
-       recommendation in it — the eye has nowhere to go, so it goes nowhere. The
-       popular card keeps the solid fill and gets its own light behind it; the
-       other one drops to an outline. Same information, one obvious answer. */
-    <div
-      className={`relative flex flex-col rounded-card p-6 md:p-7 ${plan.popular ? "md:-my-3 md:py-10" : ""}`}
+    <span
+      className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
+      style={
+        plan.popular
+          ? { background: "var(--color-accent)", color: "var(--color-on-accent)" }
+          : { background: "var(--color-card2)", color: "var(--color-ink2)" }
+      }
+    >
+      {t(PLAN_TAG_KEY[plan.tag])}
+    </span>
+  );
+}
+
+function LandingPlanEstimates({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
+  const { t, n } = useI18n();
+  const images = estImages(plan);
+  const videos = estVideos(plan);
+  const rows: { icon: typeof ImageSquare; count: number; unit: string; model: string | null }[] = [];
+  if (images != null) rows.push({ icon: ImageSquare, count: images, unit: t("w_est_img"), model: IMAGE_ANCHOR_NAME });
+  if (videos != null) rows.push({ icon: VideoCamera, count: videos, unit: t("w_est_vid"), model: VIDEO_ANCHOR_NAME });
+  if (rows.length === 0) return null;
+
+  return (
+    <div className={`flex flex-col gap-1 ${compact ? "text-[11px]" : "text-[12px]"} text-ink2`}>
+      {rows.map(({ icon: Icon, count, unit, model }) => (
+        <span key={unit} className="flex min-w-0 items-center gap-1.5">
+          <Icon size={compact ? 12 : 14} className="shrink-0 text-accent" />
+          <span className="tabular-nums font-semibold text-ink">{n(count)}</span>
+          <span className="shrink-0">{unit}</span>
+          {model && (
+            <span className="truncate text-ink3">
+              {t("w_est_with")} <bdi>{model}</bdi>
+            </span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function LandingPlanPrice({ plan, cycle }: { plan: Plan; cycle: PlanCycle }) {
+  const { t, n, lang } = useI18n();
+  const annual = cycle === "annual" && plan.annualUsdPerMonth != null;
+  const perMonth = effectiveUsd(plan, annual);
+  const total = annualTotalUsd(plan);
+  const off = annualDiscountPct(plan);
+  const pct = lang === "fa" ? "٪" : "%";
+
+  return (
+    <>
+      {annual && off > 0 && (
+        <div className="mb-1 text-[10.5px] text-ink3">
+          <s>{n(toman(effectiveUsd(plan, false)))}</s> · {pct}
+          {n(off)} {t("pl_save")}
+        </div>
+      )}
+      <div className="flex items-baseline gap-1.5">
+        <span className="font-display text-[22px] font-semibold leading-none tabular-nums">{n(toman(perMonth))}</span>
+        <span className="text-[11px] text-ink2">
+          {t("w_toman")} {t("pl_per_month")}
+        </span>
+      </div>
+      {annual && total != null && (
+        <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink2">
+          <CalendarCheck size={12} weight="fill" className="shrink-0 text-accent" />
+          {t("pl_today")}: {n(toman(total))} {t("w_toman")} ({t("pl_billed_annual")})
+        </div>
+      )}
+      {cycle === "annual" && plan.annualUsdPerMonth == null && <div className="mt-1 text-[10.5px] text-ink3">{t("pl_monthly_only")}</div>}
+    </>
+  );
+}
+
+function PlanCard({ plan, annual, onSignIn, compact = false }: { plan: Plan; annual: boolean; onSignIn: () => void; compact?: boolean }) {
+  const { t, n } = useI18n();
+  const cycle: PlanCycle = annual ? "annual" : "monthly";
+  const buyKey = cycle === "annual" && plan.annualUsdPerMonth != null ? "pl_buy_12m" : "pl_buy_30";
+
+  if (compact) {
+    return (
+      <motion.article
+        data-testid={`landing-plan-${plan.id}`}
+        whileHover={{ y: -3 }}
+        transition={{ type: "spring", stiffness: 300, damping: 24 }}
+        className="relative flex flex-col gap-2 rounded-card border bg-card p-3.5"
+        style={{ borderColor: "var(--color-line)" }}
+      >
+        {plan.tag && (
+          <span className="absolute -top-2 start-3">
+            <LandingPlanTag plan={plan} />
+          </span>
+        )}
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="font-display text-[12.5px] font-semibold tracking-wide text-accent" lang="en">
+            {plan.name}
+          </span>
+          <span className="flex items-baseline gap-1">
+            <span className="text-[19px] font-semibold tabular-nums">{n(monthlyCoins(plan))}</span>
+            <span className="text-[11px] text-ink2">{t("w_coins")}</span>
+          </span>
+        </div>
+        <LandingPlanEstimates plan={plan} compact />
+        <div className="mt-0.5">
+          <LandingPlanPrice plan={plan} cycle={cycle} />
+        </div>
+        <button onClick={onSignIn} className="btn-quiet mt-auto flex items-center justify-center rounded-xl py-2 text-[12px] font-bold">
+          {t(buyKey)}
+        </button>
+      </motion.article>
+    );
+  }
+
+  return (
+    <motion.article
+      data-testid={`landing-plan-${plan.id}`}
+      whileHover={{ y: -4 }}
+      transition={{ type: "spring", stiffness: 300, damping: 24 }}
+      className="flex flex-col gap-3.5 rounded-bezel border bg-card p-4"
       style={{
-        background: "var(--vg-surface)",
-        border: `1px solid ${plan.popular ? "var(--vg-primary)" : "var(--vg-border-subtle)"}`,
-        ...(plan.popular ? { boxShadow: "0 0 60px -12px rgb(var(--vg-primary-rgb) / 0.28)" } : {}),
+        borderColor: plan.popular ? "var(--color-accent)" : "var(--color-line)",
+        boxShadow: plan.popular ? "0 26px 72px -48px var(--color-accent)" : undefined,
       }}
     >
-      {plan.popular && (
-        <span
-          className="absolute -top-2.5 start-6 rounded-pill px-2.5 py-0.5 text-[10.5px] font-semibold"
-          style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
-        >
-          {t("w_tag_popular")}
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-display text-[15px] font-semibold tracking-wide text-accent" lang="en">
+          {plan.name}
         </span>
-      )}
-      <span className="text-[18px] font-bold" style={{ color: "var(--vg-text)" }} lang="en">
-        {plan.name}
-      </span>
-      <span className="mt-1 text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
-        {n(monthlyCoins(plan))} {t("lp_coins_month")}
-      </span>
-
-      <div className="mt-5 flex items-baseline gap-1.5">
-        <span className="text-[26px] font-bold tabular-nums" style={{ color: "var(--vg-text)" }}>
-          {n(toman(usd))}
-        </span>
-        <span className="text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
-          {t("lp_toman_month")}
-        </span>
+        <LandingPlanTag plan={plan} />
       </div>
-      {annual && off > 0 && (
-        <span className="mt-1 text-[12px] font-medium" style={{ color: "var(--vg-primary-soft)" }}>
-          {n(off)}٪ {t("lp_off")}
-        </span>
-      )}
-      {unavailable && (
-        <span className="mt-1 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
-          {t("lp_monthly_only")}
-        </span>
+
+      <div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-display text-[30px] font-semibold leading-none tabular-nums">{n(monthlyCoins(plan))}</span>
+          <span className="text-[13px] text-ink2">{t("pl_coins_month")}</span>
+        </div>
+        {plan.bonus > 0 && (
+          <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-400">
+            <Gift size={12} weight="fill" />
+            {n(plan.bonus)} {t("w_gift")}
+          </div>
+        )}
+      </div>
+
+      <LandingPlanEstimates plan={plan} />
+
+      {plan.tier === 3 && (
+        <div className="rounded-xl border border-line bg-card2/70 px-3 py-2.5">
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-ink">
+            <span className="text-[15px] text-accent" aria-hidden>
+              ∞
+            </span>
+            <span dir="ltr">{t("lp_plan_unlimited")}</span>
+          </div>
+          <div className="mt-0.5 text-[10px] text-ink3" dir="ltr">
+            {t("lp_plan_unlimited_models")}
+          </div>
+        </div>
       )}
 
-      {/* Bottom-aligned, so the two buttons line up even when one card carries a
-          discount line the other does not. The padding is on the wrapper because
-          `mt-auto` collapses to nothing on a full card and would let the button
-          touch the price. */}
-      <div className="mt-auto grid pt-7" />
-      <button
-        onClick={onSignIn}
-        className="vg-ease rounded-card py-3.5 text-[13.5px] font-semibold active:scale-[0.98]"
-        style={
-          plan.popular
-            ? {
-                background: "var(--vg-primary)",
-                color: "var(--vg-text-on-primary)",
-                boxShadow: "0 0 32px rgb(var(--vg-primary-rgb) / 0.28), inset 0 1px 0 rgb(255 255 255 / 0.25)",
-              }
-            : { background: "transparent", color: "var(--vg-text-secondary)", border: "1px solid var(--vg-border)" }
-        }
-      >
-        {t("lp_cta_start")}
-      </button>
-    </div>
+      <div className="mt-auto border-t border-line pt-3">
+        <LandingPlanPrice plan={plan} cycle={cycle} />
+        <button
+          onClick={onSignIn}
+          className={`${plan.popular ? "btn-accent" : "btn-quiet"} mt-3 flex w-full items-center justify-center rounded-2xl py-3 text-[13.5px] font-bold`}
+        >
+          {t(buyKey)}
+        </button>
+      </div>
+    </motion.article>
   );
 }
 
@@ -1124,7 +535,7 @@ function Faq() {
   const [open, setOpen] = useState<number | null>(0);
   return (
     <Section light="end" id="faq">
-      <Heading index="08">{t("lp_faq_title")}</Heading>
+      <Heading index="09">{t("lp_faq_title")}</Heading>
       <div className="mx-auto flex max-w-[720px] flex-col gap-2">
         {FAQ_KEYS.map(({ q, a }, i) => {
           const on = open === i;
@@ -1184,7 +595,6 @@ function Closing({ onSignIn }: { onSignIn: () => void }) {
     <div className="relative isolate overflow-hidden">
       <div className="vg-bloom pointer-events-none absolute inset-0 opacity-70" aria-hidden />
       <div className="vg-vignette pointer-events-none absolute inset-0" aria-hidden />
-      <hr className="vg-vein absolute inset-x-0 top-0" aria-hidden />
       <Section className="relative z-[1] text-center">
         {/* Raised with the section headings, which just went to 52px and were
             about to match it. The ladder has to stay hero > closing > section:
@@ -1226,7 +636,7 @@ function Closing({ onSignIn }: { onSignIn: () => void }) {
 }
 
 /* ---------------------------------------------------------------------------
-   11 — the footer.
+   12 — the footer.
 
    It was one line of text. A footer is where someone goes looking for the things
    a landing page is not allowed to shout about — the terms, what happens to
@@ -1259,8 +669,8 @@ const FOOTER_LINKS: { group: TKey; items: { label: TKey; href: string }[] }[] = 
 function Footer() {
   const { t } = useI18n();
   return (
-    <footer className="border-t px-5 pb-10 pt-14 sm:px-8" style={{ borderColor: "var(--vg-border-subtle)" }}>
-      <div className="mx-auto grid w-full max-w-[1200px] gap-10 md:grid-cols-[1.5fr_1fr_1fr]">
+    <footer className="px-5 pb-10 pt-14 sm:px-8">
+      <div className="mx-auto grid w-full max-w-[1600px] gap-10 lg:px-2 md:grid-cols-[1.5fr_1fr_1fr]">
         <div className="grid gap-3">
           <span
             className="text-[18px] font-light tracking-[0.34em]"
@@ -1296,10 +706,7 @@ function Footer() {
         ))}
       </div>
 
-      <div
-        className="mx-auto mt-10 flex w-full max-w-[1200px] border-t pt-6 text-[11.5px]"
-        style={{ borderColor: "var(--vg-border-subtle)", color: "var(--vg-text-faint)" }}
-      >
+      <div className="mx-auto mt-10 flex w-full max-w-[1600px] pt-2 text-[11.5px] lg:px-2" style={{ color: "var(--vg-text-faint)" }}>
         <span>
           <span lang="en">DEEV</span> — {t("lp_footer_rights")}
         </span>
@@ -1317,26 +724,26 @@ export default function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; 
        would do it and would also silently kill the sticky nav, because an
        ancestor with `overflow: hidden` makes `position: sticky` scroll away.
        `clip` trims the paint without creating a scroll container. */
-    <div className="relative z-10 min-h-[100dvh] [overflow-x:clip]">
-      {/* The eleven-section order. The argument it makes, in sequence: what this
-          is → whose models → that they really produce this → what it would cost
-          you → why not just use the foreign one → how little there is to it →
-          the price → what happens if it goes wrong → the objections → ask again
-          → the small print.
-
-          Trust sits directly after pricing on purpose: that is where someone
-          stops to ask what happens if this goes wrong, and answering it three
-          sections later is answering it to nobody. */}
-      <TopNav onSignIn={onSignIn} onSignUp={onSignUp} />
-      <Hero onSignUp={onSignUp} />
-      <ModelStrip />
-      <Models />
+    <div
+      className="relative z-10 min-h-[100dvh] [overflow-x:clip]"
+      style={{
+        backgroundImage:
+          "radial-gradient(ellipse 42% 13% at 3% 24%, rgb(82 79 255 / 0.075), transparent 72%), radial-gradient(ellipse 46% 15% at 98% 49%, rgb(255 54 126 / 0.065), transparent 72%), radial-gradient(ellipse 40% 12% at 8% 73%, rgb(255 139 61 / 0.055), transparent 72%)",
+      }}
+    >
+      {/* Keep the first public pass visual and product-led: hero, tool mosaic,
+          real outputs, plans and common questions. Editorial sections inspired
+          by creator platforms can be inserted later without carrying over the
+          temporary calculator, comparison, steps or trust blocks. */}
+      {/* Nav, hero and the model band come from the Tailark block as given —
+          `src/components/blocks/hero-section-5.tsx`. It carries its own header,
+          so there is no TopNav here, and its slider is the model wall, so there
+          is no separate Models section either. What could not come across
+          verbatim is listed at the top of that file. */}
+      <HeroSection onSignIn={onSignIn} onSignUp={onSignUp} />
+      <Features />
       <Reel />
-      <TryIt onSignUp={onSignUp} />
-      <Comparison />
-      <HowItWorks />
       <Plans onSignIn={onSignUp} />
-      <Trust />
       <Faq />
       <Closing onSignIn={onSignUp} />
       <Footer />

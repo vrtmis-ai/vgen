@@ -1,0 +1,151 @@
+/**
+ * Generates `src/data/vendorMarks.ts` — the model and vendor logos — from
+ * `@lobehub/icons-static-svg`.
+ *
+ *     pnpm marks:publish
+ *
+ * ## Why LobeHub and not simple-icons
+ *
+ * simple-icons is a general brand set, and for an AI catalogue it is mostly
+ * misses: no OpenAI (its "OpenAI Gym" entry is a different product), no Kling,
+ * no Flux, no Grok, no Ideogram, no Recraft, no Topaz. Twelve of nineteen
+ * families could be dressed, and the two most recognisable names on the wall —
+ * GPT Image and Kling — were among the seven that could not.
+ *
+ * LobeHub's set is built specifically for AI models and vendors, so most of our
+ * catalogue has a *model* mark rather than only its maker's. That distinction is
+ * the whole reason this file exists: Google's logo beside "Veo" borrows the
+ * right credibility, but Kuaishou's beside "Kling" reads as the wrong logo to
+ * everyone who is not Chinese, which is exactly how it was reported.
+ *
+ * ## Two tiers, and the family tier wins
+ *
+ * `FAMILY_SLUGS` is the model's own mark. `VENDOR_SLUGS` dresses whatever is
+ * left with its maker's. Anything in neither falls to `VendorMark`'s monogram,
+ * which is a working state rather than a gap.
+ *
+ * ## Colour
+ *
+ * The monochrome variants, drawn with `currentColor`. LobeHub also ships
+ * `-color` versions; a wall of seventeen logos in seventeen brand palettes reads
+ * as a sticker sheet, and several are near-black and would vanish on our canvas.
+ *
+ * These are other companies' trademarks. Shipping them asserts they may be used
+ * to indicate compatibility — a per-brand judgement, made once, recorded here.
+ */
+import { readFileSync, writeFileSync } from "node:fs";
+import { FAMILIES } from "../src/data/models";
+
+const ICON_DIR = "node_modules/@lobehub/icons-static-svg/icons";
+
+/** Family id → icon slug. The model's own mark. */
+const FAMILY_SLUGS: Record<string, string> = {
+  "gpt-image": "openai",
+  kling: "kling",
+  flux: "flux",
+  "grok-image": "grok",
+  hailuo: "hailuo",
+  "nano-banana": "nanobanana",
+  "gemini-omni": "gemini",
+  qwen: "qwen",
+  ideogram: "ideogram",
+  recraft: "recraft",
+  topaz: "topazlabs",
+  elevenlabs: "elevenlabs",
+  "minimax-h3": "minimax",
+};
+
+/**
+ * Vendor → icon slug, for families with no mark of their own.
+ *
+ * Deliberately short. A maker's logo is only defensible where the maker is who a
+ * reader would recognise — Google beside Veo, ByteDance beside Seedance. Alibaba
+ * beside Wan is not: Wan comes from the Tongyi lab and has its own identity, and
+ * dressing it in the parent company's mark is what "that logo is wrong" meant.
+ */
+const VENDOR_SLUGS: Record<string, string> = {
+  Google: "google",
+  ByteDance: "bytedance",
+};
+
+interface Mark {
+  viewBox: string;
+  paths: string[];
+}
+
+function readMark(slug: string): Mark {
+  const svg = readFileSync(`${ICON_DIR}/${slug}.svg`, "utf8");
+  const viewBox = /viewBox="([^"]+)"/.exec(svg)?.[1];
+  if (!viewBox) throw new Error(`${slug}.svg has no viewBox`);
+  // Every path in the file, in order. Several of these marks are multi-path;
+  // taking only the first silently drops half the logo.
+  const paths = [...svg.matchAll(/<path[^>]*\sd="([^"]+)"/g)].map((m) => m[1]!);
+  if (!paths.length) throw new Error(`${slug}.svg has no <path>`);
+  return { viewBox, paths };
+}
+
+/* A family id or vendor string that matches nothing fails in the worst way: the
+   lookup misses, the model quietly falls back a tier, and the page looks fine.
+   `qwen-image` was written here once when the family is `qwen`, and the only
+   symptom was one letter where a logo should have been. */
+const unknownFamilies = Object.keys(FAMILY_SLUGS).filter((id) => !FAMILIES.some((f) => f.id === id));
+const unknownVendors = Object.keys(VENDOR_SLUGS).filter((v) => !FAMILIES.some((f) => f.vendor === v));
+if (unknownFamilies.length || unknownVendors.length) {
+  if (unknownFamilies.length) console.error(`\nUNKNOWN FAMILY IDS:\n  ${unknownFamilies.join("\n  ")}`);
+  if (unknownVendors.length) console.error(`\nUNKNOWN VENDORS:\n  ${unknownVendors.join("\n  ")}`);
+  process.exit(1);
+}
+
+function block(map: Record<string, string>, kind: string): string {
+  return Object.entries(map)
+    .map(([key, slug]) => {
+      const mark = readMark(slug);
+      console.log(`  ${kind.padEnd(7)} ${key.padEnd(15)} → ${slug}  (${mark.paths.length} path${mark.paths.length > 1 ? "s" : ""})`);
+      return `  ${JSON.stringify(key)}: { viewBox: ${JSON.stringify(mark.viewBox)}, paths: ${JSON.stringify(mark.paths)} },`;
+    })
+    .join("\n");
+}
+
+const familyBlock = block(FAMILY_SLUGS, "family");
+const vendorBlock = block(VENDOR_SLUGS, "vendor");
+
+const dressed = new Set([
+  ...FAMILIES.filter((f) => FAMILY_SLUGS[f.id]).map((f) => f.id),
+  ...FAMILIES.filter((f) => VENDOR_SLUGS[f.vendor]).map((f) => f.id),
+]);
+const undressed = FAMILIES.filter((f) => !dressed.has(f.id));
+
+const file = `// GENERATED by scripts/publish-vendor-marks.ts — do not edit by hand.
+// Run \`pnpm marks:publish\` to regenerate. Both mappings, and the reasoning for
+// which entries are here at all, live in that script.
+//
+// Monochrome outlines drawn with \`currentColor\`, so a row of them reads as one
+// system rather than as a sticker sheet, and so the near-black marks stay
+// visible on our canvas. Multi-path marks keep every path — taking only the
+// first drops half of several of these logos.
+
+export interface BrandMark {
+  viewBox: string;
+  paths: string[];
+}
+
+/** Keyed by family id. The model's own mark, which beats its maker's. */
+export const FAMILY_MARKS: Record<string, BrandMark> = {
+${familyBlock}
+};
+
+/** Keyed by vendor. Used only where the model has no mark of its own. */
+export const VENDOR_MARKS: Record<string, BrandMark> = {
+${vendorBlock}
+};
+`;
+
+writeFileSync("src/data/vendorMarks.ts", file);
+console.log(`\n${dressed.size}/${FAMILIES.length} families carry a vector mark.`);
+if (undressed.length) {
+  console.log(`No vector mark: ${undressed.map((f) => f.name).join(", ")}`);
+  // Not the same as "no logo". Families with only a bitmap are handled by
+  // RASTER_MASKS in src/components/ModelMark.tsx, which this script does not
+  // read — saying "monogram" here would report Wan as bare when it is not.
+  console.log(`(check RASTER_MASKS in ModelMark.tsx before treating those as bare)`);
+}

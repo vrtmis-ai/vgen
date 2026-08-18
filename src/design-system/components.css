@@ -893,6 +893,14 @@
   animation-name: vg-marquee-rtl;
 }
 
+/* Opposite travel, for rows stacked against each other. `animation-direction`
+   rather than a third and fourth keyframe: it plays whichever direction the
+   document already selected in reverse, so this composes with the RTL rule
+   above instead of having to restate it. */
+.vg-marquee--reverse .vg-marquee__track {
+  animation-direction: reverse;
+}
+
 @keyframes vg-marquee {
   to {
     transform: translateX(-50%);

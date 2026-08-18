@@ -1,54 +1,125 @@
 "use client";
 
-import { useImageFallback } from "../lib/useImageFallback";
+import { FAMILY_MARKS, VENDOR_MARKS } from "../data/vendorMarks";
 import { VendorMark } from "./VendorMark";
 
 /**
- * The families whose own mark we ship, and are therefore allowed to ship.
+ * A model's mark, in four tiers: a bitmap stencil, the model's own vector logo,
+ * its maker's, then a monogram.
  *
- * This list is the permission, not the file. `VendorMark` exists because
- * trademarked logos are not ours to ship, so each entry here is a decision that
- * one particular brand's guidelines allow its mark to indicate compatibility —
- * a per-brand check, not a blanket one. A file appearing in `public/` is not
- * that decision; a name appearing here is.
+ * The logo is what earns the model wall. A grid of letter-circles borrows
+ * nobody's credibility, and the entire point of naming Veo and Kling is that a
+ * visitor already trusts Google and Kuaishou.
  *
- * It is also what keeps the landing page quiet. Deriving "do we have artwork?"
- * from whether the request 404s means the marquee page of the product opens by
- * firing one failed request per model and waiting for each to fail before the
- * monogram appears — nine of them, on connections where that is not free.
+ * The model's own mark beats its maker's wherever one exists, and that ordering
+ * is not cosmetic: Kuaishou's logo beside "Kling" was reported as simply the
+ * wrong logo, and it was — nobody outside China reads that mark as Kling. Where
+ * only the maker's exists it still earns its place, so three Google families
+ * share the Google logo with their own names beside them.
  *
- * Empty is a correct state: every model falls back to its vendor monogram,
- * exactly as before this component existed.
+ * ## Inline, not an <img>
+ *
+ * An earlier pass wrote SVG files to `public/` and pointed an `<img>` at them.
+ * That ships a logo nobody can see: an SVG loaded through `<img>` is an isolated
+ * document, page CSS does not reach inside it, and the file's `currentColor`
+ * resolves against its own default — black, on a near-black canvas.
+ *
+ * Inlining fixes it at the root and costs no request, which matters because the
+ * model wall draws nineteen of these at once.
+ *
+ * `VendorMark` remains the floor. Only Z-Image still reaches it.
  */
-const SHIPPED_MARKS = new Set<string>([]);
 
 /**
- * A model's own mark, with the vendor monogram as the floor.
+ * Marks that exist only as a bitmap, drawn as a stencil rather than an image.
  *
- * Why not `VendorMark` on its own: three of the models worth naming — Nano
- * Banana, Veo and Gemini Omni — are all Google, so a row of vendor marks shows
- * the same logo three times and reads as one company rather than as a catalogue.
- * A product row has to carry product marks. Until `SHIPPED_MARKS` has entries
- * that is still what the row shows; this component is the seam that fixes it one
- * brand at a time, not a fix on its own.
+ * Wan is the sole entry and likely to stay that way: it is the one model in the
+ * catalogue with no vector logo published anywhere — not in @lobehub/icons, not
+ * in svgl, not in its own GitHub repo, and not on wan.video, which serves a PNG
+ * from a CDN.
+ *
+ * `mask-image` rather than `<img>`, and that is the whole trick. An `<img>` is
+ * an isolated document that ignores page CSS, so a bitmap logo cannot be tinted
+ * and would sit in the row at its own brand colour while the other seventeen
+ * take `currentColor`. As a mask, only the alpha channel is used and the element
+ * paints itself through it — so this weighs and colours exactly like a vector
+ * mark. `scripts/make-mark-mask.ts` is what turns the supplied PNG into that
+ * alpha channel.
  */
-export function ModelMark({ familyId, vendor, size = 16 }: { familyId: string; vendor: string; size?: number }) {
-  const [failed, onError] = useImageFallback();
+const RASTER_MASKS: Record<string, string> = {
+  wan: "/brand/marks/wan.png",
+};
 
-  // A file can still be removed under us — the runtime fallback stays as the
-  // floor beneath the list, so a stale entry degrades instead of leaving a hole.
-  if (failed || !SHIPPED_MARKS.has(familyId)) return <VendorMark vendor={vendor} size={size} />;
+/**
+ * Whether this family renders as a real logo rather than as a monogram.
+ *
+ * The model band uses it to show only families it can dress. A row whose whole
+ * job is borrowing recognition has nothing to gain from a letter in a circle,
+ * and one lettered tile among eighteen logos reads as a missing image rather
+ * than as a design.
+ *
+ * A predicate rather than a hardcoded exclusion list, so the band maintains
+ * itself: a model gains a logo and it appears, a model is added without one and
+ * it stays out, and neither needs anyone to remember this rule.
+ */
+export function hasModelMark(familyId: string, vendor: string): boolean {
+  return familyId in RASTER_MASKS || familyId in FAMILY_MARKS || vendor in VENDOR_MARKS;
+}
+
+export function ModelMark({ familyId, vendor, size = 16 }: { familyId?: string; vendor: string; size?: number }) {
+  const mask = familyId ? RASTER_MASKS[familyId] : undefined;
+  if (mask) {
+    return (
+      <span
+        aria-hidden
+        className="shrink-0"
+        style={{
+          width: size,
+          height: size,
+          background: "var(--vg-text-secondary)",
+          maskImage: `url(${mask})`,
+          WebkitMaskImage: `url(${mask})`,
+          maskSize: "contain",
+          WebkitMaskSize: "contain",
+          maskRepeat: "no-repeat",
+          WebkitMaskRepeat: "no-repeat",
+          maskPosition: "center",
+          WebkitMaskPosition: "center",
+        }}
+      />
+    );
+  }
+
+  // The model's own mark first — Kling's logo beside "Kling" is right in a way
+  // Kuaishou's is not — then its maker's, then the monogram.
+  const mark = (familyId ? FAMILY_MARKS[familyId] : undefined) ?? VENDOR_MARKS[vendor];
+  if (!mark) return <VendorMark vendor={vendor} size={size} />;
 
   return (
-    <img
-      src={`/brand/models/${familyId}.svg`}
-      alt=""
-      aria-hidden
+    /* aria-hidden, like VendorMark: every place this appears, the model or
+       vendor name is already in the adjacent text, and announcing the brand a
+       second time is noise.
+
+       Every path, not the first. Google's mark is four and ByteDance's is four;
+       rendering one of them draws a quarter of the logo, which looks like a
+       glitch rather than like a brand. */
+    <svg
+      viewBox={mark.viewBox}
       width={size}
       height={size}
-      onError={onError}
-      className="shrink-0 object-contain"
-      style={{ width: size, height: size }}
-    />
+      fill="currentColor"
+      aria-hidden
+      focusable="false"
+      className="shrink-0"
+      style={{ width: size, height: size, color: "var(--vg-text-secondary)" }}
+    >
+      {mark.paths.map((d, i) => (
+        <path key={i} d={d} />
+      ))}
+    </svg>
   );
 }
+
+/* `familyId` is optional because most families have no mark of their own — only
+   Gemini Omni and Qwen Image do today. Callers that pass it get the better
+   answer; callers that do not still get the maker's. */
