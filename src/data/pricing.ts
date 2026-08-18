@@ -20,7 +20,7 @@
 // The pivot is USD, not provider credits, so adding a second provider does not
 // touch the coin economy.
 
-import { isRefusal, resolvePrice, type PriceRowLike } from "@vgen/core";
+import { isRefusal, resolvePrice, type PriceRefusal, type PriceRowLike } from "@vgen/core";
 import priceList from "./pricing.rows.json";
 import { defaultInput, variantControls, type Family, type Variant } from "./models";
 import type { InputMap } from "../components/controls";
@@ -99,6 +99,28 @@ export function coinsForVariantId(variantId: string, input: InputMap, ctx: Price
   if (!rows) return null;
   const outcome = resolvePrice(rows, { params: input, seconds: billableSeconds(input, ctx), characters: ctx.chars });
   return isRefusal(outcome) ? null : outcome.coins;
+}
+
+/**
+ * *Why* a combination has no price, for the one screen that has to say so.
+ *
+ * `priceCoins` answers `null` to three different questions, and the API is
+ * explicit that two of them are not the same thing: `not_offered` is a product
+ * decision — Hailuo 2.3 genuinely has no 1080P at ten seconds — and the button
+ * should simply say so. `no_matching_row` and `missing_quantity` mean our own
+ * price list failed to cover a combination the catalogue still offers, which is
+ * a bug on our side, and telling somebody "this isn't supported" hides it behind
+ * a sentence that sounds deliberate.
+ *
+ * Returns null when the combination *is* priced, so a caller reads it as "no
+ * refusal" rather than having to compare against a success value it does not
+ * need.
+ */
+export function priceRefusal(variant: Variant, input: InputMap, ctx: PriceCtx = NO_CTX): PriceRefusal | null {
+  const rows = ROWS_BY_VARIANT.get(variant.id);
+  if (!rows) return "no_matching_row";
+  const outcome = resolvePrice(rows, { params: input, seconds: billableSeconds(input, ctx), characters: ctx.chars });
+  return isRefusal(outcome) ? outcome : null;
 }
 
 /** The cheapest a family can be run for, for the "from N coins" line on Landing. */

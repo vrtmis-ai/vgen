@@ -26,18 +26,77 @@ export interface GenerationValidationResult {
   issues: GenerationValidationIssue[];
 }
 
+/**
+ * What each API refusal means to the person who pressed the button.
+ *
+ * Branch on `code`, never on `message` — `docs/API.md` is explicit that codes
+ * are the contract and messages are prose. The codes below are the ones the API
+ * actually sends, taken from the quote, submit and job-failure tables in that
+ * file. The previous list predated all three routes going live and named three
+ * codes nothing sends — `insufficient_balance`, `locked_model` and
+ * `unsupported_combination` — while the real names for those same two refusals,
+ * `insufficient_credits` and `tier_too_low`, fell through to "try again". They
+ * are the two most likely refusals there are, and "try again" helps with
+ * neither: one needs a top-up and the other needs an upgrade.
+ *
+ * Grouped by what the person can do about it, because that is the only reason
+ * the API keeps them apart: collapsing them into one code would leave the
+ * screen guessing which.
+ */
 const GENERATION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
-  insufficient_balance: "اعتبار کیف پول برای این ساخت کافی نیست.",
-  locked_model: "این مدل در پلن فعلی شما فعال نیست.",
-  unsupported_combination: "این ترکیب تنظیمات توسط مدل پشتیبانی نمی‌شود.",
-  provider_unavailable: "ارائه‌دهندهٔ مدل موقتاً در دسترس نیست؛ کمی بعد دوباره تلاش کنید.",
+  // Fixed by spending money. 403 rather than 402 on tier is deliberate upstream:
+  // the account is not short of coins, it is on the wrong plan, and the fix is
+  // an upgrade rather than a top-up. So these two must not share a message.
+  insufficient_credits: "اعتبار کیف پول برای این ساخت کافی نیست؛ اول کیف پول را شارژ کنید.",
+  tier_too_low: "این مدل در پلن فعلی شما نیست؛ برای استفاده از آن پلن را ارتقا دهید.",
+  allowance_spent: "سهمیهٔ رایگان امروزتان تمام شد؛ از این پس این ساخت از سکه‌هایتان کم می‌کند.",
+
+  // Fixed by changing the request.
+  not_offered: "این ترکیب تنظیمات ارائه نمی‌شود؛ یکی از گزینه‌ها را عوض کنید.",
+  params_mismatch: "تنظیمات بعد از قیمت‌گیری عوض شد؛ دوباره تلاش کنید تا قیمت تازه گرفته شود.",
+
+  // Fixed by waiting, then trying the same thing again.
+  concurrency_reached: "به سقف ساخت‌های هم‌زمان پلن‌تان رسیده‌اید؛ تا تمام‌شدن یکی از آن‌ها صبر کنید.",
   rate_limited: "تعداد درخواست‌ها زیاد شده است؛ چند لحظه بعد دوباره تلاش کنید.",
+
+  // Fixed by asking again — the quote went stale, not the request.
+  quote_expired: "قیمت این ساخت منقضی شده؛ دوباره تلاش کنید تا قیمت تازه گرفته شود.",
+  quote_unavailable: "این قیمت دیگر معتبر نیست؛ دوباره تلاش کنید.",
+  quote_spent: "این درخواست قبلاً ثبت شده است؛ نتیجه‌اش را در کارهایتان دنبال کنید.",
+  idempotency_conflict: "این درخواست با یک ساخت دیگر تداخل دارد؛ چند لحظه بعد دوباره تلاش کنید.",
+
+  // Nothing the person chose is wrong, and nothing they can do will change it.
+  unknown_variant: "این مدل دیگر در دسترس نیست؛ صفحه را تازه کنید.",
+  no_price: "قیمتی برای این ترکیب پیدا نشد. این ایراد از سمت ماست، نه از انتخاب شما.",
+
+  /* A job that failed after it was queued. Every one of these ends in a refund —
+     the worker either captures the hold because a file exists or releases it
+     because one does not, and there is no third exit — so each one says so.
+     Somebody who watched coins leave their wallet and then saw the job fail
+     needs telling that the two cancelled out. */
+  provider_unavailable: "ارائه‌دهندهٔ این مدل در دسترس نیست؛ سکه‌ای از شما کم نشد.",
+  credential_unavailable: "این مدل در حال حاضر قابل اجرا نیست؛ سکه‌ای از شما کم نشد.",
+  submit_failed: "ارائه‌دهنده این درخواست را نپذیرفت؛ سکه‌ای از شما کم نشد.",
+  poll_failed: "ارائه‌دهنده دیگر دربارهٔ این ساخت پاسخ نداد؛ سکه‌ای از شما کم نشد.",
+  provider_timeout: "این ساخت به نتیجه نرسید؛ سکه‌ای از شما کم نشد.",
+  no_output: "هیچ خروجی‌ای ساخته نشد؛ سکه‌ای از شما کم نشد.",
+
+  /* Never reached the API at all. `src/adapters/http/client.ts` raises these
+     itself, so they carry status 0 and no server ever saw the request — which
+     is worth saying, because "try again" is genuinely the right advice here and
+     nowhere else. `request_aborted` is deliberately absent: the only thing that
+     aborts a request is the screen navigating away or a newer request replacing
+     it, and neither is a failure to report. */
   request_timeout: "پاسخ سرور طول کشید؛ دوباره تلاش کنید.",
+  network_error: "ارتباط با سرور برقرار نشد؛ اتصال اینترنت را بررسی کنید.",
+  invalid_response: "پاسخ سرور قابل خواندن نبود؛ دوباره تلاش کنید.",
 };
 
+const GENERATION_ERROR_FALLBACK = "ساخت محتوا انجام نشد؛ دوباره تلاش کنید.";
+
 export function generationErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) return GENERATION_ERROR_MESSAGES[error.code] ?? "ساخت محتوا انجام نشد؛ دوباره تلاش کنید.";
-  return "ساخت محتوا انجام نشد؛ دوباره تلاش کنید.";
+  if (!(error instanceof ApiError)) return GENERATION_ERROR_FALLBACK;
+  return GENERATION_ERROR_MESSAGES[error.code] ?? GENERATION_ERROR_FALLBACK;
 }
 
 function acceptsMime(slot: RefSlot, mime: string): boolean {

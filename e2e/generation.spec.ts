@@ -10,8 +10,8 @@ test("quotes and creates a generation with the server price", async ({ page }) =
   await expect(page.getByText(/هزینهٔ نهایی سرور: ۷/)).toBeVisible();
 });
 
-test("shows a safe insufficient-balance error", async ({ page }) => {
-  await mockApi(page, { quoteErrorCode: "insufficient_balance" });
+test("shows a safe insufficient-credits error", async ({ page }) => {
+  await mockApi(page, { quoteErrorCode: "insufficient_credits" });
   await page.goto("/generate/z-image");
   await page.getByPlaceholder("Describe what you want to create…").fill("A quiet forest");
   await page.getByRole("button", { name: /^ساخت/ }).click();
