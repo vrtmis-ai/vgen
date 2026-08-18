@@ -10,7 +10,7 @@
 // there is no card on file, and there is nothing to "cancel".
 //
 // How a plan behaves:
-//   • On purchase the account is granted `coinsPerMonth + bonus` coins.
+//   • On purchase the account is granted `coinsPerTerm` coins.
 //   • That grant EXPIRES after MONTHLY_EXPIRY_DAYS. Unused coins do not roll
 //     over into a later purchase.
 //   • The expiry is ours alone. The underlying KIE credits never expire, so an
@@ -29,15 +29,19 @@
 // Iranian users pay Toman via ZarinPal. TOMAN_PER_USD is THE one constant to
 // update when the exchange rate moves — every displayed price derives from it.
 //
-// NOTE: enforcing renewals, expiry and tier access needs the backend; until then
-// the UI reads this file and the backend phase wires it up against the same data.
+// The ladder itself no longer lives here. `GET /plans` serves it, screens read
+// it through `usePlanLadder()`, and what is left in this file is the arithmetic
+// around it: the Toman conversion, the margin audit, and the "what can I make
+// with this" estimates. Those are derivations, not facts about a plan, and the
+// API has no opinion on them.
 
 import { COIN_USD, MARGIN, coinsForVariantId, priceCoins } from "./pricing";
 import { FAMILIES, defaultInput, variantControls } from "./models";
-import planList from "./plans.rows.json";
+import type { Plan, Tier } from "../runtime/contracts/plans";
 import type { InputMap } from "../components/controls";
 
 export { COIN_USD };
+export type { Plan, Tier };
 export const TOMAN_PER_USD = 170_000; // set 2026-07 by owner ($50 ≈ 8.5M Toman)
 
 /** Days a grant stays spendable before it expires. Read-time expiry in the ledger. */
@@ -46,77 +50,6 @@ export const MONTHLY_EXPIRY_DAYS = 30;
 export const COMPANY_EXPIRY_DAYS = 365;
 /** Months paid upfront on the annual option. */
 export const ANNUAL_MONTHS = 12;
-
-/** Access tier a plan grants. Models declare the minimum tier that unlocks them. */
-export type Tier = 1 | 2 | 3;
-
-export interface Plan {
-  id: string;
-  name: string; // display name (latin, language-neutral)
-  /** Coins granted at the start of every billing month. */
-  coinsPerMonth: number;
-  /** Extra coins in that same monthly grant (the volume discount, made visible). */
-  bonus: number;
-  tier: Tier; // model-access tier this plan unlocks
-  monthlyUsd: number; // billed every month
-  annualUsdPerMonth?: number; // per-month rate when 12 months are paid upfront
-  /** "entry" plans are the cheap on-ramp; "main" plans are the money cards. */
-  group: "entry" | "main";
-  tag?: "test" | "gift" | "popular" | "best"; // label key, translated in UI
-  popular?: boolean;
-  /**
-   * How many generations this plan may have in flight at once.
-   *
-   * A real perk rather than a throttle dressed as one: waiting behind your own
-   * queue is the thing a heavy user notices first, and it is what a dearer plan
-   * is buying. Enforced server-side at job submission — the browser shows it,
-   * the API decides it.
-   */
-  maxConcurrentJobs: number;
-}
-
-/**
- * The ladder, read from the list the database is seeded from.
- *
- * It used to be written out here, which meant the card a customer bought from
- * and the row a subscription pointed at were two facts that happened to agree.
- * `src/data/plans.rows.json` is now the one copy: `pnpm plans:publish` writes it
- * into `plans`, and `GET /api/v1/plans` serves it back.
- *
- * The screens still read the file rather than the route, the same way they did
- * for the catalogue before it was ported — a plan card has to render in demo
- * mode with no server at all. CI diffs the file against what the database
- * serves, so the two cannot drift.
- */
-/** One row of `plans.rows.json`. Generated, never hand-edited. */
-interface StoredPlan {
-  code: string;
-  name: string;
-  tier: Tier;
-  baseCoins: number;
-  bonusCoins: number;
-  monthlyUsd: number;
-  annualUsdPerMonth: number | null;
-  group: "entry" | "main";
-  tag: Plan["tag"] | null;
-  popular: boolean;
-  sortOrder: number;
-  maxConcurrentJobs: number;
-}
-
-export const PLANS: Plan[] = (planList as { rows: StoredPlan[] }).rows.map((row) => ({
-  id: row.code,
-  name: row.name,
-  coinsPerMonth: row.baseCoins,
-  bonus: row.bonusCoins,
-  tier: row.tier,
-  monthlyUsd: row.monthlyUsd,
-  ...(row.annualUsdPerMonth === null ? {} : { annualUsdPerMonth: row.annualUsdPerMonth }),
-  group: row.group,
-  ...(row.tag ? { tag: row.tag } : {}),
-  ...(row.popular ? { popular: true } : {}),
-  maxConcurrentJobs: row.maxConcurrentJobs,
-}));
 
 /**
  * Simultaneous generations for an account with no plan.
@@ -127,14 +60,9 @@ export const PLANS: Plan[] = (planList as { rows: StoredPlan[] }).rows.map((row)
 export const FREE_CONCURRENT_JOBS = 1;
 
 /** How many generations this account may run at once. */
-export function concurrencyForPlan(planId: string | null | undefined): number {
+export function concurrencyForPlan(plans: readonly Plan[], planId: string | null | undefined): number {
   if (!planId) return FREE_CONCURRENT_JOBS;
-  return PLANS.find((p) => p.id === planId)?.maxConcurrentJobs ?? FREE_CONCURRENT_JOBS;
-}
-
-/** Total coins a plan grants each month. */
-export function monthlyCoins(plan: Plan): number {
-  return plan.coinsPerMonth + plan.bonus;
+  return plans.find((p) => p.code === planId)?.maxConcurrentJobs ?? FREE_CONCURRENT_JOBS;
 }
 
 /** List price per month on the given cycle, before any account-level adjustment. */
@@ -164,12 +92,12 @@ export interface PricingAccount {
  */
 export function effectiveUsd(plan: Plan, annual: boolean, account?: PricingAccount): number {
   if (!account?.isTeam) return usdOf(plan, annual);
-  return monthlyCoins(plan) * (COIN_USD / MARGIN);
+  return plan.coinsPerTerm * (COIN_USD / MARGIN);
 }
 
 /** Coins per dollar — the number a shopper is really comparing. */
 export function coinsPerUsd(plan: Plan, annual = false): number {
-  return monthlyCoins(plan) / usdOf(plan, annual);
+  return plan.coinsPerTerm / usdOf(plan, annual);
 }
 
 /**
@@ -181,7 +109,7 @@ export function coinsPerUsd(plan: Plan, annual = false): number {
  * clears 1.26×, not the 2× the constant advertises.
  */
 export function planMargin(plan: Plan, annual = false): number {
-  return usdOf(plan, annual) / (monthlyCoins(plan) * (COIN_USD / MARGIN));
+  return usdOf(plan, annual) / (plan.coinsPerTerm * (COIN_USD / MARGIN));
 }
 
 /**
@@ -225,13 +153,15 @@ export const MIN_PLAN_MARGIN_ANNUAL = 1.3;
  * ErrorBoundary exists to prevent and cannot catch. It reports instead of
  * throwing, and `scripts/check-combos.ts` fails CI on a non-empty result.
  */
-export function auditPlans(): string[] {
+export function auditPlans(plans: readonly Plan[]): string[] {
   const problems: string[] = [];
   for (const annual of [false, true]) {
     const cycle = annual ? "annual" : "monthly";
-    // Sort rather than trusting PLANS' order: appending a cheap plan at the end
-    // of the array is a natural edit and used to report a false inversion.
-    const ladder = PLANS.filter((p) => !annual || p.annualUsdPerMonth != null)
+    // Sort rather than trusting the served order: it is the order the cards are
+    // meant to read in, and a cheap plan appended at the end of it is a natural
+    // edit that used to report a false inversion.
+    const ladder = plans
+      .filter((p) => !annual || p.annualUsdPerMonth != null)
       .slice()
       .sort((a, b) => usdOf(a, annual) - usdOf(b, annual));
     for (let i = 1; i < ladder.length; i++) {
@@ -239,8 +169,8 @@ export function auditPlans(): string[] {
       const hi = ladder[i]!;
       if (coinsPerUsd(hi, annual) < coinsPerUsd(lo, annual)) {
         problems.push(
-          `ladder inverts at "${hi.id}" (${cycle}): ` +
-            `${coinsPerUsd(hi, annual).toFixed(2)} coins/$ vs "${lo.id}" ${coinsPerUsd(lo, annual).toFixed(2)}`,
+          `ladder inverts at "${hi.code}" (${cycle}): ` +
+            `${coinsPerUsd(hi, annual).toFixed(2)} coins/$ vs "${lo.code}" ${coinsPerUsd(lo, annual).toFixed(2)}`,
         );
       }
     }
@@ -249,8 +179,8 @@ export function auditPlans(): string[] {
       const floor = annual ? MIN_PLAN_MARGIN_ANNUAL : MIN_PLAN_MARGIN_MONTHLY;
       if (m < floor) {
         problems.push(
-          `"${plan.id}" (${cycle}) clears only ${m.toFixed(3)}× — floor is ${floor}×. ` +
-            `${monthlyCoins(plan)} coins cost us $${(monthlyCoins(plan) * (COIN_USD / MARGIN)).toFixed(2)} ` +
+          `"${plan.code}" (${cycle}) clears only ${m.toFixed(3)}× — floor is ${floor}×. ` +
+            `${plan.coinsPerTerm} coins cost us $${(plan.coinsPerTerm * (COIN_USD / MARGIN)).toFixed(2)} ` +
             `against $${usdOf(plan, annual)} of revenue.`,
         );
       }
@@ -303,14 +233,14 @@ export function minTierFor(familyId: string): Tier {
  * gift a real trial rather than a number it cannot spend. Everything dearer is
  * exactly what we want them to see and be unable to reach yet.
  */
-export function tierForPlan(planId: string | null | undefined): Tier {
+export function tierForPlan(plans: readonly Plan[], planId: string | null | undefined): Tier {
   if (!planId) return 1;
-  return PLANS.find((p) => p.id === planId)?.tier ?? 1;
+  return plans.find((p) => p.code === planId)?.tier ?? 1;
 }
 
 /** Can this account run this family at all? */
-export function familyUnlocked(familyId: string, planId: string | null | undefined): boolean {
-  return tierForPlan(planId) >= minTierFor(familyId);
+export function familyUnlocked(plans: readonly Plan[], familyId: string, planId: string | null | undefined): boolean {
+  return tierForPlan(plans, planId) >= minTierFor(familyId);
 }
 
 /**
@@ -321,9 +251,9 @@ export function familyUnlocked(familyId: string, planId: string | null | undefin
  * user nothing about what to buy. Returns null only if nothing unlocks it,
  * which check-combos.ts already prevents.
  */
-export function cheapestPlanFor(familyId: string): Plan | null {
+export function cheapestPlanFor(plans: readonly Plan[], familyId: string): Plan | null {
   const need = minTierFor(familyId);
-  return [...PLANS].filter((p) => p.tier >= need).sort((a, b) => a.monthlyUsd - b.monthlyUsd)[0] ?? null;
+  return plans.filter((p) => p.tier >= need).sort((a, b) => a.monthlyUsd - b.monthlyUsd)[0] ?? null;
 }
 
 /** Family display names newly unlocked AT this tier (not cumulative). */
@@ -383,11 +313,11 @@ export const VIDEO_ANCHOR_NAME = anchorName(VIDEO_ANCHOR_ID);
 
 /** Images per month on this plan, or null if the anchor lost its rate. */
 export function estImages(plan: Plan): number | null {
-  return COST_PER_IMAGE == null ? null : Math.floor(monthlyCoins(plan) / COST_PER_IMAGE);
+  return COST_PER_IMAGE == null ? null : Math.floor(plan.coinsPerTerm / COST_PER_IMAGE);
 }
 /** 5-second videos per month on this plan, or null if the anchor lost its rate. */
 export function estVideos(plan: Plan): number | null {
-  return COST_PER_VIDEO5S == null ? null : Math.floor(monthlyCoins(plan) / COST_PER_VIDEO5S);
+  return COST_PER_VIDEO5S == null ? null : Math.floor(plan.coinsPerTerm / COST_PER_VIDEO5S);
 }
 
 /* ---------------------------------------------------------------------------
@@ -520,7 +450,7 @@ export function buildBenchmarks(): Benchmark[] {
 
 /** How many of this output a plan's monthly coins buy. */
 export function outputsPerMonth(plan: Plan, b: Benchmark): number | null {
-  return b.coins == null || b.coins <= 0 ? null : Math.floor(monthlyCoins(plan) / b.coins);
+  return b.coins == null || b.coins <= 0 ? null : Math.floor(plan.coinsPerTerm / b.coins);
 }
 
 /** Toman price for a USD amount (rounded to the nearest 1000). */

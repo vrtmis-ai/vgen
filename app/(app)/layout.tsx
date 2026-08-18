@@ -7,7 +7,8 @@ import { AppLoading } from "../../src/components/AppLoading";
 import { OAuthFailureNotice } from "../../src/components/OAuthFailureNotice";
 import { SystemState } from "../../src/components/SystemState";
 import { CatalogProvider } from "../../src/features/catalog/CatalogProvider";
-import { useCatalog, useSession, useWallet } from "../../src/features/session/useSession";
+import { PlansProvider } from "../../src/features/plans/PlansProvider";
+import { useCatalog, usePlans, useSession, useWallet } from "../../src/features/session/useSession";
 import { AccessProvider } from "../../src/lib/access";
 import { useOnlineStatus } from "../../src/lib/useOnlineStatus";
 import Landing from "../../src/screens/Landing";
@@ -19,6 +20,7 @@ import { SessionProvider } from "../../src/runtime/providers/SessionProvider";
 import type { AccountUser } from "../../src/runtime/contracts/session";
 import type { Wallet } from "../../src/runtime/contracts/wallet";
 import type { CatalogSnapshot } from "../../src/runtime/contracts/catalog";
+import type { Plan } from "../../src/runtime/contracts/plans";
 
 /**
  * The session gate — the seven early returns App.tsx opened with.
@@ -44,11 +46,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const authed = session.status === "authed";
   const walletQuery = useWallet(authed);
   const catalogQuery = useCatalog(authed);
+  // Not gated on `authed`: the landing page prices two plans for a visitor who
+  // has no session yet, and the padlocks below need the same ladder to name
+  // what would unlock a family.
+  const plansQuery = usePlans();
 
   if (!online) {
-    return (
-      <SystemState kind="offline" onPrimary={() => window.dispatchEvent(new Event(navigator.onLine ? "online" : "offline"))} />
-    );
+    return <SystemState kind="offline" onPrimary={() => window.dispatchEvent(new Event(navigator.onLine ? "online" : "offline"))} />;
   }
   if (sessionQuery.error) {
     return (
@@ -72,6 +76,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       />
     );
   }
+  if (plansQuery.error) {
+    return (
+      <SystemState
+        kind="service"
+        title="پلن‌ها بارگذاری نشدند"
+        description="فهرست پلن‌ها و قیمت‌هایشان در دسترس نیست. تا دریافت نسخه معتبر، قیمتی نشان داده نمی‌شود — عدد قدیمی بدتر از نبودن عدد است."
+        onPrimary={() => void plansQuery.refetch()}
+        requestId={plansQuery.error instanceof ApiError ? plansQuery.error.requestId : undefined}
+        busy={plansQuery.isFetching}
+      />
+    );
+  }
   if (catalogQuery.error) {
     return (
       <SystemState
@@ -85,6 +101,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
   if (session.status === "loading") return <AppLoading label="در حال بررسی نشست کاربری…" />;
+  // The ladder gates the landing page too, not just the app: it prices two plans
+  // for a visitor who has no session yet, so there is nothing to paint until it lands.
+  if (!plansQuery.data) return <AppLoading />;
   /* A social sign-in that fails lands back here, anonymous, with `?auth=<code>`
      in the URL and no other trace — so the notice belongs on the one branch that
      renders for a signed-out visitor, not inside the landing page's own markup. */
@@ -92,7 +111,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return (
       <>
         <OAuthFailureNotice />
-        <Landing onSignIn={authActions.signIn} onSignUp={authActions.signUp} />
+        <Landing plans={plansQuery.data} onSignIn={authActions.signIn} onSignUp={authActions.signUp} />
       </>
     );
   if (!walletQuery.data || !catalogQuery.data) return <AppLoading />;
@@ -108,7 +127,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
      plan, this one line is the only thing that changes. */
   return (
     <NavigationProvider>
-      <AuthedTree user={session.user} wallet={walletQuery.data} families={catalogQuery.data.families} authActions={authActions}>
+      <AuthedTree
+        user={session.user}
+        wallet={walletQuery.data}
+        families={catalogQuery.data.families}
+        plans={plansQuery.data}
+        authActions={authActions}
+      >
         {children}
       </AuthedTree>
     </NavigationProvider>
@@ -120,12 +145,14 @@ function AuthedTree({
   user,
   wallet,
   families,
+  plans,
   authActions,
   children,
 }: {
   user: AccountUser;
   wallet: Wallet;
   families: CatalogSnapshot["families"];
+  plans: readonly Plan[];
   authActions: AuthActions;
   children: ReactNode;
 }) {
@@ -133,11 +160,16 @@ function AuthedTree({
 
   return (
     <SessionProvider value={{ user, wallet, ...authActions }}>
-      <AccessProvider planId={null} onUpgrade={openWallet}>
-        <CatalogProvider families={families}>
-          <GenerationsProvider>{children}</GenerationsProvider>
-        </CatalogProvider>
-      </AccessProvider>
+      {/* PlansProvider wraps AccessProvider rather than sitting beside it: the
+          gate asks the ladder which plan unlocks a family, so the ladder has to
+          be above it. */}
+      <PlansProvider plans={plans}>
+        <AccessProvider planId={null} onUpgrade={openWallet}>
+          <CatalogProvider families={families}>
+            <GenerationsProvider>{children}</GenerationsProvider>
+          </CatalogProvider>
+        </AccessProvider>
+      </PlansProvider>
     </SessionProvider>
   );
 }

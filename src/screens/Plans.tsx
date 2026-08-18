@@ -29,9 +29,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import {
-  PLANS,
   toman,
-  monthlyCoins,
   annualDiscountPct,
   annualTotalUsd,
   effectiveUsd,
@@ -46,6 +44,7 @@ import {
   type Plan,
   type PricingAccount,
 } from "../data/plans";
+import { usePlanLadder } from "../features/plans/PlansProvider";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
@@ -97,9 +96,6 @@ function byFamily(rows: Benchmark[]): FamilyGroup[] {
 }
 
 type Cycle = "monthly" | "annual";
-
-/** Best annual saving across the catalogue — the number worth putting on the toggle. */
-const MAX_ANNUAL_SAVE = Math.max(...PLANS.map(annualDiscountPct));
 
 /** What the buy button actually commits the user to, spelled out. */
 function buyKey(plan: Plan, cycle: Cycle): "pl_buy_30" | "pl_buy_12m" {
@@ -163,7 +159,12 @@ function Estimates({ plan, compact }: { plan: Plan; compact?: boolean }) {
 /** Monthly ⇄ yearly switch. Yearly carries the saving so the choice is legible. */
 function CycleToggle({ cycle, onChange }: { cycle: Cycle; onChange: (c: Cycle) => void }) {
   const { t, n, lang } = useI18n();
+  const plans = usePlanLadder();
   const pct = lang === "fa" ? "٪" : "%";
+  // The best saving on offer, read off the ladder that is actually being shown.
+  // It used to be a module constant computed at import time, which is a promise
+  // about prices made before the prices arrived.
+  const maxSave = Math.max(0, ...plans.map(annualDiscountPct));
   return (
     <div className="mx-4 mb-5 flex rounded-full border border-line bg-card p-1">
       {(["monthly", "annual"] as const).map((c) => {
@@ -176,13 +177,13 @@ function CycleToggle({ cycle, onChange }: { cycle: Cycle; onChange: (c: Cycle) =
             style={on ? { background: "var(--color-accent)", color: "var(--color-on-accent)" } : { color: "var(--color-ink2)" }}
           >
             {t(c === "monthly" ? "pl_monthly" : "pl_annual")}
-            {c === "annual" && MAX_ANNUAL_SAVE > 0 && (
+            {c === "annual" && maxSave > 0 && (
               <span
                 className="rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold"
                 style={on ? { background: "rgba(0,0,0,0.18)" } : { background: "var(--color-accent-soft)", color: "var(--color-accent)" }}
               >
                 {pct}
-                {n(MAX_ANNUAL_SAVE)} {t("pl_save")}
+                {n(maxSave)} {t("pl_save")}
               </span>
             )}
           </button>
@@ -254,13 +255,13 @@ function PlanCard({ plan, cycle, current, account }: { plan: Plan; cycle: Cycle;
 
       <div>
         <div className="flex items-baseline gap-1.5">
-          <span className="font-display text-[30px] font-semibold leading-none tabular-nums">{n(monthlyCoins(plan))}</span>
+          <span className="font-display text-[30px] font-semibold leading-none tabular-nums">{n(plan.coinsPerTerm)}</span>
           <span className="text-[13px] text-ink2">{t("pl_coins_month")}</span>
         </div>
-        {plan.bonus > 0 && (
+        {plan.bonusCoins > 0 && (
           <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-400">
             <Gift size={12} weight="fill" />
-            {n(plan.bonus)} {t("w_gift")}
+            {n(plan.bonusCoins)} {t("w_gift")}
           </div>
         )}
       </div>
@@ -310,7 +311,7 @@ function EntryCard({
       <div className="flex items-baseline justify-between">
         <span className="font-display text-[12.5px] font-semibold tracking-wide text-accent">{plan.name}</span>
         <span className="flex items-baseline gap-1">
-          <span className="text-[19px] font-semibold tabular-nums">{n(monthlyCoins(plan))}</span>
+          <span className="text-[19px] font-semibold tabular-nums">{n(plan.coinsPerTerm)}</span>
           <span className="text-[11px] text-ink2">{t("w_coins")}</span>
         </span>
       </div>
@@ -344,12 +345,13 @@ function EntryCard({
  */
 function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId: string | null }) {
   const { t, n } = useI18n();
+  const plans = usePlanLadder();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // Every tier, cheapest first — the table scrolls, so there is no reason to
   // hide half the ladder. A comparison that omits the plan you are on is not
   // one you can act from.
-  const cols = [...PLANS].sort((a, b) => monthlyCoins(a) - monthlyCoins(b));
+  const cols = [...plans].sort((a, b) => a.coinsPerTerm - b.coinsPerTerm);
   // Built at render, not at module load: some rates arrive from the live table
   // after mount, and a list frozen at import time would quote the fallbacks
   // forever.
@@ -390,9 +392,9 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
             <tr>
               <th className="sticky w-[34%] p-3 align-bottom sm:w-[26%]" style={{ insetInlineStart: 0, background: "var(--color-bg)" }} />
               {cols.map((p) => {
-                const lead = p.popular || p.id === currentPlanId;
+                const lead = p.popular || p.code === currentPlanId;
                 return (
-                  <th key={p.id} className="px-2 py-3 align-bottom text-center">
+                  <th key={p.code} className="px-2 py-3 align-bottom text-center">
                     <span className="flex items-center justify-center gap-1.5">
                       <bdi className="text-[17px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)" }}>
                         {p.name}
@@ -402,7 +404,7 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                           className="rounded px-1 py-px text-[9px] font-bold"
                           style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}
                         >
-                          {p.id === currentPlanId ? t("pl_current") : "بهترین"}
+                          {p.code === currentPlanId ? t("pl_current") : "بهترین"}
                         </span>
                       )}
                     </span>
@@ -416,7 +418,7 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                         table answers "how much can I make", which is a question
                         about the allowance, not the bill. */}
                     <span className="mt-1 block whitespace-nowrap text-[12px] font-normal text-ink2">
-                      <span className="vg-numeric">{n(monthlyCoins(p))}</span> سکه
+                      <span className="vg-numeric">{n(p.coinsPerTerm)}</span> سکه
                     </span>
                   </th>
                 );
@@ -481,7 +483,7 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                           {cols.map((p) => {
                             const v = outputsPerMonth(p, b);
                             return (
-                              <td key={p.id} className="px-2 py-2 text-center align-bottom" style={{ borderTop: rule }}>
+                              <td key={p.code} className="px-2 py-2 text-center align-bottom" style={{ borderTop: rule }}>
                                 {v == null || v === 0 ? (
                                   // A plan whose month does not buy even one is
                                   // an ×, not a zero. Zero reads as a number you
@@ -552,9 +554,9 @@ function ComparisonTable({ cycle, currentPlanId }: { cycle: Cycle; currentPlanId
                               <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5">
                                 {cols.map((p) => {
                                   const v = outputsPerMonth(p, b);
-                                  const lead = p.popular || p.id === currentPlanId;
+                                  const lead = p.popular || p.code === currentPlanId;
                                   return (
-                                    <div key={p.id} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5">
+                                    <div key={p.code} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5">
                                       <bdi
                                         className="truncate text-[11.5px]"
                                         style={{ color: lead ? "var(--color-accent)" : "var(--color-ink2)" }}
@@ -615,6 +617,7 @@ export default function Plans({
   onBack: () => void;
 }) {
   const { t, n, lang } = useI18n();
+  const plans = usePlanLadder();
   const [cycle, setCycle] = useState<Cycle>("monthly");
 
   // Switching cycle re-lays out the cards, and an RTL snap container anchors to
@@ -625,9 +628,9 @@ export default function Plans({
     carRef.current?.scrollTo({ left: 0 });
   }, [cycle]);
 
-  const current = PLANS.find((p) => p.id === currentPlanId) ?? null;
-  const main = PLANS.filter((p) => p.group === "main");
-  const entry = PLANS.filter((p) => p.group === "entry");
+  const current = plans.find((p) => p.code === currentPlanId) ?? null;
+  const main = plans.filter((p) => p.group === "main");
+  const entry = plans.filter((p) => p.group === "entry");
 
   // The date that matters is the next grant to expire, not "when the plan ends".
   // A user can hold a plan bucket and a gift bucket at once, and the gift almost
@@ -716,14 +719,14 @@ export default function Plans({
         className="no-scrollbar mb-7 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 md:grid md:grid-cols-3 md:overflow-visible"
       >
         {main.map((p) => (
-          <PlanCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} account={account} />
+          <PlanCard key={p.code} plan={p} cycle={cycle} current={p.code === currentPlanId} account={account} />
         ))}
       </div>
 
       <div className="mb-2.5 text-[12.5px] text-ink2">{t("pl_entry_group")}</div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {entry.map((p) => (
-          <EntryCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} account={account} />
+          <EntryCard key={p.code} plan={p} cycle={cycle} current={p.code === currentPlanId} account={account} />
         ))}
       </div>
 

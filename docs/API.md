@@ -315,8 +315,18 @@ see what a plan costs before they have an account to see it with.
 }
 ```
 
-Schema: `PlanSchema` in `packages/contracts/src/plans.ts`. Ordered the way the
-cards are meant to read — do not sort it.
+Schema: `PlanSchema` in `packages/contracts/src/plans.ts`, mirrored for the
+browser in `src/runtime/contracts/plans.ts`. Ordered the way the cards are meant
+to read — do not sort it.
+
+**This is what the UI reads.** `AppServices.plans.list()` fetches it once, the
+app shell puts it in `PlansProvider`, and the plans screen, the landing page's
+price cards and the access gate's padlock all read it from there. Nothing
+renders a price from a file any more. Demo mode serves
+`src/data/plans.snapshot.json` — the database's own export, committed and diffed
+in CI — so a screen built without a backend is built against the real payload.
+`plans.rows.json` beside it is the seeder's *input*; both are generated, so
+**do not hand-edit either.**
 
 Five things worth knowing:
 
@@ -589,12 +599,6 @@ moved. CI runs that check over all 738 of them.
 
 So you can tell a gap from a bug:
 
-- **The Plans screen still reads a file.** `GET /plans` is live, but nothing in
-  `AppServices` calls it — the screen imports `PLANS` from `src/data/plans.ts`,
-  which reads the generated `src/data/plans.rows.json`. (`plans.snapshot.json` is
-  the separate copy exported _from_ the database, which CI diffs against it.)
-  Both are generated: **do not hand-edit either.** Porting the screen to the
-  route is UI work, and the payload above is what it will get.
 - **Anywhere to see a finished generation.** The worker runs jobs and files
   their outputs as `assets` rows, but those rows point at the provider's own
   URLs, which expire — `storage_provider = 'external'` is what marks them — and

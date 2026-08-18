@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../lib/i18n";
 import { FAMILIES } from "../data/models";
-import { PLANS, effectiveUsd, toman } from "../data/plans";
+import { effectiveUsd, toman } from "../data/plans";
+import { PLAN_LADDER } from "../data/planLadder";
 import Landing, { HERO_MODEL_IDS } from "./Landing";
 
 // English, so the button assertions below read as the labels a reviewer sees.
@@ -13,7 +14,7 @@ describe("Landing authentication actions", () => {
   it("renders the DEEV product name", () => {
     render(
       <LanguageProvider initialLang="en">
-        <Landing onSignIn={vi.fn()} onSignUp={vi.fn()} />
+        <Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -27,7 +28,7 @@ describe("Landing authentication actions", () => {
 
     render(
       <LanguageProvider initialLang="en">
-        <Landing onSignIn={onSignIn} onSignUp={onSignUp} />
+        <Landing plans={PLAN_LADDER} onSignIn={onSignIn} onSignUp={onSignUp} />
       </LanguageProvider>,
     );
 
@@ -63,7 +64,7 @@ describe("Landing hero model row", () => {
   it("shows every one of them to the visitor", () => {
     render(
       <LanguageProvider initialLang="en">
-        <Landing onSignIn={vi.fn()} onSignUp={vi.fn()} />
+        <Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -78,7 +79,7 @@ describe("Landing feature bento", () => {
   it("puts the product features before the showcase", () => {
     const { container } = render(
       <LanguageProvider initialLang="en">
-        <Landing onSignIn={vi.fn()} onSignUp={vi.fn()} />
+        <Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -103,18 +104,18 @@ describe("Landing pricing", () => {
     const user = userEvent.setup();
     render(
       <LanguageProvider initialLang="en">
-        <Landing onSignIn={vi.fn()} onSignUp={vi.fn()} />
+        <Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />
       </LanguageProvider>,
     );
 
-    const personal = PLANS.filter((plan) => plan.group === "entry").sort((a, b) => a.monthlyUsd - b.monthlyUsd);
-    const professional = PLANS.filter((plan) => plan.group === "main").sort((a, b) => a.monthlyUsd - b.monthlyUsd);
+    const personal = PLAN_LADDER.filter((plan) => plan.group === "entry").sort((a, b) => a.monthlyUsd - b.monthlyUsd);
+    const professional = PLAN_LADDER.filter((plan) => plan.group === "main").sort((a, b) => a.monthlyUsd - b.monthlyUsd);
 
     for (const plan of personal) {
-      expect(screen.getByTestId(`landing-plan-${plan.id}`)).toHaveTextContent(plan.name);
+      expect(screen.getByTestId(`landing-plan-${plan.code}`)).toHaveTextContent(plan.name);
     }
     for (const plan of professional) {
-      expect(screen.queryByTestId(`landing-plan-${plan.id}`)).not.toBeInTheDocument();
+      expect(screen.queryByTestId(`landing-plan-${plan.code}`)).not.toBeInTheDocument();
     }
 
     const personalGrid = screen.getByTestId("landing-plan-grid");
@@ -123,20 +124,20 @@ describe("Landing pricing", () => {
       within(personalGrid)
         .getAllByTestId(/landing-plan-/)
         .map((card) => card.dataset.testid),
-    ).toEqual(personal.map((plan) => `landing-plan-${plan.id}`));
+    ).toEqual(personal.map((plan) => `landing-plan-${plan.code}`));
 
-    const cheapest = [...PLANS].sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false))[0]!;
-    const cheapestCard = screen.getByTestId(`landing-plan-${cheapest.id}`);
+    const cheapest = [...PLAN_LADDER].sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false))[0]!;
+    const cheapestCard = screen.getByTestId(`landing-plan-${cheapest.code}`);
     expect(cheapestCard).toHaveTextContent(toman(effectiveUsd(cheapest, false)).toLocaleString("en-US"));
     expect(within(cheapestCard).getByRole("button", { name: "Buy 30 days" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Professional plans" }));
 
     for (const plan of professional) {
-      expect(screen.getByTestId(`landing-plan-${plan.id}`)).toHaveTextContent(plan.name);
+      expect(screen.getByTestId(`landing-plan-${plan.code}`)).toHaveTextContent(plan.name);
     }
     for (const plan of personal) {
-      expect(screen.queryByTestId(`landing-plan-${plan.id}`)).not.toBeInTheDocument();
+      expect(screen.queryByTestId(`landing-plan-${plan.code}`)).not.toBeInTheDocument();
     }
     expect(screen.getAllByText("Unlimited Generation")).toHaveLength(2);
     expect(screen.getAllByText("Nano Banana Pro · Nano Banana 2")).toHaveLength(2);
@@ -144,7 +145,7 @@ describe("Landing pricing", () => {
 
     await user.click(screen.getByRole("button", { name: "Yearly" }));
     for (const plan of professional) {
-      expect(within(screen.getByTestId(`landing-plan-${plan.id}`)).getByRole("button", { name: "Buy 12 months" })).toBeInTheDocument();
+      expect(within(screen.getByTestId(`landing-plan-${plan.code}`)).getByRole("button", { name: "Buy 12 months" })).toBeInTheDocument();
     }
   });
 });
