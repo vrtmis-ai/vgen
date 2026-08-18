@@ -1,11 +1,23 @@
-import { useId, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Check, CaretDown, DeviceMobile } from "@phosphor-icons/react";
-import { FAMILIES, getFamily, type Family } from "../data/models";
+import { CalendarCheck, CaretDown, Check, DeviceMobile, Gift, ImageSquare, VideoCamera } from "@phosphor-icons/react";
+import { getFamily, type Family } from "../data/models";
 import { COMMUNITY } from "../data/community";
-import { PLANS, monthlyCoins, toman, annualDiscountPct, effectiveUsd, type Plan } from "../data/plans";
-import { minCoinsForFamily } from "../data/pricing";
+import {
+  PLANS,
+  monthlyCoins,
+  toman,
+  annualDiscountPct,
+  annualTotalUsd,
+  effectiveUsd,
+  estImages,
+  estVideos,
+  IMAGE_ANCHOR_NAME,
+  VIDEO_ANCHOR_NAME,
+  type Plan,
+} from "../data/plans";
 import { HeroSection } from "../components/blocks/hero-section-5";
+import { FeaturesBento } from "../components/blocks/bento-features";
 import { ModelMark } from "../components/ModelMark";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
@@ -35,13 +47,10 @@ import { BRAND } from "../data/brand";
  * job is recognition, so it has to be the models a visitor has already heard of
  * and would be surprised to find here. Chosen by name rather than by position.
  *
- * Resolved against the real catalogue and filtered, so a model that is ever
- * retired drops out of the row instead of advertising something we stopped
- * selling. Order is this list's, not the catalogue's — video first, because that
- * is the expensive thing people come for.
+ * The landing test resolves these names against the live catalogue so a rename
+ * or retirement cannot silently shrink the model band.
  */
 export const HERO_MODEL_IDS = ["veo", "kling", "seedance", "wan", "minimax-h3", "nano-banana", "gpt-image", "gemini-omni", "elevenlabs"];
-const HERO_MODELS = HERO_MODEL_IDS.map((id) => FAMILIES.find((f) => f.id === id)).filter((f): f is Family => f != null);
 
 const FAQ_KEYS: { q: TKey; a: TKey }[] = [
   { q: "lp_faq1_q", a: "lp_faq1_a" },
@@ -65,12 +74,8 @@ function Art({ family }: { family?: Family | undefined }) {
   );
 }
 
-/** Section shell. 96/32 on desktop, tighter on a phone — the export's rhythm
-    would waste a third of a small screen on empty space.
-
-    `light` puts a soft key behind the section, alternating side down the page.
-    Without it the body below the hero goes flat grey and the shot ends up
-    looking like a hat on a spreadsheet. */
+/** A wide, continuous section shell. The landing relies on content and scale
+    for hierarchy instead of drawing a divider around every chapter. */
 function Section({
   children,
   className,
@@ -83,15 +88,11 @@ function Section({
   /** Only where something links to the section — an anchor needs a target. */
   id?: string;
 }) {
-  const lit = light ? `vg-lit ${light === "end" ? "vg-lit-end" : ""}` : "";
   return (
-    /* The rhythm was 56/96. The hero and the closing card both fill a viewport,
-       so at that spacing everything between them read as one continuous slab —
-       the page had a frame and no chapters. 80/144 is what makes a section
-       arrive rather than continue. */
     <section
       {...(id ? { id } : {})}
-      className={`relative mx-auto w-full max-w-[1200px] px-5 py-20 sm:px-8 md:py-36 ${lit} ${className ?? ""}`}
+      {...(light ? { "data-light": light } : {})}
+      className={`relative mx-auto w-full max-w-[1600px] px-5 py-12 sm:px-8 md:py-16 lg:px-10 ${className ?? ""}`}
     >
       {children}
     </section>
@@ -115,42 +116,18 @@ function Rise({ children, className }: { children: React.ReactNode; className?: 
   );
 }
 
-/** A title card, not an `h2`.
-    Centred headings stacked down a page are the SaaS pattern this redesign is
-    trying to get out of. A chapter mark and a rule running off to the side is
-    how a film labels a section, and it also does something the centred version
-    could not: it tells the reader where they are in the page. */
+/** Section hierarchy comes from type, not numbered rules between blocks. */
 function Heading({ index, children, sub }: { index: string; children: React.ReactNode; sub?: string }) {
   return (
-    <div className="mb-9 md:mb-12">
-      <div className="flex items-center gap-4">
-        {/* Faint, not accent. A slate number is a mark on the page, not something
-            to do — and it was spending accent on every section heading, which is
-            most of why the pricing viewport ended up with seven blue things and
-            no answer to "which button". The vein beside it already carries the
-            colour. */}
-        <span className="vg-chapter shrink-0 text-[11px] font-semibold" style={{ color: "var(--vg-text-faint)" }} lang="en">
-          {index}
-        </span>
-        {/* The rule reaches away from the mark toward the far edge, so the eye
-            is pulled across the section rather than parked on the number. */}
-        <hr className="vg-vein min-w-0 flex-1" aria-hidden />
-      </div>
-      {/* 32/52, up from 26/34.
-          A section heading that is only 8px larger than the body around it is
-          not a heading, it is a bold paragraph — which is what made the middle
-          of this page read as one continuous slab. The reference sites this is
-          measured against carry their structure entirely on type scale and
-          space, with no boxes at all, and their section headings run to double
-          the body size or more. */}
+    <div className="mb-7 md:mb-9" data-section={index}>
       <h2
-        className="mt-4 max-w-[20ch] text-[32px] font-extrabold leading-[1.2] md:text-[52px]"
+        className="max-w-[22ch] text-balance text-[30px] font-extrabold leading-[1.2] md:text-[42px]"
         style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
       >
         {children}
       </h2>
       {sub && (
-        <p className="mt-3 max-w-[54ch] text-[13.5px] leading-[1.9]" style={{ color: "var(--vg-text-muted)" }}>
+        <p className="mt-2.5 max-w-[58ch] text-pretty text-[13.5px] leading-[1.85]" style={{ color: "var(--vg-text-muted)" }}>
           {sub}
         </p>
       )}
@@ -159,11 +136,33 @@ function Heading({ index, children, sub }: { index: string; children: React.Reac
 }
 
 /* ---------------------------------------------------------------------------
+   02 — the product beyond generation.
+
+   The model band inside the hero answers "what can I use?". This answers the
+   next question: "what does DEEV help me do with it?" The grid comes before
+   the showcase so visitors meet the workflow before they meet its output.
+   --------------------------------------------------------------------------- */
+function Features() {
+  const { t } = useI18n();
+  return (
+    <Section id="features" light="end" className="scroll-mt-24">
+      <div className="sr-only">
+        <h2>{t("lp_features_title")}</h2>
+        <p>{t("lp_features_sub")}</p>
+      </div>
+      <Rise>
+        <FeaturesBento />
+      </Rise>
+    </Section>
+  );
+}
+
+/* ---------------------------------------------------------------------------
    The reel.
 
    The proof that any of this works is the work itself, and the hero has no room
    for it any more — a shot with a thumbnail grid in it is not a shot. So it
-   comes straight after, and it is edge to edge.
+   follows the product bento, and it is edge to edge.
 
    Full-bleed on purpose. A contained grid says "here are some samples"; frames
    running off both sides say the reel continues past the screen, which is both
@@ -175,7 +174,7 @@ function Reel() {
   const reel = [...COMMUNITY].sort((a, b) => b.likes - a.likes).slice(0, 8);
   return (
     <Section id="showcase">
-      <Heading index="02" sub={t("lp_showcase_sub")}>
+      <Heading index="03" sub={t("lp_showcase_sub")}>
         {t("lp_showcase_title")}
       </Heading>
 
@@ -220,435 +219,313 @@ function Reel() {
   );
 }
 
-/* ---------------------------------------------------------------------------
-   03 — the part you can touch before signing up.
-
-   The obvious version of this section generates something. It cannot: there is
-   no generation route yet (`POST /jobs` throws, per docs/API.md), and a visitor
-   here has no session to generate with. A box that pretends to run and then asks
-   for an account is the worst version of this — it spends the one piece of trust
-   the page has.
-
-   So it does the other real thing, and arguably the more useful one for someone
-   deciding whether to sign up: it prices the job. Pick a model, describe the
-   shot, and the coin cost appears — computed by `minCoinsForFamily` from the
-   same committed pricing rows the studio and the plan cards read. Nothing is
-   mocked and nothing is a round number chosen to look good.
-
-   That also makes it the section that answers the question this audience
-   actually has. "Can it make a video" is not in doubt; "what will it cost me in
-   toman" is.
-   --------------------------------------------------------------------------- */
-function TryIt({ onSignUp }: { onSignUp: () => void }) {
-  const { t, n } = useI18n();
-  const [familyId, setFamilyId] = useState(HERO_MODEL_IDS[0]!);
-  const [prompt, setPrompt] = useState("");
-  const promptId = useId();
-  const modelId = useId();
-
-  const family = FAMILIES.find((f) => f.id === familyId);
-  const coins = family ? minCoinsForFamily(family) : null;
-  const written = prompt.trim().length > 0;
-
-  return (
-    <Section light="end" id="try">
-      <Heading index="03" sub={t("lp_try_sub")}>
-        {t("lp_try_title")}
-      </Heading>
-
-      <Rise className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-        <motion.div variants={riseItem} className="grid gap-4">
-          <div className="grid gap-2">
-            <label htmlFor={modelId} className="px-1 text-[12.5px] font-semibold" style={{ color: "var(--vg-text-secondary)" }}>
-              {t("lp_try_model_label")}
-            </label>
-            <select
-              id={modelId}
-              value={familyId}
-              onChange={(event) => setFamilyId(event.target.value)}
-              className="vg-ease w-full rounded-card px-4 py-3.5 text-[14px] outline-none focus:border-accent"
-              style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border)", color: "var(--vg-text)" }}
-            >
-              {HERO_MODELS.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid gap-2">
-            <label htmlFor={promptId} className="px-1 text-[12.5px] font-semibold" style={{ color: "var(--vg-text-secondary)" }}>
-              {t("lp_try_prompt_label")}
-            </label>
-            <textarea
-              id={promptId}
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              rows={3}
-              placeholder={t("lp_try_placeholder")}
-              className="vg-ease w-full resize-none rounded-card px-4 py-3.5 text-[14px] leading-[1.9] outline-none focus:border-accent"
-              style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border)", color: "var(--vg-text)" }}
-            />
-          </div>
-        </motion.div>
-
-        {/* The price, and it is the only thing in this section that moves.
-            `aria-live="polite"` because it changes under a control the reader is
-            using but is not next to — a sighted user sees the number update, and
-            without this nobody else would know it had. */}
-        <motion.div
-          variants={riseItem}
-          className="grid gap-3 rounded-card p-6 md:w-[280px]"
-          style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
-        >
-          <span className="text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
-            {t("lp_try_cost")}
-          </span>
-          <span aria-live="polite" className="flex items-baseline gap-2">
-            {!written ? (
-              <span className="text-[13px] leading-[1.8]" style={{ color: "var(--vg-text-muted)" }}>
-                {t("lp_try_empty")}
-              </span>
-            ) : coins == null ? (
-              <span className="text-[13px] leading-[1.8]" style={{ color: "var(--vg-text-muted)" }}>
-                {t("lp_try_cost_na")}
-              </span>
-            ) : (
-              <>
-                <span
-                  className="text-[38px] font-extrabold leading-none"
-                  style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-                >
-                  {n(coins)}
-                </span>
-                <span className="text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
-                  {t("lp_try_coins")}
-                </span>
-              </>
-            )}
-          </span>
-
-          <button
-            onClick={onSignUp}
-            disabled={!written}
-            className="vg-ease mt-2 rounded-card py-3 text-[13.5px] font-semibold enabled:active:scale-[0.98]"
-            style={
-              written
-                ? { background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }
-                : { background: "var(--vg-surface-raised)", color: "var(--vg-text-faint)", cursor: "default" }
-            }
-          >
-            {t("lp_try_cta")}
-          </button>
-          <span className="text-[11.5px] leading-[1.7]" style={{ color: "var(--vg-text-faint)" }}>
-            {t("lp_try_note")}
-          </span>
-        </motion.div>
-      </Rise>
-    </Section>
-  );
-}
-
-/* ---------------------------------------------------------------------------
-   01 — one platform, every model.
-
-   A travelling band rather than a grid of tiles. The grid was the more literal
-   answer — nineteen cards, grouped, each with its price — and it was the wrong
-   one: a wall of boxes reads as an inventory, and the claim here is not "we have
-   a list", it is "the names you already trust are all in one place". A row that
-   keeps arriving says that; a table that ends says the opposite.
-
-   All nineteen ride the band, not a curated nine, so the count above it stays
-   true. Logo and name only — the per-model price lives in section 03, where
-   somebody is actually choosing, and putting it here would make each item wide
-   enough that the band stops reading as a band.
-
-/* ---------------------------------------------------------------------------
-   04 — the comparison, on the one axis that decides it.
-
-   Not a feature matrix. Every service in this market reaches the same models, so
-   a row-by-row on capability is a tie that wastes the reader's time and invites
-   them to go check. The axis that is not a tie is access: whether someone in
-   Iran can pay at all.
-
-   "Services abroad" rather than named competitors. Naming them would mean
-   asserting facts about their current behaviour that we do not verify and that
-   change without telling us — and the claim does not need a name to land.
-   --------------------------------------------------------------------------- */
-function Comparison() {
-  const { t } = useI18n();
-  const rows: { ours: TKey; theirs: TKey }[] = [
-    { ours: "lp_vs_pay", theirs: "lp_vs_pay_them" },
-    { ours: "lp_vs_vpn", theirs: "lp_vs_vpn_them" },
-    { ours: "lp_vs_currency", theirs: "lp_vs_currency_them" },
-    { ours: "lp_vs_models", theirs: "lp_vs_models_them" },
-    { ours: "lp_vs_lang", theirs: "lp_vs_lang_them" },
-  ];
-  return (
-    <Section light="start" id="compare">
-      <Heading index="04" sub={t("lp_vs_sub")}>
-        {t("lp_vs_title")}
-      </Heading>
-
-      {/* A real table, not a grid of divs. Five rows of two compared values is
-          exactly what a table is for, and it is the difference between a screen
-          reader announcing "row 3, DEEV: priced in toman" and reading ten
-          disconnected fragments. */}
-      <Rise>
-        <motion.div variants={riseItem} className="overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-start">
-            <thead>
-              <tr>
-                <th className="w-1/2 px-4 py-4 text-start text-[13px] font-bold" style={{ color: "var(--vg-text)" }}>
-                  {t("lp_vs_us")}
-                </th>
-                <th className="w-1/2 px-4 py-4 text-start text-[13px] font-medium" style={{ color: "var(--vg-text-faint)" }}>
-                  {t("lp_vs_them")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.ours} style={{ borderTop: "1px solid var(--vg-border-subtle)" }}>
-                  <td className="px-4 py-5 align-top">
-                    <span className="flex items-start gap-2.5 text-[14px] leading-[1.8]" style={{ color: "var(--vg-text-secondary)" }}>
-                      {/* The tick carries meaning, so it is not decorative — but
-                          the row's own text already says what it says, and an
-                          icon repeating it would be announced twice. */}
-                      <Check size={15} weight="bold" className="mt-1 shrink-0" style={{ color: "var(--vg-primary)" }} aria-hidden />
-                      {t(row.ours)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-5 align-top text-[14px] leading-[1.8]" style={{ color: "var(--vg-text-faint)" }}>
-                    {t(row.theirs)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </motion.div>
-      </Rise>
-    </Section>
-  );
-}
-
-/* ---------------------------------------------------------------------------
-   05 — how it works, in the three steps it actually takes.
-   --------------------------------------------------------------------------- */
-function HowItWorks() {
-  const { t, n } = useI18n();
-  const steps: { k: TKey; d: TKey }[] = [
-    { k: "lp_how_1", d: "lp_how_1_d" },
-    { k: "lp_how_2", d: "lp_how_2_d" },
-    { k: "lp_how_3", d: "lp_how_3_d" },
-  ];
-  return (
-    <Section light="end" id="how">
-      <Heading index="05">{t("lp_how_title")}</Heading>
-      {/* An ordered list, because the order is the content. Numbered by the
-          list itself rather than by a hand-written glyph, so the count cannot
-          drift from the items. */}
-      <Rise className="grid gap-12 md:grid-cols-3 md:gap-8">
-        {steps.map(({ k, d }, i) => (
-          <motion.div key={k} variants={riseItem} className="relative pt-7">
-            <hr className="vg-vein absolute inset-x-0 top-0" aria-hidden />
-            <span
-              className="text-[13px] font-semibold"
-              style={{ color: "var(--vg-text-faint)", fontFamily: "var(--vg-font-display)" }}
-              aria-hidden
-            >
-              {n(i + 1)}
-            </span>
-            <h3
-              className="mt-3 text-[24px] font-bold leading-[1.35] md:text-[28px]"
-              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-            >
-              {t(k)}
-            </h3>
-            <p className="mt-4 max-w-[38ch] text-[14px] leading-[2.05]" style={{ color: "var(--vg-text-muted)" }}>
-              {t(d)}
-            </p>
-          </motion.div>
-        ))}
-      </Rise>
-    </Section>
-  );
-}
-
-/* ---------------------------------------------------------------------------
-   07 — trust, placed where the doubt is.
-
-   Straight after the price, because that is where someone stops and asks what
-   happens if this goes wrong. Every line here is something the product already
-   does — the prices really are computed before submit, publishing really is
-   opt-in, expiry really is written in the wallet.
-
-   What is deliberately NOT here: a payment-gateway badge. ZarinPal is "coming
-   soon" in our own wallet copy and nothing charges yet, so a gateway logo would
-   be the one false claim on a page whose whole argument is that it is honest
-   about money. It goes in when payments do.
-   --------------------------------------------------------------------------- */
-function Trust() {
-  const { t } = useI18n();
-  const items: { k: TKey; d: TKey }[] = [
-    { k: "lp_trust_price", d: "lp_trust_price_d" },
-    { k: "lp_trust_own", d: "lp_trust_own_d" },
-    { k: "lp_trust_expiry", d: "lp_trust_expiry_d" },
-  ];
-  return (
-    <Section id="trust">
-      <Heading index="07">{t("lp_trust_title")}</Heading>
-      <Rise className="grid gap-10 md:grid-cols-3 md:gap-8">
-        {items.map(({ k, d }) => (
-          <motion.div key={k} variants={riseItem} className="relative pt-7">
-            <hr className="vg-vein absolute inset-x-0 top-0" aria-hidden />
-            <h3 className="text-[19px] font-bold leading-[1.5]" style={{ color: "var(--vg-text)" }}>
-              {t(k)}
-            </h3>
-            <p className="mt-3 max-w-[38ch] text-[13.5px] leading-[2]" style={{ color: "var(--vg-text-muted)" }}>
-              {t(d)}
-            </p>
-          </motion.div>
-        ))}
-      </Rise>
-    </Section>
-  );
-}
-
 /* ---------- plans ----------
-   Real rows from plans.ts. The landing shows the two "main" plans; the full
-   ladder lives on the buy screen, and duplicating it here would be a second
-   place to forget to update. */
+   The visual hierarchy mirrors the live /plans screen: credit and honest output
+   estimates first, then price and the purchase action. Landing keeps its group
+   tabs, while the card model stays recognisably the same as the app. */
+
+type PlanCycle = "monthly" | "annual";
+
+const PLAN_TAG_KEY = { test: "w_tag_test", gift: "w_tag_gift", popular: "w_tag_popular", best: "w_tag_best" } as const;
+
 function Plans({ onSignIn }: { onSignIn: () => void }) {
-  const { t, n } = useI18n();
+  const { t } = useI18n();
   const [annual, setAnnual] = useState(false);
-  const main = PLANS.filter((p) => p.group === "main").slice(0, 2);
+  const [group, setGroup] = useState<Plan["group"]>("entry");
+  const activePlans = PLANS.filter((plan) => plan.group === group).sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false));
+  const groupTone = group === "entry" ? { rgb: "92 175 255", hex: "#5cafff" } : { rgb: "255 57 126", hex: "#ff397e" };
+
   return (
-    <Section light="start" id="plans">
-      {/* Heading and billing switch on one row at desktop. Stacked and centred,
-          the switch read as a third heading; beside the title it reads as the
-          control for what is underneath it, which is what it is. */}
-      <div className="mb-9 flex flex-col gap-5 md:mb-12 md:flex-row md:items-end md:justify-between">
+    <Section light="start" id="plans" className="isolate">
+      <motion.div
+        key={`plan-wash-${group}`}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-[3%] top-[18%] -z-10 h-[72%] rounded-[50%] blur-3xl"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.45 }}
+        style={{
+          background: `radial-gradient(ellipse at 74% 20%, rgb(${groupTone.rgb} / 0.12), transparent 42%), radial-gradient(ellipse at 18% 74%, rgb(255 148 72 / 0.07), transparent 38%)`,
+        }}
+      />
+      <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0 flex-1">
-          <Heading index="06">{t("lp_plans_title")}</Heading>
+          <Heading index="07">{t("lp_plans_title")}</Heading>
+          <p className="mt-2 max-w-[620px] text-[14px] leading-7" style={{ color: "var(--vg-text-muted)" }}>
+            {t("lp_plans_sub")}
+          </p>
         </div>
-        <div
-          className="inline-flex shrink-0 self-start rounded-pill p-1 md:mb-12 md:self-end"
-          style={{ background: "var(--vg-surface-raised)" }}
-          role="group"
-          aria-label={t("lp_plans_title")}
-        >
-          {([false, true] as const).map((v) => (
-            <button
-              key={String(v)}
-              onClick={() => setAnnual(v)}
-              aria-pressed={annual === v}
-              className="vg-ease rounded-pill px-4 py-2 text-[12.5px] font-semibold"
-              style={
-                // A segmented control, not an action: it changes what you are
-                // looking at, it does not commit you to anything. The design
-                // system's own rule for this is a raised pill and full-strength
-                // text — accent here was a third blue competing with the plan
-                // buttons it sits above.
-                annual === v
-                  ? { background: "var(--vg-surface-overlay)", color: "var(--vg-text)", boxShadow: "inset 0 1px 0 rgb(255 255 255 / 0.06)" }
-                  : { color: "var(--vg-text-faint)" }
-              }
+        <div className="flex flex-wrap items-center gap-2 md:mb-12 md:justify-end">
+          <div
+            className="inline-flex shrink-0 rounded-pill p-1"
+            style={{ background: "var(--vg-surface-raised)" }}
+            role="group"
+            aria-label={t("lp_plans_group_label")}
+          >
+            {(["entry", "main"] as const).map((value) => (
+              <button
+                key={value}
+                onClick={() => {
+                  setGroup(value);
+                  if (value === "entry") setAnnual(false);
+                }}
+                aria-pressed={group === value}
+                className="vg-ease rounded-pill px-4 py-2 text-[12.5px] font-semibold"
+                style={
+                  group === value
+                    ? {
+                        background: `rgb(${value === "entry" ? "92 175 255" : "255 57 126"} / 0.16)`,
+                        color: value === "entry" ? "#9fd1ff" : "#ff8bb3",
+                        boxShadow: `inset 0 0 0 1px rgb(${value === "entry" ? "92 175 255" : "255 57 126"} / 0.32), 0 0 22px -12px rgb(${value === "entry" ? "92 175 255" : "255 57 126"} / 0.8)`,
+                      }
+                    : { color: "var(--vg-text-faint)" }
+                }
+              >
+                {t(value === "entry" ? "lp_plans_personal" : "lp_plans_professional")}
+              </button>
+            ))}
+          </div>
+
+          {group === "main" && (
+            <div
+              className="inline-flex shrink-0 rounded-pill p-1"
+              style={{ background: "var(--vg-surface-raised)" }}
+              role="group"
+              aria-label={t("lp_plans_cycle_label")}
             >
-              {v ? t("lp_annual") : t("lp_monthly")}
-            </button>
-          ))}
+              {([false, true] as const).map((value) => (
+                <button
+                  key={String(value)}
+                  onClick={() => setAnnual(value)}
+                  aria-pressed={annual === value}
+                  className="vg-ease rounded-pill px-4 py-2 text-[12.5px] font-semibold"
+                  style={
+                    annual === value
+                      ? {
+                          background: `rgb(${groupTone.rgb} / 0.16)`,
+                          color: groupTone.hex,
+                          boxShadow: `inset 0 0 0 1px rgb(${groupTone.rgb} / 0.28)`,
+                        }
+                      : { color: "var(--vg-text-faint)" }
+                  }
+                >
+                  {value ? t("lp_annual") : t("lp_monthly")}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[840px] gap-3 md:grid-cols-2">
-        {main.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} annual={annual} onSignIn={onSignIn} />
-        ))}
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <p className="text-[13px] font-semibold" style={{ color: "var(--vg-text-secondary)" }}>
+          {t(group === "entry" ? "lp_plans_entry" : "lp_plans_main")}
+        </p>
+        <p className="hidden text-[11px] sm:block" style={{ color: "var(--vg-text-faint)" }}>
+          {t("lp_plans_estimate_note")}
+        </p>
       </div>
+      <motion.div
+        key={group}
+        data-testid="landing-plan-grid"
+        dir="rtl"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22 }}
+        className={`grid gap-3 ${group === "entry" ? "sm:grid-cols-2 xl:grid-cols-4" : "lg:grid-cols-3"}`}
+      >
+        {activePlans.map((plan) => (
+          <PlanCard key={plan.id} plan={plan} annual={annual} onSignIn={onSignIn} compact={group === "entry"} />
+        ))}
+      </motion.div>
 
-      <p className="mt-5 text-center text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
-        {t("lp_plans_note").replace("{n}", n(30))}
-      </p>
+      <div
+        className="mt-5 flex flex-col items-center justify-center gap-1 text-center text-[12px] sm:flex-row sm:gap-2"
+        style={{ color: "var(--vg-text-faint)" }}
+      >
+        <span>{t("pl_expiry_note")}</span>
+        <span className="hidden sm:inline" aria-hidden="true">
+          ·
+        </span>
+        <span className="sm:hidden">{t("lp_plans_estimate_note")}</span>
+      </div>
     </Section>
   );
 }
 
-function PlanCard({ plan, annual, onSignIn }: { plan: Plan; annual: boolean; onSignIn: () => void }) {
-  const { t, n } = useI18n();
-  const usd = effectiveUsd(plan, annual);
-  const off = annualDiscountPct(plan);
-  const unavailable = annual && plan.annualUsdPerMonth == null;
+function LandingPlanTag({ plan }: { plan: Plan }) {
+  const { t } = useI18n();
+  if (!plan.tag) return null;
   return (
-    /* The recommended plan has to win on more than a badge.
-       Two identical accent buttons side by side is a choice with no
-       recommendation in it — the eye has nowhere to go, so it goes nowhere. The
-       popular card keeps the solid fill and gets its own light behind it; the
-       other one drops to an outline. Same information, one obvious answer. */
-    <div
-      className={`relative flex flex-col rounded-card p-6 md:p-7 ${plan.popular ? "md:-my-3 md:py-10" : ""}`}
+    <span
+      className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
+      style={
+        plan.popular
+          ? { background: "var(--color-accent)", color: "var(--color-on-accent)" }
+          : { background: "var(--color-card2)", color: "var(--color-ink2)" }
+      }
+    >
+      {t(PLAN_TAG_KEY[plan.tag])}
+    </span>
+  );
+}
+
+function LandingPlanEstimates({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
+  const { t, n } = useI18n();
+  const images = estImages(plan);
+  const videos = estVideos(plan);
+  const rows: { icon: typeof ImageSquare; count: number; unit: string; model: string | null }[] = [];
+  if (images != null) rows.push({ icon: ImageSquare, count: images, unit: t("w_est_img"), model: IMAGE_ANCHOR_NAME });
+  if (videos != null) rows.push({ icon: VideoCamera, count: videos, unit: t("w_est_vid"), model: VIDEO_ANCHOR_NAME });
+  if (rows.length === 0) return null;
+
+  return (
+    <div className={`flex flex-col gap-1 ${compact ? "text-[11px]" : "text-[12px]"} text-ink2`}>
+      {rows.map(({ icon: Icon, count, unit, model }) => (
+        <span key={unit} className="flex min-w-0 items-center gap-1.5">
+          <Icon size={compact ? 12 : 14} className="shrink-0 text-accent" />
+          <span className="tabular-nums font-semibold text-ink">{n(count)}</span>
+          <span className="shrink-0">{unit}</span>
+          {model && (
+            <span className="truncate text-ink3">
+              {t("w_est_with")} <bdi>{model}</bdi>
+            </span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function LandingPlanPrice({ plan, cycle }: { plan: Plan; cycle: PlanCycle }) {
+  const { t, n, lang } = useI18n();
+  const annual = cycle === "annual" && plan.annualUsdPerMonth != null;
+  const perMonth = effectiveUsd(plan, annual);
+  const total = annualTotalUsd(plan);
+  const off = annualDiscountPct(plan);
+  const pct = lang === "fa" ? "٪" : "%";
+
+  return (
+    <>
+      {annual && off > 0 && (
+        <div className="mb-1 text-[10.5px] text-ink3">
+          <s>{n(toman(effectiveUsd(plan, false)))}</s> · {pct}
+          {n(off)} {t("pl_save")}
+        </div>
+      )}
+      <div className="flex items-baseline gap-1.5">
+        <span className="font-display text-[22px] font-semibold leading-none tabular-nums">{n(toman(perMonth))}</span>
+        <span className="text-[11px] text-ink2">
+          {t("w_toman")} {t("pl_per_month")}
+        </span>
+      </div>
+      {annual && total != null && (
+        <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink2">
+          <CalendarCheck size={12} weight="fill" className="shrink-0 text-accent" />
+          {t("pl_today")}: {n(toman(total))} {t("w_toman")} ({t("pl_billed_annual")})
+        </div>
+      )}
+      {cycle === "annual" && plan.annualUsdPerMonth == null && <div className="mt-1 text-[10.5px] text-ink3">{t("pl_monthly_only")}</div>}
+    </>
+  );
+}
+
+function PlanCard({ plan, annual, onSignIn, compact = false }: { plan: Plan; annual: boolean; onSignIn: () => void; compact?: boolean }) {
+  const { t, n } = useI18n();
+  const cycle: PlanCycle = annual ? "annual" : "monthly";
+  const buyKey = cycle === "annual" && plan.annualUsdPerMonth != null ? "pl_buy_12m" : "pl_buy_30";
+
+  if (compact) {
+    return (
+      <motion.article
+        data-testid={`landing-plan-${plan.id}`}
+        whileHover={{ y: -3 }}
+        transition={{ type: "spring", stiffness: 300, damping: 24 }}
+        className="relative flex flex-col gap-2 rounded-card border bg-card p-3.5"
+        style={{ borderColor: "var(--color-line)" }}
+      >
+        {plan.tag && (
+          <span className="absolute -top-2 start-3">
+            <LandingPlanTag plan={plan} />
+          </span>
+        )}
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="font-display text-[12.5px] font-semibold tracking-wide text-accent" lang="en">
+            {plan.name}
+          </span>
+          <span className="flex items-baseline gap-1">
+            <span className="text-[19px] font-semibold tabular-nums">{n(monthlyCoins(plan))}</span>
+            <span className="text-[11px] text-ink2">{t("w_coins")}</span>
+          </span>
+        </div>
+        <LandingPlanEstimates plan={plan} compact />
+        <div className="mt-0.5">
+          <LandingPlanPrice plan={plan} cycle={cycle} />
+        </div>
+        <button onClick={onSignIn} className="btn-quiet mt-auto flex items-center justify-center rounded-xl py-2 text-[12px] font-bold">
+          {t(buyKey)}
+        </button>
+      </motion.article>
+    );
+  }
+
+  return (
+    <motion.article
+      data-testid={`landing-plan-${plan.id}`}
+      whileHover={{ y: -4 }}
+      transition={{ type: "spring", stiffness: 300, damping: 24 }}
+      className="flex flex-col gap-3.5 rounded-bezel border bg-card p-4"
       style={{
-        background: "var(--vg-surface)",
-        border: `1px solid ${plan.popular ? "var(--vg-primary)" : "var(--vg-border-subtle)"}`,
-        ...(plan.popular ? { boxShadow: "0 0 60px -12px rgb(var(--vg-primary-rgb) / 0.28)" } : {}),
+        borderColor: plan.popular ? "var(--color-accent)" : "var(--color-line)",
+        boxShadow: plan.popular ? "0 26px 72px -48px var(--color-accent)" : undefined,
       }}
     >
-      {plan.popular && (
-        <span
-          className="absolute -top-2.5 start-6 rounded-pill px-2.5 py-0.5 text-[10.5px] font-semibold"
-          style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
-        >
-          {t("w_tag_popular")}
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-display text-[15px] font-semibold tracking-wide text-accent" lang="en">
+          {plan.name}
         </span>
-      )}
-      <span className="text-[18px] font-bold" style={{ color: "var(--vg-text)" }} lang="en">
-        {plan.name}
-      </span>
-      <span className="mt-1 text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
-        {n(monthlyCoins(plan))} {t("lp_coins_month")}
-      </span>
-
-      <div className="mt-5 flex items-baseline gap-1.5">
-        <span className="text-[26px] font-bold tabular-nums" style={{ color: "var(--vg-text)" }}>
-          {n(toman(usd))}
-        </span>
-        <span className="text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
-          {t("lp_toman_month")}
-        </span>
+        <LandingPlanTag plan={plan} />
       </div>
-      {annual && off > 0 && (
-        <span className="mt-1 text-[12px] font-medium" style={{ color: "var(--vg-primary-soft)" }}>
-          {n(off)}٪ {t("lp_off")}
-        </span>
-      )}
-      {unavailable && (
-        <span className="mt-1 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
-          {t("lp_monthly_only")}
-        </span>
+
+      <div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-display text-[30px] font-semibold leading-none tabular-nums">{n(monthlyCoins(plan))}</span>
+          <span className="text-[13px] text-ink2">{t("pl_coins_month")}</span>
+        </div>
+        {plan.bonus > 0 && (
+          <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-400">
+            <Gift size={12} weight="fill" />
+            {n(plan.bonus)} {t("w_gift")}
+          </div>
+        )}
+      </div>
+
+      <LandingPlanEstimates plan={plan} />
+
+      {plan.tier === 3 && (
+        <div className="rounded-xl border border-line bg-card2/70 px-3 py-2.5">
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-ink">
+            <span className="text-[15px] text-accent" aria-hidden>
+              ∞
+            </span>
+            <span dir="ltr">{t("lp_plan_unlimited")}</span>
+          </div>
+          <div className="mt-0.5 text-[10px] text-ink3" dir="ltr">
+            {t("lp_plan_unlimited_models")}
+          </div>
+        </div>
       )}
 
-      {/* Bottom-aligned, so the two buttons line up even when one card carries a
-          discount line the other does not. The padding is on the wrapper because
-          `mt-auto` collapses to nothing on a full card and would let the button
-          touch the price. */}
-      <div className="mt-auto grid pt-7" />
-      <button
-        onClick={onSignIn}
-        className="vg-ease rounded-card py-3.5 text-[13.5px] font-semibold active:scale-[0.98]"
-        style={
-          plan.popular
-            ? {
-                background: "var(--vg-primary)",
-                color: "var(--vg-text-on-primary)",
-                boxShadow: "0 0 32px rgb(var(--vg-primary-rgb) / 0.28), inset 0 1px 0 rgb(255 255 255 / 0.25)",
-              }
-            : { background: "transparent", color: "var(--vg-text-secondary)", border: "1px solid var(--vg-border)" }
-        }
-      >
-        {t("lp_cta_start")}
-      </button>
-    </div>
+      <div className="mt-auto border-t border-line pt-3">
+        <LandingPlanPrice plan={plan} cycle={cycle} />
+        <button
+          onClick={onSignIn}
+          className={`${plan.popular ? "btn-accent" : "btn-quiet"} mt-3 flex w-full items-center justify-center rounded-2xl py-3 text-[13.5px] font-bold`}
+        >
+          {t(buyKey)}
+        </button>
+      </div>
+    </motion.article>
   );
 }
 
@@ -658,7 +535,7 @@ function Faq() {
   const [open, setOpen] = useState<number | null>(0);
   return (
     <Section light="end" id="faq">
-      <Heading index="08">{t("lp_faq_title")}</Heading>
+      <Heading index="09">{t("lp_faq_title")}</Heading>
       <div className="mx-auto flex max-w-[720px] flex-col gap-2">
         {FAQ_KEYS.map(({ q, a }, i) => {
           const on = open === i;
@@ -718,7 +595,6 @@ function Closing({ onSignIn }: { onSignIn: () => void }) {
     <div className="relative isolate overflow-hidden">
       <div className="vg-bloom pointer-events-none absolute inset-0 opacity-70" aria-hidden />
       <div className="vg-vignette pointer-events-none absolute inset-0" aria-hidden />
-      <hr className="vg-vein absolute inset-x-0 top-0" aria-hidden />
       <Section className="relative z-[1] text-center">
         {/* Raised with the section headings, which just went to 52px and were
             about to match it. The ladder has to stay hero > closing > section:
@@ -760,7 +636,7 @@ function Closing({ onSignIn }: { onSignIn: () => void }) {
 }
 
 /* ---------------------------------------------------------------------------
-   11 — the footer.
+   12 — the footer.
 
    It was one line of text. A footer is where someone goes looking for the things
    a landing page is not allowed to shout about — the terms, what happens to
@@ -793,8 +669,8 @@ const FOOTER_LINKS: { group: TKey; items: { label: TKey; href: string }[] }[] = 
 function Footer() {
   const { t } = useI18n();
   return (
-    <footer className="border-t px-5 pb-10 pt-14 sm:px-8" style={{ borderColor: "var(--vg-border-subtle)" }}>
-      <div className="mx-auto grid w-full max-w-[1200px] gap-10 md:grid-cols-[1.5fr_1fr_1fr]">
+    <footer className="px-5 pb-10 pt-14 sm:px-8">
+      <div className="mx-auto grid w-full max-w-[1600px] gap-10 lg:px-2 md:grid-cols-[1.5fr_1fr_1fr]">
         <div className="grid gap-3">
           <span
             className="text-[18px] font-light tracking-[0.34em]"
@@ -830,10 +706,7 @@ function Footer() {
         ))}
       </div>
 
-      <div
-        className="mx-auto mt-10 flex w-full max-w-[1200px] border-t pt-6 text-[11.5px]"
-        style={{ borderColor: "var(--vg-border-subtle)", color: "var(--vg-text-faint)" }}
-      >
+      <div className="mx-auto mt-10 flex w-full max-w-[1600px] pt-2 text-[11.5px] lg:px-2" style={{ color: "var(--vg-text-faint)" }}>
         <span>
           <span lang="en">DEEV</span> — {t("lp_footer_rights")}
         </span>
@@ -851,28 +724,26 @@ export default function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; 
        would do it and would also silently kill the sticky nav, because an
        ancestor with `overflow: hidden` makes `position: sticky` scroll away.
        `clip` trims the paint without creating a scroll container. */
-    <div className="relative z-10 min-h-[100dvh] [overflow-x:clip]">
-      {/* The eleven-section order. The argument it makes, in sequence: what this
-          is → whose models → that they really produce this → what it would cost
-          you → why not just use the foreign one → how little there is to it →
-          the price → what happens if it goes wrong → the objections → ask again
-          → the small print.
-
-          Trust sits directly after pricing on purpose: that is where someone
-          stops to ask what happens if this goes wrong, and answering it three
-          sections later is answering it to nobody. */}
+    <div
+      className="relative z-10 min-h-[100dvh] [overflow-x:clip]"
+      style={{
+        backgroundImage:
+          "radial-gradient(ellipse 42% 13% at 3% 24%, rgb(82 79 255 / 0.075), transparent 72%), radial-gradient(ellipse 46% 15% at 98% 49%, rgb(255 54 126 / 0.065), transparent 72%), radial-gradient(ellipse 40% 12% at 8% 73%, rgb(255 139 61 / 0.055), transparent 72%)",
+      }}
+    >
+      {/* Keep the first public pass visual and product-led: hero, tool mosaic,
+          real outputs, plans and common questions. Editorial sections inspired
+          by creator platforms can be inserted later without carrying over the
+          temporary calculator, comparison, steps or trust blocks. */}
       {/* Nav, hero and the model band come from the Tailark block as given —
           `src/components/blocks/hero-section-5.tsx`. It carries its own header,
           so there is no TopNav here, and its slider is the model wall, so there
           is no separate Models section either. What could not come across
           verbatim is listed at the top of that file. */}
       <HeroSection onSignIn={onSignIn} onSignUp={onSignUp} />
+      <Features />
       <Reel />
-      <TryIt onSignUp={onSignUp} />
-      <Comparison />
-      <HowItWorks />
       <Plans onSignIn={onSignUp} />
-      <Trust />
       <Faq />
       <Closing onSignIn={onSignUp} />
       <Footer />

@@ -44,7 +44,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: { label: TKey; href: string }[] = [
   { label: "lp_nav_models", href: "#models" },
-  { label: "lp_nav_features", href: "#how" },
+  { label: "lp_nav_features", href: "#features" },
   { label: "lp_nav_plans", href: "#plans" },
   { label: "lp_nav_faq", href: "#faq" },
 ];
@@ -320,6 +320,7 @@ const HeroHeader = ({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: ()
               </div>
               <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
                 <Button
+                  data-testid="landing-login"
                   onClick={onSignIn}
                   variant="outline"
                   size="sm"
@@ -329,6 +330,7 @@ const HeroHeader = ({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: ()
                   <span>{t("lp_login")}</span>
                 </Button>
                 <Button
+                  data-testid="landing-signup"
                   onClick={onSignUp}
                   size="sm"
                   className="rounded-full font-semibold"
