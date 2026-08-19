@@ -21,7 +21,7 @@ export interface DemoServiceOptions {
 export function createDemoServices(options: DemoServiceOptions = {}): AppServices {
   const now = options.now ?? Date.now;
   const authState = createDemoAuthState(!options.startAnonymous);
-  const { generation, gallery } = createDemoGenerationAdapters(now);
+  const { generation, gallery, assets } = createDemoGenerationAdapters(now);
   return {
     session: createDemoSessionService(authState),
     auth: createDemoAuthService(authState, now),
@@ -30,5 +30,6 @@ export function createDemoServices(options: DemoServiceOptions = {}): AppService
     wallet: createDemoWalletService(now),
     generation,
     gallery,
+    assets,
   };
 }

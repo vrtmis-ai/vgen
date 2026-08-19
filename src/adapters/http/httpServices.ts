@@ -1,4 +1,5 @@
 import type { AppServices } from "../../runtime/AppServices";
+import { createHttpAssetsService } from "./assets";
 import { createHttpAuthService } from "./auth";
 import { createHttpCatalogService } from "./catalog";
 import { createHttpClient } from "./client";
@@ -18,5 +19,6 @@ export function createHttpServices(baseUrl: string, getAccessToken?: () => Promi
     wallet: createHttpWalletService(client),
     generation: createHttpGenerationService(client),
     gallery: createHttpGalleryService(client),
+    assets: createHttpAssetsService(client),
   };
 }

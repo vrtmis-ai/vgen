@@ -7,7 +7,7 @@ claim here names the file it can be checked against.
 **Maintained by the backend owner.** If it disagrees with the code, the code is
 right and this file is a bug — say so.
 
-Last verified against `main` on 2026-08-19 (`6be5c5b`).
+Last verified against `main` on 2026-08-19 (`6be5c5b`), plus the assets and gallery work on `feat/assets-and-gallery`.
 
 ## The two runtimes
 
@@ -25,48 +25,46 @@ The port is the same either way — `AppServices` in
 
 ## What is actually wired
 
-This is the part worth reading twice. The HTTP adapters were written against a
-planned surface and the server has since been rebuilt, so the two do not line
-up call for call: **one of the eight has no route at all, and three more have a
-route the adapter cannot reach.**
+Every call the frontend makes now has a route, and every adapter reaches it.
+That was not true until this change: three generation calls were pointing at
+paths the API does not serve, in a job shape no server ever sent, and the
+gallery had no route at all.
 
-| `AppServices` call     | Frontend requests          | Server route                           | Status                            |
-| ---------------------- | -------------------------- | -------------------------------------- | --------------------------------- |
-| `session.getCurrent()` | `GET /session`             | `routes/session.ts`                    | **Live**                          |
-| `auth.*` (5 methods)   | `POST /auth/*`             | `routes/auth.ts`                       | **Live**                          |
-| `catalog.list()`       | `GET /catalog`             | `routes/catalog.ts`                    | **Live**                          |
-| `plans.list()`         | `GET /plans`               | `routes/plans.ts`                      | **Live**                          |
-| `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`                     | **Live**                          |
-| `generation.quote()`   | `POST /generation/quotes`  | `routes/quotes.ts`                     | **Live, adapter not reaching it** |
-| `generation.create()`  | `POST /generation/jobs`    | `POST /jobs` (different path and body) | **Live, adapter not reaching it** |
-| `generation.getJob()`  | `GET /generation/jobs/:id` | `routes/jobs.ts`                       | **Live, adapter not reaching it** |
-| `gallery.list()`       | `GET /gallery`             | —                                      | **404**                           |
+| `AppServices` call     | Frontend requests          | Server route        | Status   |
+| ---------------------- | -------------------------- | ------------------- | -------- |
+| `session.getCurrent()` | `GET /session`             | `routes/session.ts` | **Live** |
+| `auth.*` (5 methods)   | `POST /auth/*`             | `routes/auth.ts`    | **Live** |
+| `catalog.list()`       | `GET /catalog`             | `routes/catalog.ts` | **Live** |
+| `plans.list()`         | `GET /plans`               | `routes/plans.ts`   | **Live** |
+| `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`  | **Live** |
+| `generation.quote()`   | `POST /generation/quotes`  | `routes/quotes.ts`  | **Live** |
+| `generation.create()`  | `POST /jobs`               | `routes/jobs.ts`    | **Live** |
+| `generation.getJob()`  | `GET /generation/jobs/:id` | `routes/jobs.ts`    | **Live** |
+| `gallery.list()`       | `GET /gallery`             | `routes/gallery.ts` | **Live** |
+| `assets.upload()`      | `POST /assets`             | `routes/assets.ts`  | **Live** |
 
-So in `production` mode today, session, auth, catalog, wallet and plans all
-work end to end. The three generation calls are the awkward row: **the server
-routes are live and correct, and the browser's adapter still cannot reach
-them** — `src/adapters/http/generation.ts` posts to `/generation/jobs` where
-the API serves `/jobs`, and its `GenerationJobSchema` requires `familyId`,
-`variantId`, `updatedAt` and `outputAssetIds` where the API answers
-`{id, status, modelKey, quotedCredits, createdAt}`. Renaming the path alone
-would trade a 404 for a schema error. Closing that gap means agreeing one job
-shape between `packages/contracts` and `src/runtime/contracts/generation.ts`;
-until then the studio screens work in demo mode only. A submitted job now
-genuinely runs — the worker consumes the queue, calls the provider and settles
-the money — but there is nowhere to _see_ the result yet, because the gallery
-route and the storage that backs it are the next phase. **In `demo` mode
-everything works**, which is why UI work is unblocked and should stay on demo
-mode until this table says otherwise.
+So `production` mode is now complete end to end: sign in, browse the catalogue,
+see a price, submit a generation, watch it run, and see the file it produced.
+**In `demo` mode everything still works**, and demo mode now speaks the same
+vocabulary — a finished job is `succeeded`, not `done`, because that is the word
+the database uses and therefore the word that comes over the wire.
+
+Three shapes collapsed into one to get here. `POST /jobs`,
+`GET /generation/jobs/:id` and an item in the gallery are all the same
+`GenerationJobSchema`: **a gallery item is a job.** There was never a second
+concept, only a second schema, and the browser's copy had drifted far enough
+that it required `outputAssetIds` and a status called `done` — so renaming a
+path would only have traded a 404 for a parse error.
 
 `catalog.list()` used to carry a caveat here — the route was live but the tables
 were empty. That is fixed: all 19 families and 44 variants are in Postgres, and
 the two modes now serve the same bytes (see below).
 
-Only the gallery row is missing server work. The three generation rows are a
-contract disagreement rather than a gap, and fixing them by editing paths in
-the adapter alone will not work — the shapes have to be reconciled first, in
-`packages/contracts` and `src/runtime/contracts/generation.ts` together. Say so
-and it gets done as one change across both halves.
+The contracts are mirrored, not shared: `packages/contracts/src/generation.ts`
+is what the server sends and `src/runtime/contracts/generation.ts` is what the
+browser accepts. A copy rather than an import on purpose — the day the two stop
+agreeing, the parse fails loudly instead of a screen rendering a field that
+quietly changed meaning.
 
 ## Live endpoints
 
@@ -460,8 +458,19 @@ Turns a quote into a queued job. Requires an `Idempotency-Key` header.
 ```
 
 ```jsonc
-// 202
-{ "id": "0199…", "status": "queued", "modelKey": "gpt-image-2", "quotedCredits": 2, "createdAt": 1755353400000 }
+// 202 — the same shape GET /generation/jobs/:id and the gallery answer with
+{
+  "id": "0199…",
+  "status": "queued",
+  "familyId": "gpt-image",
+  "variantId": "gpt-image-2",
+  "coins": 2,
+  "prompt": "a lighthouse at dawn",
+  "createdAt": 1755353400000,
+  "updatedAt": 1755353400000,
+  "outputs": [],
+  "urlsExpireAt": null,
+}
 ```
 
 One transaction does all of it: the credit hold (or the free-allowance claim),
@@ -496,7 +505,109 @@ The same shape, scoped to the caller. Somebody else's job is a **404, not a
 403** — a job id is not a capability, and a 403 would confirm it exists.
 
 Poll this after submitting. `status` walks `queued` → `running` → `succeeded`
-or `failed`; the terminal states are final and nothing moves afterwards.
+or `failed`; the terminal states are final and nothing moves afterwards. Once it
+succeeds, `outputs` carries the files:
+
+```jsonc
+{
+  "id": "0199…",
+  "status": "succeeded",
+  "familyId": "gpt-image",
+  "variantId": "gpt-image-2",
+  "coins": 2,
+  "prompt": "a lighthouse at dawn",
+  "createdAt": 0,
+  "updatedAt": 0,
+  "urlsExpireAt": 1755357000000,
+  "outputs": [
+    {
+      "assetId": "0199…",
+      "url": "https://…?X-Amz-Signature=…",
+      "kind": "image",
+      "mimeType": "image/png",
+      "width": null,
+      "height": null,
+      "durationMs": null,
+    },
+  ],
+}
+```
+
+**Every `url` is signed and expires.** Nothing here is a public object: a
+generation belongs to whoever paid for it, and a bucket that serves anything to
+anyone who knows a key is not access control. Treat a URL as a loan — store
+`assetId` if something has to be remembered, and refetch when `urlsExpireAt`
+passes rather than after an image has already failed to load.
+
+`width`, `height` and `durationMs` are null today. The columns exist and the
+gallery reads them; nothing measures a file on the way in yet, and a screen
+should lay out from the variant's aspect ratio rather than wait for them.
+
+### `GET /gallery`
+
+Everything this account has made, newest first. Requires a session.
+
+```
+GET /api/v1/gallery?limit=24&kind=image&cursor=0199…
+```
+
+```jsonc
+{ "items": [/* GenerationJobSchema[] */], "nextCursor": "0199…" }
+```
+
+- **`limit` is 1–60**, default 24. Outside that range is a 400, not a silent
+  clamp — a client asking for 5000 has a bug worth surfacing.
+- **`kind` filters on what was made, not on what the family is called.** It
+  reads the job's feature modality, because a family's kind is not its variants'
+  — `topaz` is an image family whose second variant produces video.
+- **`nextCursor` is opaque.** Pass it back; do not parse it. It is keyset
+  pagination on the primary key rather than an offset, which is why a
+  generation finishing mid-scroll cannot shift the page under the reader.
+  Absent on the last page.
+- **Drafts are excluded.** A draft was never submitted, and a gallery of things
+  that did not happen is not a gallery.
+
+### `POST /assets`
+
+A reference image, as `multipart/form-data` with one `file` part. Requires a
+session. **201** when something was stored, **200** when it was already here.
+
+```jsonc
+{
+  "id": "0199…",
+  "url": "https://…?X-Amz-Signature=…",
+  "kind": "image",
+  "mimeType": "image/png",
+  "byteSize": 7872,
+  "deduplicated": false,
+  "urlExpiresAt": 1755357000000,
+}
+```
+
+| Status | Why                                                          |
+| ------ | ------------------------------------------------------------ |
+| 200    | `deduplicated: true` — these exact bytes were already here   |
+| 201    | Stored                                                       |
+| 401    | No session                                                   |
+| 413    | Over 15MB                                                    |
+| 415    | Not a PNG, JPEG, GIF or WebP — or the body was not multipart |
+
+Three things are worth knowing before building against it:
+
+- **The declared `Content-Type` is used for nothing.** The type is read from the
+  file's own magic bytes. An HTML document sent as `image/png` is a 415, which
+  matters because a signed URL later hands the file back with whatever type we
+  recorded.
+- **`deduplicated` is real and worth surfacing.** The bytes are hashed, and a
+  re-upload of the same reference returns the id the first one got without
+  transferring anything. Somebody trying four prompts against one face uploads
+  it once. Dedupe is scoped per account — a global one would be cheaper still
+  and would also mean handing one customer another customer's asset id.
+- **The bytes go through this API, not straight to storage.** No presigned PUT,
+  which means the object store needs no CORS, no public port, and can sit on a
+  private network. It costs a round trip through Node for a few megabytes and
+  buys the size ceiling, the type check and the hash — none of which a signing
+  policy can do.
 
 ## What happens after a job is queued
 
@@ -637,20 +748,21 @@ moved. CI runs that check over all 738 of them.
 
 So you can tell a gap from a bug:
 
-- **Anywhere to see a finished generation.** The worker runs jobs and files
-  their outputs as `assets` rows, but those rows point at the provider's own
-  URLs, which expire — `storage_provider = 'external'` is what marks them — and
-  there is no `GET /gallery` to read them back. That is the next phase: a
-  storage adapter, reference uploads, and signed expiring read URLs.
 - **useapi, so unlimited generation cannot actually generate.** A tier-3
   customer is quoted free, the submission succeeds, and the job then fails with
   `provider_unavailable` and a full refund of the day's allowance. Nothing is
   charged and nothing is lost, but nothing is produced either. Needs a token
   and a spike — see "KIE is wired; useapi is not" above.
-- **Gallery.** No server route. Demo mode returns an empty page.
-- **Payments.** Plans render and price correctly; nothing charges.
-- **A sign-in screen.** The port and both adapters are done — see
-  Authentication. The screen itself is UI work.
+- **Payments.** Plans render and price correctly; nothing charges. Blocked on
+  which Iranian gateway to use — ZarinPal, IDPay, NextPay and Zibal all work
+  differently enough that the choice comes first.
+- **Reference images are accepted but not yet attached to a generation.**
+  `POST /assets` stores one and hands back an id; nothing sends those ids with
+  a quote. `GenerationsProvider` refuses a generation carrying references
+  rather than silently dropping them, and the TODO there names the two lines it
+  needs. That is UI work now, not backend work.
+- **Nothing measures a file.** `assets.width`, `height` and `duration_ms` are
+  written null. The gallery reads them and a screen can lay out without them.
 - **Some screens still read `FAMILIES` directly.** `getFamily()` in Community,
   Effects, Profile, Mcp and AssetViewer, and the whole list in Landing, import
   `src/data/models.ts` rather than going through `useCatalogFamilies()`. Nothing

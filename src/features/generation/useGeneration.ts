@@ -10,7 +10,10 @@ export function useCreateGeneration() {
     mutationKey: CREATE_GENERATION_MUTATION_KEY,
     mutationFn: async ({ quote, idempotencyKey }: { quote: QuoteGenerationRequest; idempotencyKey: string }) => {
       const generationQuote = await services.generation.quote(quote);
-      const createRequest: CreateGenerationRequest = { quoteId: generationQuote.id, idempotencyKey };
+      // The settings go up a second time, with the quote id. They have to hash
+      // to exactly what was priced, which is what stops a cheap quote being
+      // redeemed for an expensive generation.
+      const createRequest: CreateGenerationRequest = { quoteId: generationQuote.id, idempotencyKey, input: quote.input };
       const job = await services.generation.create(createRequest);
       return { quote: generationQuote, job };
     },

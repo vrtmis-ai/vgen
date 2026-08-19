@@ -2,41 +2,40 @@ import type { AppServices } from "../../runtime/AppServices";
 import { GenerationJobSchema, GenerationQuoteSchema } from "../../runtime/contracts/generation";
 import type { HttpClient } from "./client";
 
-/* ⚠️ NOT WIRED. Every method here 404s against the running API.
+/**
+ * The generation half of the API, finally reachable.
  *
- * The API registers exactly one generation route, `POST /api/v1/jobs`. There is
- * no quote endpoint and no job-status endpoint, and nothing anywhere creates a
- * row in `quotes` — yet `createQueued` takes a `quoteId` and reads that table,
- * so even the route that does exist cannot be reached through a supported flow.
+ * This file used to be three methods that all 404'd, under a comment listing
+ * what the server would need first. It has all of it now — a quote endpoint, a
+ * submit endpoint and a job endpoint, all speaking one job shape — so what is
+ * left here is the narrowing this layer exists to do.
  *
- * Renaming these three paths would not fix it, which is why they have been left
- * alone: the shapes disagree as well. The API answers with
- * `{id, status, modelKey, quotedCredits, createdAt}` while GenerationJobSchema
- * here requires `{familyId, variantId, updatedAt, outputAssetIds, …}`, so a
- * path-only change would trade a 404 for a schema error and make the gap look
- * smaller than it is.
- *
- * What it needs, in order: a quote endpoint that prices params and writes the
- * quote row; one shared job shape between packages/contracts and
- * app/contracts/generation; `GET /api/v1/jobs/:id` over the existing
- * `getForUser`, which now returns a job in any state rather than only 'queued'.
- *
- * In demo mode this file is not used, which is why the UI works there.
+ * The port speaks the studio's language: a family, a variant, control values,
+ * reference slots. The API accepts a variant and a bag of params, and nothing
+ * else — deliberately, because a request that could name its own feature, model
+ * or price is a request that could ask to be billed as something cheaper. So
+ * the mapping happens here rather than in a screen.
  */
 export function createHttpGenerationService(client: HttpClient): AppServices["generation"] {
   return {
     quote(request, options) {
       return client.request("/generation/quotes", {
         method: "POST",
-        body: request,
+        body: { variantId: request.variantId, params: request.input, prompt: request.prompt },
         schema: GenerationQuoteSchema,
         signal: options?.signal,
       });
     },
     create(request, options) {
-      return client.request("/generation/jobs", {
+      return client.request("/jobs", {
         method: "POST",
-        body: request,
+        // The params have to hash to exactly what was quoted, so they are sent
+        // again rather than remembered server-side against the quote id. That
+        // is what stops a cheap quote being redeemed for an expensive job.
+        body: { quoteId: request.quoteId, params: request.input },
+        // A header, not a body field: it identifies the attempt rather than the
+        // request, and the server reads it before parsing anything.
+        headers: { "Idempotency-Key": request.idempotencyKey },
         schema: GenerationJobSchema,
         signal: options?.signal,
       });

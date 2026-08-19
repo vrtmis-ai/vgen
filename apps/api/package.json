@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
+    "@fastify/multipart": "^10.1.1",
     "@vgen/adapters": "workspace:*",
     "@vgen/contracts": "workspace:*",
     "@vgen/db": "workspace:*",

@@ -1,11 +1,11 @@
 import { CreateGenerationJobSchema, GenerationIdempotencyKeySchema } from "@vgen/contracts";
-import type { CreateQueuedJobInput, CreateQueuedJobResult, GenerationParams, QueuedGenerationJob } from "@vgen/db";
+import type { CreateQueuedJobInput, CreateQueuedJobResult, GenerationParams } from "@vgen/db";
 import type { FastifyInstance } from "fastify";
+import type { GenerationLibraryApplication } from "../generationLibrary";
 import type { CustomerSessionApplication } from "./session";
 
 export interface GenerationJobsApplication {
   createQueued(input: CreateQueuedJobInput): Promise<CreateQueuedJobResult>;
-  getForUser(jobId: string, userId: string): Promise<QueuedGenerationJob | null>;
 }
 
 /**
@@ -31,6 +31,7 @@ export function registerGenerationJobsRoute(
   app: FastifyInstance,
   sessions: CustomerSessionApplication,
   generationJobs: GenerationJobsApplication,
+  library: GenerationLibraryApplication,
 ): void {
   app.post("/api/v1/jobs", { bodyLimit: 64 * 1024 }, async (request, reply) => {
     const session = await sessions.getCurrent(request);
@@ -47,7 +48,18 @@ export function registerGenerationJobsRoute(
       idempotencyKey,
     });
 
-    if (result.outcome === "created" || result.outcome === "replayed") return reply.code(202).send(result.job);
+    if (result.outcome === "created" || result.outcome === "replayed") {
+      // Read back rather than answering with what the insert returned. It is
+      // one extra query for the guarantee that costs the most to lose: this
+      // route, `GET /generation/jobs/:id` and a page of the gallery all speak
+      // the one shape, so a client parses generations once.
+      const job = await library.get(result.job.id, session.user.id);
+      // The row was just written in this account's name, so a miss here is a
+      // bug rather than a refusal — and answering with one of the refusal
+      // messages would blame the customer for it.
+      if (!job) throw new Error(`job ${result.job.id} vanished between being created and being read back`);
+      return reply.code(202).send(job);
+    }
 
     const refusal = REFUSAL_STATUS[result.outcome];
     return reply
@@ -67,7 +79,7 @@ export function registerGenerationJobsRoute(
       return reply.code(401).send({ error: { code: "unauthorized", message: "Authentication required." } });
     }
 
-    const job = await generationJobs.getForUser(request.params.jobId, session.user.id);
+    const job = await library.get(request.params.jobId, session.user.id);
     if (!job) return reply.code(404).send({ error: { code: "job_not_found", message: "No such job." } });
     return reply.code(200).send(job);
   });

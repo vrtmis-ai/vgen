@@ -2,9 +2,10 @@ import { config } from "dotenv";
 import { fileURLToPath } from "node:url";
 import { Queue, Worker, type Job, type JobsOptions } from "bullmq";
 import postgres from "postgres";
-import { createGenerationProvider } from "@vgen/adapters";
+import { createGenerationProvider, createS3ObjectStore } from "@vgen/adapters";
 import { PostgresJobRunnerRepository, PostgresOutboxDispatcher } from "@vgen/db";
 import { BullGenerationPublisher } from "./outboxConsumer";
+import { HttpOutputMirror } from "./outputMirror";
 import { runGeneration } from "./runGeneration";
 
 export const GENERATION_QUEUE = "generation" as const;
@@ -41,6 +42,25 @@ const publisher = new BullGenerationPublisher({
 const dispatcher = new PostgresOutboxDispatcher(sql);
 const runnerRepository = new PostgresJobRunnerRepository(sql);
 
+/**
+ * Where finished generations are kept.
+ *
+ * `forcePathStyle` and these defaults are the local MinIO in docker-compose.
+ * In production the endpoint moves and nothing else does — and the store is
+ * reachable only from the API and this worker, never from a browser, which is
+ * why uploads are proxied rather than presigned.
+ */
+const objectStore = createS3ObjectStore({
+  bucket: process.env.OBJECT_STORAGE_BUCKET?.trim() || "vgen",
+  endpoint: process.env.OBJECT_STORAGE_ENDPOINT?.trim() || "http://127.0.0.1:9000",
+  region: process.env.OBJECT_STORAGE_REGION?.trim() || "us-east-1",
+  credentials: {
+    accessKeyId: process.env.OBJECT_STORAGE_ACCESS_KEY?.trim() || "vgen-local",
+    secretAccessKey: process.env.OBJECT_STORAGE_SECRET_KEY?.trim() || "vgen-local-secret",
+  },
+});
+const mirror = new HttpOutputMirror({ store: objectStore });
+
 const log = (event: Record<string, unknown>) => console.info(JSON.stringify(event));
 
 let dispatching = false;
@@ -59,6 +79,12 @@ async function dispatch(): Promise<void> {
 
 const interval = setInterval(() => void dispatch(), 500);
 void dispatch();
+
+// A fresh volume has no bucket, and discovering that on the first successful
+// generation would fail a job somebody paid for.
+void objectStore.ensureBucket().catch((error) => {
+  console.error(JSON.stringify({ event: "storage.bucket_unavailable", error: error instanceof Error ? error.message : "unknown" }));
+});
 
 /**
  * The other half: what the outbox dispatcher publishes, this consumes.
@@ -79,6 +105,7 @@ const worker = new Worker(
     const result = await runGeneration(jobId, {
       runner: runnerRepository,
       createProvider: createGenerationProvider,
+      mirror,
       secrets: process.env,
       // attemptsMade is the count *before* this one, so this is the last try
       // when there are no further deliveries left after it.

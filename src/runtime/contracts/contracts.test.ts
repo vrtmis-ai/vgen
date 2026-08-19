@@ -25,17 +25,28 @@ describe("application contracts", () => {
   });
 
   it("requires durable idempotency keys and supports terminal job failures", () => {
-    expect(() => CreateGenerationRequestSchema.parse({ quoteId: "quote-1", idempotencyKey: "short" })).toThrow();
-    expect(
-      GenerationJobSchema.parse({
-        id: "job-1",
-        familyId: "flux",
-        variantId: "flux-fast",
-        status: "failed",
-        createdAt: 1,
-        updatedAt: 2,
-        error: { code: "provider_unavailable", message: "Try again" },
-      }).status,
-    ).toBe("failed");
+    expect(() => CreateGenerationRequestSchema.parse({ quoteId: "quote-1", idempotencyKey: "short", input: {} })).toThrow();
+
+    const failed = GenerationJobSchema.parse({
+      id: "job-1",
+      familyId: "flux",
+      variantId: "flux-fast",
+      status: "failed",
+      coins: 0,
+      prompt: "a small red boat",
+      createdAt: 1,
+      updatedAt: 2,
+      outputs: [],
+      urlsExpireAt: null,
+      error: { code: "provider_unavailable", message: "Try again" },
+    });
+    expect(failed.status).toBe("failed");
+    // Zero coins on a failure is not an omission: every job failure is
+    // refunded in full, so the charge really is nothing.
+    expect(failed.coins).toBe(0);
+
+    // The vocabulary is the database's. `done` was this file's own invention
+    // and would have failed to parse every real reply.
+    expect(() => GenerationJobSchema.parse({ ...failed, status: "done" })).toThrow();
   });
 });

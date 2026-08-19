@@ -1,25 +1,19 @@
 import { z } from "zod";
-import { JobStatusSchema } from "./generation";
+import { GenerationJobSchema } from "./generation";
 
-export const GenerationSummarySchema = z.object({
-  id: z.string().min(1),
-  familyId: z.string().min(1),
-  variantId: z.string().min(1),
-  name: z.string().min(1),
-  vendor: z.string().min(1),
-  kind: z.enum(["image", "video", "audio"]),
-  prompt: z.string(),
-  status: JobStatusSchema,
-  progress: z.number().min(0).max(100).optional(),
-  width: z.number().positive().optional(),
-  height: z.number().positive().optional(),
-  durationMs: z.number().int().nonnegative().optional(),
-  outputUrl: z.string().url().optional(),
-  createdAt: z.number().int().nonnegative(),
-});
-
+/**
+ * A page of the account's own generations.
+ *
+ * An item is a job — not a summary of one. There used to be a
+ * `GenerationSummarySchema` here carrying `name`, `vendor` and `grad` beside
+ * the ids, which meant the server was expected to send catalogue presentation
+ * back to a browser that already holds the whole catalogue. Those three are
+ * derived from `variantId` through `useCatalogFamilies()`, where they cannot
+ * drift from what the switcher shows.
+ */
 export const GalleryPageSchema = z.object({
-  items: z.array(GenerationSummarySchema),
+  items: z.array(GenerationJobSchema),
+  /** Absent on the last page. Opaque — pass it back, do not parse it. */
   nextCursor: z.string().min(1).optional(),
 });
 

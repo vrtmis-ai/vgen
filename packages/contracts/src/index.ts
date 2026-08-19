@@ -5,6 +5,7 @@ export * from "./session";
 export * from "./catalog";
 export * from "./telemetry";
 export * from "./generation";
+export * from "./assets";
 export * from "./plans";
 
 export const DependencyHealthSchema = z.object({

@@ -18,6 +18,7 @@ const services = {
   wallet: { getCurrent: vi.fn() },
   generation: { quote: vi.fn(), create: vi.fn(), getJob: vi.fn() },
   gallery: { list: vi.fn() },
+  assets: { upload: vi.fn() },
 } satisfies AppServices;
 
 function ServiceConsumer() {

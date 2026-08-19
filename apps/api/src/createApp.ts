@@ -7,7 +7,12 @@ import { registerPlansRoute, type CustomerPlansApplication } from "./routes/plan
 import { registerWalletRoute, type CustomerWalletApplication } from "./routes/wallet";
 import { registerGenerationJobsRoute, type GenerationJobsApplication } from "./routes/jobs";
 import { registerGenerationQuotesRoute, type GenerationQuotesApplication } from "./routes/quotes";
+import { registerGalleryRoute } from "./routes/gallery";
+import { registerAssetUploadRoute, type AssetUploadApplication } from "./routes/assets";
+import type { GenerationLibraryApplication } from "./generationLibrary";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
+import { UPLOAD_MAX_BYTES } from "@vgen/contracts";
 import {
   registerFrontendTelemetryRoute,
   type FrontendTelemetryApplication,
@@ -32,6 +37,8 @@ export interface ApiDependencies {
   frontendTelemetry: FrontendTelemetryApplication;
   generationJobs: GenerationJobsApplication;
   generationQuotes: GenerationQuotesApplication;
+  generationLibrary: GenerationLibraryApplication;
+  assetUploads: AssetUploadApplication;
 }
 
 export interface ApiOptions {
@@ -59,6 +66,10 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   if (options.corsOrigin) {
     void app.register(cors, { origin: options.corsOrigin, credentials: true });
   }
+  // The ceiling is set here as well as checked in the route. This one refuses
+  // the connection; the route's turns a truncated file into a clear 413 rather
+  // than a corrupt object.
+  void app.register(multipart, { limits: { fileSize: UPLOAD_MAX_BYTES, files: 1 } });
   if (options.auth) registerAuthRoutes(app, options.auth.dependencies, options.auth.options);
   if (options.admin) registerAdminRoutes(app, options.admin.dependencies, options.admin.options);
 
@@ -73,7 +84,9 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   registerWalletRoute(app, dependencies.customerSession, dependencies.customerWallet);
   registerFrontendTelemetryRoute(app, dependencies.frontendTelemetry, options.telemetryRateLimit, options.telemetryRateLimiter);
   registerGenerationQuotesRoute(app, dependencies.customerSession, dependencies.generationQuotes);
-  registerGenerationJobsRoute(app, dependencies.customerSession, dependencies.generationJobs);
+  registerGenerationJobsRoute(app, dependencies.customerSession, dependencies.generationJobs, dependencies.generationLibrary);
+  registerGalleryRoute(app, dependencies.customerSession, dependencies.generationLibrary);
+  registerAssetUploadRoute(app, dependencies.customerSession, dependencies.assetUploads);
 
   app.get("/health/live", async () => ({ status: "ok" }));
   app.get("/health/ready", async (_request, reply) => {

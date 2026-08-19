@@ -16,7 +16,11 @@ describe("demo generation adapter", () => {
       referenceAssetIds: {},
     });
 
-    const request = { quoteId: quote.id, idempotencyKey: "demo-idempotency-key-0001" };
+    const request = {
+      quoteId: quote.id,
+      idempotencyKey: "demo-idempotency-key-0001",
+      input: defaultInput(variantControls(family, variant)),
+    };
     const queued = await services.generation.create(request);
     const duplicate = await services.generation.create(request);
     expect(duplicate.id).toBe(queued.id);
@@ -25,11 +29,14 @@ describe("demo generation adapter", () => {
     now += 500;
     const running = await services.generation.getJob(queued.id);
     expect(running.status).toBe("running");
-    expect(running.progress).toBeGreaterThan(0);
+    expect(running.outputs).toEqual([]);
 
     now += 2_500;
-    const done = await services.generation.getJob(queued.id);
-    expect(done.status).toBe("done");
-    expect(done.progress).toBe(100);
+    // `succeeded`, not `done` — demo mode speaks the database's vocabulary, or
+    // a screen built against it is built against a fiction.
+    const finished = await services.generation.getJob(queued.id);
+    expect(finished.status).toBe("succeeded");
+    expect(finished.outputs).toHaveLength(1);
+    expect(finished.urlsExpireAt).toBeGreaterThan(now);
   });
 });

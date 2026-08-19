@@ -250,17 +250,6 @@ export class PostgresGenerationRepository {
     }
   }
 
-  /** One job, scoped to its owner — never by id alone. */
-  async getForUser(jobId: string, userId: string): Promise<QueuedGenerationJob | null> {
-    const [row] = await this.sql<JobRow[]>`
-      ${this.sql.unsafe(SELECT_JOB)}
-      where job.id = ${jobId}
-        and job.deleted_at is null
-        and job.account_id = (select personal_account_id from users where id = ${userId})
-    `;
-    return row ? toJob(row) : null;
-  }
-
   /** Queue depth. Reads the outbox only, so it is unaffected by the above. */
   async countPendingDispatches(): Promise<number> {
     const [row] = await this.sql<{ count: string }[]>`

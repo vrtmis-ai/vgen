@@ -1,6 +1,7 @@
 import { KIE_CREDIT_USD } from "@vgen/core";
 import { ProviderTransportError, type GenerationProvider, type ProviderOptions } from "@vgen/adapters";
-import type { AttemptRecord, ClaimedJob, PooledCredential, SucceedInput } from "@vgen/db";
+import type { AttemptRecord, ClaimedJob, JobOutput, PooledCredential, SucceedInput } from "@vgen/db";
+import type { OutputMirrorPort } from "./outputMirror";
 
 /**
  * One job, from the queue to a settled balance.
@@ -28,6 +29,12 @@ export interface JobRunnerPort {
 export interface RunGenerationDeps {
   runner: JobRunnerPort;
   createProvider(code: string, options: ProviderOptions): GenerationProvider | null;
+  /**
+   * Keeps a copy of each result before the provider's link to it expires.
+   * Without this the gallery slowly empties itself and the customer is left
+   * holding a receipt for a file nobody has.
+   */
+  mirror: OutputMirrorPort;
   /** Where secret_ref names are resolved. process.env in production. */
   secrets: Record<string, string | undefined>;
   /**
@@ -240,6 +247,35 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
       return settle("no_output", "The provider reported success but returned no files.", false);
     }
 
+    // Ours before it is theirs. A provider URL is a loan of a few hours, so
+    // nothing counts as delivered until the bytes are in our own store.
+    let stored: JobOutput[];
+    try {
+      stored = await Promise.all(
+        outcome.outputs.map((output, index) => deps.mirror.mirror(output, { accountId: job.accountId, jobId: job.id, index })),
+      );
+    } catch (error) {
+      // Not retryable, and this is the one place that is a money decision
+      // rather than a policy one: another delivery would re-enter at `submit`
+      // and generate a second picture, paying the provider twice for one the
+      // customer already has. So the job fails, they are refunded in full, and
+      // we absorb the provider's charge for a result we could not keep.
+      await runner.recordAttempt(
+        attempt({
+          status: "failed",
+          credentialId: credential.id,
+          externalJobId: submission.externalJobId,
+          responsePayload: outcome.responsePayload,
+          providerUnitsCost: outcome.providerUnitsCost,
+          errorCode: "storage_failed",
+          errorMessage: messageOf(error),
+          latencyMs: now() - submittedAt,
+          finished: true,
+        }),
+      );
+      return settle("storage_failed", "The generation finished but could not be saved.", false);
+    }
+
     const unitCostUsd = UNIT_COST_USD[job.providerCode];
     await runner.recordAttempt(
       attempt({
@@ -254,7 +290,7 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
     );
     await runner.succeed({
       jobId: job.id,
-      outputs: outcome.outputs,
+      outputs: stored,
       providerUnitsCost: outcome.providerUnitsCost,
       providerCostUsd: outcome.providerUnitsCost !== null && unitCostUsd !== undefined ? outcome.providerUnitsCost * unitCostUsd : null,
     });

@@ -64,10 +64,23 @@ export interface AttemptRecord {
   finished?: boolean;
 }
 
+/**
+ * One finished file, already in our own storage.
+ *
+ * Not a provider URL any more. Those expire - often within hours - so a gallery
+ * built on them is a gallery that empties itself, and the customer paid for a
+ * file rather than for a link to somebody else's copy of it.
+ */
 export interface JobOutput {
-  url: string;
   kind: Modality;
   mimeType: string;
+  bucket: string;
+  key: string;
+  byteSize: number;
+  sha256: string;
+  width?: number | null;
+  height?: number | null;
+  durationMs?: number | null;
 }
 
 export interface SucceedInput {
@@ -255,9 +268,9 @@ export class PostgresJobRunnerRepository {
    * ponytail: partial capture is a one-argument change to capture_hold if a
    * per-second model ever needs settling against a real duration.
    *
-   * The outputs are filed as assets pointing at the provider's own URLs. Those
-   * URLs expire; mirroring them into our own storage is the next phase, and
-   * `storage_provider = 'external'` is what marks the rows that still need it.
+   * The outputs are already in our own storage by the time this is called -
+   * the runner mirrors them before settling, because a generation we cannot
+   * keep is a generation the customer did not get.
    */
   async succeed(input: SucceedInput): Promise<void> {
     await atomically(this.sql)(async (transaction) => {
@@ -273,11 +286,15 @@ export class PostgresJobRunnerRepository {
         await tx`
           insert into assets (
             account_id, created_by, kind, origin, job_id, output_index,
-            storage_provider, storage_bucket, storage_key, public_url, mime_type
+            storage_provider, storage_bucket, storage_key, mime_type,
+            byte_size, sha256, width, height, duration_ms
           ) values (
             ${job.account_id}, ${job.created_by}, ${ASSET_KIND[output.kind]}, 'generated', ${input.jobId}, ${index},
-            'external', 'provider-url', ${output.url}, ${output.url}, ${output.mimeType}
+            's3', ${output.bucket}, ${output.key}, ${output.mimeType},
+            ${output.byteSize}, ${output.sha256}, ${output.width ?? null}, ${output.height ?? null}, ${output.durationMs ?? null}
           )
+          -- A redelivered completion re-files the same object at the same key.
+          -- Doing nothing is right: the row is already there and correct.
           on conflict (storage_bucket, storage_key) do nothing
         `;
       }

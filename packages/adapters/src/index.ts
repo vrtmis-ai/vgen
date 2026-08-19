@@ -20,3 +20,6 @@ export type {
   Modality,
   ProviderOptions,
 } from "./providers";
+
+export { S3ObjectStore, assetKindFor, createS3ObjectStore, extensionFor, sniffImageMimeType } from "./storage";
+export type { CreateObjectStoreOptions, ObjectStore, S3ObjectStoreOptions, StoredObject } from "./storage";

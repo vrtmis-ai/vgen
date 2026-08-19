@@ -76,19 +76,82 @@ export const GenerationIdempotencyKeySchema = z
   .regex(/^[a-zA-Z0-9_.:-]+$/);
 
 /** Mirrors the jobs_status_check constraint. */
-export const GenerationJobStatusSchema = z.enum(["queued", "submitted", "running", "succeeded", "failed", "cancelled", "expired"]);
+export const GenerationJobStatusSchema = z.enum(["draft", "queued", "running", "succeeded", "failed", "cancelled", "expired"]);
 
-export const QueuedGenerationJobSchema = z.object({
-  id: z.uuid(),
-  // Was z.literal("queued"), which the replay path could not honour: it returns
-  // whatever job already exists for that idempotency key, in whatever state.
-  status: GenerationJobStatusSchema,
-  modelKey: z.string().min(1),
-  quotedCredits: z.number().int().nonnegative(),
-  createdAt: z.number().int().nonnegative(),
+/**
+ * One file a generation produced.
+ *
+ * `url` is signed and expires. Nothing here is a public object: a generation
+ * belongs to whoever paid for it, and a bucket set to public-read is a bucket
+ * where guessing a key is enough. Treat the URL as a loan, not an address —
+ * store the `assetId` if anything needs to be remembered.
+ */
+export const GeneratedOutputSchema = z.object({
+  assetId: z.uuid(),
+  url: z.string().min(1),
+  kind: z.enum(["image", "video", "audio", "document"]),
+  mimeType: z.string().min(1),
+  width: z.number().int().positive().nullable(),
+  height: z.number().int().positive().nullable(),
+  durationMs: z.number().int().nonnegative().nullable(),
 });
 
+/**
+ * A generation, in whatever state it has reached.
+ *
+ * One shape for three things that used to disagree: what `POST /jobs` answers,
+ * what `GET /generation/jobs/:id` answers, and what a page of the gallery is
+ * made of. A gallery item *is* a job — there was never a second concept, only
+ * a second schema, and the browser's copy had drifted far enough that renaming
+ * a path would have traded a 404 for a parse error.
+ *
+ * `familyId` and `variantId` rather than an opaque `modelKey`: the customer
+ * chose a variant out of the catalogue and every screen renders from that
+ * catalogue, so the ids it is keyed by are what a screen can actually use.
+ * Which provider served it stays ours to know.
+ */
+export const GenerationJobSchema = z.object({
+  id: z.uuid(),
+  status: GenerationJobStatusSchema,
+  familyId: z.string().min(1),
+  variantId: z.string().min(1),
+  /** What it was quoted at. Also what it was charged, once it succeeds. */
+  coins: z.number().int().nonnegative(),
+  prompt: z.string(),
+  createdAt: z.number().int().nonnegative(),
+  updatedAt: z.number().int().nonnegative(),
+  outputs: z.array(GeneratedOutputSchema),
+  /**
+   * When every `url` above stops working, so a long-lived tab can refresh
+   * before showing a broken image rather than after.
+   */
+  urlsExpireAt: z.number().int().nonnegative().nullable(),
+  /**
+   * Why it failed. The codes are the worker's, and `docs/API.md` lists them
+   * with what a person can do about each — every one of them ends in a refund.
+   */
+  error: z.object({ code: z.string().min(1), message: z.string() }).optional(),
+});
+
+export const GalleryPageSchema = z.object({
+  items: z.array(GenerationJobSchema),
+  /** Absent on the last page. Opaque — pass it back, do not parse it. */
+  nextCursor: z.string().min(1).optional(),
+});
+
+export const GalleryQuerySchema = z
+  .object({
+    cursor: z.string().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(60).default(24),
+    kind: z.enum(["image", "video", "audio"]).optional(),
+  })
+  .strict();
+
 export type CreateGenerationJob = z.infer<typeof CreateGenerationJobSchema>;
-export type QueuedGenerationJob = z.infer<typeof QueuedGenerationJobSchema>;
+export type GeneratedOutput = z.infer<typeof GeneratedOutputSchema>;
+export type GenerationJob = z.infer<typeof GenerationJobSchema>;
+export type GenerationJobStatus = z.infer<typeof GenerationJobStatusSchema>;
+export type GalleryPage = z.infer<typeof GalleryPageSchema>;
+export type GalleryQuery = z.infer<typeof GalleryQuerySchema>;
 export type QuoteGenerationRequest = z.infer<typeof QuoteGenerationRequestSchema>;
 export type GenerationQuote = z.infer<typeof GenerationQuoteSchema>;
