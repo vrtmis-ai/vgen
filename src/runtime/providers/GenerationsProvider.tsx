@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { defaultInput, variantControls, type Variant } from "../../data/models";
 import type { InputMap, RefMap } from "../../components/controls";
-import { loadGenerations, saveGenerations, uid, type Generation } from "../../lib/gallery";
+import { loadGenerations, saveGenerations, uid, type GenStatus, type Generation } from "../../lib/gallery";
 import { currentAspect } from "../../features/generation/aspect";
 import { validateGenerationInput } from "../../features/generation/validation";
 import { useCatalogFamilies } from "../../features/catalog/CatalogProvider";
@@ -71,21 +71,28 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!jobStateKey) return;
     const byId = new Map(jobQueries.jobs.map((job) => [job.id, job]));
-    setGens((previous) =>
-      previous.map((generation) => {
+    setGens((previous) => {
+      /* Returning `previous` untouched when nothing moved is load-bearing, not
+         tidiness. `useQueries` hands back a fresh array every render, so this
+         effect runs on every render; if it always built a new array React would
+         re-render, the effect would run again, and the two would chase each
+         other until React gave up with "Maximum update depth exceeded". Object
+         identity is the brake. */
+      let changed = false;
+      const next = previous.map((generation) => {
         const job = generation.jobId ? byId.get(generation.jobId) : undefined;
         if (!job) return generation;
         // `succeeded` is the database's word and therefore the wire's. The
         // stored Generation keeps its own two-state vocabulary because that is
         // all a card renders.
-        const finished = job.status === "succeeded";
-        return {
-          ...generation,
-          status: finished ? "done" : "running",
-          ...(job.outputs[0] ? { outputUrl: job.outputs[0].url } : {}),
-        };
-      }),
-    );
+        const status: GenStatus = job.status === "succeeded" ? "done" : "running";
+        const outputUrl = job.outputs[0]?.url ?? generation.outputUrl;
+        if (generation.status === status && generation.outputUrl === outputUrl) return generation;
+        changed = true;
+        return { ...generation, status, ...(outputUrl ? { outputUrl } : {}) };
+      });
+      return changed ? next : previous;
+    });
   }, [jobQueries.jobs, jobStateKey]);
 
   const startGeneration = useCallback(
