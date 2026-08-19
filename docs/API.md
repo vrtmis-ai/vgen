@@ -7,7 +7,7 @@ claim here names the file it can be checked against.
 **Maintained by the backend owner.** If it disagrees with the code, the code is
 right and this file is a bug — say so.
 
-Last verified against `main` on 2026-08-17.
+Last verified against `main` on 2026-08-19 (`6be5c5b`).
 
 ## The two runtimes
 
@@ -26,23 +26,32 @@ The port is the same either way — `AppServices` in
 ## What is actually wired
 
 This is the part worth reading twice. The HTTP adapters were written against a
-planned surface; the server has since been rebuilt, and **one of the eight
-calls the frontend makes has no route on the server yet.**
+planned surface and the server has since been rebuilt, so the two do not line
+up call for call: **one of the eight has no route at all, and three more have a
+route the adapter cannot reach.**
 
-| `AppServices` call     | Frontend requests          | Server route                           | Status   |
-| ---------------------- | -------------------------- | -------------------------------------- | -------- |
-| `session.getCurrent()` | `GET /session`             | `routes/session.ts`                    | **Live** |
-| `auth.*` (5 methods)   | `POST /auth/*`             | `routes/auth.ts`                       | **Live** |
-| `catalog.list()`       | `GET /catalog`             | `routes/catalog.ts`                    | **Live** |
-| _(not wired yet)_      | `GET /plans`               | `routes/plans.ts`                      | **Live** |
-| `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`                     | **Live** |
-| _(not wired yet)_      | `POST /generation/quotes`  | `routes/quotes.ts`                     | **Live** |
-| _(not wired yet)_      | `POST /generation/jobs`    | `POST /jobs` (different path and body) | **Live** |
-| _(not wired yet)_      | `GET /generation/jobs/:id` | `routes/jobs.ts`                       | **Live** |
-| `gallery.list()`       | `GET /gallery`             | —                                      | **404**  |
+| `AppServices` call     | Frontend requests          | Server route                           | Status                            |
+| ---------------------- | -------------------------- | -------------------------------------- | --------------------------------- |
+| `session.getCurrent()` | `GET /session`             | `routes/session.ts`                    | **Live**                          |
+| `auth.*` (5 methods)   | `POST /auth/*`             | `routes/auth.ts`                       | **Live**                          |
+| `catalog.list()`       | `GET /catalog`             | `routes/catalog.ts`                    | **Live**                          |
+| `plans.list()`         | `GET /plans`               | `routes/plans.ts`                      | **Live**                          |
+| `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`                     | **Live**                          |
+| `generation.quote()`   | `POST /generation/quotes`  | `routes/quotes.ts`                     | **Live, adapter not reaching it** |
+| `generation.create()`  | `POST /generation/jobs`    | `POST /jobs` (different path and body) | **Live, adapter not reaching it** |
+| `generation.getJob()`  | `GET /generation/jobs/:id` | `routes/jobs.ts`                       | **Live, adapter not reaching it** |
+| `gallery.list()`       | `GET /gallery`             | —                                      | **404**                           |
 
-So in `production` mode today, session, auth, catalog, wallet, plans, quoting
-and job submission all work; only the gallery does not. A submitted job now
+So in `production` mode today, session, auth, catalog, wallet and plans all
+work end to end. The three generation calls are the awkward row: **the server
+routes are live and correct, and the browser's adapter still cannot reach
+them** — `src/adapters/http/generation.ts` posts to `/generation/jobs` where
+the API serves `/jobs`, and its `GenerationJobSchema` requires `familyId`,
+`variantId`, `updatedAt` and `outputAssetIds` where the API answers
+`{id, status, modelKey, quotedCredits, createdAt}`. Renaming the path alone
+would trade a 404 for a schema error. Closing that gap means agreeing one job
+shape between `packages/contracts` and `src/runtime/contracts/generation.ts`;
+until then the studio screens work in demo mode only. A submitted job now
 genuinely runs — the worker consumes the queue, calls the provider and settles
 the money — but there is nowhere to _see_ the result yet, because the gallery
 route and the storage that backs it are the next phase. **In `demo` mode
@@ -53,8 +62,11 @@ mode until this table says otherwise.
 were empty. That is fixed: all 19 families and 44 variants are in Postgres, and
 the two modes now serve the same bytes (see below).
 
-Do not "fix" this from the UI side by changing the adapter paths — the server
-routes genuinely are not built, and the mismatch is tracked as backend work.
+Only the gallery row is missing server work. The three generation rows are a
+contract disagreement rather than a gap, and fixing them by editing paths in
+the adapter alone will not work — the shapes have to be reconciled first, in
+`packages/contracts` and `src/runtime/contracts/generation.ts` together. Say so
+and it gets done as one change across both halves.
 
 ## Live endpoints
 
@@ -64,17 +76,43 @@ cookie, so the browser sends it automatically; the HTTP client sets
 
 ### `GET /session`
 
-Who, if anyone, is signed in. Never 401s — anonymous is a normal answer.
+Who, if anyone, is signed in, and how anyone could sign in. Never 401s —
+anonymous is a normal answer.
 
 ```jsonc
-{ "status": "anonymous", "host": "web" }
+{ "status": "anonymous", "host": "web", "authProviders": ["google"] }
 // or
-{ "status": "authed", "host": "web",
+{ "status": "authed", "host": "web", "authProviders": ["google", "microsoft"],
   "user": { "id": "…", "methods": ["email"], "emailNormalized": "a@b.c",
             "displayName": "…", "locale": "fa", "isTeam": false } }
 ```
 
 Schema: `SessionSchema` in `src/runtime/contracts/session.ts`.
+
+**`authProviders` is the list of social sign-ins this deployment actually has,
+and a screen must filter against it rather than rendering both buttons.** Each
+provider is registered only when its credentials are set, so an unconfigured
+one has no endpoint at all — and a button for it used to navigate into a 404
+_after_ the person had already committed to it.
+
+It is derived inside `createApp` from the same object that decides whether to
+register the routes, so the list and the routes cannot disagree. Three things
+follow:
+
+- **It rides on the session, not on the catalogue.** `GET /catalog` is exported
+  to a committed snapshot that CI diffs, so it can never carry a value that
+  depends on which environment variables a server happens to hold — demo mode's
+  copy would be wrong by construction.
+- **The browser's schema defaults it to empty**, not to every provider. A server
+  that does not send the field yet shows no social buttons, which is the safe
+  way to be wrong: never draw a door we cannot prove exists.
+- **It is on the anonymous arm too**, which is the arm that matters — the only
+  people who need it are the ones who have not signed in.
+
+Locally neither is configured, so the list is `[]` and the sign-in screen shows
+phone and email only. That is correct, not a bug: **neither Google nor Microsoft
+is dependably reachable from Iran without a VPN**, so phone OTP is the route
+most people will take regardless.
 
 ### `GET /catalog`
 
@@ -325,7 +363,7 @@ price cards and the access gate's padlock all read it from there. Nothing
 renders a price from a file any more. Demo mode serves
 `src/data/plans.snapshot.json` — the database's own export, committed and diffed
 in CI — so a screen built without a backend is built against the real payload.
-`plans.rows.json` beside it is the seeder's *input*; both are generated, so
+`plans.rows.json` beside it is the seeder's _input_; both are generated, so
 **do not hand-edit either.**
 
 Five things worth knowing:
@@ -609,10 +647,6 @@ So you can tell a gap from a bug:
   `provider_unavailable` and a full refund of the day's allowance. Nothing is
   charged and nothing is lost, but nothing is produced either. Needs a token
   and a spike — see "KIE is wired; useapi is not" above.
-- **`GET /catalog` does not say which OAuth providers are configured.** Each is
-  registered server-side only when its credentials are set, and nothing the
-  browser can read says which — so a button for an unconfigured provider
-  navigates into a 404.
 - **Gallery.** No server route. Demo mode returns an empty page.
 - **Payments.** Plans render and price correctly; nothing charges.
 - **A sign-in screen.** The port and both adapters are done — see

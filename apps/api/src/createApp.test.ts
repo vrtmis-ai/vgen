@@ -426,7 +426,8 @@ describe("customer session", () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/session" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "anonymous", host: "web" });
+    // No auth options at all, so no provider has routes and none is offered.
+    expect(response.json()).toEqual({ status: "anonymous", host: "web", authProviders: [] });
     await app.close();
   });
 
@@ -454,6 +455,49 @@ describe("customer session", () => {
       host: "web",
       user: { id: "00000000-0000-4000-8000-000000000001", emailNormalized: "person@example.com" },
     });
+    await app.close();
+  });
+
+  /**
+   * The point of the whole field. A provider whose credentials are unset has
+   * no endpoint, so a button for it navigates into a 404 after the person has
+   * already decided to use it — and nothing the browser could read said which
+   * ones were real.
+   */
+  it("offers only the providers whose routes were actually registered", async () => {
+    const allow = () => ({ consume: vi.fn(async () => null) });
+    const app = createApp(healthyDependencies(), {
+      auth: {
+        dependencies: {
+          auth: {} as never,
+          sms: { sendVerificationCode: vi.fn(async () => undefined) },
+        },
+        options: {
+          cookie: { secure: true },
+          limiters: {
+            otpSendPerPhone: allow(),
+            otpSendPerIp: allow(),
+            otpVerifyPerPhone: allow(),
+            loginPerAccount: allow(),
+            loginPerIp: allow(),
+          },
+          webOrigin: "https://deev.test",
+          // Google configured, Microsoft not — which is the asymmetry the
+          // browser had no way to see.
+          google: {
+            createAuthorizationUrl: () => ({ url: "https://accounts.google.com/o/oauth2/v2/auth?x=1", state: "state-abc" }),
+            exchangeCode: vi.fn(async () => ({ subject: "g-1", email: null, emailVerified: false, displayName: null })),
+          } as never,
+        },
+      },
+    });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/session" });
+
+    expect(response.json().authProviders).toEqual(["google"]);
+    // And the claim is true: the offered one answers, the unoffered one does not.
+    expect((await app.inject({ method: "GET", url: "/api/v1/auth/google" })).statusCode).toBe(302);
+    expect((await app.inject({ method: "GET", url: "/api/v1/auth/microsoft" })).statusCode).toBe(404);
     await app.close();
   });
 });

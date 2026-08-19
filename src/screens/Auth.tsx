@@ -117,11 +117,10 @@ function messageFor(error: unknown, step: "phone" | "code" | "email"): Failure {
 const TERMINAL_FOR_CODE: readonly TKey[] = ["auth_err_otp_exhausted", "auth_err_otp_expired", "auth_err_account_suspended"];
 
 /**
- * Both providers are offered, because nothing the browser can read says which
- * are configured — a provider without credentials has no route at all
- * server-side, and `GET /session` does not list them. A button for an
- * unconfigured provider navigates to a 404. Closing that needs the API to say,
- * which is the backend owner's call.
+ * Every provider this screen knows how to draw. Which of them a visitor is
+ * actually shown comes from `session.authProviders` — a provider whose
+ * credentials are unset has no route at all server-side, and drawing its
+ * button sent people into a 404 after they had already chosen it.
  *
  * The mark is `VendorMark`'s monogram rather than either company's logo, for the
  * same reason the model row uses one: a trademark is not ours to ship until
@@ -352,6 +351,12 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const session = useSession();
   const { startPhoneVerification, verifyPhone, login, register, startProviderSignIn } = useAuth();
+
+  // Only the providers this server actually registered. While the session is
+  // still loading the list is empty, so the block appears once rather than
+  // flashing two buttons and then removing one.
+  const offered = session.data?.status === "loading" ? [] : (session.data?.authProviders ?? []);
+  const providers = PROVIDERS.filter((provider) => offered.includes(provider.id));
 
   const [method, setMethod] = useState<Method>("phone");
 
@@ -747,7 +752,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
             </motion.div>
           </AnimatePresence>
 
-          {!codeSent && (
+          {!codeSent && providers.length > 0 && (
             <>
               {/* An additional door, not the main one — and the layout has to say
                   so. Neither provider is dependably reachable from Iran without a
@@ -763,7 +768,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
               </div>
 
               <div className="mt-5 grid gap-2.5">
-                {PROVIDERS.map(({ id, vendor, label }) => (
+                {providers.map(({ id, vendor, label }) => (
                   <button
                     key={id}
                     type="button"

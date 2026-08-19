@@ -149,10 +149,35 @@ describe("the sign-in screen", () => {
     const startProviderSignIn = vi.spyOn(services.auth, "startProviderSignIn");
     renderAuth(services);
 
-    await user.click(screen.getByRole("button", { name: "Continue with Microsoft" }));
+    // `find`, not `get`: the buttons appear only once the session has said
+    // which providers this server has. Before that there is nothing true to
+    // draw, and drawing both was the bug.
+    await user.click(await screen.findByRole("button", { name: "Continue with Microsoft" }));
 
     // The id, not the label — in production this becomes a path segment.
     await waitFor(() => expect(startProviderSignIn).toHaveBeenCalledWith("microsoft"));
+  });
+
+  it("draws no button for a provider the server does not offer", async () => {
+    const services = createDemoServices({ startAnonymous: true });
+    // A deployment with Google credentials and no Microsoft ones — the exact
+    // asymmetry that used to send half the visitors into a 404.
+    vi.spyOn(services.session, "getCurrent").mockResolvedValue({ status: "anonymous", host: "web", authProviders: ["google"] });
+    renderAuth(services);
+
+    expect(await screen.findByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue with Microsoft" })).not.toBeInTheDocument();
+  });
+
+  it("hides the whole social block when the server offers nothing", async () => {
+    const services = createDemoServices({ startAnonymous: true });
+    vi.spyOn(services.session, "getCurrent").mockResolvedValue({ status: "anonymous", host: "web", authProviders: [] });
+    renderAuth(services);
+
+    // The phone form is the proof the screen rendered at all, so an empty
+    // social block is what is being asserted rather than an empty screen.
+    expect(await screen.findByRole("button", { name: "Send code" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Continue with/ })).not.toBeInTheDocument();
   });
 
   it("says how long to wait when the server tells it", async () => {
