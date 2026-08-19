@@ -1,5 +1,5 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
-import { ReadinessSchema, type Readiness } from "@vgen/contracts";
+import { OAuthProviderSchema, ReadinessSchema, type Readiness } from "@vgen/contracts";
 import { registerErrorHandling } from "./plugins/errors";
 import { registerCustomerSessionRoute, type CustomerSessionApplication } from "./routes/session";
 import { registerCatalogRoute, type CustomerCatalogApplication } from "./routes/catalog";
@@ -61,7 +61,13 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   }
   if (options.auth) registerAuthRoutes(app, options.auth.dependencies, options.auth.options);
   if (options.admin) registerAdminRoutes(app, options.admin.dependencies, options.admin.options);
-  registerCustomerSessionRoute(app, dependencies.customerSession);
+
+  // Derived from the same object `registerAuthRoutes` reads, so the list the
+  // browser is told and the routes that exist are the same fact. A provider
+  // whose credentials are unset has no endpoint, and now no button either.
+  const authOptions = options.auth?.options;
+  const authProviders = authOptions ? OAuthProviderSchema.options.filter((provider) => authOptions[provider]) : [];
+  registerCustomerSessionRoute(app, dependencies.customerSession, authProviders);
   registerCatalogRoute(app, dependencies.customerCatalog);
   registerPlansRoute(app, dependencies.customerPlans);
   registerWalletRoute(app, dependencies.customerSession, dependencies.customerWallet);

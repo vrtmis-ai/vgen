@@ -1,4 +1,4 @@
-import type { CustomerSession, CustomerSessionUser } from "@vgen/contracts";
+import type { CustomerIdentity, CustomerSessionUser } from "@vgen/contracts";
 import type { PostgresAuthRepository } from "@vgen/db";
 import type { FastifyRequest } from "fastify";
 import { readSessionToken } from "./auth/cookies";
@@ -43,7 +43,7 @@ export class AnonymousPrincipalResolver implements PrincipalResolver {
 export class CustomerSessionService implements CustomerSessionApplication {
   constructor(private readonly principals: PrincipalResolver) {}
 
-  async getCurrent(request: FastifyRequest): Promise<CustomerSession> {
+  async getCurrent(request: FastifyRequest): Promise<CustomerIdentity> {
     const user = await this.principals.resolve(request);
     if (!user) return { status: "anonymous", host: "web" };
     return { status: "authed", host: "web", user };

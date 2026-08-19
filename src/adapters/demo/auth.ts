@@ -45,7 +45,14 @@ const DEMO_USER: AccountUser = {
   locale: "fa",
 };
 
-const ANONYMOUS: Session = { status: "anonymous", host: "web" };
+/**
+ * Demo mode offers both providers, because demo mode is a server with
+ * everything configured. Its sign-in screen has to be able to show the shape a
+ * fully-configured deployment has.
+ */
+const DEMO_AUTH_PROVIDERS = ["google", "microsoft"] as const;
+
+const ANONYMOUS: Session = { status: "anonymous", host: "web", authProviders: [...DEMO_AUTH_PROVIDERS] };
 
 export interface DemoAuthState {
   /** Shared with the demo session service, so signing in changes what it reports. */
@@ -54,7 +61,9 @@ export interface DemoAuthState {
 }
 
 export function createDemoAuthState(startAuthed: boolean): DemoAuthState {
-  let session: Session = startAuthed ? { status: "authed", host: "web", user: DEMO_USER } : ANONYMOUS;
+  let session: Session = startAuthed
+    ? { status: "authed", host: "web", user: DEMO_USER, authProviders: [...DEMO_AUTH_PROVIDERS] }
+    : ANONYMOUS;
   return {
     current: () => session,
     set: (next) => {
@@ -68,6 +77,7 @@ function authedAs(email?: string): Session {
     status: "authed",
     host: "web",
     user: email ? { ...DEMO_USER, emailNormalized: email } : DEMO_USER,
+    authProviders: [...DEMO_AUTH_PROVIDERS],
   };
 }
 

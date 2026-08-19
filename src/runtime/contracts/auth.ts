@@ -38,13 +38,13 @@ export const PhoneVerificationStartedSchema = z.object({
 export const AuthedSessionSchema = SessionSchema;
 
 /**
- * The identity providers the API has routes for.
+ * Every identity provider this codebase knows how to talk to.
  *
- * Not a list of what is *reachable* — each provider is registered server-side
- * only when its credentials are configured, and nothing the browser can read
- * says which ones are. Both are offered; a provider that is not configured
- * answers 404 at the point the button navigates. Closing that needs the API to
- * say which providers exist, which it does not do yet.
+ * Not a list of what is *offered* — each provider is registered server-side
+ * only when its credentials are configured, and `GET /session` now names the
+ * ones that were. Screens must filter this against `session.authProviders`
+ * rather than rendering it whole, or they are back to drawing a button that
+ * 404s once someone commits to it.
  *
  * Worth remembering when deciding how much weight these get on a screen:
  * neither Google nor Microsoft is dependably reachable from Iran without a VPN.
