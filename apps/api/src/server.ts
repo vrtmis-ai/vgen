@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import {
   PostgresAccessRepository,
   PostgresAdminRepository,
+  PostgresModelRoutesRepository,
   PostgresAuthRepository,
   PostgresCatalogRepository,
   PostgresPlansRepository,
@@ -128,6 +129,7 @@ const sms: SmsSender =
 const mfaSealingKey = sealingKeyFrom(infrastructureSetting("MFA_SEALING_KEY", "deev-local-mfa-key"));
 const authRepository = new PostgresAuthRepository(sql, phonePepper);
 const adminRepository = new PostgresAdminRepository(sql, mfaSealingKey);
+const modelRoutesRepository = new PostgresModelRoutesRepository(sql);
 const accessRepository = new PostgresAccessRepository(sql);
 const authRateLimiters = await createAuthRateLimiters(sql, redisUrl, rateLimitHashSecret);
 const telemetryRateLimiter = createRedisFixedWindowRateLimiter(redisUrl, {
@@ -188,6 +190,10 @@ const app = createApp(
       dependencies: {
         admin: adminRepository,
         access: accessRepository,
+        // `process.env` and not a copy: `configured` has to report on the
+        // variables this process would actually resolve a secret_ref against,
+        // and a snapshot taken at boot would go stale on the first reload.
+        catalog: { routes: modelRoutesRepository, secrets: process.env },
         // Staff prove who they are exactly as customers do; the second factor
         // is what makes it a staff session.
         verifyPassword: async (email, password) => {

@@ -1,4 +1,5 @@
 import { KieGenerationProvider } from "./kie";
+import { WaveSpeedGenerationProvider } from "./wavespeed";
 import type { GenerationProvider, Modality } from "./types";
 
 export interface ProviderOptions {
@@ -24,12 +25,22 @@ export interface ProviderOptions {
  * adapter before a token exists would be writing it against a guess; the KIE
  * adapter is trustworthy precisely because `scripts/spike-kie.ts` spent real
  * credits proving each of its assumptions wrong or right.
+ *
+ * `wavespeed` is the deliberate exception to that rule and is marked as one in
+ * its own file. It is written from published documentation specific enough to
+ * implement, unlike useapi's, and it is safe to ship unproven only because
+ * every `model_routes` row pointing at it is seeded inactive — so nothing
+ * reaches it until somebody runs `scripts/spike-wavespeed.ts` with a real key
+ * and turns a route on.
  */
 export function createGenerationProvider(code: string, options: ProviderOptions = {}): GenerationProvider | null {
   if (code === "kie") return new KieGenerationProvider(options);
+  if (code === "wavespeed") return new WaveSpeedGenerationProvider(options);
   return null;
 }
 
-export { KieGenerationProvider, describeOutput } from "./kie";
+export { KieGenerationProvider } from "./kie";
+export { WaveSpeedGenerationProvider } from "./wavespeed";
+export { describeOutput } from "./output";
 export { ProviderTransportError } from "./types";
 export type { GenerationOutcome, GenerationOutput, GenerationProvider, GenerationRequest, GenerationSubmission, Modality } from "./types";

@@ -1,3 +1,4 @@
+import type { ParamOverrides } from "@vgen/core";
 import type { Sql } from "postgres";
 import { PostgresEntitlementsRepository } from "./entitlementsRepository";
 import type { GenerationParams } from "./generationRepository";
@@ -31,6 +32,25 @@ export interface ClaimedJob {
   providerModelId: string;
   externalModelId: string;
   modality: Modality;
+  /**
+   * How this serving row's parameter names differ from the catalogue row's.
+   * Empty for a job running on its own provider, which is most of them.
+   */
+  paramOverrides: ParamOverrides;
+  /**
+   * What one of this provider's own units costs us, from `provider_credit_rates`
+   * effective now. Null when no rate is on file — the margin trail then records
+   * nothing rather than guessing with somebody else's rate.
+   */
+  providerUnitCostUsd: number | null;
+  /**
+   * What the quote expected this to cost us, in USD.
+   *
+   * The fallback for a provider that reports no per-prediction cost. Null once
+   * the quote has been cleaned up, which is fine — by then the job has long
+   * since settled.
+   */
+  estimatedCostUsd: number | null;
   /** Set when the generation is free under a grant rather than paid for. */
   entitlementId: string | null;
   microCreditsHeld: number;
@@ -108,6 +128,9 @@ interface ClaimRow {
   entitlement_id: string | null;
   micro_credits_held: string;
   hold_id: string | null;
+  param_overrides: ParamOverrides;
+  provider_unit_cost_usd: string | null;
+  estimated_cost_usd_micros: string | null;
 }
 
 export class PostgresJobRunnerRepository {
@@ -127,10 +150,18 @@ export class PostgresJobRunnerRepository {
    * has lapsed. This statement's job is to advance the state and hand back
    * everything the runner needs, in one round trip.
    *
-   * The `coalesce` on the model is the whole unlimited design in one line.
-   * `jobs.provider_model_id` is what the customer picked from the catalogue;
-   * when the job is granted, the row that actually runs it belongs to a
-   * different provider entirely, and it is the grant that says which.
+   * The `coalesce` on the model is where the catalogue stops and the plumbing
+   * starts. `jobs.provider_model_id` is what the customer picked; the row that
+   * actually runs it can be a different provider's entirely, and three things
+   * get a say, in this order:
+   *
+   *   1. an unlimited grant, which named a serving account when it was sold
+   *   2. an active `model_routes` row, which is an admin's standing preference
+   *   3. otherwise the catalogue row runs itself, which is the common case
+   *
+   * The order is a money decision, not a style one. A grant is a promise about
+   * a specific upstream account; letting a routing preference outrank it would
+   * quietly bill us for generations that were sold as free.
    */
   async claim(jobId: string): Promise<ClaimedJob | null> {
     const [row] = await this.sql<ClaimRow[]>`
@@ -146,13 +177,48 @@ export class PostgresJobRunnerRepository {
              job.attempt_count as attempt_no, job.entitlement_id, job.micro_credits_held,
              run.id as provider_model_id, run.external_model_id, run.modality,
              provider.id as provider_id, provider.code as provider_code, provider.base_url,
-             hold.id as hold_id
+             hold.id as hold_id,
+             coalesce(route.param_overrides, '{}'::jsonb) as param_overrides,
+             rate.provider_unit_cost_usd, quote.provider_cost_usd_micros as estimated_cost_usd_micros
       from claimed job
       left join unlimited_entitlements ent on ent.id = job.entitlement_id
-      join provider_models run on run.id = coalesce(ent.serving_model_id, job.provider_model_id)
+      left join lateral (
+        select r.serving_model_id, r.param_overrides
+        from model_routes r
+        join provider_models sm on sm.id = r.serving_model_id
+        join providers sp on sp.id = sm.provider_id
+        where r.catalog_model_id = job.provider_model_id
+          -- A grant already named a serving row and the customer was promised
+          -- it, so an admin's routing preference does not outrank it. Skipping
+          -- the lookup entirely rather than losing the tie later also keeps
+          -- the overrides honest: they describe the route's provider, and
+          -- applying them to the grant's would rename params for the wrong API.
+          and ent.serving_model_id is null
+          -- A route to a deactivated model, or through a provider that has
+          -- been switched off, is not a route. Falling back to the catalogue
+          -- row is what makes deactivating a provider a safe thing to do.
+          and r.is_active and sm.is_active and sp.is_active
+        order by r.priority asc
+        limit 1
+      ) route on true
+      join provider_models run on run.id = coalesce(ent.serving_model_id, route.serving_model_id, job.provider_model_id)
       join providers provider on provider.id = run.provider_id
       left join credit_holds hold
         on hold.ref_type = 'job' and hold.ref_id = job.id and hold.status = 'held'
+      left join quotes quote on quote.id = job.quote_id
+      -- Effective-dated, and read for the provider that actually serves the
+      -- job rather than for the one the customer picked. This used to be a
+      -- constant in the worker, which was correct only while there was one
+      -- provider and silently wrong the moment there were two.
+      left join lateral (
+        select pcr.provider_unit_cost_usd
+        from provider_credit_rates pcr
+        where pcr.provider_id = provider.id
+          and pcr.valid_from <= now()
+          and (pcr.valid_to is null or pcr.valid_to > now())
+        order by pcr.valid_from desc
+        limit 1
+      ) rate on true
     `;
     if (!row) return null;
     return {
@@ -170,6 +236,9 @@ export class PostgresJobRunnerRepository {
       entitlementId: row.entitlement_id,
       microCreditsHeld: Number(row.micro_credits_held),
       holdId: row.hold_id,
+      paramOverrides: row.param_overrides,
+      providerUnitCostUsd: row.provider_unit_cost_usd === null ? null : Number(row.provider_unit_cost_usd),
+      estimatedCostUsd: row.estimated_cost_usd_micros === null ? null : Number(row.estimated_cost_usd_micros) / 1_000_000,
     };
   }
 

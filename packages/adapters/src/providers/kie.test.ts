@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { KieGenerationProvider, describeOutput } from "./kie";
+import { KieGenerationProvider } from "./kie";
+import { describeOutput } from "./output";
 import { ProviderTransportError } from "./types";
 
 /**

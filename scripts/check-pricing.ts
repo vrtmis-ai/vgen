@@ -51,10 +51,13 @@ const sql = postgres(databaseUrl, { max: 4 });
 try {
   const pricing = new PostgresPricingRepository(sql);
 
+  // Everything in the shop, whoever ends up serving it. Filtering by provider
+  // code would quietly stop auditing a model the day it was routed elsewhere,
+  // which is exactly the day its margin is worth checking.
   const models = await sql<{ id: string; external_model_id: string }[]>`
     select model.id, model.external_model_id
-    from provider_models model join providers provider on provider.id = model.provider_id
-    where provider.code = 'kie' and model.is_active
+    from provider_models model
+    where model.capabilities ? 'variant' and model.is_active
   `;
   const modelIdByExternal = new Map(models.map((row) => [row.external_model_id, row.id]));
   const features = await sql<{ id: string; code: string }[]>`select id, code from features`;

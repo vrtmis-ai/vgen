@@ -316,13 +316,43 @@ confirmed to someone probing for it.
 
 ## Admin
 
-`/api/v1/admin/*` — invite and discount CRUD, per-code usage and spend, and the
-early-access switch. Complete and tested, with **no UI**; `src/screens/Admin.tsx`
-still talks to local storage.
+`/api/v1/admin/*` — invite and discount CRUD, per-code usage and spend, the
+early-access switch, and **providers and model routing**. Complete and tested,
+with **no UI**; `src/screens/Admin.tsx` still talks to local storage.
 
 Not a normal frontend surface: it needs a staff role, a separate cookie, and a
 confirmed second factor. If you are building admin screens, ask first — the
 sign-in is two steps and the session authorises nothing between them.
+
+### Providers and routing
+
+The answer to *"which provider, and which of their models, actually runs this
+thing we sell?"* — and the ability to change it without a deploy.
+
+| route | permission | does |
+| --- | --- | --- |
+| `GET /admin/providers` | `catalog.read` | providers, their credential pool, whether an adapter exists, whether the key is set |
+| `PATCH /admin/providers/:id` | `catalog.write` | `{ isActive?, baseUrl? }` |
+| `GET /admin/models` | `catalog.read` | every catalogue variant plus where it is currently sent, and every serving row it could be sent to |
+| `GET /admin/models/:id/routes` | `catalog.read` | one variant's routes, active first, then by priority |
+| `PUT /admin/models/:id/routes` | `catalog.write` | **replaces** the list — this is the switch |
+| `DELETE /admin/models/:id/routes` | `catalog.write` | back to the provider that owns the catalogue row |
+
+Three things about this are worth knowing before you build against it.
+
+**`secret_ref` is an environment variable's name, never a key.** It is returned;
+the value is not, and `configured` is the only thing derived from it. That field
+separates "nobody set the key" from "the provider is down", which are the two
+reasons a newly routed model fails and which look identical from a refund.
+
+**`PUT` replaces rather than patches.** There is a partial unique index on
+`(catalog_model_id, priority) where is_active`, so swapping two routes one
+statement at a time collides on the priority that is only transiently taken. Send
+the whole list; the write is one transaction.
+
+**A route ships inactive and stays that way until somebody says otherwise.**
+`isActive` defaults to `false` on input, and re-running the seeder never turns a
+route on or off. Adding a route is not the same act as moving traffic onto it.
 
 ### `GET /plans`
 
@@ -656,12 +686,48 @@ one of ours:
 `no_output` is a failure on purpose. Capturing a hold there would charge
 somebody for an empty gallery.
 
-### KIE is wired; useapi is not
+### Which provider runs a job
+
+`jobs.provider_model_id` is the row the **customer picked**. The row that
+**actually runs** can be a different provider's entirely, and three things get a
+say, in this order:
+
+1. an **unlimited grant**, which named a serving account when it was sold
+2. an active **`model_routes`** row — an admin's standing preference
+3. otherwise the catalogue row runs itself, which is the common case
+
+That order is a money decision. A grant is a promise about a specific upstream
+account, so letting a routing preference outrank it would bill us for
+generations sold as free.
+
+A route can carry `param_overrides`, applied to the params immediately before
+submit and nowhere else — `rename`, then `map`, then `set`, then `drop`. The
+`map` step exists because renaming is not enough: KIE takes
+`aspect_ratio: "16:9"` where WaveSpeed's qwen-image takes `size: "1344*768"`.
+Same customer choice, different alphabet. `job.params` itself is never touched,
+because it is what the price was hashed from and what the gallery shows back.
+
+### KIE is verified; WaveSpeed is not; useapi has no adapter
 
 `packages/adapters/src/providers/kie.ts` is written against the shapes
 `scripts/spike-kie.ts` verified on the live API — including the two the docs do
 not tell you: a 200 can carry a failure (the task id's absence is the error),
 and `resultJson` is a JSON string nested inside the JSON body.
+
+`wavespeed.ts` exists and is wired into `createGenerationProvider`, but it is
+written from **published documentation rather than from a call that returned
+200**. It differs from KIE in four ways that all matter: the model id goes in
+the URL path, the params are flat rather than nested under `input`, the result
+is a plain array of URLs at `data.outputs`, and **nothing reports what a
+prediction cost** — so `providerUnitsCost` is always null and settlement falls
+back to the quote's own estimate.
+
+Which is why **every seeded WaveSpeed route is inactive**. Four exist —
+`qwen-image`, `seedance-2-fast`, `wan-2-7`, `kling-3`, the ones the provider
+analysis found WaveSpeed actually wins on — and each records in its `note` what
+is actually known about its path. `scripts/spike-wavespeed.ts` is what turns
+that into a fact; activating a route before running it means finding out from a
+customer's refund.
 
 There is **no useapi adapter**, and that is deliberate rather than unfinished.
 No token for their API exists in any environment we control, so the external

@@ -1,5 +1,5 @@
 import type { Sql } from "postgres";
-import { COIN_USD, KIE_CREDIT_USD } from "@vgen/core";
+import { COIN_USD } from "@vgen/core";
 import { PostgresEntitlementsRepository, type Tier, type UnlimitedGrant } from "./entitlementsRepository";
 import { PostgresPricingRepository, PriceUnavailableError } from "./pricingRepository";
 import { hashGenerationParams, type GenerationParams } from "./generationRepository";
@@ -52,6 +52,7 @@ export type QuoteResult =
 
 interface CatalogRow {
   id: string;
+  provider_unit_cost_usd: string | null;
   capabilities: {
     family?: { minTier?: number };
     variant?: { featureCode?: string; controls?: unknown };
@@ -96,9 +97,21 @@ export class PostgresQuotesRepository {
     // capabilities — ours — rather than on external_model_id, which belongs to
     // whichever provider happens to serve it.
     const [model] = await this.sql<CatalogRow[]>`
-      select model.id, model.capabilities
+      select model.id, model.capabilities, rate.provider_unit_cost_usd
       from provider_models model
       join providers provider on provider.id = model.provider_id
+      -- What a unit of this provider's currency costs us, effective now. Read
+      -- here rather than taken from a constant because the constant named KIE,
+      -- and a second provider made every quote it priced quietly wrong.
+      left join lateral (
+        select pcr.provider_unit_cost_usd
+        from provider_credit_rates pcr
+        where pcr.provider_id = provider.id
+          and pcr.valid_from <= now()
+          and (pcr.valid_to is null or pcr.valid_to > now())
+        order by pcr.valid_from desc
+        limit 1
+      ) rate on true
       where model.capabilities -> 'variant' ->> 'id' = ${request.variantId}
         and model.capabilities ? 'variant'
         and model.is_active and provider.is_active
@@ -169,7 +182,8 @@ export class PostgresQuotesRepository {
     // the PixVerse subscriptions are a fixed monthly bill that one more image
     // does not move. The cost is real, it simply is not attributable per job —
     // provider_statements is where that reconciles.
-    const costUsdMicros = Math.round(providerUnits * KIE_CREDIT_USD * 1_000_000);
+    const unitCostUsd = model.provider_unit_cost_usd === null ? 0 : Number(model.provider_unit_cost_usd);
+    const costUsdMicros = Math.round(providerUnits * unitCostUsd * 1_000_000);
     const sellUsdMicros = Math.round(coins * COIN_USD * 1_000_000);
 
     const expiresAt = new Date(Date.now() + QUOTE_TTL_MS);

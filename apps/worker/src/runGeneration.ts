@@ -1,4 +1,4 @@
-import { KIE_CREDIT_USD } from "@vgen/core";
+import { applyParamOverrides } from "@vgen/core";
 import { ProviderTransportError, type GenerationProvider, type ProviderOptions } from "@vgen/adapters";
 import type { AttemptRecord, ClaimedJob, JobOutput, PooledCredential, SucceedInput } from "@vgen/db";
 import type { OutputMirrorPort } from "./outputMirror";
@@ -57,14 +57,6 @@ export type RunGenerationResult =
   | { outcome: "skipped"; jobId: string }
   /** Nothing settled: the caller must throw so the queue redelivers. */
   | { outcome: "retry"; jobId: string; reason: string };
-
-/** What a unit of each provider's own currency costs us, for the margin trail. */
-const UNIT_COST_USD: Record<string, number> = {
-  kie: KIE_CREDIT_USD,
-  // useapi bills a flat monthly subscription, so a request costs nothing at
-  // the margin. That is the entire reason the unlimited grants exist.
-  useapi: 0,
-};
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -145,7 +137,12 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
   const submittedAt = now();
   let submission;
   try {
-    submission = await provider.submit({ externalModelId: job.externalModelId, params: job.params, apiKey });
+    // Translated to this provider's vocabulary immediately before the call and
+    // nowhere else. `job.params` stays the settings the customer chose and the
+    // ones the price was hashed from; what a route renames is a property of
+    // where the job is being sent, not of what was asked for.
+    const params = applyParamOverrides(job.params, job.paramOverrides);
+    submission = await provider.submit({ externalModelId: job.externalModelId, params, apiKey });
   } catch (error) {
     const retryable = error instanceof ProviderTransportError ? error.retryable : true;
     await runner.recordAttempt(
@@ -276,7 +273,11 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
       return settle("storage_failed", "The generation finished but could not be saved.", false);
     }
 
-    const unitCostUsd = UNIT_COST_USD[job.providerCode];
+    // The rate comes from `provider_credit_rates` for the provider that
+    // actually served this job, resolved in the same statement that claimed it.
+    // It used to be a constant keyed by provider code, which was correct only
+    // while there was one provider.
+    const unitCostUsd = job.providerUnitCostUsd;
     await runner.recordAttempt(
       attempt({
         status: "succeeded",
@@ -292,7 +293,13 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
       jobId: job.id,
       outputs: stored,
       providerUnitsCost: outcome.providerUnitsCost,
-      providerCostUsd: outcome.providerUnitsCost !== null && unitCostUsd !== undefined ? outcome.providerUnitsCost * unitCostUsd : null,
+      // A provider that reports nothing (WaveSpeed reports no per-prediction
+      // cost on any documented endpoint) would otherwise leave the margin
+      // trail blank for every job it serves, so the quote's own estimate
+      // stands in. `provider_units_cost` on the attempt stays null either way,
+      // which keeps "they told us" and "we worked it out" distinguishable.
+      providerCostUsd:
+        outcome.providerUnitsCost !== null && unitCostUsd !== null ? outcome.providerUnitsCost * unitCostUsd : job.estimatedCostUsd,
     });
     log({ event: "generation.succeeded", jobId, outputs: outcome.outputs.length, providerUnits: outcome.providerUnitsCost });
     return { outcome: "succeeded", jobId: job.id };
