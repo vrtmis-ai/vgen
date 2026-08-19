@@ -11,6 +11,7 @@ import type { CatalogSnapshot } from "./contracts/catalog";
 import type { GalleryPage, GalleryQuery } from "./contracts/gallery";
 import type { Plan } from "./contracts/plans";
 import type { CreateGenerationRequest, GenerationJob, GenerationQuote, QuoteGenerationRequest } from "./contracts/generation";
+import type { UploadedAsset } from "./contracts/assets";
 import type { Session } from "./contracts/session";
 import type { Wallet } from "./contracts/wallet";
 
@@ -66,6 +67,16 @@ export interface AppServices {
   };
   gallery: {
     list(query?: GalleryQuery, options?: RequestOptions): Promise<GalleryPage>;
+  };
+  /**
+   * Reference images the customer supplies.
+   *
+   * The file goes through our API rather than straight to storage on a signed
+   * URL, so the object store never has to be reachable from a browser and the
+   * server can check what the bytes actually are before keeping them.
+   */
+  assets: {
+    upload(file: File, options?: RequestOptions): Promise<UploadedAsset>;
   };
 }
 

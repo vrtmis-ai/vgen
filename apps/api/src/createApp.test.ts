@@ -1,6 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 import { createApp, type ApiDependencies } from "./createApp";
 
+/** The one shape `POST /jobs`, `GET /jobs/:id` and the gallery all speak. */
+function generationJob(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "11111111-1111-4111-8111-111111111111",
+    status: "running" as const,
+    familyId: "flux",
+    variantId: "flux-test",
+    coins: 30,
+    prompt: "a small red boat",
+    createdAt: 123,
+    updatedAt: 456,
+    outputs: [],
+    urlsExpireAt: null,
+    ...overrides,
+  };
+}
+
 function healthyDependencies(): ApiDependencies {
   return {
     database: { ping: vi.fn(async () => undefined) },
@@ -30,12 +47,20 @@ function healthyDependencies(): ApiDependencies {
           createdAt: 123,
         },
       })),
-      getForUser: vi.fn(async () => ({
-        id: "11111111-1111-4111-8111-111111111111",
-        status: "running" as const,
-        modelKey: "flux-test",
-        quotedCredits: 30,
-        createdAt: 123,
+    },
+    generationLibrary: {
+      get: vi.fn(async () => generationJob()),
+      list: vi.fn(async () => ({ items: [generationJob()] })),
+    },
+    assetUploads: {
+      upload: vi.fn(async () => ({
+        id: "55555555-5555-4555-8555-555555555555",
+        url: "https://storage.test/signed/reference.png?sig=1",
+        kind: "image" as const,
+        mimeType: "image/png",
+        byteSize: 8,
+        deduplicated: false,
+        urlExpiresAt: 1_700_003_600_000,
       })),
     },
     generationQuotes: {
@@ -88,7 +113,13 @@ describe("generation job creation", () => {
     });
 
     expect(response.statusCode).toBe(202);
-    expect(response.json()).toMatchObject({ status: "queued", quotedCredits: 30 });
+    // Read back through the library rather than echoed from the insert, so
+    // this route answers in the same shape as the gallery and the job route.
+    expect(dependencies.generationLibrary.get).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      "22222222-2222-4222-8222-222222222222",
+    );
+    expect(response.json()).toMatchObject({ variantId: "flux-test", coins: 30, outputs: [] });
     expect(dependencies.generationJobs.createQueued).toHaveBeenCalledWith({
       userId: "22222222-2222-4222-8222-222222222222",
       quoteId: "33333333-3333-4333-8333-333333333333",
@@ -156,8 +187,8 @@ describe("reading a generation job", () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/generation/jobs/abc" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ status: "running" });
-    expect(dependencies.generationJobs.getForUser).toHaveBeenCalledWith("abc", "22222222-2222-4222-8222-222222222222");
+    expect(response.json()).toMatchObject({ status: "running", familyId: "flux", variantId: "flux-test" });
+    expect(dependencies.generationLibrary.get).toHaveBeenCalledWith("abc", "22222222-2222-4222-8222-222222222222");
     await app.close();
   });
 
@@ -166,7 +197,7 @@ describe("reading a generation job", () => {
   it("answers 404 when the job is not the caller's", async () => {
     const dependencies = healthyDependencies();
     dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
-    dependencies.generationJobs.getForUser = vi.fn(async () => null);
+    dependencies.generationLibrary.get = vi.fn(async () => null);
     const app = createApp(dependencies);
 
     const response = await app.inject({ method: "GET", url: "/api/v1/generation/jobs/abc" });
@@ -180,7 +211,127 @@ describe("reading a generation job", () => {
 
     const response = await app.inject({ method: "GET", url: "/api/v1/generation/jobs/abc" });
     expect(response.statusCode).toBe(401);
-    expect(dependencies.generationJobs.getForUser).not.toHaveBeenCalled();
+    expect(dependencies.generationLibrary.get).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
+describe("the gallery", () => {
+  it("returns the caller's generations", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/gallery?limit=10&kind=image" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().items).toHaveLength(1);
+    expect(dependencies.generationLibrary.list).toHaveBeenCalledWith("22222222-2222-4222-8222-222222222222", {
+      limit: 10,
+      kind: "image",
+    });
+    await app.close();
+  });
+
+  it("is not readable without a session", async () => {
+    const dependencies = healthyDependencies();
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/gallery" });
+
+    expect(response.statusCode).toBe(401);
+    expect(dependencies.generationLibrary.list).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("refuses a limit outside the range rather than clamping it silently", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/gallery?limit=5000" });
+
+    expect(response.statusCode).toBe(400);
+    await app.close();
+  });
+});
+
+describe("uploading a reference image", () => {
+  /** A real PNG header, because the service reads the magic bytes not the header. */
+  const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+  function multipart(bytes: Buffer, filename = "reference.png", contentType = "image/png") {
+    // Built from char codes rather than escapes: multipart is CRLF-delimited
+    // and busboy rejects the body outright if a bare LF sneaks in.
+    const CRLF = String.fromCharCode(13, 10);
+    const boundary = "----deevtest";
+    const head = [
+      `--${boundary}`,
+      `Content-Disposition: form-data; name="file"; filename="${filename}"`,
+      `Content-Type: ${contentType}`,
+      "",
+      "",
+    ].join(CRLF);
+    const body = Buffer.concat([Buffer.from(head), bytes, Buffer.from(`${CRLF}--${boundary}--${CRLF}`)]);
+    return { body, headers: { "content-type": `multipart/form-data; boundary=${boundary}` } };
+  }
+
+  it("stores the file and answers with a signed URL", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    const app = createApp(dependencies);
+    const { body, headers } = multipart(pngBytes);
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/assets", payload: body, headers });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ kind: "image", mimeType: "image/png", deduplicated: false });
+    await app.close();
+  });
+
+  it("answers 200 rather than 201 when the same bytes were already here", async () => {
+    // The difference is the whole point of hashing: nothing new was stored, so
+    // this is not a creation. A client can tell one from the other.
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    dependencies.assetUploads.upload = vi.fn(async () => ({
+      id: "55555555-5555-4555-8555-555555555555",
+      url: "https://storage.test/signed/reference.png?sig=1",
+      kind: "image" as const,
+      mimeType: "image/png",
+      byteSize: 8,
+      deduplicated: true,
+      urlExpiresAt: 1_700_003_600_000,
+    }));
+    const app = createApp(dependencies);
+    const { body, headers } = multipart(pngBytes);
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/assets", payload: body, headers });
+
+    expect(response.statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("refuses an anonymous upload", async () => {
+    const dependencies = healthyDependencies();
+    const app = createApp(dependencies);
+    const { body, headers } = multipart(pngBytes);
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/assets", payload: body, headers });
+
+    expect(response.statusCode).toBe(401);
+    expect(dependencies.assetUploads.upload).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("refuses a JSON body with 415 rather than failing internally", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/assets", payload: { file: "nope" } });
+
+    expect(response.statusCode).toBe(415);
     await app.close();
   });
 });

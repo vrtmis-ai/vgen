@@ -77,6 +77,21 @@ async function grantedVariant(tx: Sql): Promise<{ variantId: string; minTier: nu
 let keyCounter = 0;
 const nextKey = () => `lifecycle-key-${Date.now()}-${keyCounter++}`;
 
+/**
+ * What the runner hands `succeed()` after mirroring: a file already in our
+ * store, not a provider URL. The bucket and key are what `assets` records.
+ */
+function storedOutput(jobId: string, index = 0) {
+  return {
+    kind: "image" as const,
+    mimeType: "image/png",
+    bucket: "vgen",
+    key: `generated/test/${jobId}/${index}.png`,
+    byteSize: 2048,
+    sha256: `sha-${jobId}-${index}`,
+  };
+}
+
 interface Submitted {
   jobId: string;
   accountId: string;
@@ -155,7 +170,7 @@ describe("claiming a job", () => {
       await runner.claim(jobId);
       await runner.succeed({
         jobId,
-        outputs: [{ url: `https://cdn.kie.ai/${jobId}.png`, kind: "image", mimeType: "image/png" }],
+        outputs: [storedOutput(jobId)],
         providerUnitsCost: 1,
         providerCostUsd: 0.005,
       });
@@ -202,7 +217,7 @@ describe("settling a job that succeeded", () => {
 
       await runner.succeed({
         jobId,
-        outputs: [{ url: `https://cdn.kie.ai/${jobId}.png`, kind: "image", mimeType: "image/png" }],
+        outputs: [storedOutput(jobId)],
         providerUnitsCost: 0.8,
         providerCostUsd: 0.004,
       });
@@ -224,11 +239,14 @@ describe("settling a job that succeeded", () => {
       expect(balance.held).toBe(0);
       expect(balance.spendable).toBe((startingCoins - coins) * COIN);
 
-      const [asset] = await tx<{ origin: string; job_id: string; public_url: string; storage_provider: string }[]>`
-        select origin, job_id, public_url, storage_provider from assets where job_id = ${jobId}
+      const [asset] = await tx<{ origin: string; storage_provider: string; storage_bucket: string; storage_key: string; sha256: string }[]>`
+        select origin, storage_provider, storage_bucket, storage_key, sha256 from assets where job_id = ${jobId}
       `;
-      expect(asset).toMatchObject({ origin: "generated", storage_provider: "external" });
-      expect(asset?.public_url).toContain(jobId);
+      // In our own bucket, not pointing at the provider. A provider URL expires
+      // and takes the customer's gallery with it.
+      expect(asset).toMatchObject({ origin: "generated", storage_provider: "s3", storage_bucket: "vgen" });
+      expect(asset?.storage_key).toContain(jobId);
+      expect(asset?.sha256).toBeTruthy();
     });
   });
 
@@ -237,7 +255,7 @@ describe("settling a job that succeeded", () => {
       const { jobId, accountId, coins, startingCoins } = await submitPaid(tx);
       const runner = new PostgresJobRunnerRepository(tx);
       await runner.claim(jobId);
-      const outputs = [{ url: `https://cdn.kie.ai/${jobId}.png`, kind: "image" as const, mimeType: "image/png" }];
+      const outputs = [storedOutput(jobId)];
 
       await runner.succeed({ jobId, outputs, providerUnitsCost: 0.8, providerCostUsd: 0.004 });
       await runner.succeed({ jobId, outputs, providerUnitsCost: 0.8, providerCostUsd: 0.004 });
@@ -324,7 +342,7 @@ describe("settling a job that failed", () => {
       await runner.claim(succeeded.jobId);
       await runner.succeed({
         jobId: succeeded.jobId,
-        outputs: [{ url: `https://cdn.kie.ai/${succeeded.jobId}.png`, kind: "image", mimeType: "image/png" }],
+        outputs: [storedOutput(succeeded.jobId)],
         providerUnitsCost: 1,
         providerCostUsd: 0.005,
       });

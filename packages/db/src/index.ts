@@ -14,6 +14,8 @@ export * from "./quotesRepository";
 export * from "./frontendTelemetryRepository";
 export * from "./generationRepository";
 export * from "./jobRunnerRepository";
+export * from "./galleryRepository";
+export * from "./assetsRepository";
 export * from "./outbox";
 export * from "./transaction";
 

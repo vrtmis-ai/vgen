@@ -8,11 +8,20 @@ import {
   PostgresCatalogRepository,
   PostgresPlansRepository,
   PostgresFrontendTelemetryRepository,
+  PostgresAssetsRepository,
+  PostgresGalleryRepository,
   PostgresGenerationRepository,
   PostgresQuotesRepository,
   PostgresWalletRepository,
 } from "@vgen/db";
-import { createRedisFixedWindowRateLimiter, createRedisHealthAdapter, createS3StorageHealthAdapter } from "@vgen/adapters";
+import {
+  createRedisFixedWindowRateLimiter,
+  createRedisHealthAdapter,
+  createS3ObjectStore,
+  createS3StorageHealthAdapter,
+} from "@vgen/adapters";
+import { AssetUploadService } from "./assetUploads";
+import { GenerationLibraryService } from "./generationLibrary";
 import { CustomerSessionService, SessionCookiePrincipalResolver } from "./customerSession";
 import { sealingKeyFrom } from "@vgen/core";
 import { createAuthRateLimiters } from "./auth/rateLimits";
@@ -56,6 +65,7 @@ const objectStorageEndpoint = infrastructureSetting("OBJECT_STORAGE_ENDPOINT", "
 const objectStorageRegion = infrastructureSetting("OBJECT_STORAGE_REGION", "us-east-1");
 const objectStorageAccessKey = infrastructureSetting("OBJECT_STORAGE_ACCESS_KEY", "vgen-local");
 const objectStorageSecretKey = infrastructureSetting("OBJECT_STORAGE_SECRET_KEY", "vgen-local-secret");
+const objectStorageBucket = infrastructureSetting("OBJECT_STORAGE_BUCKET", "vgen");
 // Salts the phone hash in trial_grants, which outlives the account it belonged
 // to. Without a pepper that table is an enumerable list of everyone who has
 // ever signed up — the mobile number space is small enough to walk completely.
@@ -127,6 +137,24 @@ const telemetryRateLimiter = createRedisFixedWindowRateLimiter(redisUrl, {
   hashSecret: rateLimitHashSecret,
 });
 const customerSession = new CustomerSessionService(new SessionCookiePrincipalResolver(authRepository));
+
+/**
+ * The one object store, shared by uploads coming in and generations going out.
+ *
+ * It is never reached from a browser: every file arrives as a multipart POST to
+ * this API and leaves as a signed URL with an hour on it. That is what lets the
+ * store sit on a private network with no CORS and no public port, and it is why
+ * the bytes are worth passing through Node.
+ */
+const objectStore = createS3ObjectStore({
+  bucket: objectStorageBucket,
+  endpoint: objectStorageEndpoint,
+  region: objectStorageRegion,
+  credentials: { accessKeyId: objectStorageAccessKey, secretAccessKey: objectStorageSecretKey },
+});
+// A fresh volume has no bucket. Finding that out on somebody's first upload
+// would be a 500 for them and a puzzle for us.
+await objectStore.ensureBucket();
 const app = createApp(
   {
     database: {
@@ -148,6 +176,8 @@ const app = createApp(
     frontendTelemetry: new PostgresFrontendTelemetryRepository(sql),
     generationJobs: new PostgresGenerationRepository(sql),
     generationQuotes: new PostgresQuotesRepository(sql),
+    generationLibrary: new GenerationLibraryService(new PostgresGalleryRepository(sql), objectStore),
+    assetUploads: new AssetUploadService(new PostgresAssetsRepository(sql), objectStore),
   },
   {
     corsOrigin: webOrigin,

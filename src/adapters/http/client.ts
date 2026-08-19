@@ -25,6 +25,12 @@ export { ApiError };
 export interface HttpRequest<T> {
   schema: z.ZodType<T>;
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  /**
+   * Serialised as JSON, unless it is a `FormData` — which is sent as it is,
+   * with no `Content-Type` header at all. The browser has to write that one
+   * itself because only it knows the multipart boundary, and setting it here
+   * produces a body the server cannot parse.
+   */
   body?: unknown;
   signal?: AbortSignal | undefined;
   headers?: Readonly<Record<string, string>>;
@@ -39,6 +45,11 @@ export interface HttpClientOptions {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   getAccessToken?: (() => Promise<string | null>) | undefined;
+}
+
+/** Guarded rather than `instanceof`, because jsdom and Node disagree on it. */
+function isFormData(body: unknown): body is FormData {
+  return typeof FormData !== "undefined" && body instanceof FormData;
 }
 
 function statusCode(status: number): string {
@@ -96,10 +107,10 @@ export function createHttpClient({ baseUrl, fetchImpl = fetch, timeoutMs = 15_00
             headers: {
               Accept: "application/json",
               ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-              ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
+              ...(options.body === undefined || isFormData(options.body) ? {} : { "Content-Type": "application/json" }),
               ...options.headers,
             },
-            ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+            ...(options.body === undefined ? {} : { body: isFormData(options.body) ? options.body : JSON.stringify(options.body) }),
           });
         } catch (error) {
           if (controller.signal.aborted) {

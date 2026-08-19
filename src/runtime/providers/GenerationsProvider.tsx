@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { defaultInput, variantControls, type Variant } from "../../data/models";
 import type { InputMap, RefMap } from "../../components/controls";
-import { loadGenerations, saveGenerations, uid, type Generation } from "../../lib/gallery";
+import { loadGenerations, saveGenerations, uid, type GenStatus, type Generation } from "../../lib/gallery";
 import { currentAspect } from "../../features/generation/aspect";
 import { validateGenerationInput } from "../../features/generation/validation";
 import { useCatalogFamilies } from "../../features/catalog/CatalogProvider";
@@ -64,17 +64,35 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
     [gens],
   );
   const jobQueries = useGenerationJobs(runningJobIds);
-  const jobStateKey = jobQueries.jobs.map((job) => `${job.id}:${job.status}:${job.progress ?? ""}`).join("|");
+  // No progress percentage in the key any more: nothing on the server produces
+  // one. A job is queued, running, or over — and the outputs arriving is what
+  // marks the end, which is why they are part of the key.
+  const jobStateKey = jobQueries.jobs.map((job) => `${job.id}:${job.status}:${job.outputs.length}`).join("|");
   useEffect(() => {
     if (!jobStateKey) return;
     const byId = new Map(jobQueries.jobs.map((job) => [job.id, job]));
-    setGens((previous) =>
-      previous.map((generation) => {
+    setGens((previous) => {
+      /* Returning `previous` untouched when nothing moved is load-bearing, not
+         tidiness. `useQueries` hands back a fresh array every render, so this
+         effect runs on every render; if it always built a new array React would
+         re-render, the effect would run again, and the two would chase each
+         other until React gave up with "Maximum update depth exceeded". Object
+         identity is the brake. */
+      let changed = false;
+      const next = previous.map((generation) => {
         const job = generation.jobId ? byId.get(generation.jobId) : undefined;
         if (!job) return generation;
-        return { ...generation, status: job.status === "done" ? "done" : "running", progress: job.progress };
-      }),
-    );
+        // `succeeded` is the database's word and therefore the wire's. The
+        // stored Generation keeps its own two-state vocabulary because that is
+        // all a card renders.
+        const status: GenStatus = job.status === "succeeded" ? "done" : "running";
+        const outputUrl = job.outputs[0]?.url ?? generation.outputUrl;
+        if (generation.status === status && generation.outputUrl === outputUrl) return generation;
+        changed = true;
+        return { ...generation, status, ...(outputUrl ? { outputUrl } : {}) };
+      });
+      return changed ? next : previous;
+    });
   }, [jobQueries.jobs, jobStateKey]);
 
   const startGeneration = useCallback(
@@ -86,10 +104,12 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
       if (Object.values(refs).some((files) => files.length > 0)) return null;
       if (pendingRef.current) return null;
       const aspect = currentAspect(variantControls(family, variant), input);
-      // TODO(backend): POST each File in `refs` to /uploads and send the returned URLs
-      // with the generate request, keyed by slot (image_url, first_frame_url, …).
-      // `refs` deliberately stops here — Files aren't serialisable, so it can't go
-      // into the persisted Generation, and there is no upload endpoint yet.
+      // TODO(ui): `services.assets.upload(file)` exists now and returns an
+      // asset id, so each File in `refs` can be uploaded and its id sent as
+      // `referenceAssetIds`, keyed by slot (image_url, first_frame_url, …).
+      // Until that is wired the guard above refuses a generation with
+      // references rather than silently dropping them — Files are not
+      // serialisable, so they cannot go into the persisted Generation either.
       pendingRef.current = true;
       try {
         const { job, quote } = await createGeneration.mutateAsync({
@@ -109,7 +129,6 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
           w: aspect.w,
           h: aspect.h,
           status: "running",
-          progress: job.progress ?? 0,
           createdAt: job.createdAt,
         };
         setGens((previous) => [generation, ...previous]);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ProviderTransportError, type GenerationOutcome, type GenerationProvider } from "@vgen/adapters";
 import type { AttemptRecord, ClaimedJob, SucceedInput } from "@vgen/db";
 import { runGeneration, type JobRunnerPort } from "./runGeneration";
+import type { OutputMirrorPort } from "./outputMirror";
 
 /**
  * The whole lifecycle against a provider that can be told to misbehave.
@@ -96,10 +97,28 @@ const succeededOutcome: GenerationOutcome = {
   responsePayload: { data: { state: "success" } },
 };
 
+/** Pretends the download and the upload both worked, and records where. */
+function fakeMirror(onMirror?: () => never): OutputMirrorPort {
+  return {
+    mirror: async (source, target) => {
+      onMirror?.();
+      return {
+        kind: source.kind,
+        mimeType: source.mimeType,
+        bucket: "vgen",
+        key: `generated/${target.accountId}/${target.jobId}/${target.index}.png`,
+        byteSize: 1234,
+        sha256: "abc",
+      };
+    },
+  };
+}
+
 function deps(rec: Recorder, provider: GenerationProvider | null, overrides: Partial<Parameters<typeof runGeneration>[1]> = {}) {
   return {
     runner: rec.runner,
     createProvider: () => provider,
+    mirror: fakeMirror(),
     secrets: { KIE_API_KEY: "test-key" },
     isFinalAttempt: false,
     sleep: async () => {},
@@ -119,6 +138,9 @@ describe("running a generation", () => {
     expect(rec.succeeded[0]!.providerUnitsCost).toBe(0.8);
     // 0.8 KIE credits at $0.005 each — the trail the margin is audited from.
     expect(rec.succeeded[0]!.providerCostUsd).toBeCloseTo(0.004, 6);
+    // Filed at our own key, not the provider's URL — that link expires.
+    expect(rec.succeeded[0]!.outputs[0]).toMatchObject({ bucket: "vgen", sha256: "abc" });
+    expect(rec.succeeded[0]!.outputs[0]!.key).toContain(JOB_ID);
     expect(rec.failures).toHaveLength(0);
     expect(rec.attempts.at(-1)!.status).toBe("succeeded");
   });
@@ -226,6 +248,33 @@ describe("running a generation", () => {
     const result = await runGeneration(JOB_ID, deps(rec, fakeProvider([succeededOutcome]), { secrets: {} }));
 
     expect(result).toMatchObject({ outcome: "failed", errorCode: "credential_unavailable" });
+    expect(rec.succeeded).toHaveLength(0);
+  });
+
+  it("refunds when the result cannot be saved, rather than charging for a file nobody has", async () => {
+    const rec = recorder(claimedJob());
+    const mirror = fakeMirror(() => {
+      throw new Error("the object store is unreachable");
+    });
+    const result = await runGeneration(JOB_ID, deps(rec, fakeProvider([succeededOutcome]), { mirror }));
+
+    // Not retryable on purpose: another delivery re-enters at `submit` and
+    // pays the provider a second time for a picture the customer already has.
+    // The provider's charge is ours to absorb; the customer's is not.
+    expect(result).toMatchObject({ outcome: "failed", errorCode: "storage_failed" });
+    expect(rec.failures).toHaveLength(1);
+    expect(rec.succeeded).toHaveLength(0);
+    expect(rec.attempts.at(-1)!.errorCode).toBe("storage_failed");
+  });
+
+  it("does not settle a storage failure as a success even on the last attempt", async () => {
+    const rec = recorder(claimedJob());
+    const mirror = fakeMirror(() => {
+      throw new Error("disk full");
+    });
+    const result = await runGeneration(JOB_ID, deps(rec, fakeProvider([succeededOutcome]), { mirror, isFinalAttempt: true }));
+
+    expect(result).toMatchObject({ outcome: "failed", errorCode: "storage_failed" });
     expect(rec.succeeded).toHaveLength(0);
   });
 

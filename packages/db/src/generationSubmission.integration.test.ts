@@ -1,5 +1,6 @@
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { PostgresGalleryRepository } from "./galleryRepository";
 import { PostgresGenerationRepository } from "./generationRepository";
 import { PostgresQuotesRepository } from "./quotesRepository";
 import { connect, inRollback, makeUser, COIN } from "./integrationHarness";
@@ -345,9 +346,13 @@ describe("reading a job back", () => {
       const created = await repo.createQueued({ userId, quoteId: quote.id, params, idempotencyKey: nextKey() });
       if (created.outcome !== "created") throw new Error("expected a job");
 
-      const read = await repo.getForUser(created.job.id, userId);
+      // Read back through the gallery repository, which is now the only way a
+      // job is read: one query serves this, `GET /generation/jobs/:id` and a
+      // page of the gallery, so all three necessarily agree.
+      const read = await new PostgresGalleryRepository(tx).getForUser(created.job.id, userId);
       expect(read?.id).toBe(created.job.id);
-      expect(read?.modelKey).toBe(created.job.modelKey);
+      expect(read?.variantId).toBe(created.job.modelKey);
+      expect(read?.status).toBe("queued");
     });
   });
 
@@ -360,7 +365,7 @@ describe("reading a job back", () => {
       const created = await repo.createQueued({ userId, quoteId: quote.id, params, idempotencyKey: nextKey() });
       if (created.outcome !== "created") throw new Error("expected a job");
 
-      expect(await repo.getForUser(created.job.id, stranger.userId)).toBeNull();
+      expect(await new PostgresGalleryRepository(tx).getForUser(created.job.id, stranger.userId)).toBeNull();
     });
   });
 });
