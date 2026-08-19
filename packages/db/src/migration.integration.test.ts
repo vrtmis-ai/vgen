@@ -30,6 +30,7 @@ const EXPECTED_MIGRATIONS = [
   "0016_price_selector.sql",
   "0017_plan_tier.sql",
   "0018_unlimited_access.sql",
+  "0019_model_routes.sql",
 ];
 
 describe("database migration chain", () => {

@@ -7,6 +7,7 @@ export interface IdGenerator {
 }
 
 export type { InputMap, InputValue } from "./types";
+export { applyParamOverrides, isEmptyOverrides, type ParamOverrides } from "./paramOverrides";
 export {
   WeakPasswordError,
   assertUsablePassword,

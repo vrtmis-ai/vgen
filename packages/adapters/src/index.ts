@@ -10,7 +10,13 @@ export { RedisHealthAdapter, S3StorageHealthAdapter, createRedisHealthAdapter, c
 export { RedisFixedWindowRateLimiter, createRedisFixedWindowRateLimiter } from "./rateLimit";
 export type { FixedWindowRateLimitOptions } from "./rateLimit";
 
-export { KieGenerationProvider, ProviderTransportError, createGenerationProvider, describeOutput } from "./providers";
+export {
+  KieGenerationProvider,
+  ProviderTransportError,
+  WaveSpeedGenerationProvider,
+  createGenerationProvider,
+  describeOutput,
+} from "./providers";
 export type {
   GenerationOutcome,
   GenerationOutput,

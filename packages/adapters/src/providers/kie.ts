@@ -1,3 +1,4 @@
+import { describeOutput } from "./output";
 import {
   ProviderTransportError,
   type GenerationOutcome,
@@ -32,48 +33,6 @@ const DEFAULT_BASE_URL = "https://api.kie.ai";
 
 /** States seen in practice. Anything unrecognised is treated as still running. */
 const TERMINAL: Record<string, "succeeded" | "failed"> = { success: "succeeded", fail: "failed" };
-
-const MIME_BY_EXTENSION: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  webp: "image/webp",
-  gif: "image/gif",
-  mp4: "video/mp4",
-  webm: "video/webm",
-  mov: "video/quicktime",
-  mp3: "audio/mpeg",
-  wav: "audio/wav",
-  ogg: "audio/ogg",
-};
-
-const FALLBACK_MIME: Record<Modality, string> = {
-  image: "image/png",
-  video: "video/mp4",
-  audio: "audio/mpeg",
-  text: "text/plain",
-};
-
-/**
- * The kind of thing behind a URL, from its extension.
- *
- * Guessed rather than declared because KIE does not say. The modality on the
- * `provider_models` row is the answer when the URL has nothing useful on the
- * end of it, which is the common case for signed URLs with query strings.
- */
-export function describeOutput(url: string, modality: Modality): GenerationOutput {
-  const path = url.split(/[?#]/)[0] ?? url;
-  const extension = /\.([a-z0-9]+)$/i.exec(path)?.[1]?.toLowerCase();
-  const mimeType = (extension && MIME_BY_EXTENSION[extension]) || FALLBACK_MIME[modality];
-  const kind = mimeType.startsWith("image/")
-    ? "image"
-    : mimeType.startsWith("video/")
-      ? "video"
-      : mimeType.startsWith("audio/")
-        ? "audio"
-        : modality;
-  return { url, kind, mimeType };
-}
 
 function asRecord(value: unknown): JsonObject {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};

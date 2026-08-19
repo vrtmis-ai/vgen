@@ -99,10 +99,15 @@ const sql = postgres(databaseUrl, { max: 1 });
 
 try {
   const summary = await sql.begin(async (tx) => {
+    // Catalogue rows, not one vendor's rows. `provider.code = 'kie'` was the
+    // same set while KIE was the only provider; now that a second one has
+    // serving models in this table it would silently mean "price everything
+    // except anything routed elsewhere". What this always meant is: price what
+    // is in the shop.
     const models = await tx<{ id: string; external_model_id: string }[]>`
       select model.id, model.external_model_id
-      from provider_models model join providers provider on provider.id = model.provider_id
-      where provider.code = 'kie'
+      from provider_models model
+      where model.capabilities ? 'variant'
     `;
     const modelIdByExternal = new Map(models.map((row) => [row.external_model_id, row.id]));
 

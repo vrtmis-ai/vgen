@@ -2,16 +2,46 @@ import { grantsPermission, type AdminSession, type PostgresAccessRepository, typ
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { clearAdminCookie, readAdminToken, setAdminCookie, type CookieOptions } from "../auth/cookies";
+import { registerAdminCatalogRoutes, type AdminCatalogDependencies } from "./adminCatalog";
 
 export interface AdminDependencies {
   admin: PostgresAdminRepository;
   access: PostgresAccessRepository;
+  /**
+   * Providers and routing. Optional so the customer-surface tests can mount the
+   * staff routes without a catalogue — there is no half-configured mode where
+   * the section exists but cannot answer.
+   */
+  catalog?: AdminCatalogDependencies | undefined;
   /** Reused so staff prove who they are the same way customers do, before the second factor. */
   verifyPassword(email: string, password: string): Promise<{ id: string; emailNormalized: string }>;
 }
 
 export interface AdminRouteOptions {
   cookie: CookieOptions;
+}
+
+export interface AuditInput {
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  before?: unknown;
+  after?: unknown;
+}
+
+/**
+ * The permission gate and the audit writer, handed to every file that adds
+ * staff routes.
+ *
+ * Passed rather than re-derived because both carry decisions that must not be
+ * made twice: `require` answers 404 for a non-admin so the surface's existence
+ * is not confirmed, and refuses anyone whose session has not proved a second
+ * factor. A route file that built its own gate would eventually build a
+ * slightly different one.
+ */
+export interface AdminGuard {
+  require(request: FastifyRequest, reply: FastifyReply, permission: string): Promise<AdminSession | null>;
+  audit(request: FastifyRequest, session: AdminSession, entry: AuditInput): Promise<void>;
 }
 
 const SignInSchema = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(1).max(512) }).strict();
@@ -94,11 +124,7 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
     return session;
   };
 
-  const audit = (
-    request: FastifyRequest,
-    session: AdminSession,
-    entry: { action: string; targetType?: string; targetId?: string; before?: unknown; after?: unknown },
-  ) =>
+  const audit = (request: FastifyRequest, session: AdminSession, entry: AuditInput) =>
     admin.recordAudit({
       actorUserId: session.userId,
       actorRole: session.roles[0],
@@ -106,6 +132,8 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
       userAgent: request.headers["user-agent"],
       ...entry,
     });
+
+  if (dependencies.catalog) registerAdminCatalogRoutes(app, dependencies.catalog, { require, audit });
 
   // ------------------------------------------------------------ signing in
 

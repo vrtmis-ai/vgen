@@ -30,6 +30,9 @@ function claimedJob(overrides: Partial<ClaimedJob> = {}): ClaimedJob {
     entitlementId: null,
     microCreditsHeld: 2_000_000,
     holdId: "66666666-6666-4666-8666-666666666666",
+    paramOverrides: {},
+    providerUnitCostUsd: 0.005,
+    estimatedCostUsd: 0.01,
     ...overrides,
   };
 }
@@ -98,6 +101,33 @@ const succeededOutcome: GenerationOutcome = {
 };
 
 /** Pretends the download and the upload both worked, and records where. */
+/** Captures what the provider was actually handed, params included. */
+function capturingProvider(script: (GenerationOutcome | Error)[]): { provider: GenerationProvider; submitted: Record<string, unknown>[] } {
+  const submitted: Record<string, unknown>[] = [];
+  let index = 0;
+  return {
+    submitted,
+    provider: {
+      code: "kie",
+      submit: async (request) => {
+        submitted.push(request.params as Record<string, unknown>);
+        return {
+          externalJobId: "task-1",
+          endpoint: "https://api.test/submit",
+          requestPayload: request.params,
+          responsePayload: {},
+          httpStatus: 200,
+        };
+      },
+      poll: async () => {
+        const next = script[Math.min(index++, script.length - 1)]!;
+        if (next instanceof Error) throw next;
+        return next;
+      },
+    },
+  };
+}
+
 function fakeMirror(onMirror?: () => never): OutputMirrorPort {
   return {
     mirror: async (source, target) => {
@@ -286,5 +316,68 @@ describe("running a generation", () => {
     // which is unanswerable after the fact if it is not written at the time.
     expect(rec.attempts.every((a) => a.credentialId === "77777777-7777-4777-8777-777777777777")).toBe(true);
     expect(rec.attempts[0]!.externalJobId).toBe("task-1");
+  });
+});
+
+describe("sending a job somewhere else", () => {
+  it("translates the params before submitting, and leaves the job's own untouched", async () => {
+    const job = claimedJob({
+      params: { prompt: "a small red boat", aspect_ratio: "16:9" },
+      paramOverrides: { rename: { aspect_ratio: "size" }, map: { size: { "16:9": "1344*768" } }, set: { output_format: "png" } },
+    });
+    const rec = recorder(job);
+    const { provider, submitted } = capturingProvider([succeededOutcome]);
+
+    await runGeneration(JOB_ID, deps(rec, provider));
+
+    // What the provider is sent speaks its own vocabulary...
+    expect(submitted[0]).toEqual({ prompt: "a small red boat", size: "1344*768", output_format: "png" });
+    // ...and what the customer asked for is still what the price was hashed
+    // from. A route that rewrote this would make the gallery disagree with the
+    // charge.
+    expect(job.params).toEqual({ prompt: "a small red boat", aspect_ratio: "16:9" });
+  });
+
+  it("sends the params through unchanged when there is no route", async () => {
+    const rec = recorder(claimedJob({ params: { prompt: "x", aspect_ratio: "1:1" } }));
+    const { provider, submitted } = capturingProvider([succeededOutcome]);
+
+    await runGeneration(JOB_ID, deps(rec, provider));
+
+    expect(submitted[0]).toEqual({ prompt: "x", aspect_ratio: "1:1" });
+  });
+
+  it("costs the job at the serving provider's rate, not a constant", async () => {
+    // 0.8 units at $1.00 each. Under the old hardcoded map this was always
+    // KIE's $0.005 and every WaveSpeed job would have been costed 200x low.
+    const rec = recorder(claimedJob({ providerCode: "wavespeed", providerUnitCostUsd: 1 }));
+
+    await runGeneration(JOB_ID, deps(rec, fakeProvider([succeededOutcome])));
+
+    expect(rec.succeeded[0]!.providerCostUsd).toBeCloseTo(0.8);
+  });
+
+  it("falls back to the quote's estimate when the provider reports no cost", async () => {
+    const rec = recorder(claimedJob({ providerCode: "wavespeed", providerUnitCostUsd: 1, estimatedCostUsd: 0.04 }));
+    const silent: GenerationOutcome = { ...succeededOutcome, providerUnitsCost: null };
+
+    await runGeneration(JOB_ID, deps(rec, fakeProvider([silent])));
+
+    // WaveSpeed reports nothing on any documented endpoint. Leaving this null
+    // would blank the margin trail for every job it serves.
+    expect(rec.succeeded[0]!.providerCostUsd).toBe(0.04);
+    // The attempt still records null, so "they told us" and "we worked it out"
+    // stay distinguishable.
+    expect(rec.attempts.at(-1)!.providerUnitsCost).toBeNull();
+  });
+
+  it("records no cost at all when there is neither a rate nor an estimate", async () => {
+    const rec = recorder(claimedJob({ providerUnitCostUsd: null, estimatedCostUsd: null }));
+
+    await runGeneration(JOB_ID, deps(rec, fakeProvider([succeededOutcome])));
+
+    // Null, not zero. Zero reads as "this was free" and would quietly make an
+    // unrated provider look like pure margin.
+    expect(rec.succeeded[0]!.providerCostUsd).toBeNull();
   });
 });
