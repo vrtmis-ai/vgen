@@ -15,6 +15,7 @@ const services = {
   },
   catalog: { list: vi.fn() },
   content: { list: vi.fn() },
+  community: { list: vi.fn() },
   plans: { list: vi.fn() },
   wallet: { getCurrent: vi.fn() },
   generation: { quote: vi.fn(), create: vi.fn(), getJob: vi.fn() },

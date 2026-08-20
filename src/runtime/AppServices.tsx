@@ -9,6 +9,7 @@ import type {
 } from "./contracts/auth";
 import type { CatalogSnapshot } from "./contracts/catalog";
 import type { ContentSnapshot } from "./contracts/content";
+import type { CommunityFeed } from "./contracts/community";
 import type { GalleryPage, GalleryQuery } from "./contracts/gallery";
 import type { Plan } from "./contracts/plans";
 import type { CreateGenerationRequest, GenerationJob, GenerationQuote, QuoteGenerationRequest } from "./contracts/generation";
@@ -54,6 +55,10 @@ export interface AppServices {
    */
   content: {
     list(options?: RequestOptions): Promise<ContentSnapshot>;
+  };
+  /** What people published. Approved posts only — the route decides, not a screen. */
+  community: {
+    list(options?: RequestOptions): Promise<CommunityFeed>;
   };
   catalog: {
     list(options?: RequestOptions): Promise<CatalogSnapshot>;

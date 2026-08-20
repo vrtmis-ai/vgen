@@ -4,6 +4,7 @@ import { registerErrorHandling } from "./plugins/errors";
 import { registerCustomerSessionRoute, type CustomerSessionApplication } from "./routes/session";
 import { registerCatalogRoute, type CustomerCatalogApplication } from "./routes/catalog";
 import { registerContentRoute, type CustomerContentApplication } from "./routes/content";
+import { registerCommunityRoute, type CustomerCommunityApplication } from "./routes/community";
 import { registerPlansRoute, type CustomerPlansApplication } from "./routes/plans";
 import { registerWalletRoute, type CustomerWalletApplication } from "./routes/wallet";
 import { registerGenerationJobsRoute, type GenerationJobsApplication } from "./routes/jobs";
@@ -35,6 +36,7 @@ export interface ApiDependencies {
   customerWallet: CustomerWalletApplication;
   customerCatalog: CustomerCatalogApplication;
   customerContent: CustomerContentApplication;
+  customerCommunity: CustomerCommunityApplication;
   customerPlans: CustomerPlansApplication;
   frontendTelemetry: FrontendTelemetryApplication;
   generationJobs: GenerationJobsApplication;
@@ -83,6 +85,7 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   registerCustomerSessionRoute(app, dependencies.customerSession, authProviders);
   registerCatalogRoute(app, dependencies.customerCatalog);
   registerContentRoute(app, dependencies.customerContent);
+  registerCommunityRoute(app, dependencies.customerCommunity);
   registerPlansRoute(app, dependencies.customerPlans);
   registerWalletRoute(app, dependencies.customerSession, dependencies.customerWallet);
   registerFrontendTelemetryRoute(app, dependencies.frontendTelemetry, options.telemetryRateLimit, options.telemetryRateLimiter);

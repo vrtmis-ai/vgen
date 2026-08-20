@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Heart, MagicWand, FilmSlate } from "@phosphor-icons/react";
 import { getFamily } from "../data/models";
-import { COMMUNITY, type CommunityCategory, type CommunityPost } from "../data/community";
+import { useCommunityFeed } from "../features/session/useSession";
+import type { CommunityPost } from "../runtime/contracts/community";
 import { VendorMark } from "../components/VendorMark";
 import { faNum } from "../lib/format";
 import { useI18n } from "../lib/i18n";
@@ -31,7 +32,7 @@ import { riseItem, riseParent } from "../lib/motion";
 
 const art = (seed: string) => `https://picsum.photos/seed/${seed}/600/800`;
 
-const CATEGORY_LABEL: Record<CommunityCategory, string> = {
+const CATEGORY_LABEL: Record<CommunityPost["kind"], string> = {
   image: "تصویر",
   video: "ویدیو",
   reel: "ریل",
@@ -41,7 +42,7 @@ function PostCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
   const f = getFamily(p.familyId);
   // A reel is a showcase cut from several jobs. There is no single generation
   // behind it, so there is nothing to recreate — see data/community.ts.
-  const recreatable = p.category !== "reel" && !!f;
+  const recreatable = p.kind !== "reel" && !!f;
 
   return (
     // `group` + the slow scale below: this was the one card surface in the app
@@ -61,7 +62,7 @@ function PostCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
 
         <div className="absolute start-2.5 top-2.5 flex items-center gap-1.5">
           {f && <VendorMark vendor={f.vendor} size={22} />}
-          {p.category === "reel" && (
+          {p.kind === "reel" && (
             <span
               className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold"
               style={{ background: "rgba(0,0,0,0.55)", color: "#fff", backdropFilter: "blur(6px)" }}
@@ -104,10 +105,16 @@ function PostCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
 
 export default function Community({ onOpen }: { onOpen: (familyId: string, prompt?: string) => void }) {
   const { t } = useI18n();
-  const [cat, setCat] = useState<CommunityCategory | "all">("all");
+  const [cat, setCat] = useState<CommunityPost["kind"] | "all">("all");
 
-  const approved = useMemo(() => COMMUNITY.filter((p) => p.status === "approved"), []);
-  const shown = cat === "all" ? approved : approved.filter((p) => p.category === cat);
+  // Approved already — the route filters, so there is no `status` here to
+  // forget to check. An empty feed while it loads is the honest frame: this is
+  // other people's work, and inventing placeholders for it would be a lie.
+  const feed = useCommunityFeed().data?.posts;
+  // Memoised because the creators list below derives from it: `?? []` builds a
+  // fresh array every render, which would make that useMemo recompute always.
+  const approved = useMemo(() => feed ?? [], [feed]);
+  const shown = cat === "all" ? approved : approved.filter((p) => p.kind === cat);
 
   // Their "Featured creators" row, built from what we actually have rather than
   // an editorial list: whoever the feed has the most approved work from.
@@ -124,7 +131,7 @@ export default function Community({ onOpen }: { onOpen: (familyId: string, promp
 
   // Only offer a category that has something behind it. A chip that filters to
   // an empty wall is the same dead control we just removed.
-  const cats = (["image", "video", "reel"] as const).filter((c) => approved.some((p) => p.category === c));
+  const cats = (["image", "video", "reel"] as const).filter((c) => approved.some((p) => p.kind === c));
 
   return (
     <div className="relative z-10 mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-16 pt-5 md:px-8">

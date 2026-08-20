@@ -5,6 +5,7 @@ export const appQueryKeys = {
   session: ["session"] as const,
   catalog: ["catalog"] as const,
   content: ["content"] as const,
+  community: ["community"] as const,
   plans: ["plans"] as const,
   wallet: ["wallet"] as const,
 };
@@ -35,6 +36,22 @@ export function useContent() {
     queryKey: appQueryKeys.content,
     queryFn: ({ signal }) => services.content.list({ signal }),
     staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * The community feed. Fetched by the two screens that show it rather than
+ * handed down a provider: unlike the catalogue and the content, it is not
+ * needed by anything between the shell and those screens, and it is the one
+ * payload here that will grow — a real feed is paginated, and a provider that
+ * holds the whole thing is the wrong shape to grow into.
+ */
+export function useCommunityFeed() {
+  const services = useAppServices();
+  return useQuery({
+    queryKey: appQueryKeys.community,
+    queryFn: ({ signal }) => services.community.list({ signal }),
+    staleTime: 60_000,
   });
 }
 

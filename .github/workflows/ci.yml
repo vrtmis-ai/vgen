@@ -194,6 +194,24 @@ jobs:
           echo "published=$published served=$served"
           test "$published" = "$served"
 
+      # The community feed, and the ten fake users behind it. Seeded last of
+      # the content because it names families the same way, and because it is
+      # the only seeder here that creates users — every one of them carries an
+      # @demo.invalid address (RFC 2606, unregisterable) so the whole set is one
+      # predicate away from being deleted when real posts arrive.
+      - run: pnpm community:publish
+      - name: Seeding the feed twice writes nothing the second time
+        run: pnpm community:publish | grep -q 'already current'
+      - run: pnpm community:snapshot
+      - name: The database must serve the committed feed snapshot
+        run: git diff --exit-code -- src/data/community.snapshot.json
+
+      # Every seeded author must be findable and fake. A real address here
+      # would mean the seeder had written a row somebody could receive mail at.
+      - name: Every seeded author must be a demo user
+        run: |
+          docker compose exec -T postgres psql -U vgen -d vgen -tAc "select count(*) from posts p join users u on u.id = p.author_user_id where u.email not like '%@demo.invalid'" | grep -qx '0'
+
       # The catalogue must be unchanged by all of the above. Both the unlimited
       # and the provider seeder add provider_models rows for other providers,
       # and if the catalogue query ever stopped excluding them every customer

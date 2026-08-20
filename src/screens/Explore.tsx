@@ -3,7 +3,8 @@ import { motion } from "framer-motion";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import { courseMinutes, LEVEL_LABEL } from "../features/content/labels";
 import type { Course, FeaturedItem, Preset } from "../runtime/contracts/content";
-import { COMMUNITY, type CommunityPost } from "../data/community";
+import { useCommunityFeed } from "../features/session/useSession";
+import type { CommunityPost } from "../runtime/contracts/community";
 
 import { VendorMark } from "../components/VendorMark";
 import { faNum } from "../lib/format";
@@ -232,7 +233,7 @@ export default function Explore({
 }) {
   const families = useCatalogFamilies();
   const getFamily = (id: string) => families.find((family) => family.id === id);
-  const posts = COMMUNITY.filter((p) => p.status === "approved");
+  const posts = useCommunityFeed().data?.posts ?? [];
   // Already published and already ordered. The `published()` call that used to
   // be here was a rule every screen had to remember; it is a WHERE clause now.
   const { presets, courses, featured } = usePublishedContent();
