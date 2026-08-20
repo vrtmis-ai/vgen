@@ -30,18 +30,20 @@ That was not true until this change: three generation calls were pointing at
 paths the API does not serve, in a job shape no server ever sent, and the
 gallery had no route at all.
 
-| `AppServices` call     | Frontend requests          | Server route        | Status   |
-| ---------------------- | -------------------------- | ------------------- | -------- |
-| `session.getCurrent()` | `GET /session`             | `routes/session.ts` | **Live** |
-| `auth.*` (5 methods)   | `POST /auth/*`             | `routes/auth.ts`    | **Live** |
-| `catalog.list()`       | `GET /catalog`             | `routes/catalog.ts` | **Live** |
-| `plans.list()`         | `GET /plans`               | `routes/plans.ts`   | **Live** |
-| `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`  | **Live** |
-| `generation.quote()`   | `POST /generation/quotes`  | `routes/quotes.ts`  | **Live** |
-| `generation.create()`  | `POST /jobs`               | `routes/jobs.ts`    | **Live** |
-| `generation.getJob()`  | `GET /generation/jobs/:id` | `routes/jobs.ts`    | **Live** |
-| `gallery.list()`       | `GET /gallery`             | `routes/gallery.ts` | **Live** |
-| `assets.upload()`      | `POST /assets`             | `routes/assets.ts`  | **Live** |
+| `AppServices` call     | Frontend requests          | Server route          | Status   |
+| ---------------------- | -------------------------- | --------------------- | -------- |
+| `session.getCurrent()` | `GET /session`             | `routes/session.ts`   | **Live** |
+| `auth.*` (5 methods)   | `POST /auth/*`             | `routes/auth.ts`      | **Live** |
+| `catalog.list()`       | `GET /catalog`             | `routes/catalog.ts`   | **Live** |
+| `content.list()`       | `GET /content`             | `routes/content.ts`   | **Live** |
+| `community.list()`     | `GET /community`           | `routes/community.ts` | **Live** |
+| `plans.list()`         | `GET /plans`               | `routes/plans.ts`     | **Live** |
+| `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`    | **Live** |
+| `generation.quote()`   | `POST /generation/quotes`  | `routes/quotes.ts`    | **Live** |
+| `generation.create()`  | `POST /jobs`               | `routes/jobs.ts`      | **Live** |
+| `generation.getJob()`  | `GET /generation/jobs/:id` | `routes/jobs.ts`      | **Live** |
+| `gallery.list()`       | `GET /gallery`             | `routes/gallery.ts`   | **Live** |
+| `assets.upload()`      | `POST /assets`             | `routes/assets.ts`    | **Live** |
 
 So `production` mode is now complete end to end: sign in, browse the catalogue,
 see a price, submit a generation, watch it run, and see the file it produced.
@@ -158,6 +160,106 @@ mode reads it instead of importing `FAMILIES`. Two CI checks pin it: a unit test
 that the committed file equals `FAMILIES`, and a database job that reseeds,
 re-exports, and diffs. So a screen built against demo mode is built against what
 production actually sends — which is the claim demo mode has to keep.
+
+### `GET /content`
+
+Everything the product shows that is not a model and not a price: presets, the
+prompt bank, skills, the featured shelf, courses, explore examples and the
+ElevenLabs voice list. Seven collections that were TypeScript arrays under
+`src/data` until migration 0020.
+
+```jsonc
+{
+  "version": "content-…",
+  "publishedAt": 1234567890,
+  "presets": [],
+  "fragments": [],
+  "skills": [],
+  "featured": [],
+  "courses": [],
+  "examples": [],
+  "voices": [],
+}
+```
+
+Schema: `ContentSnapshotSchema` in `src/runtime/contracts/content.ts`.
+
+**Seven arrays, not one tagged list.** They share one table — `content_items`,
+discriminated by `kind` — because an admin thinks about them the same way:
+publish it, order it, pull it. They arrive split because a screen that wants
+courses should get courses rather than a filter it has to write.
+
+**No `status` and no `order` on any item, and that is the point.** The route
+serves published rows already in the admin's order. `src/data/content.ts`
+exported a `published()` helper that eleven screens had to remember to call, and
+a screen that forgot showed a draft to a customer. The filter is a `WHERE`
+clause now, so there is nothing left to forget. CI asserts the property
+directly: the served snapshot must hold exactly as many items as the table holds
+published rows.
+
+**Public.** The landing page's feature bento renders nine effects, three courses
+and a voice count to a visitor with no session.
+
+**Where it comes from.** `content_items`, seeded by `pnpm content:publish` from
+`src/data/content.rows.json`. That seeder never writes `status` on a row that
+already exists and never deletes — pulling something is a decision a person
+made, and a seed run must not reverse it. `sort_order` does update, because the
+file is still the source of truth for order while no panel exists.
+
+**Demo mode serves the same document**, from `src/data/content.snapshot.json`,
+generated by `pnpm content:snapshot` and diffed in CI.
+
+### `GET /community`
+
+The feed of creations users published into the app.
+
+```jsonc
+{
+  "posts": [
+    {
+      "id": "…",
+      "author": "reza.vfx",
+      "kind": "video",
+      "familyId": "seedance",
+      "prompt": "…",
+      "seed": "…",
+      "w": 16,
+      "h": 9,
+      "likes": 1284,
+    },
+  ],
+}
+```
+
+Schema: `CommunityFeedSchema` in `src/runtime/contracts/community.ts`.
+
+**Not in `content_items`.** A post is a moderated user submission with an owner,
+a consent record and a moderation state, and `posts` has modelled all three
+since 0001. Editorial content and a user's submission are different things.
+
+**Three filters, not one.** `status = 'approved'` is the moderator's decision,
+`deleted_at is null` is the author's, and `consent_at is not null` is the
+author's agreement to expose the prompt and settings at all. A post can pass the
+first two and fail the third — approving something never creates consent.
+
+**No `status` and no author user id.** Only approved posts are served, so
+`status` could never read anything else; and a display handle is all a card
+needs, while shipping an internal id to every visitor would turn a public feed
+into an enumeration of the user table.
+
+> **Every author in the seeded feed is fake.** Ten users written by
+> `pnpm community:publish`, each with an `@demo.invalid` address — a domain
+> reserved by RFC 2606 that can never be registered, so none of them can reach
+> an inbox or collide with a real signup. They carry no password hash and no
+> phone. Remove the whole set with
+> `delete from users where email like '%@demo.invalid'`. CI asserts that every
+> seeded post's author matches that predicate.
+
+**Migration 0021** added three columns a post could not reach through its job:
+`consent_at` (§14, taken at share time, never backfillable), `kind` (a reel is
+assembled outside the app and has no single job to infer a type from) and
+`family_code` (reels have no one job to ask, and jobs age out while posts do
+not).
 
 ### `GET /wallet`
 
@@ -326,17 +428,17 @@ sign-in is two steps and the session authorises nothing between them.
 
 ### Providers and routing
 
-The answer to *"which provider, and which of their models, actually runs this
-thing we sell?"* — and the ability to change it without a deploy.
+The answer to _"which provider, and which of their models, actually runs this
+thing we sell?"_ — and the ability to change it without a deploy.
 
-| route | permission | does |
-| --- | --- | --- |
-| `GET /admin/providers` | `catalog.read` | providers, their credential pool, whether an adapter exists, whether the key is set |
-| `PATCH /admin/providers/:id` | `catalog.write` | `{ isActive?, baseUrl? }` |
-| `GET /admin/models` | `catalog.read` | every catalogue variant plus where it is currently sent, and every serving row it could be sent to |
-| `GET /admin/models/:id/routes` | `catalog.read` | one variant's routes, active first, then by priority |
-| `PUT /admin/models/:id/routes` | `catalog.write` | **replaces** the list — this is the switch |
-| `DELETE /admin/models/:id/routes` | `catalog.write` | back to the provider that owns the catalogue row |
+| route                             | permission      | does                                                                                               |
+| --------------------------------- | --------------- | -------------------------------------------------------------------------------------------------- |
+| `GET /admin/providers`            | `catalog.read`  | providers, their credential pool, whether an adapter exists, whether the key is set                |
+| `PATCH /admin/providers/:id`      | `catalog.write` | `{ isActive?, baseUrl? }`                                                                          |
+| `GET /admin/models`               | `catalog.read`  | every catalogue variant plus where it is currently sent, and every serving row it could be sent to |
+| `GET /admin/models/:id/routes`    | `catalog.read`  | one variant's routes, active first, then by priority                                               |
+| `PUT /admin/models/:id/routes`    | `catalog.write` | **replaces** the list — this is the switch                                                         |
+| `DELETE /admin/models/:id/routes` | `catalog.write` | back to the provider that owns the catalogue row                                                   |
 
 Three things about this are worth knowing before you build against it.
 
