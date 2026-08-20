@@ -154,10 +154,25 @@ jobs:
       - name: Seeding grants twice writes nothing the second time
         run: pnpm unlimited:publish | grep -q 'already current'
 
-      # The catalogue must be unchanged by all of the above. The unlimited
-      # seeder adds provider_models rows for a second provider, and if the
-      # catalogue query ever stopped excluding them every customer would see
-      # Nano Banana twice.
+      # Providers and routing. Like the grants above, this looks the catalogue
+      # up by variant id and refuses rather than inventing a row, so it has to
+      # come after catalog:publish.
+      - run: pnpm providers:publish
+      - name: Seeding providers twice writes nothing the second time
+        run: pnpm providers:publish | grep -q 'already current'
+
+      # Nothing this seeder writes may be switched on by writing it. Every
+      # route ships inactive and re-running must never flip one, because the
+      # WaveSpeed model ids it names have not been proved against a live API —
+      # activating one is a person's decision, not a side effect of CI.
+      - name: Every seeded route must be inactive
+        run: |
+          docker compose exec -T postgres psql -U vgen -d vgen -tAc "select count(*) from model_routes where is_active" | grep -qx '0'
+
+      # The catalogue must be unchanged by all of the above. Both the unlimited
+      # and the provider seeder add provider_models rows for other providers,
+      # and if the catalogue query ever stopped excluding them every customer
+      # would see Nano Banana twice.
       - run: pnpm catalog:snapshot
       - name: Serving rows must stay out of the catalogue
         run: git diff --exit-code -- src/data/catalog.snapshot.json
