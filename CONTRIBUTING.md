@@ -108,6 +108,33 @@ pnpm backend:test:integration   # 181 tests against the real database
 pnpm check:pricing              # 738 prices recomputed from the seeded rows
 ```
 
+### Opening the admin panel
+
+The panel is at `/admin` and needs three things the product's own sign-up cannot
+give anyone: a password, the `admin` role, and a **confirmed second factor** —
+`POST /admin/session` refuses an account without one outright, because letting
+someone in "just this once" is how `v_admins_without_mfa` stops being empty.
+
+```sh
+pnpm admin:create you@example.com 'a-long-password'
+```
+
+It prints an `otpauth://` URI. **Add it to an authenticator app before closing
+the terminal** — the secret is sealed into the database and that is the only
+moment it exists in readable form. Losing it means running the command again.
+
+The panel talks to the real API, so demo mode cannot serve it (there is no
+fixture that could stand in for a page that changes which upstream account a job
+is billed to). Point the browser bundle at your local API in `.env.local`:
+
+```sh
+NEXT_PUBLIC_APP_MODE=production
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:5181/api/v1
+```
+
+Then `pnpm dev` (5180) alongside the API (5181), and open
+<http://127.0.0.1:5180/admin>. Set `NEXT_PUBLIC_APP_MODE=demo` again to go back.
+
 ## Upgrading a clone you already had
 
 If your checkout predates the Next.js move, `git pull` on its own leaves you in
