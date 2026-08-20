@@ -52,6 +52,60 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN) {
 
 const AS_ADMIN = { cookie: "deev_admin=adm-tok" };
 
+describe("GET /admin/session — what the panel asks before it renders", () => {
+  it("answers 404 with no cookie, like the rest of the surface", async () => {
+    const { app } = build();
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/session" });
+
+    // Not 401. An expired staff cookie and a customer typing the URL must be
+    // indistinguishable from outside.
+    expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("reports a half-authenticated session as mfa_required, and grants it nothing", async () => {
+    const { app } = build({ mfaVerified: false });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/session", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: "mfa_required", roles: ["admin"] });
+    // The empty array is the point: a panel can render straight off
+    // `permissions` without also remembering to check `status`, so a session
+    // that has not proved a second factor cannot draw a section it would be
+    // refused from.
+    expect(response.json().permissions).toEqual([]);
+    await app.close();
+  });
+
+  it("reports a verified session with the permissions it actually holds", async () => {
+    const { app } = build({ permissions: ["catalog.read", "invites.*"] });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/session", headers: AS_ADMIN });
+
+    expect(response.json()).toMatchObject({
+      status: "authed",
+      email: "admin@deev.test",
+      permissions: ["catalog.read", "invites.*"],
+    });
+    await app.close();
+  });
+
+  it("is reachable before the second factor, which is the whole reason it is not behind require()", async () => {
+    // Every other route answers 403 mfa_required here. This one has to answer,
+    // or a reload during sign-in could not resume where the session actually is.
+    const { app } = build({ mfaVerified: false });
+
+    const blocked = await app.inject({ method: "GET", url: "/api/v1/admin/invites", headers: AS_ADMIN });
+    const readable = await app.inject({ method: "GET", url: "/api/v1/admin/session", headers: AS_ADMIN });
+
+    expect(blocked.statusCode).toBe(403);
+    expect(readable.statusCode).toBe(200);
+    await app.close();
+  });
+});
+
 describe("reaching the admin surface at all", () => {
   it("answers 404 with no admin cookie, not 401", async () => {
     // A customer poking at /admin must not learn that the surface exists.

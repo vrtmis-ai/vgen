@@ -183,6 +183,37 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
     return reply.code(200).send({ status: "authed", roles: session.roles, permissions: session.permissions });
   });
 
+  /**
+   * Who am I, and what may I do?
+   *
+   * A panel that cannot ask this has to find out by attempting something and
+   * reading the failure, which is a bad way to decide what to render: `require`
+   * answers 404 for a non-admin *and* for an expired session, so a probe cannot
+   * tell "you were never staff" from "your session lapsed" — and the panel
+   * would draw sections the person cannot use, then fail when they clicked.
+   *
+   * Deliberately NOT behind `require`. It is the one route that has to answer
+   * before a second factor is confirmed, because "signed in, needs MFA" is a
+   * state the sign-in screen must be able to resume into after a reload. It
+   * discloses nothing a holder of the cookie does not already possess.
+   */
+  app.get("/api/v1/admin/session", async (request, reply) => {
+    const token = readAdminToken(request);
+    const session = token ? await admin.resolveSession(token) : null;
+    // The same 404 the rest of the surface gives, so an expired staff cookie
+    // and a customer poking at the URL are indistinguishable from outside.
+    if (!session) return reply.code(404).send({ error: { code: "not_found", message: "Not found." } });
+
+    return reply.send({
+      status: session.mfaVerified ? "authed" : "mfa_required",
+      email: session.email,
+      roles: session.roles,
+      // Empty until the second factor lands: a panel must not render a section
+      // from a session that cannot yet call it.
+      permissions: session.mfaVerified ? session.permissions : [],
+    });
+  });
+
   app.delete("/api/v1/admin/session", async (request, reply) => {
     const token = readAdminToken(request);
     if (token) await admin.revokeSession(token);

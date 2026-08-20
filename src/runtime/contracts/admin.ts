@@ -1,22 +1,20 @@
 import { z } from "zod";
 
 /**
- * The staff surface for providers and routing.
+ * The staff surface, as `GET|PATCH|PUT /api/v1/admin/*` serves it.
  *
- * What this exists to answer is one question a person needs to be able to act
- * on without a deploy: *which provider, and which of their models, actually
- * runs this thing we sell?* Until now that was decided by which
- * `provider_models` row happened to carry the presentation JSON, and changing
- * it meant editing the catalogue — the same rows the shop, the prices and every
- * past job point at.
+ * Deliberately a copy of `packages/contracts/src/admin.ts` rather than an
+ * import of it: this is the browser's statement of what it will accept, and
+ * the server's is what it promises to send. A panel that quietly rendered a
+ * field whose meaning changed would be a panel lying about money, since the
+ * fields here decide which provider account a job is billed to.
  *
- * One rule runs through the whole file and is the reason several fields look
- * thinner than they could be: **`secret_ref` values travel, secrets never do.**
- * The column stores the *name* of an environment variable by design, so the
- * panel can tell an admin that `WAVESPEED_API_KEY` is the key it wants and
- * whether it is set, without the key itself ever leaving the process.
+ * One rule runs through the whole file and is why several fields look thinner
+ * than they could be: **`secretRef` values travel, secrets never do.** The
+ * column stores the *name* of an environment variable by design, so the panel
+ * can say that `WAVESPEED_API_KEY` is the key it wants and whether it is set,
+ * without the key itself ever leaving the server process.
  */
-
 /**
  * Who the staff session belongs to, and what it may do.
  *
