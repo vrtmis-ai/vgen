@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, X, Play, Pause, SpeakerHigh } from "@phosphor-icons/react";
 import type { Control, RefSlot, SlotMedia } from "../data/models";
-import { VOICES, voicePreviewUrl } from "../data/voices";
+import { voicePreviewUrl } from "../features/content/labels";
+import { usePublishedContent } from "../features/content/ContentProvider";
 import { faNum } from "../lib/format";
 
 export type InputValue = string | number | boolean;
@@ -243,10 +244,12 @@ function VoicePicker({
     void el.play().catch(() => setPlaying(null));
   }
 
+  const voices = usePublishedContent().voices;
+
   return (
     <FieldShell label={control.label}>
       <div className="max-h-64 overflow-y-auto rounded-bezel border border-line bg-card">
-        {VOICES.map((v) => {
+        {voices.map((v) => {
           const on = v.id === value;
           return (
             <div

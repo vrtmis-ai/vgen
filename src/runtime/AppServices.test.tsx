@@ -14,6 +14,7 @@ const services = {
     logout: vi.fn(),
   },
   catalog: { list: vi.fn() },
+  content: { list: vi.fn() },
   plans: { list: vi.fn() },
   wallet: { getCurrent: vi.fn() },
   generation: { quote: vi.fn(), create: vi.fn(), getJob: vi.fn() },

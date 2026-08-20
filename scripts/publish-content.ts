@@ -52,7 +52,7 @@ for (const row of rows) {
   try {
     toContentItem(row);
   } catch (error) {
-    throw new Error(`content row ${row.kind}/${row.code} does not parse: ${(error as Error).message}`);
+    throw new Error(`content row ${row.kind}/${row.code} does not parse: ${(error as Error).message}`, { cause: error });
   }
 }
 

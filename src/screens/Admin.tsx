@@ -2,10 +2,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, CaretUp, CaretDown, Eye, EyeSlash, Archive, ArrowCounterClockwise, Lock } from "@phosphor-icons/react";
 import type { AdminRole, ContentRecord, ContentStatus } from "../data/content";
-import { PRESETS } from "../data/presets";
-import { COURSES } from "../data/academy";
-import { FEATURED } from "../data/featured";
-import { PROMPT_BANK } from "../data/promptBank";
+import seed from "../data/content.rows.json";
 import { moveRecord, patchRecord, resetRecord, useAllContent, useOverrideCount } from "../data/contentStore";
 import { useAudit } from "../data/adminAudit";
 import { BRAND } from "../data/brand";
@@ -33,6 +30,39 @@ import { useI18n } from "../lib/i18n";
    rather than showing a plausible chart, because a made-up revenue figure in an
    admin panel is worse than no panel at all.
    --------------------------------------------------------------------------- */
+
+/**
+ * The rows this panel stages, taken from the seed file rather than from seven
+ * TypeScript modules that no longer exist.
+ *
+ * `content_items` is what the product reads now, and `GET /content` serves it
+ * already filtered to published and already ordered — so the served payload
+ * carries neither `status` nor `order`, and this panel is about exactly those
+ * two fields. The seed file is the one place they still exist in the browser,
+ * and it is the same file that seeds the table, so the panel and the database
+ * are looking at one list rather than two.
+ *
+ * That also states this panel's honest limit: it stages a change in
+ * localStorage and nothing downstream reads it. The write path is
+ * `PUT /api/v1/admin/...`, which exists on the server and has no browser
+ * caller yet.
+ */
+interface SeededRecord extends ContentRecord {
+  label: string;
+}
+
+const seeded = (kind: string, label: (row: (typeof seed.rows)[number]) => string): SeededRecord[] =>
+  seed.rows
+    .filter((row) => row.kind === kind)
+    .map((row) => ({
+      id: row.code,
+      status: row.status as ContentStatus,
+      order: row.sortOrder,
+      // The seed file carries no timestamp: the column's default is `now()` at
+      // insert, so the only truthful answer here is "whenever it was seeded".
+      updatedAt: 0,
+      label: label(row),
+    }));
 
 const ROLE_LABEL: Record<AdminRole, string> = {
   content: "محتوا",
@@ -294,12 +324,27 @@ export default function Admin({ onBack }: { onBack: () => void }) {
           <Collection
             title="افکت‌ها"
             note="هر افکت یک پرامپت کامل است. ترتیب همان چیزی است که در صفحهٔ افکت‌ها دیده می‌شود."
-            rows={PRESETS}
-            label={(p) => p.title}
+            rows={seeded("preset", (row) => row.title ?? row.code)}
+            label={(p) => p.label}
           />
-          <Collection title="دوره‌ها" note="همیشه رایگان — قیمت عمداً در مدل داده وجود ندارد." rows={COURSES} label={(c) => c.title} />
-          <Collection title="قفسهٔ ویژهٔ اکسپلور" note="اولین چیزی که کاربر بعد از ورود می‌بیند." rows={FEATURED} label={(f) => f.title} />
-          <Collection title="بانک پرامپت" note="واژه‌های حرفه‌ای برای توصیف نما، در آکادمی." rows={PROMPT_BANK} label={(x) => x.label} />
+          <Collection
+            title="دوره‌ها"
+            note="همیشه رایگان — قیمت عمداً در مدل داده وجود ندارد."
+            rows={seeded("course", (row) => row.title ?? row.code)}
+            label={(c) => c.label}
+          />
+          <Collection
+            title="قفسهٔ ویژهٔ اکسپلور"
+            note="اولین چیزی که کاربر بعد از ورود می‌بیند."
+            rows={seeded("featured", (row) => row.title ?? row.code)}
+            label={(f) => f.label}
+          />
+          <Collection
+            title="بانک پرامپت"
+            note="واژه‌های حرفه‌ای برای توصیف نما، در آکادمی."
+            rows={seeded("prompt_fragment", (row) => row.title ?? row.code)}
+            label={(x) => x.label}
+          />
         </>
       ) : (
         <section className="mt-8 flex items-center gap-2 rounded-bezel border border-line p-4">

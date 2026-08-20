@@ -1,6 +1,7 @@
 import type { AppServices } from "../../runtime/AppServices";
 import { createDemoAuthService, createDemoAuthState } from "./auth";
 import { createDemoCatalogService } from "./catalog";
+import { createDemoContentService } from "./content";
 import { createDemoGenerationAdapters } from "./generation";
 import { createDemoPlansService } from "./plans";
 import { createDemoSessionService } from "./session";
@@ -26,6 +27,7 @@ export function createDemoServices(options: DemoServiceOptions = {}): AppService
     session: createDemoSessionService(authState),
     auth: createDemoAuthService(authState, now),
     catalog: createDemoCatalogService(now),
+    content: createDemoContentService(now),
     plans: createDemoPlansService(),
     wallet: createDemoWalletService(now),
     generation,

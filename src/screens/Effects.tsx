@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkle, Copy, Check } from "@phosphor-icons/react";
-import { PRESETS, CATEGORY_LABEL, type Preset, type PresetCategory } from "../data/presets";
-import { published } from "../data/content";
+import { CATEGORY_LABEL } from "../features/content/labels";
+import { usePublishedContent } from "../features/content/ContentProvider";
+import type { Preset } from "../runtime/contracts/content";
 import { getFamily } from "../data/models";
 import { VendorMark } from "../components/VendorMark";
 import { riseItem, riseParent } from "../lib/motion";
@@ -221,8 +222,9 @@ function EffectCard({ preset, onOpen, onGenerate }: { preset: Preset; onOpen: ()
 }
 
 export default function Effects({ onOpen }: { onOpen: (familyId: string, prompt?: string) => void }) {
-  const all = useMemo(() => published(PRESETS), []);
-  const [cat, setCat] = useState<PresetCategory | "all">("all");
+  // Already published and already ordered — the route did both in SQL.
+  const all = usePublishedContent().presets;
+  const [cat, setCat] = useState<Preset["category"] | "all">("all");
   const [kind, setKind] = useState<"all" | "video" | "image">("all");
   const [detail, setDetail] = useState<Preset | null>(null);
 
@@ -292,7 +294,7 @@ export default function Effects({ onOpen }: { onOpen: (familyId: string, prompt?
           </button>
         ))}
         <span className="mx-1 h-5 w-px" style={{ background: "var(--vg-border)" }} />
-        {(["all", ...Object.keys(CATEGORY_LABEL)] as (PresetCategory | "all")[]).map((c) => (
+        {(["all", ...Object.keys(CATEGORY_LABEL)] as (Preset["category"] | "all")[]).map((c) => (
           <button
             key={c}
             onClick={() => setCat(c)}

@@ -2,15 +2,31 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../lib/i18n";
-import { PRESETS } from "../data/presets";
-import { published } from "../data/content";
+import { published, type ContentRecord } from "../data/content";
 import { resetAll, withPatches } from "../data/contentStore";
+import seed from "../data/content.rows.json";
 import Admin from "./Admin";
 
-/* The panel's whole promise is that an edit here changes what a user screen
-   shows, without a deploy. These tests hold that promise to the two halves it
-   is made of: the write reaches the store, and the read path — `published()`,
-   which every user screen already calls — sees it. */
+/* The panel stages a change and the read path sees it. Both halves are still
+   local: `content_items` is what the product actually reads now, and nothing
+   here writes to it — `PUT /api/v1/admin/...` exists on the server with no
+   browser caller yet. What these tests still hold is that the staging layer
+   and the ordering rule agree, which is what a real panel will be built on. */
+
+interface TitledRecord extends ContentRecord {
+  title: string;
+}
+
+/** The same rows the panel lists, in the same shape it maps them to. */
+const PRESETS: TitledRecord[] = seed.rows
+  .filter((row) => row.kind === "preset")
+  .map((row) => ({
+    id: row.code,
+    status: row.status as ContentRecord["status"],
+    order: row.sortOrder,
+    updatedAt: 0,
+    title: row.title ?? row.code,
+  }));
 
 function renderPanel() {
   return render(

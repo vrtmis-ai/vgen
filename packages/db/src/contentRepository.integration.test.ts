@@ -139,7 +139,15 @@ describe("PostgresContentRepository", () => {
       // Passes every column constraint — a course row with a lessons key that
       // is empty. Only the schema catches it, and the alternative to throwing
       // is a course page with a heading and nothing under it.
-      await insert(tx, { kind: "course", code: "hollow", title: "t", subtitle: "b", category: "beginner", seed: "s", payload: { lessons: [] } });
+      await insert(tx, {
+        kind: "course",
+        code: "hollow",
+        title: "t",
+        subtitle: "b",
+        category: "beginner",
+        seed: "s",
+        payload: { lessons: [] },
+      });
 
       await expect(listOnly(tx, ["hollow"])).rejects.toThrow();
     });
@@ -160,8 +168,8 @@ describe("PostgresContentRepository", () => {
       await inRollback(sql, async (tx) => {
         await insert(tx, preset("intro"));
         await insert(tx, { kind: "voice", code: "intro", title: "Intro", subtitle: "note" });
-        const [{ count }] = await tx<{ count: string }[]>`select count(*) as count from content_items where code = 'intro'`;
-        expect(Number(count)).toBe(2);
+        const rows = await tx<{ count: string }[]>`select count(*) as count from content_items where code = 'intro'`;
+        expect(Number(rows[0]?.count)).toBe(2);
       });
     });
 
@@ -181,7 +189,14 @@ describe("PostgresContentRepository", () => {
         // and inventing one would put a machine-written label on a card.
         // Not `e1` — the seeded examples are in this table and a test that
         // borrows a real code fails for a reason it is not testing.
-        await insert(tx, { kind: "example", code: "untitled-under-test", body: "a prompt", familyCode: "flux", seed: "s", payload: { w: 16, h: 9 } });
+        await insert(tx, {
+          kind: "example",
+          code: "untitled-under-test",
+          body: "a prompt",
+          familyCode: "flux",
+          seed: "s",
+          payload: { w: 16, h: 9 },
+        });
       });
     });
 

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Play, Lock, Clock, Copy, Check, ArrowUpRight } from "@phosphor-icons/react";
-import { COURSES, LEVEL_LABEL, courseMinutes, type Course } from "../data/academy";
+import { LEVEL_LABEL, courseMinutes, BANK_LABEL, BANK_BLURB } from "../features/content/labels";
+import { usePublishedContent } from "../features/content/ContentProvider";
+import type { Course, PromptFragment } from "../runtime/contracts/content";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
-import { PROMPT_BANK, BANK_LABEL, BANK_BLURB, type BankCategory } from "../data/promptBank";
-import { published } from "../data/content";
+
 import { useI18n } from "../lib/i18n";
 import { brandPhrase } from "../data/brand";
 
@@ -99,8 +100,8 @@ function CourseCard({ c, onOpen }: { c: Course; onOpen: () => void }) {
    studio on every click would throw away the two fragments they already had. */
 function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?: string) => void }) {
   const families = useCatalogFamilies();
-  const entries = useMemo(() => published(PROMPT_BANK), []);
-  const [cat, setCat] = useState<BankCategory>("camera");
+  const entries = usePublishedContent().fragments;
+  const [cat, setCat] = useState<PromptFragment["category"]>("camera");
   const [copied, setCopied] = useState<string | null>(null);
 
   // Taken from the catalog rather than written in. Every term here is a
@@ -209,7 +210,7 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
 
 export default function Academy({ onOpenModel }: { onOpenModel: (familyId: string, prompt?: string) => void }) {
   const { n } = useI18n();
-  const courses = published(COURSES);
+  const courses = usePublishedContent().courses;
   const [open, setOpen] = useState<Course | null>(null);
 
   return (

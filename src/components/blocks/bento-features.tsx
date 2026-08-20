@@ -4,11 +4,9 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 
 import { ModelMark } from "@/components/ModelMark";
-import { COURSES } from "@/data/academy";
-import { published } from "@/data/content";
+import { usePublishedContent } from "@/features/content/ContentProvider";
 import { FAMILIES, getFamily, type Family } from "@/data/models";
-import { PRESETS } from "@/data/presets";
-import { VOICES } from "@/data/voices";
+
 import { isVideoUrl } from "@/lib/format";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -134,7 +132,7 @@ function ImageGraphic() {
 }
 
 function VoiceGraphic() {
-  const voices = VOICES.slice(0, 3);
+  const voices = usePublishedContent().voices.slice(0, 3);
   return (
     <div className="absolute inset-0 flex flex-col justify-start gap-2.5 p-4 pb-24">
       <div className="flex h-20 items-center gap-[3px]" dir="ltr">
@@ -179,7 +177,7 @@ function VoiceGraphic() {
 }
 
 function EffectsGraphic() {
-  const effects = published(PRESETS).slice(0, 9);
+  const effects = usePublishedContent().presets.slice(0, 9);
   return (
     <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-1.5 p-2.5 pb-28">
       {effects.map((effect) => {
@@ -202,7 +200,7 @@ function EffectsGraphic() {
 }
 
 function AcademyGraphic() {
-  const courses = published(COURSES).slice(0, 3);
+  const courses = usePublishedContent().courses.slice(0, 3);
   return (
     <div className="absolute inset-0 flex flex-col justify-start gap-1.5 p-3 pb-24">
       {courses.slice(0, 2).map((course) => (
@@ -329,7 +327,13 @@ const FEATURE_LOOK: Record<string, { rgb: string; hex: string }> = {
   mcp: { rgb: "174 120 255", hex: "#ae78ff" },
 };
 
-const CARDS: Card[] = [
+/**
+ * A function rather than a constant, because one of the six counts is no longer
+ * knowable at module scope: the voice list is served, not imported, so it
+ * arrives through a hook inside the component below. The other five still come
+ * from FAMILIES, which is the catalogue and a separate move.
+ */
+const cards = (voiceCount: number): Card[] => [
   {
     key: "video",
     layout: "sm:min-h-[360px] lg:col-start-2 lg:row-start-1 lg:row-span-4 lg:min-h-0",
@@ -355,7 +359,7 @@ const CARDS: Card[] = [
     eyebrow: "lp_bento_voice",
     title: "lp_bento_voice_t",
     description: "lp_bento_voice_d",
-    counts: { n: VOICES.length },
+    counts: { n: voiceCount },
     graphic: <PlaceholderGraphic src="/features/placeholders/ai-voice.png" fallback={<VoiceGraphic />} />,
   },
   {
@@ -396,6 +400,9 @@ const CARDS: Card[] = [
 
 export function FeaturesBento() {
   const { t, n } = useI18n();
+  // The full list, not the three the voice panel shows — this is the count the
+  // card advertises.
+  const voiceCount = usePublishedContent().voices.length;
   const description = (card: Card) =>
     card.counts
       ? t(card.description)
@@ -405,7 +412,7 @@ export function FeaturesBento() {
 
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:h-[610px] lg:grid-cols-4 lg:grid-rows-6">
-      {CARDS.map((card, index) => (
+      {cards(voiceCount).map((card, index) => (
         <BentoCard
           key={card.key}
           dataFeature={card.key}

@@ -16,7 +16,5 @@ import { navPath } from "../src/runtime/router";
  */
 export default function NotFound() {
   const router = useRouter();
-  return (
-    <SystemState kind="not-found" onPrimary={() => router.replace(navPath("video"))} onSecondary={() => router.back()} />
-  );
+  return <SystemState kind="not-found" onPrimary={() => router.replace(navPath("video"))} onSecondary={() => router.back()} />;
 }

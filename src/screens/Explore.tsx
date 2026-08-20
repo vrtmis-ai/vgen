@@ -1,10 +1,10 @@
 import { ArrowUpRight, Image as ImageIcon, VideoCamera, MusicNote, GraduationCap, Terminal, FilmSlate } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
-import { FEATURED, type FeaturedItem } from "../data/featured";
+import { usePublishedContent } from "../features/content/ContentProvider";
+import { courseMinutes, LEVEL_LABEL } from "../features/content/labels";
+import type { Course, FeaturedItem, Preset } from "../runtime/contracts/content";
 import { COMMUNITY, type CommunityPost } from "../data/community";
-import { PRESETS } from "../data/presets";
-import { COURSES, courseMinutes, LEVEL_LABEL, type Course } from "../data/academy";
-import { published } from "../data/content";
+
 import { VendorMark } from "../components/VendorMark";
 import { faNum } from "../lib/format";
 import type { NavKey } from "../components/TopBar";
@@ -233,11 +233,9 @@ export default function Explore({
   const families = useCatalogFamilies();
   const getFamily = (id: string) => families.find((family) => family.id === id);
   const posts = COMMUNITY.filter((p) => p.status === "approved");
-  // Read admin-editable collections through `published()` — never the raw array.
-  // Drafts exist on purpose and must not leak onto a user surface.
-  const presets = published(PRESETS);
-  const courses = published(COURSES);
-  const featured = published(FEATURED);
+  // Already published and already ordered. The `published()` call that used to
+  // be here was a rule every screen had to remember; it is a WHERE clause now.
+  const { presets, courses, featured } = usePublishedContent();
 
   const heroCard = (f: FeaturedItem) => (
     <button
@@ -286,7 +284,7 @@ export default function Explore({
 
   /** Preset cards burn their label onto the art — the whole point is that you
    *  pick one without reading a model name or writing a prompt. */
-  const presetCard = (p: (typeof PRESETS)[number]) => (
+  const presetCard = (p: Preset) => (
     <button
       key={p.id}
       onClick={() => onOpen(p.familyId, p.prompt)}

@@ -4,6 +4,7 @@ import { useAppServices } from "../../runtime/AppServices";
 export const appQueryKeys = {
   session: ["session"] as const,
   catalog: ["catalog"] as const,
+  content: ["content"] as const,
   plans: ["plans"] as const,
   wallet: ["wallet"] as const,
 };
@@ -15,6 +16,25 @@ export function useSession() {
     queryFn: ({ signal }) => services.session.getCurrent({ signal }),
     staleTime: 30_000,
     retry: false,
+  });
+}
+
+/**
+ * The editorial content: presets, fragments, skills, the featured shelf,
+ * courses, examples and voices.
+ *
+ * Unconditional, like the plan ladder and unlike the catalogue. The landing
+ * page is not just plans and model names — its feature bento renders nine
+ * effects, three courses and three voices to a visitor who has no session yet,
+ * so gating this on `authed` would leave a signed-out landing page with three
+ * empty panels on it.
+ */
+export function useContent() {
+  const services = useAppServices();
+  return useQuery({
+    queryKey: appQueryKeys.content,
+    queryFn: ({ signal }) => services.content.list({ signal }),
+    staleTime: 5 * 60_000,
   });
 }
 

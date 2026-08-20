@@ -6,17 +6,29 @@ import { FAMILIES } from "../data/models";
 import { effectiveUsd, toman } from "../data/plans";
 import { PLAN_LADDER } from "../data/planLadder";
 import Landing, { HERO_MODEL_IDS } from "./Landing";
+import { ContentProvider } from "../features/content/ContentProvider";
+import { createDemoContentService } from "../adapters/demo/content";
+
+// The landing page's feature bento renders nine effects, three courses and a
+// voice count, all of which are served now rather than imported. The demo
+// service is the same committed snapshot the app uses with no backend, so
+// these tests read what a visitor with no session actually gets.
+const content = await createDemoContentService(() => 0).list();
+
+function withProviders(ui: React.ReactNode) {
+  return (
+    <LanguageProvider initialLang="en">
+      <ContentProvider content={content}>{ui}</ContentProvider>
+    </LanguageProvider>
+  );
+}
 
 // English, so the button assertions below read as the labels a reviewer sees.
 // This used to be seeded through localStorage; language now arrives as a prop
 // from the server, which is what lets <html dir> be correct in the first byte.
 describe("Landing authentication actions", () => {
   it("renders the DEEV product name", () => {
-    render(
-      <LanguageProvider initialLang="en">
-        <Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />
-      </LanguageProvider>,
-    );
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     expect(within(screen.getByRole("banner")).getByText("DEEV")).toBeInTheDocument();
   });
@@ -26,11 +38,7 @@ describe("Landing authentication actions", () => {
     const onSignIn = vi.fn();
     const onSignUp = vi.fn();
 
-    render(
-      <LanguageProvider initialLang="en">
-        <Landing plans={PLAN_LADDER} onSignIn={onSignIn} onSignUp={onSignUp} />
-      </LanguageProvider>,
-    );
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={onSignIn} onSignUp={onSignUp} />));
 
     const navigation = screen.getByRole("banner");
     await user.click(within(navigation).getByTestId("landing-login"));
@@ -62,11 +70,7 @@ describe("Landing hero model row", () => {
   });
 
   it("shows every one of them to the visitor", () => {
-    render(
-      <LanguageProvider initialLang="en">
-        <Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />
-      </LanguageProvider>,
-    );
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     for (const id of HERO_MODEL_IDS) {
       const family = FAMILIES.find((f) => f.id === id)!;
@@ -77,11 +81,7 @@ describe("Landing hero model row", () => {
 
 describe("Landing feature bento", () => {
   it("puts the product features before the showcase", () => {
-    const { container } = render(
-      <LanguageProvider initialLang="en">
-        <Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />
-      </LanguageProvider>,
-    );
+    const { container } = render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     const features = container.querySelector("#features");
     const showcase = container.querySelector("#showcase");
@@ -102,11 +102,7 @@ describe("Landing feature bento", () => {
 describe("Landing pricing", () => {
   it("separates personal and professional plans while keeping the cheapest plan first in RTL", async () => {
     const user = userEvent.setup();
-    render(
-      <LanguageProvider initialLang="en">
-        <Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />
-      </LanguageProvider>,
-    );
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     const personal = PLAN_LADDER.filter((plan) => plan.group === "entry").sort((a, b) => a.monthlyUsd - b.monthlyUsd);
     const professional = PLAN_LADDER.filter((plan) => plan.group === "main").sort((a, b) => a.monthlyUsd - b.monthlyUsd);
