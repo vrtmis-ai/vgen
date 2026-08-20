@@ -21,13 +21,20 @@ import {
   CalendarCheck,
   CaretDown,
   CheckCircle,
+  CircleNotch,
+  Crown,
+  Cube,
+  FilmSlate,
   ImageSquare,
   Info,
+  Leaf,
   Lightning,
   LockKey,
   MusicNotes,
   Sparkle,
+  TrendUp,
   VideoCamera,
+  Waves,
   X,
   XCircle,
 } from "@phosphor-icons/react";
@@ -47,6 +54,8 @@ import {
 } from "../data/plans";
 import { CoinMark } from "../components/chrome";
 import { useActiveCampaign } from "../features/session/useSession";
+import { useAppServices } from "../runtime/AppServices";
+import type { CheckoutOrder } from "../runtime/contracts/payment";
 import { useI18n } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
 
@@ -63,6 +72,22 @@ const PLAN_AUDIENCE_KEY = {
 /** Bar widths on the card face, in percent. Fixed rather than random so the
     glyph is the same on every render and every machine. */
 const VISUAL_BARS = [74, 52, 86, 63, 42, 70];
+/**
+ * One mark per plan, reading up the ladder: a leaf for the one you try, a block
+ * for the one you build small things with, a wave for steady output, a rising
+ * line for more of it, a bolt for daily production, a slate for professional
+ * work, a crown for the top. Seven identical bolts said nothing about which
+ * plan you were looking at, which is the one job this mark has.
+ */
+const PLAN_MARK = {
+  starter: Leaf,
+  basic: Cube,
+  flow: Waves,
+  plus: TrendUp,
+  pro: Lightning,
+  studio: FilmSlate,
+  creator: Crown,
+} as const;
 const PLAN_TOOL_KEYS = [
   "pl_tool_image",
   "pl_tool_video",
@@ -93,13 +118,20 @@ function PlanFeatures({ plan, compact = false }: { plan: Plan; compact?: boolean
   );
 }
 
+/**
+ * Green is what you are given: free generations, gift coins, the money an
+ * annual cycle keeps in your pocket. These were orange, which is the colour
+ * this system reserves for the thing to press — so a card could carry three
+ * oranges and none of them pointed at the buy button. Green splits the two
+ * apart: orange asks, green gives. `--color-success` already existed for it.
+ */
 function UnlimitedBenefit({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
   const { t, n } = useI18n();
   if (plan.tier < 2) return null;
   const isProTrial = plan.id === "pro";
   return (
-    <div className={`rounded-xl border border-[#ff982f]/30 bg-[#ff982f]/[0.08] ${compact ? "p-2" : "p-3"}`}>
-      <div className="flex items-center gap-2 text-[11px] font-bold text-[#ffad55]">
+    <div className={`rounded-xl border border-success/30 bg-success/[0.08] ${compact ? "p-2" : "p-3"}`}>
+      <div className="flex items-center gap-2 text-[11px] font-bold text-success">
         <Sparkle size={13} weight="fill" />
         {t(isProTrial ? "pl_unlimited_7d_title" : "pl_unlimited_title")}
       </div>
@@ -131,9 +163,12 @@ function PlanAccessList({ plan, compact = false }: { plan: Plan; compact?: boole
       <div className={`grid ${compact ? "grid-cols-2 gap-x-3 gap-y-1.5" : "grid-cols-1 gap-2"}`}>
         {rows.map((row) => {
           const Icon = row.active ? CheckCircle : XCircle;
+          // The free-generation row is something given rather than something
+          // included, so it ticks green while the rest of the list stays neutral.
+          const tick = !row.active ? "text-ink3/45" : row.key === "unlimited" ? "text-success" : "text-accent";
           return (
             <span key={row.key} className={`flex items-start gap-2 ${row.active ? "text-ink2" : "text-ink3/60"}`}>
-              <Icon size={compact ? 11 : 13} weight="fill" className={`mt-0.5 shrink-0 ${row.active ? "text-accent" : "text-ink3/45"}`} />
+              <Icon size={compact ? 11 : 13} weight="fill" className={`mt-0.5 shrink-0 ${tick}`} />
               <span className={row.active ? "" : "line-through decoration-ink3/35"}>{row.label}</span>
             </span>
           );
@@ -206,7 +241,11 @@ function TagChip({ plan }: { plan: Plan }) {
       style={
         plan.popular
           ? { background: "var(--color-accent)", color: "var(--color-on-accent)" }
-          : { background: "var(--color-card2)", color: "var(--color-ink2)" }
+          : // A gift tag names something given, so it takes the green the rest
+            // of the giving reads in rather than the neutral chip.
+            plan.tag === "gift"
+            ? { background: "color-mix(in srgb, var(--color-success) 12%, transparent)", color: "var(--color-success)" }
+            : { background: "var(--color-card2)", color: "var(--color-ink2)" }
       }
     >
       {t(TAG_KEY[plan.tag])}
@@ -404,12 +443,16 @@ function Price({ plan, cycle, account }: { plan: Plan; cycle: Cycle; account?: P
           {n(off)} {t("pl_save")}
         </div>
       )}
+      {/* Number and unit on one line, the cadence on its own beneath it. Run
+          together — "۸٬۳۳۰٬۰۰۰ تومان معادل ماهانه" — the figure and two
+          different qualifiers read as one long string and the price stops
+          being findable. And on the monthly cycle there is no "equivalent"
+          about it: that wording only means something next to an annual total. */}
       <div className="flex items-baseline gap-1.5">
-        <span className="font-display text-[22px] font-semibold leading-none tabular-nums">{n(toman(perMonth))}</span>
-        <span className="text-[11px] text-ink2">
-          {t("w_toman")} {t("pl_per_month")}
-        </span>
+        <span className="font-display text-[24px] font-semibold leading-none tabular-nums">{n(toman(perMonth))}</span>
+        <span className="text-[11.5px] text-ink2">{t("w_toman")}</span>
       </div>
+      <div className="mt-0.5 text-[10.5px] text-ink3">{t(annual ? "pl_per_month_equiv" : "pl_per_month")}</div>
       {annual && total != null && (
         <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink2">
           <CalendarCheck size={12} weight="fill" className="shrink-0 text-accent" />
@@ -417,7 +460,7 @@ function Price({ plan, cycle, account }: { plan: Plan; cycle: Cycle; account?: P
         </div>
       )}
       {annualSaving > 0 && (
-        <div className="mt-1 text-[10.5px] text-[#ff9b42]">{t("pl_save_amount").replace("{n}", n(toman(annualSaving)))}</div>
+        <div className="mt-1 text-[10.5px] text-success">{t("pl_save_amount").replace("{n}", n(toman(annualSaving)))}</div>
       )}
       {cycle === "annual" && plan.annualUsdPerMonth == null && <div className="mt-1 text-[10.5px] text-ink3">{t("pl_monthly_only")}</div>}
     </>
@@ -440,6 +483,7 @@ function PlanFlipShell({
   const { t, n } = useI18n();
   const [flipped, setFlipped] = useState(false);
   const audienceKey = PLAN_AUDIENCE_KEY[plan.id as keyof typeof PLAN_AUDIENCE_KEY];
+  const PlanMark = PLAN_MARK[plan.id as keyof typeof PLAN_MARK] ?? Lightning;
   const accents: Record<string, string> = {
     starter: "#77808c",
     basic: "#5b8ea9",
@@ -475,7 +519,7 @@ function PlanFlipShell({
               <span key={width} style={{ width: `${width}%`, animationDelay: `${index * 160}ms` }} />
             ))}
             <div className="plans-flip-visual__core">
-              <Lightning size={24} weight="fill" />
+              <PlanMark size={26} weight="fill" />
             </div>
           </div>
 
@@ -488,23 +532,26 @@ function PlanFlipShell({
                 </p>
               </div>
               {plan.bonus > 0 && (
-                <span className="rounded-full bg-[#ff982f]/10 px-2.5 py-1 text-[10px] text-[#ffad55]">
+                <span className="rounded-full bg-success/10 px-2.5 py-1 text-[10px] text-success">
                   +{n(plan.bonus)} {t("w_gift")}
                 </span>
               )}
             </div>
-            <div className={`mt-4 gap-3 ${compact ? "grid" : "flex items-end justify-between"}`}>
-              <div className="plans-flip-price min-w-0 text-start">
-                <Price plan={plan} cycle={cycle} account={account} />
-              </div>
-              <span
-                className={`flex items-center gap-1.5 text-[10px] font-semibold ${compact ? "justify-self-end" : ""}`}
-                style={{ color: "var(--plan-color)" }}
-              >
-                {t("pl_flip_details")}
-                <ArrowRight size={12} className="rtl:rotate-180" />
-              </span>
+            {/* The price gets the full width. It used to share a row with the
+                "see details" hint, and at 207px the two could not both fit —
+                the hint crushed down to 49px and the price clipped its own
+                last digit. A price on a pricing card is the last thing that
+                should be losing a fight for space. */}
+            <div className="plans-flip-price mt-4 min-w-0 text-start">
+              <Price plan={plan} cycle={cycle} account={account} />
             </div>
+            <span
+              className="mt-3 flex items-center justify-center gap-1.5 border-t border-line pt-2.5 text-[10.5px] font-semibold"
+              style={{ color: "var(--plan-color)" }}
+            >
+              {t("pl_flip_details")}
+              <ArrowRight size={12} className="rtl:rotate-180" />
+            </span>
           </div>
         </div>
 
@@ -604,10 +651,20 @@ function EntryCard({
   );
 }
 
+type CheckoutState =
+  | { status: "review" }
+  | { status: "submitting" }
+  | { status: "redirecting" }
+  | { status: "recorded"; order: CheckoutOrder }
+  | { status: "failed"; message: string };
+
 /**
- * Frontend-owned checkout review. It deliberately stops before order creation:
- * selecting and explaining a purchase belongs here, while creating an order,
- * reserving its price and returning a gateway URL belongs to the payments API.
+ * Confirm what is about to be bought, then hand off to the gateway.
+ *
+ * The sheet owns the review and the handoff; it owns no pricing. Every figure
+ * it shows is the same helper the cards use, and the figure that gets charged
+ * is the server's own — it is told a plan and a cycle, never an amount. The
+ * two can still be compared, which is the point of showing the total here.
  */
 function CheckoutSheet({
   plan,
@@ -621,9 +678,37 @@ function CheckoutSheet({
   onClose: () => void;
 }) {
   const { t, n } = useI18n();
+  const services = useAppServices();
   const annual = cycle === "annual" && plan.annualUsdPerMonth != null;
   const monthlyPrice = effectiveUsd(plan, annual, account);
   const total = annual ? annualTotalUsd(plan, account) : monthlyPrice;
+  const [state, setState] = useState<CheckoutState>({ status: "review" });
+
+  /**
+   * Confirm, then hand off. The server prices the order and answers with the
+   * gateway URL it registered — with Zibal that is the `start/{trackId}` page —
+   * and the browser leaves. It is a full navigation rather than a fetch because
+   * the person has to arrive at the bank on the gateway's own origin.
+   *
+   * When there is no gateway to go to, the sheet stops on the recorded order
+   * instead. That is demo mode's answer, and it is also what a person sees if
+   * the payments route is not live yet: an order that exists and a plain
+   * sentence about why nothing opened, rather than a button that does nothing.
+   */
+  async function confirm() {
+    setState({ status: "submitting" });
+    try {
+      const order = await services.payment.createOrder({ planId: plan.id, cycle: annual ? "annual" : "monthly" });
+      if (order.gatewayUrl) {
+        setState({ status: "redirecting" });
+        window.location.assign(order.gatewayUrl);
+        return;
+      }
+      setState({ status: "recorded", order });
+    } catch (error) {
+      setState({ status: "failed", message: error instanceof Error ? error.message : String(error) });
+    }
+  }
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -690,11 +775,48 @@ function CheckoutSheet({
 
         <p className="mt-3 text-[11px] leading-relaxed text-ink3">{t(annual ? "pl_checkout_annual_hint" : "pl_checkout_monthly_hint")}</p>
 
-        <button className="plans-modern-cta mt-5 w-full gap-2 py-3.5 text-[13px] font-bold" disabled>
-          <LockKey size={15} weight="fill" />
-          {t("pl_checkout_unavailable")}
-        </button>
-        <p className="mt-2 text-center text-[10.5px] leading-relaxed text-ink3">{t("pl_checkout_backend_note")}</p>
+        {state.status === "recorded" ? (
+          <div className="mt-5 rounded-bezel border border-accent/40 bg-accent-soft/25 p-4 text-center">
+            <CheckCircle size={26} weight="fill" className="mx-auto text-success" />
+            <p className="mt-2 text-[13px] font-bold">{t("pl_checkout_recorded")}</p>
+            {/* The server's own figure, not the one this screen calculated to
+                fill the row above. They should match; showing both is how a
+                disagreement becomes visible instead of becoming a support
+                ticket. */}
+            <p className="mt-1 text-[15px] font-semibold tabular-nums">
+              {n(state.order.amountToman)} {t("w_toman")}
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-ink2">{t("pl_checkout_recorded_sub")}</p>
+            <p dir="ltr" className="mt-2 font-mono text-[10.5px] text-ink3">
+              {state.order.orderId}
+            </p>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={confirm}
+              disabled={state.status === "submitting" || state.status === "redirecting"}
+              className="plans-modern-cta mt-5 w-full gap-2 py-3.5 text-[13px] font-bold"
+            >
+              {state.status === "submitting" || state.status === "redirecting" ? (
+                <>
+                  <CircleNotch size={15} weight="bold" className="animate-spin" />
+                  {t(state.status === "redirecting" ? "pl_checkout_redirecting" : "pl_checkout_submitting")}
+                </>
+              ) : (
+                <>
+                  <LockKey size={15} weight="fill" />
+                  {t("pl_checkout_pay").replace("{n}", n(toman(total ?? monthlyPrice)))}
+                </>
+              )}
+            </button>
+            {state.status === "failed" ? (
+              <p className="mt-2 text-center text-[10.5px] leading-relaxed text-[#ff8a8a]">{t("pl_checkout_failed")}</p>
+            ) : (
+              <p className="mt-2 text-center text-[10.5px] leading-relaxed text-ink3">{t("pl_checkout_gateway_note")}</p>
+            )}
+          </>
+        )}
       </section>
     </div>
   );

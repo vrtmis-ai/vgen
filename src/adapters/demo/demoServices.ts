@@ -5,6 +5,7 @@ import { createDemoCatalogService } from "./catalog";
 import { createDemoCommunityService } from "./community";
 import { createDemoContentService } from "./content";
 import { createDemoGenerationAdapters } from "./generation";
+import { createDemoPaymentService } from "./payment";
 import { createDemoPlansService } from "./plans";
 import { createDemoSessionService } from "./session";
 import { createDemoWalletService } from "./wallet";
@@ -34,6 +35,7 @@ export function createDemoServices(options: DemoServiceOptions = {}): AppService
     plans: createDemoPlansService(),
     wallet: createDemoWalletService(now),
     campaign: createDemoCampaignService(now),
+    payment: createDemoPaymentService(now),
     generation,
     gallery,
     assets,

@@ -8,6 +8,7 @@ import { createHttpCommunityService } from "./community";
 import { createHttpContentService } from "./content";
 import { createHttpGalleryService } from "./gallery";
 import { createHttpGenerationService } from "./generation";
+import { createHttpPaymentService } from "./payment";
 import { createHttpPlansService } from "./plans";
 import { createHttpSessionService } from "./session";
 import { createHttpWalletService } from "./wallet";
@@ -23,6 +24,7 @@ export function createHttpServices(baseUrl: string, getAccessToken?: () => Promi
     plans: createHttpPlansService(client),
     wallet: createHttpWalletService(client),
     campaign: createHttpCampaignService(client),
+    payment: createHttpPaymentService(client),
     generation: createHttpGenerationService(client),
     gallery: createHttpGalleryService(client),
     assets: createHttpAssetsService(client),

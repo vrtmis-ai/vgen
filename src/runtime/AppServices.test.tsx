@@ -19,6 +19,7 @@ const services = {
   plans: { list: vi.fn() },
   wallet: { getCurrent: vi.fn() },
   campaign: { getActive: vi.fn() },
+  payment: { createOrder: vi.fn() },
   generation: { quote: vi.fn(), create: vi.fn(), getJob: vi.fn() },
   gallery: { list: vi.fn() },
   assets: { upload: vi.fn() },
