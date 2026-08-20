@@ -7,6 +7,7 @@ import type {
   StartPhoneVerificationInput,
   VerifyPhoneInput,
 } from "./contracts/auth";
+import type { Campaign } from "./contracts/campaign";
 import type { CatalogSnapshot } from "./contracts/catalog";
 import type { ContentSnapshot } from "./contracts/content";
 import type { CommunityFeed } from "./contracts/community";
@@ -73,6 +74,14 @@ export interface AppServices {
   };
   wallet: {
     getCurrent(options?: RequestOptions): Promise<Wallet>;
+  };
+  /**
+   * The running price campaign, or null when there is none. Null is not an
+   * error — it is most of the year, and it is what makes the plans banner
+   * disappear rather than advertise a festival that is over.
+   */
+  campaign: {
+    getActive(options?: RequestOptions): Promise<Campaign | null>;
   };
   generation: {
     quote(request: QuoteGenerationRequest, options?: RequestOptions): Promise<GenerationQuote>;

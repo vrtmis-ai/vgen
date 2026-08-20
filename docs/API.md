@@ -45,9 +45,15 @@ gallery had no route at all.
 | `generation.getJob()`  | `GET /generation/jobs/:id` | `routes/jobs.ts`      | **Live** |
 | `gallery.list()`       | `GET /gallery`             | `routes/gallery.ts`   | **Live** |
 | `assets.upload()`      | `POST /assets`             | `routes/assets.ts`    | **Live** |
+| `campaign.getActive()` | `GET /campaigns/active`    | —                     | **404**  |
+| `payment.createOrder()`| `POST /payments/orders`    | —                     | **404**  |
 
-So `production` mode is now complete end to end: sign in, browse the catalogue,
-see a price, submit a generation, watch it run, and see the file it produced.
+So `production` mode is complete end to end for everything that existed before
+this branch: sign in, browse the catalogue, see a price, submit a generation,
+watch it run, and see the file it produced. The two routes above are what this
+branch adds a caller for and the server does not answer yet — the campaign strip
+renders nothing without one, and checkout stops on a notice rather than sending
+anyone to a gateway that was never registered.
 **In `demo` mode everything still works**, and demo mode now speaks the same
 vocabulary — a finished job is `succeeded`, not `done`, because that is the word
 the database uses and therefore the word that comes over the wire.
@@ -1253,6 +1259,39 @@ moved. CI runs that check over all 738 of them.
 
 So you can tell a gap from a bug:
 
+- **`GET /campaigns/active` — the plans strip is waiting on it.** The frontend
+  half is done and shipped: `campaign.getActive()` in `AppServices`, the HTTP
+  adapter at `src/adapters/http/campaign.ts`, and the shape it parses in
+  `src/runtime/contracts/campaign.ts`. Until the route exists, production mode
+  gets a rejected query and the strip simply does not render — which is the
+  intended fallback, not a bug to route around.
+
+  Answer either `null` (no campaign running — the ordinary case) or:
+
+  ```json
+  { "id": "nowruz-1405", "endsAt": 1755648000000, "maxDiscountPct": 22, "maxBonusCoins": 350 }
+  ```
+
+  `endsAt` **must be an absolute epoch-milliseconds instant, never a remaining
+  duration.** The strip counts down to it, prints "limited time" beside the
+  clock, and removes itself at zero. A duration restarts on every page load, so
+  the countdown never ends and the urgency next to it is a lie — which is
+  exactly the bug this route replaces. `maxDiscountPct` and `maxBonusCoins` are
+  what the strip prints, so they have to be the numbers checkout will honour.
+- **`POST /payments/orders` — the buy button reaches for it.** Body is
+  `{ planId, cycle }` and nothing else: the browser never sends an amount, so
+  the figure it showed and the figure charged cannot be two calculations that
+  disagree. Price the plan server-side, reserve that price, register the payment
+  with the gateway, and answer:
+
+  ```json
+  { "orderId": "…", "amountToman": 8330000, "gatewayUrl": "https://gateway.zibal.ir/start/…" }
+  ```
+
+  `gatewayUrl` may be `null`, which means the order is recorded but there is
+  nowhere to send the person; the sheet stops on a neutral notice rather than
+  navigating. `amountToman` is cross-checked against what the sheet displayed and
+  a mismatch is surfaced before anyone pays.
 - **useapi, so unlimited generation cannot actually generate.** A tier-3
   customer is quoted free, the submission succeeds, and the job then fails with
   `provider_unavailable` and a full refund of the day's allowance. Nothing is

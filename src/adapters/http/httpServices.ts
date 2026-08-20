@@ -1,6 +1,7 @@
 import type { AppServices } from "../../runtime/AppServices";
 import { createHttpAssetsService } from "./assets";
 import { createHttpAuthService } from "./auth";
+import { createHttpCampaignService } from "./campaign";
 import { createHttpCatalogService } from "./catalog";
 import { createHttpClient } from "./client";
 import { createHttpCommunityService } from "./community";
@@ -21,6 +22,7 @@ export function createHttpServices(baseUrl: string, getAccessToken?: () => Promi
     community: createHttpCommunityService(client),
     plans: createHttpPlansService(client),
     wallet: createHttpWalletService(client),
+    campaign: createHttpCampaignService(client),
     generation: createHttpGenerationService(client),
     gallery: createHttpGalleryService(client),
     assets: createHttpAssetsService(client),

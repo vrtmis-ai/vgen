@@ -46,6 +46,7 @@ import {
   type PricingAccount,
 } from "../data/plans";
 import { CoinMark } from "../components/chrome";
+import { useActiveCampaign } from "../features/session/useSession";
 import { useI18n } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
 
@@ -59,8 +60,9 @@ const PLAN_AUDIENCE_KEY = {
   studio: "pl_for_studio",
   creator: "pl_for_creator",
 } as const;
-const MAX_FESTIVAL_BONUS = Math.max(...PLANS.map((plan) => plan.bonus));
-const DEMO_FESTIVAL_SECONDS = 3 * 24 * 60 * 60 + 8 * 60 * 60 + 30 * 60;
+/** Bar widths on the card face, in percent. Fixed rather than random so the
+    glyph is the same on every render and every machine. */
+const VISUAL_BARS = [74, 52, 86, 63, 42, 70];
 const PLAN_TOOL_KEYS = [
   "pl_tool_image",
   "pl_tool_video",
@@ -301,16 +303,30 @@ function CycleToggle({ cycle, onChange }: { cycle: Cycle; onChange: (c: Cycle) =
   );
 }
 
-/** Visual campaign timer. Replace DEMO_FESTIVAL_SECONDS with an API-provided
- * end timestamp when campaigns are connected; the presentation stays intact. */
+/**
+ * The campaign banner, counted down against the campaign's own end instant.
+ *
+ * Renders nothing at all when the API has no campaign to report, and removes
+ * itself the second the countdown reaches zero. Both matter: this banner says
+ * "last chance" and "limited time" next to a clock, and a clock that restarts
+ * on reload — which is what a hardcoded duration gives you — makes both of
+ * those statements false. The headline discount and bonus are the server's
+ * numbers too, so the banner cannot promise a rate the checkout will not honour.
+ */
 function FestivalBanner({ onSeePlans }: { onSeePlans: () => void }) {
   const { t, n, lang } = useI18n();
-  const [remaining, setRemaining] = useState(DEMO_FESTIVAL_SECONDS);
+  const { data: campaign } = useActiveCampaign();
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    const timer = window.setInterval(() => setRemaining((value) => (value > 0 ? value - 1 : 0)), 1000);
+    if (!campaign) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [campaign]);
+
+  if (!campaign) return null;
+  const remaining = Math.max(0, Math.floor((campaign.endsAt - now) / 1000));
+  if (remaining <= 0) return null;
 
   const days = Math.floor(remaining / 86400);
   const hours = Math.floor((remaining % 86400) / 3600);
@@ -337,10 +353,10 @@ function FestivalBanner({ onSeePlans }: { onSeePlans: () => void }) {
             </span>
           </div>
           <h2 className="mt-3 max-w-[600px] font-display text-[24px] font-extrabold leading-tight md:text-[30px]">
-            {t("pl_festival_title")}
+            {t("pl_festival_title").replace("{pct}", n(campaign.maxDiscountPct))}
           </h2>
           <p className="mt-2 max-w-[620px] text-[12px] leading-relaxed text-white/70 md:text-[13px]">
-            {t("pl_festival_sub").replace("{n}", n(MAX_FESTIVAL_BONUS))}
+            {t("pl_festival_sub").replace("{n}", n(campaign.maxBonusCoins))}
           </p>
           <button onClick={onSeePlans} className="plans-modern-cta mt-4 gap-2 px-4 py-2.5 text-[12px] font-bold">
             {t("pl_festival_cta")}
@@ -455,8 +471,12 @@ function PlanFlipShell({
           </div>
 
           <div className="plans-flip-visual" aria-hidden>
-            <img src={`/plan-art/${plan.id}.png`} alt="" loading="lazy" />
-            <span className="plans-flip-visual__veil" />
+            {VISUAL_BARS.map((width, index) => (
+              <span key={width} style={{ width: `${width}%`, animationDelay: `${index * 160}ms` }} />
+            ))}
+            <div className="plans-flip-visual__core">
+              <Lightning size={24} weight="fill" />
+            </div>
           </div>
 
           <div className="relative z-10 mt-auto">
