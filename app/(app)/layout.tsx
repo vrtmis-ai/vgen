@@ -7,8 +7,9 @@ import { AppLoading } from "../../src/components/AppLoading";
 import { OAuthFailureNotice } from "../../src/components/OAuthFailureNotice";
 import { SystemState } from "../../src/components/SystemState";
 import { CatalogProvider } from "../../src/features/catalog/CatalogProvider";
+import { ContentProvider } from "../../src/features/content/ContentProvider";
 import { PlansProvider } from "../../src/features/plans/PlansProvider";
-import { useCatalog, usePlans, useSession, useWallet } from "../../src/features/session/useSession";
+import { useCatalog, useCommunityFeed, useContent, usePlans, useSession, useWallet } from "../../src/features/session/useSession";
 import { AccessProvider } from "../../src/lib/access";
 import { useOnlineStatus } from "../../src/lib/useOnlineStatus";
 import Landing from "../../src/screens/Landing";
@@ -20,6 +21,7 @@ import { SessionProvider } from "../../src/runtime/providers/SessionProvider";
 import type { AccountUser } from "../../src/runtime/contracts/session";
 import type { Wallet } from "../../src/runtime/contracts/wallet";
 import type { CatalogSnapshot } from "../../src/runtime/contracts/catalog";
+import type { ContentSnapshot } from "../../src/runtime/contracts/content";
 import type { Plan } from "../../src/runtime/contracts/plans";
 
 /**
@@ -46,10 +48,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const authed = session.status === "authed";
   const walletQuery = useWallet(authed);
   const catalogQuery = useCatalog(authed);
-  // Not gated on `authed`: the landing page prices two plans for a visitor who
-  // has no session yet, and the padlocks below need the same ladder to name
-  // what would unlock a family.
+
+  // Neither of these is gated on `authed`: the landing page prices two plans
+  // for a visitor who has no session yet, its feature bento renders effects,
+  // courses and voices, and the padlocks below need the ladder to name what
+  // would unlock a family.
   const plansQuery = usePlans();
+  const contentQuery = useContent();
+  const communityQuery = useCommunityFeed();
 
   if (!online) {
     return <SystemState kind="offline" onPrimary={() => window.dispatchEvent(new Event(navigator.onLine ? "online" : "offline"))} />;
@@ -88,6 +94,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       />
     );
   }
+  if (contentQuery.error) {
+    return (
+      <SystemState
+        kind="service"
+        title="محتوای منتشرشده بارگذاری نشد"
+        description="افکت‌ها، دوره‌ها و قفسه ویژه در دسترس نیستند. تا دریافت نسخه معتبر چیزی نشان داده نمی‌شود — نمایش نسخه قدیمی یعنی چیزی که برداشته شده هنوز دیده شود."
+        onPrimary={() => void contentQuery.refetch()}
+        requestId={contentQuery.error instanceof ApiError ? contentQuery.error.requestId : undefined}
+        busy={contentQuery.isFetching}
+      />
+    );
+  }
   if (catalogQuery.error) {
     return (
       <SystemState
@@ -103,16 +121,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   if (session.status === "loading") return <AppLoading label="در حال بررسی نشست کاربری…" />;
   // The ladder gates the landing page too, not just the app: it prices two plans
   // for a visitor who has no session yet, so there is nothing to paint until it lands.
-  if (!plansQuery.data) return <AppLoading />;
+  if (!plansQuery.data || !contentQuery.data) return <AppLoading />;
   /* A social sign-in that fails lands back here, anonymous, with `?auth=<code>`
      in the URL and no other trace — so the notice belongs on the one branch that
      renders for a signed-out visitor, not inside the landing page's own markup. */
   if (session.status === "anonymous")
     return (
-      <>
+      <ContentProvider content={contentQuery.data}>
         <OAuthFailureNotice />
-        <Landing plans={plansQuery.data} onSignIn={authActions.signIn} onSignUp={authActions.signUp} />
-      </>
+        {/* `posts` is not gated above with plans and content: an empty showcase
+            strip is a much smaller failure than a landing page that refuses to
+            paint until other people's posts have loaded. */}
+        <Landing
+          plans={plansQuery.data}
+          posts={communityQuery.data?.posts ?? []}
+          onSignIn={authActions.signIn}
+          onSignUp={authActions.signUp}
+        />
+      </ContentProvider>
     );
   if (!walletQuery.data || !catalogQuery.data) return <AppLoading />;
 
@@ -131,6 +157,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         user={session.user}
         wallet={walletQuery.data}
         families={catalogQuery.data.families}
+        content={contentQuery.data}
         plans={plansQuery.data}
         authActions={authActions}
       >
@@ -145,6 +172,7 @@ function AuthedTree({
   user,
   wallet,
   families,
+  content,
   plans,
   authActions,
   children,
@@ -152,6 +180,7 @@ function AuthedTree({
   user: AccountUser;
   wallet: Wallet;
   families: CatalogSnapshot["families"];
+  content: ContentSnapshot;
   plans: readonly Plan[];
   authActions: AuthActions;
   children: ReactNode;
@@ -166,7 +195,9 @@ function AuthedTree({
       <PlansProvider plans={plans}>
         <AccessProvider planId={null} onUpgrade={openWallet}>
           <CatalogProvider families={families}>
-            <GenerationsProvider>{children}</GenerationsProvider>
+            <ContentProvider content={content}>
+              <GenerationsProvider>{children}</GenerationsProvider>
+            </ContentProvider>
           </CatalogProvider>
         </AccessProvider>
       </PlansProvider>

@@ -5,7 +5,7 @@ import type { InputMap } from "./controls";
 import { useCreateState, valueLabel, rangeOf } from "../lib/useCreateState";
 import { ModelPicker } from "./ModelPicker";
 import { PresetPicker } from "./PresetPicker";
-import type { Preset } from "../data/presets";
+import type { Preset } from "../runtime/contracts/content";
 import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
 import { CoinMark } from "./chrome";

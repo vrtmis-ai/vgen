@@ -8,6 +8,7 @@ export interface IdGenerator {
 
 export type { InputMap, InputValue } from "./types";
 export { applyParamOverrides, isEmptyOverrides, type ParamOverrides } from "./paramOverrides";
+export { UnknownContentKindError, toContentItem, type ContentSeedRow, type ParsedContentItem } from "./contentItems";
 export {
   WeakPasswordError,
   assertUsablePassword,

@@ -1,0 +1,1964 @@
+{
+  "$comment": [
+    "The editorial content the product is made of, as seed rows for content_items.",
+    "",
+    "Committed for the same reason pricing.rows.json is: CI builds an empty",
+    "database every run, so the rows have to live in the repository. Generated",
+    "once from the seven src/data TypeScript modules this replaces, which is why",
+    "every code below is the id those modules already used - an admin edit keyed",
+    "to p1 survives a re-seed because the seeder matches on (kind, code).",
+    "",
+    "The seeder writes text and order. It never writes status on a row that",
+    "already exists, and it never deletes: pulling something is a decision a",
+    "person made about what the public sees, and a seed run must not reverse it.",
+    "",
+    "KNOWN DUPLICATION: every one of the ten example rows is byte-identical to",
+    "one of the ten community posts in src/data/community.ts - same seed, same",
+    "prompt. They were always two views of one placeholder set. Explore reads",
+    "examples today so they are seeded, but when community posts become real",
+    "rows in posts, this kind should be deleted rather than maintained."
+  ],
+  "rows": [
+    {
+      "status": "published",
+      "title": "زوم زمین",
+      "subtitle": null,
+      "body": "extreme continuous zoom out from a close-up, pulling back through the atmosphere until the whole planet fills frame, seamless, cinematic, of ",
+      "category": "camera",
+      "familyCode": "seedance",
+      "seed": "vgen-earthzoom",
+      "payload": {
+        "kind": "video",
+        "openEnded": true,
+        "badge": "پرطرفدار"
+      },
+      "kind": "preset",
+      "code": "p1",
+      "sortOrder": 10
+    },
+    {
+      "status": "published",
+      "title": "مجسمه یخی",
+      "subtitle": null,
+      "body": "subject slowly crystallising into translucent ice, frost creeping across the surface, cold rim light, shallow depth of field, of ",
+      "category": "transform",
+      "familyCode": "seedance",
+      "seed": "vgen-ice",
+      "payload": {
+        "kind": "video",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p2",
+      "sortOrder": 20
+    },
+    {
+      "status": "published",
+      "title": "چرخش ۳۶۰",
+      "subtitle": null,
+      "body": "smooth 360 degree orbital camera move around the subject, locked framing, cinematic lens, even lighting, of ",
+      "category": "camera",
+      "familyCode": "kling",
+      "seed": "vgen-orbit",
+      "payload": {
+        "kind": "video",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p3",
+      "sortOrder": 30
+    },
+    {
+      "status": "published",
+      "title": "پرواز آزاد",
+      "subtitle": null,
+      "body": "subject in free fall against open sky, clothes and hair whipping in the wind, camera falling alongside, of ",
+      "category": "camera",
+      "familyCode": "seedance",
+      "seed": "vgen-freefall",
+      "payload": {
+        "kind": "video",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p4",
+      "sortOrder": 40
+    },
+    {
+      "status": "published",
+      "title": "فرش قرمز",
+      "subtitle": null,
+      "body": "walking a red carpet under a storm of paparazzi flashes, shallow depth of field, glamour lighting, of ",
+      "category": "vfx",
+      "familyCode": "kling",
+      "seed": "vgen-redcarpet",
+      "payload": {
+        "kind": "video",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p5",
+      "sortOrder": 50
+    },
+    {
+      "status": "published",
+      "title": "شهر نئون",
+      "subtitle": null,
+      "body": "slow dolly through a rain-slicked neon city street at night, reflective puddles, volumetric haze, of ",
+      "category": "vfx",
+      "familyCode": "seedance",
+      "seed": "vgen-neoncity",
+      "payload": {
+        "kind": "video",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p6",
+      "sortOrder": 60
+    },
+    {
+      "status": "published",
+      "title": "دید در شب",
+      "subtitle": null,
+      "body": "grainy green night-vision footage, handheld, slight sensor bloom, surveillance framing, of ",
+      "category": "vfx",
+      "familyCode": "kling",
+      "seed": "vgen-nightvision",
+      "payload": {
+        "kind": "video",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p7",
+      "sortOrder": 70
+    },
+    {
+      "status": "published",
+      "title": "برش مقوایی",
+      "subtitle": null,
+      "body": "subject rendered as a flat cardboard cut-out animated in a real environment, stop-motion feel, of ",
+      "category": "transform",
+      "familyCode": "seedance",
+      "seed": "vgen-cardboard",
+      "payload": {
+        "kind": "video",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p8",
+      "sortOrder": 80
+    },
+    {
+      "status": "published",
+      "title": "پرترهٔ سینمایی",
+      "subtitle": null,
+      "body": "cinematic portrait, dramatic rim lighting, 85mm, shallow depth of field, film grain, ultra detailed, of ",
+      "category": "portrait",
+      "familyCode": "nano-banana",
+      "seed": "vgen-cineportrait",
+      "payload": {
+        "kind": "image",
+        "openEnded": true,
+        "badge": "پرطرفدار"
+      },
+      "kind": "preset",
+      "code": "p9",
+      "sortOrder": 90
+    },
+    {
+      "status": "published",
+      "title": "محصول لاکچری",
+      "subtitle": null,
+      "body": "luxury product photography on white marble, soft studio lighting, elegant reflections, of ",
+      "category": "product",
+      "familyCode": "seedream",
+      "seed": "vgen-luxeproduct",
+      "payload": {
+        "kind": "image",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p10",
+      "sortOrder": 100
+    },
+    {
+      "status": "published",
+      "title": "پوستر تایپوگرافی",
+      "subtitle": null,
+      "body": "bold minimalist typographic poster, bauhaus grid, high contrast, the text reads ",
+      "category": "product",
+      "familyCode": "ideogram",
+      "seed": "vgen-typoposter",
+      "payload": {
+        "kind": "image",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p11",
+      "sortOrder": 110
+    },
+    {
+      "status": "published",
+      "title": "تبدیل به کارتون",
+      "subtitle": null,
+      "body": "redraw as a clean 2D animation cel, flat colour, confident linework, expressive, of ",
+      "category": "transform",
+      "familyCode": "nano-banana",
+      "seed": "vgen-toon",
+      "payload": {
+        "kind": "image",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p12",
+      "sortOrder": 120
+    },
+    {
+      "status": "published",
+      "title": "عکس قدیمی",
+      "subtitle": null,
+      "body": "1970s film photograph, faded colour, halation, visible grain, slightly soft focus, of ",
+      "category": "transform",
+      "familyCode": "seedream",
+      "seed": "vgen-vintage",
+      "payload": {
+        "kind": "image",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p13",
+      "sortOrder": 130
+    },
+    {
+      "status": "published",
+      "title": "مینیاتور ایزومتریک",
+      "subtitle": null,
+      "body": "isometric miniature diorama, tilt-shift, pastel palette, highly detailed, of ",
+      "category": "product",
+      "familyCode": "gpt-image",
+      "seed": "vgen-iso",
+      "payload": {
+        "kind": "image",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p14",
+      "sortOrder": 140
+    },
+    {
+      "status": "published",
+      "title": "استودیوی سه‌بعدی",
+      "subtitle": null,
+      "body": "clean 3D render on a seamless backdrop, soft global illumination, subtle shadows, product-shot framing, of ",
+      "category": "product",
+      "familyCode": "flux",
+      "seed": "vgen-3drender",
+      "payload": {
+        "kind": "image",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p15",
+      "sortOrder": 150
+    },
+    {
+      "status": "published",
+      "title": "نور طلایی",
+      "subtitle": null,
+      "body": "golden hour backlight, warm haze, lens flare, soft skin falloff, of ",
+      "category": "portrait",
+      "familyCode": "nano-banana",
+      "seed": "vgen-goldenhour",
+      "payload": {
+        "kind": "image",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p16",
+      "sortOrder": 160
+    },
+    {
+      "status": "published",
+      "title": "انفجار",
+      "subtitle": null,
+      "body": "slow motion explosion behind the subject, debris and embers, heat distortion, anamorphic, of ",
+      "category": "vfx",
+      "familyCode": "seedance",
+      "seed": "vgen-explosion",
+      "payload": {
+        "kind": "video",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p17",
+      "sortOrder": 170
+    },
+    {
+      "status": "published",
+      "title": "قاب سیاه‌وسفید",
+      "subtitle": null,
+      "body": "high contrast black and white portrait, hard key light, deep shadows, of ",
+      "category": "portrait",
+      "familyCode": "seedream",
+      "seed": "vgen-bw",
+      "payload": {
+        "kind": "image",
+        "openEnded": true
+      },
+      "kind": "preset",
+      "code": "p18",
+      "sortOrder": 180
+    },
+    {
+      "status": "published",
+      "title": "نمای ثابت",
+      "subtitle": "وقتی خود سوژه به‌اندازه‌ی کافی حرکت دارد.",
+      "body": "static shot, locked-off camera, no movement",
+      "category": "camera",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "c1",
+      "sortOrder": 10
+    },
+    {
+      "status": "published",
+      "title": "پن به راست",
+      "subtitle": "برای نشان دادن عرض یک فضا.",
+      "body": "smooth pan right, tripod-mounted",
+      "category": "camera",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "c2",
+      "sortOrder": 20
+    },
+    {
+      "status": "published",
+      "title": "تیلت رو به بالا",
+      "subtitle": "ارتفاع را بزرگ نشان می‌دهد — ساختمان، درخت، آدم.",
+      "body": "slow tilt up, revealing",
+      "category": "camera",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "c3",
+      "sortOrder": 30
+    },
+    {
+      "status": "published",
+      "title": "زوم آهسته به داخل",
+      "subtitle": "توجه را جمع می‌کند. کلیشه‌ای اما همیشه کار می‌کند.",
+      "body": "slow push in, subtle zoom toward the subject",
+      "category": "camera",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "c4",
+      "sortOrder": 40
+    },
+    {
+      "status": "published",
+      "title": "دالی زوم",
+      "subtitle": "حس اضطراب و ناپایداری. کم استفاده کن.",
+      "body": "dolly zoom, vertigo effect, background warping",
+      "category": "camera",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "c5",
+      "sortOrder": 50
+    },
+    {
+      "status": "published",
+      "title": "دالی به داخل",
+      "subtitle": "مثل زوم اما پرسپکتیو عوض می‌شود — طبیعی‌تر است.",
+      "body": "dolly in, camera physically moving forward, steady",
+      "category": "camera",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "c6",
+      "sortOrder": 60
+    },
+    {
+      "status": "published",
+      "title": "مدار دور سوژه",
+      "subtitle": "سوژه را قهرمان می‌کند. برای محصول و پرتره.",
+      "body": "orbiting drone shot, circling the subject, smooth arc",
+      "category": "camera",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "c7",
+      "sortOrder": 70
+    },
+    {
+      "status": "published",
+      "title": "عقب‌کشیدن هوایی",
+      "subtitle": "پایان‌بندی. مقیاس را نشان می‌دهد.",
+      "body": "aerial pullback, rising and retreating, wide reveal",
+      "category": "camera",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "c8",
+      "sortOrder": 80
+    },
+    {
+      "status": "published",
+      "title": "کرین رو به بالا",
+      "subtitle": "از صحنه فاصله می‌گیرد بدون اینکه رهایش کند.",
+      "body": "crane up, camera rising smoothly above eye level",
+      "category": "camera",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "c9",
+      "sortOrder": 90
+    },
+    {
+      "status": "published",
+      "title": "دوربین روی دست",
+      "subtitle": "واقع‌گرایی. برای صحنه‌های تنش‌دار.",
+      "body": "handheld, subtle camera shake, documentary feel",
+      "category": "camera",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "c10",
+      "sortOrder": 100
+    },
+    {
+      "status": "published",
+      "title": "تعقیب از پشت",
+      "subtitle": "بیننده را همراه سوژه می‌کند.",
+      "body": "tracking shot following behind the subject, steadicam",
+      "category": "camera",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "c11",
+      "sortOrder": 110
+    },
+    {
+      "status": "published",
+      "title": "نور طلایی غروب",
+      "subtitle": "بی‌خطرترین نور. تقریباً همه‌چیز را بهتر می‌کند.",
+      "body": "golden hour lighting, warm low sun, long soft shadows",
+      "category": "lighting",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "l1",
+      "sortOrder": 120
+    },
+    {
+      "status": "published",
+      "title": "کنتراست شدید",
+      "subtitle": "دراماتیک. جزئیات را در سایه از دست می‌دهی.",
+      "body": "high contrast chiaroscuro lighting, deep shadows, single hard source",
+      "category": "lighting",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "l2",
+      "sortOrder": 130
+    },
+    {
+      "status": "published",
+      "title": "نور نرم پخش",
+      "subtitle": "برای پرتره و محصول. تمیز و بی‌ادعا.",
+      "body": "soft diffused lighting, large softbox, even and shadowless",
+      "category": "lighting",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "l3",
+      "sortOrder": 140
+    },
+    {
+      "status": "published",
+      "title": "نور پس‌زمینه",
+      "subtitle": "سوژه را از پس‌زمینه جدا می‌کند.",
+      "body": "backlit, rim light separating subject from background, glowing edge",
+      "category": "lighting",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "l4",
+      "sortOrder": 150
+    },
+    {
+      "status": "published",
+      "title": "نئون شبانه",
+      "subtitle": "سایبرپانک. با شهر و باران بهترین است.",
+      "body": "neon night lighting, magenta and cyan practical lights, wet reflective ground",
+      "category": "lighting",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "l5",
+      "sortOrder": 160
+    },
+    {
+      "status": "published",
+      "title": "نور تک‌منبع پنجره",
+      "subtitle": "صمیمی و آرام. برای صحنه‌های داخلی.",
+      "body": "single window light, natural, soft falloff to shadow",
+      "category": "lighting",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "l6",
+      "sortOrder": 170
+    },
+    {
+      "status": "published",
+      "title": "مه و پرتو نور",
+      "subtitle": "عمق می‌سازد. نور را دیدنی می‌کند.",
+      "body": "volumetric light rays through haze, god rays, atmospheric fog",
+      "category": "lighting",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "l7",
+      "sortOrder": 180
+    },
+    {
+      "status": "published",
+      "title": "کلوزآپ",
+      "subtitle": "برای احساس. صورت، دست، جزئیات.",
+      "body": "extreme close-up, shallow depth of field",
+      "category": "lens",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "n1",
+      "sortOrder": 190
+    },
+    {
+      "status": "published",
+      "title": "نمای متوسط",
+      "subtitle": "پیش‌فرض امن برای آدم‌ها.",
+      "body": "medium shot, waist up, natural perspective",
+      "category": "lens",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "n2",
+      "sortOrder": 200
+    },
+    {
+      "status": "published",
+      "title": "نمای باز",
+      "subtitle": "جایی که هستیم را می‌گوید.",
+      "body": "wide establishing shot, subject small in frame",
+      "category": "lens",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "n3",
+      "sortOrder": 210
+    },
+    {
+      "status": "published",
+      "title": "عمق میدان کم",
+      "subtitle": "پس‌زمینه‌ی شلوغ را حل می‌کند.",
+      "body": "shot on 85mm, f/1.4, creamy bokeh, background melted",
+      "category": "lens",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "n4",
+      "sortOrder": 220
+    },
+    {
+      "status": "published",
+      "title": "لنز واید",
+      "subtitle": "فضا را بزرگ‌تر نشان می‌دهد.",
+      "body": "shot on 24mm wide-angle lens, slight distortion, immersive",
+      "category": "lens",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "n5",
+      "sortOrder": 230
+    },
+    {
+      "status": "published",
+      "title": "آنامورفیک",
+      "subtitle": "حس سینمای اکران.",
+      "body": "anamorphic lens, 2.39:1, horizontal lens flares, oval bokeh",
+      "category": "lens",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "n6",
+      "sortOrder": 240
+    },
+    {
+      "status": "published",
+      "title": "زاویه‌ی پایین",
+      "subtitle": "سوژه را قدرتمند نشان می‌دهد.",
+      "body": "low angle shot, camera below eye level, looking up",
+      "category": "lens",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "n7",
+      "sortOrder": 250
+    },
+    {
+      "status": "published",
+      "title": "نمای از بالا",
+      "subtitle": "برای محصول، غذا، و نقشه‌ی صحنه.",
+      "body": "top-down overhead shot, flat lay perspective",
+      "category": "lens",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "n8",
+      "sortOrder": 260
+    },
+    {
+      "status": "published",
+      "title": "حرکت آهسته",
+      "subtitle": "جزئیات حرکت را دیدنی می‌کند.",
+      "body": "slow motion, 120fps, fluid and weighted",
+      "category": "motion",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "m1",
+      "sortOrder": 270
+    },
+    {
+      "status": "published",
+      "title": "چرخش آرام محصول",
+      "subtitle": "استاندارد ویترین محصول.",
+      "body": "product rotating slowly on a turntable, seamless loop",
+      "category": "motion",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "m2",
+      "sortOrder": 280
+    },
+    {
+      "status": "published",
+      "title": "پارچه در باد",
+      "subtitle": "حرکت بدون اینکه سوژه جا عوض کند.",
+      "body": "fabric billowing in slow wind, natural cloth simulation",
+      "category": "motion",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "m3",
+      "sortOrder": 290
+    },
+    {
+      "status": "published",
+      "title": "قدم‌زدن به سمت دوربین",
+      "subtitle": "معرفی شخصیت.",
+      "body": "subject walking toward camera, confident steady pace",
+      "category": "motion",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "m4",
+      "sortOrder": 300
+    },
+    {
+      "status": "published",
+      "title": "ذرات معلق",
+      "subtitle": "فضا را زنده می‌کند. با نور پس‌زمینه عالی است.",
+      "body": "dust particles floating in the air, catching the light",
+      "category": "motion",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "m5",
+      "sortOrder": 310
+    },
+    {
+      "status": "published",
+      "title": "سینمایی سرد",
+      "subtitle": "پرکاربردترین گرید سینمای امروز.",
+      "body": "cinematic color grade, teal shadows, orange highlights",
+      "category": "grade",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "g1",
+      "sortOrder": 320
+    },
+    {
+      "status": "published",
+      "title": "فیلم ۳۵ میلی‌متری",
+      "subtitle": "گرمای آنالوگ. نقص‌هایش عمدی است.",
+      "body": "shot on 35mm film, visible grain, halation, Kodak Portra palette",
+      "category": "grade",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "g2",
+      "sortOrder": 330
+    },
+    {
+      "status": "published",
+      "title": "دهه‌ی هفتاد",
+      "subtitle": "نوستالژی بدون اینکه کهنه به‌نظر برسد.",
+      "body": "1970s film stock, faded warm tones, soft contrast",
+      "category": "grade",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "g3",
+      "sortOrder": 340
+    },
+    {
+      "status": "published",
+      "title": "سیاه‌وسفید پرکنتراست",
+      "subtitle": "وقتی رنگ حواس را پرت می‌کند.",
+      "body": "high contrast black and white, deep blacks, silver gelatin print",
+      "category": "grade",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "g4",
+      "sortOrder": 350
+    },
+    {
+      "status": "published",
+      "title": "روشن و تمیز",
+      "subtitle": "برای تبلیغات و لایف‌استایل.",
+      "body": "bright airy clean look, low contrast, pastel palette",
+      "category": "grade",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "g5",
+      "sortOrder": 360
+    },
+    {
+      "status": "published",
+      "title": "تاریک و دلگیر",
+      "subtitle": "تریلر و درام.",
+      "body": "desaturated moody grade, cold blue cast, heavy shadows",
+      "category": "grade",
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "prompt_fragment",
+      "code": "g6",
+      "sortOrder": 370
+    },
+    {
+      "status": "published",
+      "title": "ویدیوی معرفی محصول",
+      "subtitle": "از یک عکس محصول تا یک ویدیوی کوتاه با گویندهٔ فارسی — سه مرحله، یک دکمه.",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": "vgen-skill-ugc",
+      "payload": {
+        "coins": 210,
+        "steps": [
+          {
+            "label": "پاک‌کردن پس‌زمینهٔ عکس محصول",
+            "familyId": "recraft"
+          },
+          {
+            "label": "ساخت صحنه‌ی استودیویی دور محصول",
+            "familyId": "seedream"
+          },
+          {
+            "label": "متحرک‌کردن صحنه",
+            "familyId": "seedance"
+          },
+          {
+            "label": "افزودن گویندگی فارسی",
+            "familyId": "elevenlabs"
+          }
+        ]
+      },
+      "kind": "skill",
+      "code": "s-ugc",
+      "sortOrder": 10
+    },
+    {
+      "status": "published",
+      "title": "ریلز از یک متن",
+      "subtitle": "متن را بده؛ سه پلان، گویندگی و زیرنویس فارسی بیرون می‌آید.",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": "vgen-skill-reel",
+      "payload": {
+        "coins": 340,
+        "steps": [
+          {
+            "label": "تقسیم متن به سه پلان"
+          },
+          {
+            "label": "ساخت هر پلان",
+            "familyId": "seedance"
+          },
+          {
+            "label": "گویندگی روی کل متن",
+            "familyId": "elevenlabs"
+          }
+        ]
+      },
+      "kind": "skill",
+      "code": "s-reel",
+      "sortOrder": 20
+    },
+    {
+      "status": "published",
+      "title": "پرتره‌ی حرفه‌ای",
+      "subtitle": "یک سلفی بده، ده پرتره‌ی استودیویی با نور و زاویه‌های مختلف بگیر.",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": "vgen-skill-portrait",
+      "payload": {
+        "coins": 90,
+        "steps": [
+          {
+            "label": "پاک‌سازی و بزرگ‌نمایی ورودی",
+            "familyId": "topaz"
+          },
+          {
+            "label": "ساخت ده نسخه با نورپردازی‌های متفاوت",
+            "familyId": "nano-banana"
+          }
+        ]
+      },
+      "kind": "skill",
+      "code": "s-portrait",
+      "sortOrder": 30
+    },
+    {
+      "status": "draft",
+      "title": "تیزر تبلیغاتی ۱۵ ثانیه‌ای",
+      "subtitle": "بریف را بده، تیزر با موسیقی تحویل بگیر.",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": "vgen-skill-ad",
+      "payload": {
+        "steps": [
+          {
+            "label": "در دست ساخت"
+          }
+        ]
+      },
+      "kind": "skill",
+      "code": "s-ad",
+      "sortOrder": 40
+    },
+    {
+      "status": "published",
+      "title": "Veo 3.1",
+      "subtitle": "ویدیوی سینماییِ گوگل — تازه اضافه شد",
+      "body": null,
+      "category": null,
+      "familyCode": "veo",
+      "seed": "vgen-veo",
+      "payload": {
+        "kind": "model"
+      },
+      "kind": "featured",
+      "code": "f1",
+      "sortOrder": 10
+    },
+    {
+      "status": "published",
+      "title": "عکس به ویدیو",
+      "subtitle": "تصویرتو با Seedance یا Kling زنده کن",
+      "body": null,
+      "category": null,
+      "familyCode": "seedance",
+      "seed": "vgen-i2v",
+      "payload": {
+        "kind": "feature"
+      },
+      "kind": "featured",
+      "code": "f2",
+      "sortOrder": 20
+    },
+    {
+      "status": "published",
+      "title": "پرترهٔ سینمایی",
+      "subtitle": "تمپلیتِ آماده — فقط سوژه‌تو اضافه کن",
+      "body": "cinematic portrait, dramatic rim lighting, 85mm, shallow depth of field, ultra detailed, of ",
+      "category": null,
+      "familyCode": "nano-banana",
+      "seed": "vgen-portrait",
+      "payload": {
+        "kind": "template"
+      },
+      "kind": "featured",
+      "code": "f3",
+      "sortOrder": 30
+    },
+    {
+      "status": "published",
+      "title": "عکسِ محصولِ لاکچری",
+      "subtitle": "محصول روی مرمر با نورِ استودیویی",
+      "body": "luxury product photography on white marble, soft studio lighting, elegant reflections, of ",
+      "category": null,
+      "familyCode": "seedream",
+      "seed": "vgen-product",
+      "payload": {
+        "kind": "template"
+      },
+      "kind": "featured",
+      "code": "f4",
+      "sortOrder": 40
+    },
+    {
+      "status": "published",
+      "title": "Nano Banana 2",
+      "subtitle": "نسلِ جدیدِ تصویرِ گوگل",
+      "body": null,
+      "category": null,
+      "familyCode": "nano-banana",
+      "seed": "vgen-nb2",
+      "payload": {
+        "kind": "model"
+      },
+      "kind": "featured",
+      "code": "f5",
+      "sortOrder": 50
+    },
+    {
+      "status": "published",
+      "title": "پوسترِ تایپوگرافی",
+      "subtitle": "متن و لوگوی تمیز با Ideogram",
+      "body": "bold minimalist typographic poster, bauhaus grid, high contrast, the text reads ",
+      "category": null,
+      "familyCode": "ideogram",
+      "seed": "vgen-poster2",
+      "payload": {
+        "kind": "template"
+      },
+      "kind": "featured",
+      "code": "f6",
+      "sortOrder": 60
+    },
+    {
+      "status": "published",
+      "title": "از صفر تا اولین ویدیو",
+      "subtitle": "اگر تا حالا با هوش مصنوعی چیزی نساخته‌ای، از اینجا شروع کن. در چهل دقیقه اولین ویدیوی خودت را می‌سازی.",
+      "body": null,
+      "category": "beginner",
+      "familyCode": null,
+      "seed": "vgen-course-start",
+      "payload": {
+        "lessons": [
+          {
+            "id": "l1",
+            "title": "اینجا چه خبر است؟ مدل، پرامپت، سکه",
+            "seconds": 420
+          },
+          {
+            "id": "l2",
+            "title": "اولین پرامپت: چه بنویسیم و چه ننویسیم",
+            "seconds": 610
+          },
+          {
+            "id": "l3",
+            "title": "نسبت تصویر، مدت، کیفیت — کدام چقدر خرج دارد",
+            "seconds": 505
+          },
+          {
+            "id": "l4",
+            "title": "اولین ویدیو، از اول تا آخر",
+            "seconds": 890
+          }
+        ]
+      },
+      "kind": "course",
+      "code": "c-start",
+      "sortOrder": 10
+    },
+    {
+      "status": "published",
+      "title": "پرامپت‌نویسی برای ویدیو",
+      "subtitle": "نور، لنز، حرکت دوربین، ریتم برش. زبانی که مدل‌های ویدیو واقعاً می‌فهمند.",
+      "body": null,
+      "category": "intermediate",
+      "familyCode": null,
+      "seed": "vgen-course-prompt",
+      "payload": {
+        "lessons": [
+          {
+            "id": "l1",
+            "title": "ساختار یک پرامپت خوب",
+            "seconds": 730
+          },
+          {
+            "id": "l2",
+            "title": "واژگان دوربین: دالی، تراک، کرین، هندهلد",
+            "seconds": 845
+          },
+          {
+            "id": "l3",
+            "title": "نور را چطور توصیف کنیم",
+            "seconds": 690
+          },
+          {
+            "id": "l4",
+            "title": "چرا خروجی‌ات شبیه تبلیغ استوک است",
+            "seconds": 560
+          },
+          {
+            "id": "l5",
+            "title": "تمرین: یک صحنه، پنج نسخه",
+            "seconds": 1120
+          }
+        ]
+      },
+      "kind": "course",
+      "code": "c-prompt",
+      "sortOrder": 20
+    },
+    {
+      "status": "published",
+      "title": "Seedance از پایه",
+      "subtitle": "قوی‌ترین مدل ویدیوی کاتالوگ. صدای همزمان، صحنهٔ کامل، و جایی که کم می‌آورد.",
+      "body": null,
+      "category": "intermediate",
+      "familyCode": "seedance",
+      "seed": "vgen-course-seedance",
+      "payload": {
+        "lessons": [
+          {
+            "id": "l1",
+            "title": "تفاوت نسخه‌ها و اینکه کدام را کِی بزنی",
+            "seconds": 480
+          },
+          {
+            "id": "l2",
+            "title": "صدای همزمان: چه وقت روشن، چه وقت خاموش",
+            "seconds": 615
+          },
+          {
+            "id": "l3",
+            "title": "تصویر مرجع و ثبات شخصیت",
+            "seconds": 700
+          }
+        ]
+      },
+      "kind": "course",
+      "code": "c-seedance",
+      "sortOrder": 30
+    },
+    {
+      "status": "published",
+      "title": "تصویر: از Nano Banana تا Seedream",
+      "subtitle": "کدام مدل برای پرتره، کدام برای محصول، کدام برای متن فارسی درست.",
+      "body": null,
+      "category": "beginner",
+      "familyCode": null,
+      "seed": "vgen-course-image",
+      "payload": {
+        "lessons": [
+          {
+            "id": "l1",
+            "title": "نقشهٔ مدل‌های تصویر",
+            "seconds": 520
+          },
+          {
+            "id": "l2",
+            "title": "ویرایش با دستور متنی، بدون ماسک",
+            "seconds": 640
+          },
+          {
+            "id": "l3",
+            "title": "متن فارسی روی تصویر — و چرا معمولاً خراب می‌شود",
+            "seconds": 580
+          }
+        ]
+      },
+      "kind": "course",
+      "code": "c-image",
+      "sortOrder": 40
+    },
+    {
+      "status": "published",
+      "title": "گویندگی فارسی که مصنوعی نباشد",
+      "subtitle": "انتخاب صدا، سرعت، مکث. و کارهایی که موتور نمی‌کند و باید خودت در متن بنویسی.",
+      "body": null,
+      "category": "beginner",
+      "familyCode": "elevenlabs",
+      "seed": "vgen-course-voice",
+      "payload": {
+        "lessons": [
+          {
+            "id": "l1",
+            "title": "کدام صدا برای کدام کار",
+            "seconds": 430
+          },
+          {
+            "id": "l2",
+            "title": "نقطه‌گذاری، مکث، و لحن",
+            "seconds": 560
+          }
+        ]
+      },
+      "kind": "course",
+      "code": "c-voice",
+      "sortOrder": 50
+    },
+    {
+      "status": "published",
+      "title": "با محتوای AI درآمد بساز",
+      "subtitle": "از خروجی تا مشتری: قیمت‌گذاری، نمونه‌کار، و کارهایی که سفارش‌دهنده‌ی ایرانی واقعاً می‌خرد.",
+      "body": null,
+      "category": "advanced",
+      "familyCode": null,
+      "seed": "vgen-course-money",
+      "payload": {
+        "lessons": [
+          {
+            "id": "l1",
+            "title": "چه چیزی می‌فروشد و چه چیزی نه",
+            "seconds": 780
+          },
+          {
+            "id": "l2",
+            "title": "قیمت‌گذاری وقتی هزینه‌ات سکه است",
+            "seconds": 690
+          },
+          {
+            "id": "l3",
+            "title": "تحویل: فرمت، رزولوشن، بازنگری",
+            "seconds": 610
+          }
+        ]
+      },
+      "kind": "course",
+      "code": "c-money",
+      "sortOrder": 60
+    },
+    {
+      "status": "draft",
+      "title": "جریان‌های چندمرحله‌ای",
+      "subtitle": "زنجیره‌کردن چند مدل پشت سر هم.",
+      "body": null,
+      "category": "advanced",
+      "familyCode": null,
+      "seed": "vgen-course-canvas",
+      "payload": {
+        "lessons": [
+          {
+            "id": "l1",
+            "title": "مقدمه",
+            "seconds": 300
+          }
+        ]
+      },
+      "kind": "course",
+      "code": "c-canvas",
+      "sortOrder": 70
+    },
+    {
+      "status": "published",
+      "title": null,
+      "subtitle": null,
+      "body": "A lone astronaut drifting past a neon space station, slow cinematic dolly",
+      "category": null,
+      "familyCode": "seedance",
+      "seed": "vgen-astro",
+      "payload": {
+        "w": 16,
+        "h": 9
+      },
+      "kind": "example",
+      "code": "e1",
+      "sortOrder": 10
+    },
+    {
+      "status": "published",
+      "title": null,
+      "subtitle": null,
+      "body": "Hyperreal portrait of an elderly Persian calligrapher, warm window light",
+      "category": null,
+      "familyCode": "nano-banana",
+      "seed": "vgen-calli",
+      "payload": {
+        "w": 3,
+        "h": 4
+      },
+      "kind": "example",
+      "code": "e2",
+      "sortOrder": 20
+    },
+    {
+      "status": "published",
+      "title": null,
+      "subtitle": null,
+      "body": "Bold typographic poster reading TEHRAN, bauhaus grid, crimson and ink",
+      "category": null,
+      "familyCode": "ideogram",
+      "seed": "vgen-poster",
+      "payload": {
+        "w": 3,
+        "h": 4
+      },
+      "kind": "example",
+      "code": "e3",
+      "sortOrder": 30
+    },
+    {
+      "status": "published",
+      "title": null,
+      "subtitle": null,
+      "body": "Cyberpunk night market in the rain, reflective neon puddles, shallow depth",
+      "category": null,
+      "familyCode": "seedream",
+      "seed": "vgen-cyber",
+      "payload": {
+        "w": 16,
+        "h": 9
+      },
+      "kind": "example",
+      "code": "e4",
+      "sortOrder": 40
+    },
+    {
+      "status": "published",
+      "title": null,
+      "subtitle": null,
+      "body": "A paper boat racing down a rushing gutter after rain, macro, soft focus",
+      "category": null,
+      "familyCode": "kling",
+      "seed": "vgen-boat",
+      "payload": {
+        "w": 9,
+        "h": 16
+      },
+      "kind": "example",
+      "code": "e5",
+      "sortOrder": 50
+    },
+    {
+      "status": "published",
+      "title": null,
+      "subtitle": null,
+      "body": "Isometric tiny cozy bookstore on a rainy corner, pastel palette, detailed",
+      "category": null,
+      "familyCode": "gpt-image",
+      "seed": "vgen-shop",
+      "payload": {
+        "w": 1,
+        "h": 1
+      },
+      "kind": "example",
+      "code": "e6",
+      "sortOrder": 60
+    },
+    {
+      "status": "published",
+      "title": null,
+      "subtitle": null,
+      "body": "Dramatic basalt coastline at golden hour, volumetric light, long exposure",
+      "category": null,
+      "familyCode": "flux",
+      "seed": "vgen-coast",
+      "payload": {
+        "w": 16,
+        "h": 9
+      },
+      "kind": "example",
+      "code": "e7",
+      "sortOrder": 70
+    },
+    {
+      "status": "published",
+      "title": null,
+      "subtitle": null,
+      "body": "Loose watercolor fox curled in an autumn forest, paper grain",
+      "category": null,
+      "familyCode": "qwen",
+      "seed": "vgen-fox",
+      "payload": {
+        "w": 1,
+        "h": 1
+      },
+      "kind": "example",
+      "code": "e8",
+      "sortOrder": 80
+    },
+    {
+      "status": "published",
+      "title": null,
+      "subtitle": null,
+      "body": "Studio shot of a faceted glass perfume bottle on a silk gradient",
+      "category": null,
+      "familyCode": "imagen",
+      "seed": "vgen-perfume",
+      "payload": {
+        "w": 1,
+        "h": 1
+      },
+      "kind": "example",
+      "code": "e9",
+      "sortOrder": 90
+    },
+    {
+      "status": "published",
+      "title": null,
+      "subtitle": null,
+      "body": "Timelapse of desert flowers blooming at dawn, vivid, shallow focus",
+      "category": null,
+      "familyCode": "wan",
+      "seed": "vgen-bloom",
+      "payload": {
+        "w": 16,
+        "h": 9
+      },
+      "kind": "example",
+      "code": "e10",
+      "sortOrder": 100
+    },
+    {
+      "status": "published",
+      "title": "James",
+      "subtitle": "خش‌دار، گیرا و جسور",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "EkK5I93UQWFDigLMpZcX",
+      "sortOrder": 10
+    },
+    {
+      "status": "published",
+      "title": "Liam",
+      "subtitle": "پرانرژی، مناسب شبکه‌های اجتماعی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "TX3LPaxmHKxFdv7VOQHJ",
+      "sortOrder": 20
+    },
+    {
+      "status": "published",
+      "title": "Bradford",
+      "subtitle": "رسا و شمرده",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "NNl6r8mD7vthiJatiJt1",
+      "sortOrder": 30
+    },
+    {
+      "status": "published",
+      "title": "Arabella",
+      "subtitle": "مرموز و احساسی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "Z3R5wn05IrDiVCyEkUrK",
+      "sortOrder": 40
+    },
+    {
+      "status": "published",
+      "title": "Adeline",
+      "subtitle": "زنانه و گفتگویی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "5l5f8iK3YPeGga21rQIX",
+      "sortOrder": 50
+    },
+    {
+      "status": "published",
+      "title": "Bella",
+      "subtitle": "حرفه‌ای، روشن و گرم",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "hpp4J3VqNfWAUOO0d1Us",
+      "sortOrder": 60
+    },
+    {
+      "status": "published",
+      "title": "Eve",
+      "subtitle": "صمیمی، پرانرژی و شاد",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "BZgkqPqms7Kj9ulSkVzn",
+      "sortOrder": 70
+    },
+    {
+      "status": "published",
+      "title": "Laura",
+      "subtitle": "پرشور با لحن بازیگوش",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "FGY2WhTYpPnrIDTdsKH5",
+      "sortOrder": 80
+    },
+    {
+      "status": "published",
+      "title": "Hope",
+      "subtitle": "سرزنده و پرحرف",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "uYXf8XasLslADfZ2MB4u",
+      "sortOrder": 90
+    },
+    {
+      "status": "published",
+      "title": "Hope (شاعرانه)",
+      "subtitle": "رمانتیک و گیرا",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "iCrDUkL56s3C8sCRl7wb",
+      "sortOrder": 100
+    },
+    {
+      "status": "published",
+      "title": "Emma",
+      "subtitle": "دوست‌داشتنی و پرانرژی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "pPdl9cQBQq4p6mRkZy2Z",
+      "sortOrder": 110
+    },
+    {
+      "status": "published",
+      "title": "Anika",
+      "subtitle": "پویا، دوستانه و جذاب",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "Sm1seazb4gs7RSlUVw7c",
+      "sortOrder": 120
+    },
+    {
+      "status": "published",
+      "title": "Tiffany",
+      "subtitle": "طبیعی و خوشامدگو",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "6aDn1KB0hjpdcocrUkmq",
+      "sortOrder": 130
+    },
+    {
+      "status": "published",
+      "title": "Lucy",
+      "subtitle": "تازه و خودمانی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "lcMyyd2HUfFzxdCaC4Ta",
+      "sortOrder": 140
+    },
+    {
+      "status": "published",
+      "title": "Cassidy",
+      "subtitle": "شفاف، مستقیم و واضح",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "56AoDkrOh6qfVPDXZ7Pt",
+      "sortOrder": 150
+    },
+    {
+      "status": "published",
+      "title": "Brittney",
+      "subtitle": "جوان و سرگرم‌کننده",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "kPzsL2i3teMYv0FxEYQ6",
+      "sortOrder": 160
+    },
+    {
+      "status": "published",
+      "title": "Jessica",
+      "subtitle": "پرگو و دوستانه",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "g6xIsTj2HwM6VR4iXFCw",
+      "sortOrder": 170
+    },
+    {
+      "status": "published",
+      "title": "Ana Rita",
+      "subtitle": "نرم، رسا و روشن",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "wJqPPQ618aTW29mptyoc",
+      "sortOrder": 180
+    },
+    {
+      "status": "published",
+      "title": "Jean",
+      "subtitle": "اغواگر و بازیگوش",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "eVItLK1UvXctxuaRV2Oq",
+      "sortOrder": 190
+    },
+    {
+      "status": "published",
+      "title": "Allison",
+      "subtitle": "آرام، تسکین‌دهنده و مدیتیشن",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "1wGbFxmAM3Fgw63G1zZJ",
+      "sortOrder": 200
+    },
+    {
+      "status": "published",
+      "title": "Brian",
+      "subtitle": "بم، طنین‌دار و آرامش‌بخش",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "nPczCjzI2devNBz1zQrb",
+      "sortOrder": 210
+    },
+    {
+      "status": "published",
+      "title": "Benjamin",
+      "subtitle": "بم، گرم و آرام",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "LruHrtVF6PSyGItzMNHS",
+      "sortOrder": 220
+    },
+    {
+      "status": "published",
+      "title": "Leon",
+      "subtitle": "آرام و متین",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "MJ0RnG71ty4LH3dvNfSd",
+      "sortOrder": 230
+    },
+    {
+      "status": "published",
+      "title": "Nathaniel",
+      "subtitle": "جذاب، بریتانیایی و آرام",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "AeRdCCKzvd23BpJoofzx",
+      "sortOrder": 240
+    },
+    {
+      "status": "published",
+      "title": "Mark",
+      "subtitle": "خودمانی، ریلکس و سبک",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "1SM7GgM6IMuvQlz2BwM3",
+      "sortOrder": 250
+    },
+    {
+      "status": "published",
+      "title": "Mark (طبیعی)",
+      "subtitle": "مناسب گفتگوی روزمره",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "UgBBYS2sOqTuMpoF3BR0",
+      "sortOrder": 260
+    },
+    {
+      "status": "published",
+      "title": "Tom",
+      "subtitle": "گفتگو و کتاب صوتی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "DYkrAHD8iwork3YSUBbs",
+      "sortOrder": 270
+    },
+    {
+      "status": "published",
+      "title": "Hank",
+      "subtitle": "راوی بم و گیرا",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "6F5Zhi321D3Oq7v1oNT4",
+      "sortOrder": 280
+    },
+    {
+      "status": "published",
+      "title": "Jeff",
+      "subtitle": "باکلاس، طنین‌دار و قوی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "gs0tAILXbY5DNrJrsM6F",
+      "sortOrder": 290
+    },
+    {
+      "status": "published",
+      "title": "Finn",
+      "subtitle": "جوان، مشتاق و پرانرژی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "vBKc2FfBKJfcZNyEt1n6",
+      "sortOrder": 300
+    },
+    {
+      "status": "published",
+      "title": "Jamahal",
+      "subtitle": "جوان، سرزنده و طبیعی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "DTKMou8ccj1ZaWGBiotd",
+      "sortOrder": 310
+    },
+    {
+      "status": "published",
+      "title": "Viraj",
+      "subtitle": "غنی و نرم",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "P1bg08DkjqiVEzOn76yG",
+      "sortOrder": 320
+    },
+    {
+      "status": "published",
+      "title": "Taksh",
+      "subtitle": "آرام، جدی و روان",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "qDuRKMlYmrm8trt5QyBn",
+      "sortOrder": 330
+    },
+    {
+      "status": "published",
+      "title": "Sam",
+      "subtitle": "لحن پشتیبانی مشتری",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "scOwDtmlUjD3prqpp97I",
+      "sortOrder": 340
+    },
+    {
+      "status": "published",
+      "title": "Rachel M",
+      "subtitle": "گوینده‌ی رادیوی بریتانیایی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "aD6riP1btT197c6dACmy",
+      "sortOrder": 350
+    },
+    {
+      "status": "published",
+      "title": "Nathan",
+      "subtitle": "مجری رادیو",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "x70vRnQBMBu4FAYhjJbO",
+      "sortOrder": 360
+    },
+    {
+      "status": "published",
+      "title": "Brock",
+      "subtitle": "آمرانه و بلند",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "DGzg6RaUqxGRTHSBjfgF",
+      "sortOrder": 370
+    },
+    {
+      "status": "published",
+      "title": "Edward",
+      "subtitle": "بلند، مطمئن و متکبر",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "zYcjlYFOd3taleS0gkk3",
+      "sortOrder": 380
+    },
+    {
+      "status": "published",
+      "title": "Xavier",
+      "subtitle": "گوینده‌ی مقتدر و فلزی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "YOq2y2Up4RgXP2HyXjE5",
+      "sortOrder": 390
+    },
+    {
+      "status": "published",
+      "title": "Phil",
+      "subtitle": "گوینده‌ی پرشور و انفجاری",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "LG95yZDEHg6fCZdQjLqj",
+      "sortOrder": 400
+    },
+    {
+      "status": "published",
+      "title": "Aria",
+      "subtitle": "شرور و اغواگر",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "TC0Zp7WVFzhA8zpTlRqV",
+      "sortOrder": 410
+    },
+    {
+      "status": "published",
+      "title": "Britney",
+      "subtitle": "شرورِ آرام و حساب‌گر",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "esy0r39YPLQjOczyOib8",
+      "sortOrder": 420
+    },
+    {
+      "status": "published",
+      "title": "Jessica (شرور)",
+      "subtitle": "شرورِ فصیح",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "flHkNRp1BlvT73UL6gyz",
+      "sortOrder": 430
+    },
+    {
+      "status": "published",
+      "title": "Viking Bjorn",
+      "subtitle": "مهاجم حماسی قرون‌وسطی",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "ljo9gAlSqKOvF6D8sOsX",
+      "sortOrder": 440
+    },
+    {
+      "status": "published",
+      "title": "John Morgan",
+      "subtitle": "کابوی خشن",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "ruirxsoakN0GWmGNIo04",
+      "sortOrder": 450
+    },
+    {
+      "status": "published",
+      "title": "Wyatt",
+      "subtitle": "کابوی روستایی و دانا",
+      "body": null,
+      "category": null,
+      "familyCode": null,
+      "seed": null,
+      "payload": {},
+      "kind": "voice",
+      "code": "YXpFCvM1S3JbWEJhoskW",
+      "sortOrder": 460
+    }
+  ]
+}

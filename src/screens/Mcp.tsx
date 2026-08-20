@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Terminal, Copy, Check, PuzzlePiece, ArrowLeft, Lightning } from "@phosphor-icons/react";
-import { SKILLS } from "../data/skills";
-import { published } from "../data/content";
+import { usePublishedContent } from "../features/content/ContentProvider";
+import type { ContentSkill } from "../runtime/contracts/content";
 import { getFamily } from "../data/models";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
@@ -70,7 +70,7 @@ function CodeBlock({ code }: { code: string }) {
   );
 }
 
-function SkillCard({ skill, onOpen }: { skill: (typeof SKILLS)[number]; onOpen: () => void }) {
+function SkillCard({ skill, onOpen }: { skill: ContentSkill; onOpen: () => void }) {
   const { n } = useI18n();
   return (
     <button onClick={onOpen} className="group block w-full text-start">
@@ -108,8 +108,8 @@ function SkillCard({ skill, onOpen }: { skill: (typeof SKILLS)[number]; onOpen: 
 
 export default function Mcp({ onOpenModel }: { onOpenModel: (familyId: string, prompt?: string) => void }) {
   const { n } = useI18n();
-  const skills = published(SKILLS);
-  const [open, setOpen] = useState<(typeof SKILLS)[number] | null>(null);
+  const skills = usePublishedContent().skills;
+  const [open, setOpen] = useState<ContentSkill | null>(null);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto w-full max-w-[1000px] px-4 pb-20 pt-6">

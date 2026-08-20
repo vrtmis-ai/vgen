@@ -154,10 +154,68 @@ jobs:
       - name: Seeding grants twice writes nothing the second time
         run: pnpm unlimited:publish | grep -q 'already current'
 
-      # The catalogue must be unchanged by all of the above. The unlimited
-      # seeder adds provider_models rows for a second provider, and if the
-      # catalogue query ever stopped excluding them every customer would see
-      # Nano Banana twice.
+      # Providers and routing. Like the grants above, this looks the catalogue
+      # up by variant id and refuses rather than inventing a row, so it has to
+      # come after catalog:publish.
+      - run: pnpm providers:publish
+      - name: Seeding providers twice writes nothing the second time
+        run: pnpm providers:publish | grep -q 'already current'
+
+      # Nothing this seeder writes may be switched on by writing it. Every
+      # route ships inactive and re-running must never flip one, because the
+      # WaveSpeed model ids it names have not been proved against a live API —
+      # activating one is a person's decision, not a side effect of CI.
+      - name: Every seeded route must be inactive
+        run: |
+          docker compose exec -T postgres psql -U vgen -d vgen -tAc "select count(*) from model_routes where is_active" | grep -qx '0'
+
+      # The editorial content: presets, the prompt bank, skills, the featured
+      # shelf, courses, examples and voices. Seeded after the catalogue because
+      # every row that opens a model names a family, and the seeder refuses a
+      # family no active model carries rather than writing a card that opens
+      # nothing.
+      - run: pnpm content:publish
+      - name: Seeding content twice writes nothing the second time
+        run: pnpm content:publish | grep -q 'already current'
+      - run: pnpm content:snapshot
+      - name: The database must serve the committed content snapshot
+        run: git diff --exit-code -- src/data/content.snapshot.json
+
+      # The publish filter used to be a `published()` helper each screen had to
+      # remember to call, and a screen that forgot it showed a draft to a
+      # customer. It is a WHERE clause now, and this is what says so: the served
+      # snapshot must hold exactly as many items as the table holds published
+      # rows. Fewer means the query drops something an admin published; more
+      # means a draft reached a customer.
+      - name: The served content must be exactly the published rows
+        run: |
+          published=$(docker compose exec -T postgres psql -U vgen -d vgen -tAc "select count(*) from content_items where status = 'published'")
+          served=$(node -e "const s=require('./src/data/content.snapshot.json');console.log(Object.values(s).reduce((n,r)=>n+r.length,0))")
+          echo "published=$published served=$served"
+          test "$published" = "$served"
+
+      # The community feed, and the ten fake users behind it. Seeded last of
+      # the content because it names families the same way, and because it is
+      # the only seeder here that creates users — every one of them carries an
+      # @demo.invalid address (RFC 2606, unregisterable) so the whole set is one
+      # predicate away from being deleted when real posts arrive.
+      - run: pnpm community:publish
+      - name: Seeding the feed twice writes nothing the second time
+        run: pnpm community:publish | grep -q 'already current'
+      - run: pnpm community:snapshot
+      - name: The database must serve the committed feed snapshot
+        run: git diff --exit-code -- src/data/community.snapshot.json
+
+      # Every seeded author must be findable and fake. A real address here
+      # would mean the seeder had written a row somebody could receive mail at.
+      - name: Every seeded author must be a demo user
+        run: |
+          docker compose exec -T postgres psql -U vgen -d vgen -tAc "select count(*) from posts p join users u on u.id = p.author_user_id where u.email not like '%@demo.invalid'" | grep -qx '0'
+
+      # The catalogue must be unchanged by all of the above. Both the unlimited
+      # and the provider seeder add provider_models rows for other providers,
+      # and if the catalogue query ever stopped excluding them every customer
+      # would see Nano Banana twice.
       - run: pnpm catalog:snapshot
       - name: Serving rows must stay out of the catalogue
         run: git diff --exit-code -- src/data/catalog.snapshot.json

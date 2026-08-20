@@ -5,7 +5,7 @@ import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import type { InputMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
-import { EXPLORE } from "../data/explore";
+import { usePublishedContent } from "../features/content/ContentProvider";
 import { CoinMark } from "../components/chrome";
 import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
@@ -170,6 +170,7 @@ export default function StudioImage({
   const finished = mine.filter((g) => g.status !== "running");
   // Until the user has a library, the seeded examples stand in for one — an
   // empty wall would leave the dock floating over nothing.
+  const examples = usePublishedContent().examples;
   const wall: ViewerAsset[] =
     finished.length > 0
       ? finished.map((g) => ({
@@ -181,7 +182,7 @@ export default function StudioImage({
           h: g.h,
           createdAt: g.createdAt,
         }))
-      : EXPLORE.map((e) => ({ id: e.id, url: art(e.seed), prompt: e.prompt, familyId: e.familyId, w: 1152, h: 1536 }));
+      : examples.map((e) => ({ id: e.id, url: art(e.seed), prompt: e.prompt, familyId: e.familyId, w: 1152, h: 1536 }));
 
   /* Mixed ratios on purpose: the wall is only worth a justified layout if the
      items actually differ, and the seeded stand-ins were all one shape. Real

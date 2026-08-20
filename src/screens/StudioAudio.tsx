@@ -18,7 +18,7 @@ import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import type { InputMap } from "../components/controls";
 import { useCreateState, valueLabel } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
-import { VOICES } from "../data/voices";
+import { usePublishedContent } from "../features/content/ContentProvider";
 import { VoicePicker } from "../components/VoicePicker";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { CoinMark } from "../components/chrome";
@@ -238,7 +238,7 @@ export default function StudioAudio({
 
   const voiceControl = s.controls.find((c) => c.kind === "voice");
   const voiceId = voiceControl ? String(s.input[voiceControl.key]) : null;
-  const voice = VOICES.find((v) => v.id === voiceId);
+  const voice = usePublishedContent().voices.find((v) => v.id === voiceId);
 
   return (
     /* Panel + canvas, not a bottom dock.

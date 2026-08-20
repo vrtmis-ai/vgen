@@ -8,6 +8,8 @@ import type {
   VerifyPhoneInput,
 } from "./contracts/auth";
 import type { CatalogSnapshot } from "./contracts/catalog";
+import type { ContentSnapshot } from "./contracts/content";
+import type { CommunityFeed } from "./contracts/community";
 import type { GalleryPage, GalleryQuery } from "./contracts/gallery";
 import type { Plan } from "./contracts/plans";
 import type { CreateGenerationRequest, GenerationJob, GenerationQuote, QuoteGenerationRequest } from "./contracts/generation";
@@ -45,6 +47,18 @@ export interface AppServices {
      */
     startProviderSignIn(provider: OAuthProvider, options?: RequestOptions): Promise<void>;
     logout(options?: RequestOptions): Promise<void>;
+  };
+  /**
+   * Presets, the prompt bank, skills, the featured shelf, courses, examples
+   * and voices. One call rather than seven, because every screen that needs
+   * one of them boots through a shell that already fetches the catalog.
+   */
+  content: {
+    list(options?: RequestOptions): Promise<ContentSnapshot>;
+  };
+  /** What people published. Approved posts only — the route decides, not a screen. */
+  community: {
+    list(options?: RequestOptions): Promise<CommunityFeed>;
   };
   catalog: {
     list(options?: RequestOptions): Promise<CatalogSnapshot>;

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { CalendarCheck, CaretDown, Check, DeviceMobile, Gift, ImageSquare, VideoCamera } from "@phosphor-icons/react";
 import { getFamily, type Family } from "../data/models";
-import { COMMUNITY } from "../data/community";
+import type { CommunityPost } from "../runtime/contracts/community";
 import {
   toman,
   annualDiscountPct,
@@ -167,9 +167,12 @@ function Features() {
    truer and the reason a film strip reads the way it does. Faded at the edges
    with the same mask the nav uses, so the cut is light rather than a hard crop.
    --------------------------------------------------------------------------- */
-function Reel() {
+function Reel({ posts }: { posts: readonly CommunityPost[] }) {
   const { t } = useI18n();
-  const reel = [...COMMUNITY].sort((a, b) => b.likes - a.likes).slice(0, 8);
+  // The eight most-liked, handed down rather than fetched here. Landing stays a
+  // screen that renders what it is given — the same reason `plans` is a prop —
+  // so it can be rendered in a test without a service container behind it.
+  const reel = [...posts].sort((a, b) => b.likes - a.likes).slice(0, 8);
   return (
     <Section id="showcase">
       <Heading index="03" sub={t("lp_showcase_sub")}>
@@ -719,7 +722,17 @@ function Footer() {
  * that renders with nobody signed in, above the whole authenticated tree — the
  * providers the app shell mounts are not there yet.
  */
-export default function Landing({ plans, onSignIn, onSignUp }: { plans: readonly Plan[]; onSignIn: () => void; onSignUp: () => void }) {
+export default function Landing({
+  plans,
+  posts,
+  onSignIn,
+  onSignUp,
+}: {
+  plans: readonly Plan[];
+  posts: readonly CommunityPost[];
+  onSignIn: () => void;
+  onSignUp: () => void;
+}) {
   return (
     /* `overflow-x: clip`, not `hidden`. The section lights are meant to spill
        past their section — that overhang is what stops them looking like boxes
@@ -745,7 +758,7 @@ export default function Landing({ plans, onSignIn, onSignUp }: { plans: readonly
           verbatim is listed at the top of that file. */}
       <HeroSection plans={plans} onSignIn={onSignIn} onSignUp={onSignUp} />
       <Features />
-      <Reel />
+      <Reel posts={posts} />
       <Plans plans={plans} onSignIn={onSignUp} />
       <Faq />
       <Closing onSignIn={onSignUp} />

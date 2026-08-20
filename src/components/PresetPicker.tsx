@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, MagnifyingGlass } from "@phosphor-icons/react";
-import { PRESETS, CATEGORY_LABEL, type Preset, type PresetCategory } from "../data/presets";
-import { published } from "../data/content";
+import { CATEGORY_LABEL } from "../features/content/labels";
+import { usePublishedContent } from "../features/content/ContentProvider";
+import type { Preset } from "../runtime/contracts/content";
 import { getFamily, type ModelKind } from "../data/models";
 import { useModalSurface } from "./FloatingSurface";
 
@@ -43,12 +44,13 @@ export function PresetPicker({
   onClose: () => void;
 }) {
   const [q, setQ] = useState("");
-  const [cat, setCat] = useState<PresetCategory | "all">("all");
+  const [cat, setCat] = useState<Preset["category"] | "all">("all");
   const dialogRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   useModalSurface({ surfaceRef: dialogRef, onClose, initialFocusRef: searchRef });
 
-  const all = useMemo(() => published(PRESETS).filter((p) => (kind === "video" ? p.kind === "video" : p.kind === "image")), [kind]);
+  const presets = usePublishedContent().presets;
+  const all = useMemo(() => presets.filter((p) => (kind === "video" ? p.kind === "video" : p.kind === "image")), [presets, kind]);
   const cats = useMemo(() => Array.from(new Set(all.map((p) => p.category))), [all]);
   const shown = all.filter((p) => (cat === "all" || p.category === cat) && (!q || p.title.includes(q.trim())));
 
@@ -125,7 +127,7 @@ export function PresetPicker({
               style={{ color: "var(--vg-text)" }}
             />
           </div>
-          {(["all", ...cats] as (PresetCategory | "all")[]).map((c) => (
+          {(["all", ...cats] as (Preset["category"] | "all")[]).map((c) => (
             <button
               key={c}
               aria-pressed={cat === c}

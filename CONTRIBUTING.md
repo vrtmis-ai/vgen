@@ -39,6 +39,75 @@ every screen without a backend existing.
 When you do need the real stack — Postgres, Redis, MinIO, migrations, API and
 web together — that is `pnpm dev:stack`, and it needs Docker Desktop running.
 
+## Setting up the backend
+
+```sh
+cp .env.example .env.local        # NOT .env — see below
+docker compose up -d --wait       # Postgres, Redis, MinIO
+pnpm db:setup                     # migrate, then seed
+```
+
+`pnpm db:setup` is `db:migrate` followed by `db:seed`, and `db:seed` runs the
+five publishers in the one order that works. They are order-dependent because
+each of the later ones looks the catalogue up by variant id and refuses rather
+than inventing a row:
+
+```
+catalog → pricing → plans → unlimited → providers
+```
+
+All five are idempotent. Re-running prints `already current` and writes nothing,
+which is why `pnpm dev:stack` now seeds on every start — without it you get a
+migrated database with an empty catalogue, and `GET /catalog` answers 200 with
+zero families, which reads as a broken app rather than an unseeded one.
+
+### `.env.local`, not `.env`
+
+This is the one that costs an hour. Next.js reads `.env`; **no backend
+entrypoint does.** `packages/db/src/migrate.ts`, `apps/api/src/server.ts`, the
+worker and every seeder load `.env.development.local` and `.env.local`, in that
+order, and nothing else. Copy to `.env` alone and `pnpm db:migrate` fails with
+
+```
+DATABASE_URL is required
+```
+
+which names the symptom and not the cause. Copy to `.env.local` — or to both, if
+you also want the web tier pointed at the real API.
+
+### Which secrets are yours and which are shared
+
+Most of `.env.example` ships with working local values. Of the blanks:
+
+**Generate your own.** Never copy these between machines — they only need to be
+stable _within one database_, and yours is not anyone else's:
+
+```sh
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+`RATE_LIMIT_HASH_SECRET`, `PHONE_HASH_PEPPER`, `MFA_SEALING_KEY`. Two of those
+are deploy-once even locally: changing `PHONE_HASH_PEPPER` re-opens the free
+trial for every number already in your database, and changing `MFA_SEALING_KEY`
+invalidates every TOTP enrolment in it.
+
+**Genuinely shared**, and passed person to person rather than through the repo:
+`KIE_API_KEY`, `KAVENEGAR_API_KEY` and `KAVENEGAR_TEMPLATE`, the `GOOGLE_` and
+`MICROSOFT_` OAuth pairs. `WAVESPEED_API_KEY` nobody holds yet and `USEAPI_*`
+has no adapter, so both stay blank.
+
+**You need none of them for most backend work.** The migrations, all five
+seeders, the integration suite, quotes, credit holds, the admin API and provider
+routing all run with every third-party key blank. Only actually producing a
+picture needs `KIE_API_KEY`.
+
+### Checking it worked
+
+```sh
+pnpm backend:test:integration   # 181 tests against the real database
+pnpm check:pricing              # 738 prices recomputed from the seeded rows
+```
+
 ## Upgrading a clone you already had
 
 If your checkout predates the Next.js move, `git pull` on its own leaves you in

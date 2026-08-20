@@ -6,7 +6,5 @@ import { useGenerations } from "../../../../../src/runtime/providers/Generations
 export default function StudioAudioPage() {
   const { gens, requestGeneration } = useGenerations();
 
-  return (
-    <StudioAudio gens={gens} onGenerate={(family, variant, prompt, input) => requestGeneration(family.id, prompt, input, variant)} />
-  );
+  return <StudioAudio gens={gens} onGenerate={(family, variant, prompt, input) => requestGeneration(family.id, prompt, input, variant)} />;
 }

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, MagnifyingGlass, Play, Pause, SpinnerGap, Sparkle } from "@phosphor-icons/react";
-import { VOICES, voicePreviewUrl, type Voice } from "../data/voices";
+import { voicePreviewUrl } from "../features/content/labels";
+import { usePublishedContent } from "../features/content/ContentProvider";
+import type { Voice } from "../runtime/contracts/content";
 import { useModalSurface } from "./FloatingSurface";
 
 /* ---------------------------------------------------------------------------
@@ -176,10 +178,11 @@ export function VoicePicker({
     void el.play().catch(() => setLoad(null));
   };
 
+  const voices = usePublishedContent().voices;
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return s ? VOICES.filter((v) => v.name.toLowerCase().includes(s) || v.note.includes(q.trim())) : VOICES;
-  }, [q]);
+    return s ? voices.filter((v) => v.name.toLowerCase().includes(s) || v.note.includes(q.trim())) : voices;
+  }, [voices, q]);
 
   const moveFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (!["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
