@@ -27,7 +27,7 @@
     "backend:test:integration": "pnpm --filter @vgen/db test:integration",
     "backend:migrate:check": "pnpm --filter @vgen/db migration:check",
     "db:migrate": "pnpm --filter @vgen/db migrate",
-    "db:seed": "pnpm catalog:publish && pnpm pricing:publish && pnpm plans:publish && pnpm unlimited:publish && pnpm providers:publish",
+    "db:seed": "pnpm catalog:publish && pnpm pricing:publish && pnpm plans:publish && pnpm unlimited:publish && pnpm providers:publish && pnpm content:publish",
     "db:setup": "pnpm db:migrate && pnpm db:seed",
     "backend:check": "pnpm backend:typecheck && pnpm backend:lint && pnpm backend:test && pnpm backend:migrate:check",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run check:catalog",
@@ -40,6 +40,8 @@
     "plans:publish": "tsx scripts/publish-plans.ts",
     "plans:snapshot": "pnpm --filter @vgen/db plans:snapshot",
     "unlimited:publish": "tsx scripts/publish-unlimited.ts",
+    "content:publish": "tsx scripts/publish-content.ts",
+    "content:snapshot": "pnpm --filter @vgen/db content:snapshot",
     "marks:publish": "tsx scripts/publish-vendor-marks.ts"
   },
   "dependencies": {

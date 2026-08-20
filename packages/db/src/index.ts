@@ -7,6 +7,7 @@ export * from "./adminRepository";
 export * from "./authRepository";
 export * from "./walletRepository";
 export * from "./catalogRepository";
+export * from "./contentRepository";
 export * from "./pricingRepository";
 export * from "./plansRepository";
 export * from "./entitlementsRepository";

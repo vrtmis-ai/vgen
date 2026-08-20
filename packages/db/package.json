@@ -9,6 +9,7 @@
   "scripts": {
     "migrate": "tsx src/migrate.ts",
     "catalog:snapshot": "tsx src/exportCatalogSnapshot.ts",
+    "content:snapshot": "tsx src/exportContentSnapshot.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
     "test:integration": "vitest run --config vitest.integration.config.ts",

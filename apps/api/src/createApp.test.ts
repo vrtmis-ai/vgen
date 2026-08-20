@@ -33,6 +33,19 @@ function healthyDependencies(): ApiDependencies {
     customerCatalog: {
       list: vi.fn(async () => ({ version: "bootstrap-v1", publishedAt: 0, families: [] })),
     },
+    customerContent: {
+      list: vi.fn(async () => ({
+        version: "bootstrap-v1",
+        publishedAt: 0,
+        presets: [],
+        fragments: [],
+        skills: [],
+        featured: [],
+        courses: [],
+        examples: [],
+        voices: [],
+      })),
+    },
     frontendTelemetry: {
       record: vi.fn(async () => "report-1"),
     },
