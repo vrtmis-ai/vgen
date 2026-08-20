@@ -10,6 +10,10 @@ import { FAMILIES } from "../src/data/models";
  * imports them is bundled. The file is already the exact `GET /plans` payload.
  */
 import planPayload from "../src/data/plans.snapshot.json" with { type: "json" };
+/* Both are the exact payloads their routes serve, generated out of Postgres and
+   committed — so the browser under test parses what production sends. */
+import contentPayload from "../src/data/content.snapshot.json" with { type: "json" };
+import communityPayload from "../src/data/community.snapshot.json" with { type: "json" };
 
 export interface ApiScenario {
   anonymous?: boolean;
@@ -39,6 +43,11 @@ export async function mockApi(page: Page, scenario: ApiScenario = {}): Promise<v
   await page.route("**/api/v1/catalog", (route) => json(route, { version: "e2e-v1", publishedAt: 1, families: FAMILIES }));
   // Served to anonymous visitors too — the landing page prices two plans from it.
   await page.route("**/api/v1/plans", (route) => json(route, planPayload));
+  // Both served to anonymous visitors: the landing page's feature bento renders
+  // effects, courses and a voice count, and its showcase strip renders posts.
+  // Without these the shell waits on content forever and never paints.
+  await page.route("**/api/v1/content", (route) => json(route, { version: "e2e-v1", publishedAt: 1, ...contentPayload }));
+  await page.route("**/api/v1/community", (route) => json(route, communityPayload));
   await page.route("**/api/v1/wallet", (route) => json(route, { spendable: 1000, grants: [] }));
   await page.route("**/api/v1/gallery**", (route) => json(route, { items: [] }));
   await page.route("**/api/v1/generation/quotes", (route) => {

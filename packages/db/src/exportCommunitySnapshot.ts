@@ -5,9 +5,11 @@
 // work with no backend, and reading the seeder's input rather than its output
 // would mean demo mode renders one thing while production renders another.
 //
-// The ids here are real uuids from the seeded rows, so this file changes if the
-// rows are recreated. That is the intended signal — a recreated feed IS a
-// different feed — and it is why the seeder never deletes and reinserts.
+// The ids are real uuids and this file is still reproducible, because the
+// seeder derives a seeded post's id from its code rather than letting the
+// column default generate one. Without that, CI — which builds an empty
+// database every run — could never diff this file, and the check that proves
+// the repository still serves what the seeder wrote would just be noise.
 //
 // Run: pnpm community:snapshot   (needs DATABASE_URL, and a seeded database)
 

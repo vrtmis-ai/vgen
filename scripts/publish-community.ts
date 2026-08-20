@@ -23,6 +23,7 @@
  *
  * Run: pnpm community:publish   (needs DATABASE_URL)
  */
+import { createHash } from "node:crypto";
 import { config } from "dotenv";
 import postgres from "postgres";
 import seed from "../src/data/community.rows.json" with { type: "json" };
@@ -35,6 +36,30 @@ if (!databaseUrl) throw new Error("DATABASE_URL is required to publish the commu
 
 /** The one marker everything below is found and deleted by. */
 const DEMO_DOMAIN = "demo.invalid";
+
+/**
+ * A stable uuid for a seeded row, derived from its code.
+ *
+ * `posts.id` defaults to `uuid_generate_v7()`, which is right for a real post
+ * and wrong for a seeded one: CI builds an empty database every run, so a
+ * generated id would differ between machines and the committed feed snapshot
+ * could never be diffed — the check that proves the repository still serves
+ * what it seeded would just be noise.
+ *
+ * RFC 4122 version 5, computed here rather than in SQL because this database
+ * carries pgcrypto, not uuid-ossp, so `uuid_generate_v5` does not exist.
+ */
+const NAMESPACE = "6ba7b811-9dad-11d1-80b4-00c04fd430c8"; // RFC 4122 URL namespace
+function stableId(name: string): string {
+  const namespace = Buffer.from(NAMESPACE.replace(/-/g, ""), "hex");
+  const hash = createHash("sha1")
+    .update(Buffer.concat([namespace, Buffer.from(`vgen:community:${name}`)]))
+    .digest();
+  hash[6] = (hash[6]! & 0x0f) | 0x50; // version 5
+  hash[8] = (hash[8]! & 0x3f) | 0x80; // RFC 4122 variant
+  const hex = hash.subarray(0, 16).toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 
 interface SeedPost {
   code: string;
@@ -124,10 +149,11 @@ try {
       if (!assetId) throw new Error(`asset upsert lost ${storageKey}`);
 
       const consent = new Date(row.consentAt);
-      // `title` holds the seed code so a re-run can find its own row: posts has
-      // no natural key, and inventing one column for a seeder to match on would
-      // outlive the seeder. Nothing renders it.
-      const [existing] = await tx<{ id: string }[]>`select id from posts where title = ${row.code} and account_id = ${account.id}`;
+      // The id is the natural key here, because it is derived from the code.
+      // `title` still holds the code so a person reading the table can see
+      // which seed row this is; nothing renders it.
+      const postId = stableId(row.code);
+      const [existing] = await tx<{ id: string }[]>`select id from posts where id = ${postId}`;
       if (existing) {
         await tx`
           update posts set
@@ -143,11 +169,11 @@ try {
 
       const [post] = await tx<{ id: string }[]>`
         insert into posts (
-          account_id, author_user_id, cover_asset_id, title, caption, status,
+          id, account_id, author_user_id, cover_asset_id, title, caption, status,
           like_count, kind, family_code, consent_at, submitted_at, published_at
         )
         values (
-          ${account.id}, ${userId}, ${assetId}, ${row.code}, ${row.prompt}, ${row.status},
+          ${postId}, ${account.id}, ${userId}, ${assetId}, ${row.code}, ${row.prompt}, ${row.status},
           ${row.likes}, ${row.kind}, ${row.familyCode}, ${consent}, ${consent},
           ${row.status === "approved" ? consent : null}
         )
