@@ -419,12 +419,55 @@ confirmed to someone probing for it.
 ## Admin
 
 `/api/v1/admin/*` — invite and discount CRUD, per-code usage and spend, the
-early-access switch, and **providers and model routing**. Complete and tested,
-with **no UI**; `src/screens/Admin.tsx` still talks to local storage.
+early-access switch, and **providers and model routing**.
 
-Not a normal frontend surface: it needs a staff role, a separate cookie, and a
-confirmed second factor. If you are building admin screens, ask first — the
-sign-in is two steps and the session authorises nothing between them.
+**The panel is at `/admin`** (`src/screens/admin/`), outside the `(app)` route
+group because that group's layout gates on a _customer_ session and will not
+paint until the wallet, catalogue and content have loaded — none of which a
+staff session has or needs. It replaced a local-storage panel that had never
+called this API.
+
+Not a normal frontend surface: it needs a staff role, a separate cookie
+(`deev_admin`, never the customer one) and a confirmed second factor. **Sign-in
+is two steps and the session authorises nothing between them.**
+
+### `GET /admin/session`
+
+What the panel asks before it renders anything.
+
+```jsonc
+{ "status": "authed" | "mfa_required", "email": "…", "roles": ["admin"], "permissions": ["*"] }
+```
+
+**404 is the signed-out answer, not an error.** The whole staff surface answers
+404 to anyone without a session so its existence is not confirmed to a customer
+poking at the URL — which means an expired staff cookie and a stranger are
+indistinguishable from outside, and a client must treat 404 here as "sign in"
+rather than as a failure.
+
+**`permissions` is empty while `status` is `mfa_required`.** So a client can
+render straight off that array without also checking the status, and a
+half-authenticated session cannot draw a section it would be refused from.
+
+This is the one admin route deliberately **not** behind the permission gate: it
+has to answer before a second factor lands, or a reload during sign-in could not
+resume where the session actually is. It discloses nothing a holder of the
+cookie does not already have.
+
+### Signing in
+
+1. `POST /admin/session` `{email, password}` → **202** `{status:"mfa_required"}`
+   and a cookie that authorises nothing. Answers 404 for a wrong password, an
+   unknown address _and_ a real customer's address — it must not reveal who is
+   staff. 403 `mfa_not_enrolled` if the account has no second factor: there is
+   no "just this once".
+2. `POST /admin/session/mfa` `{code}` → **200** `{status:"authed", roles, permissions}`.
+   A failure is audited as `admin.mfa.failed`.
+3. `DELETE /admin/session` → 204.
+
+Every mutation on this surface writes an `audit_log` row before it answers, and
+that table is append-only at the database, so the record cannot be tidied
+afterwards by the person who made it.
 
 ### Providers and routing
 
