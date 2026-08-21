@@ -42,6 +42,7 @@ export interface ServingModelSummary {
   id: string;
   providerId: string;
   providerCode: string;
+  providerName: string;
   externalModelId: string;
   name: string;
   modality: Modality;
@@ -86,6 +87,22 @@ export class UnknownModelError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "UnknownModelError";
+  }
+}
+
+/**
+ * Something with that identity is already here.
+ *
+ * Its own class so a route can answer 409 rather than letting a unique
+ * violation surface as a 500. Creating a provider is deliberately not
+ * idempotent: silently updating the existing `kie` row because somebody
+ * re-typed its code is how a provider's base URL changes without anyone having
+ * decided to change it.
+ */
+export class ConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConflictError";
   }
 }
 
@@ -160,16 +177,156 @@ export class PostgresModelRoutesRepository {
 
   async updateProvider(
     id: string,
-    patch: { isActive?: boolean | undefined; baseUrl?: string | null | undefined },
+    patch: { isActive?: boolean | undefined; baseUrl?: string | null | undefined; name?: string | undefined },
   ): Promise<ProviderSummary | null> {
     const [row] = await this.sql<{ id: string }[]>`
       update providers set
         is_active = ${patch.isActive ?? this.sql`is_active`},
-        base_url  = ${patch.baseUrl === undefined ? this.sql`base_url` : patch.baseUrl}
+        base_url  = ${patch.baseUrl === undefined ? this.sql`base_url` : patch.baseUrl},
+        name      = ${patch.name ?? this.sql`name`}
       where id = ${id}
       returning id
     `;
     return row ? this.getProvider(id) : null;
+  }
+
+  /**
+   * Add a provider.
+   *
+   * It arrives able to run nothing, which is the honest state rather than an
+   * oversight: `createGenerationProvider` has no adapter for a code nobody has
+   * written one for, and the environment variable named by `secretRef` is
+   * almost certainly unset in the process reading this. The panel renders both
+   * in red. Routing a model here before either is fixed produces a refused job
+   * and a full refund — the designed failure, not a surprise.
+   *
+   * The credential and the rate are written in the same transaction as the
+   * provider. A provider row with no credential is not a half-built provider;
+   * it is one the worker cannot even ask for a key for.
+   */
+  async createProvider(
+    input: {
+      code: string;
+      name: string;
+      baseUrl?: string | undefined;
+      secretRef: string;
+      creditUnitName: string;
+      unitCostUsd?: number | undefined;
+    },
+    actorUserId: string | null,
+  ): Promise<ProviderSummary> {
+    const id = await atomically(this.sql)(async (transaction) => {
+      const tx = transaction as unknown as Sql;
+
+      const [existing] = await tx<{ id: string }[]>`select id from providers where code = ${input.code}`;
+      if (existing) throw new ConflictError(`A provider with code "${input.code}" already exists`);
+
+      const [provider] = await tx<{ id: string }[]>`
+        insert into providers (code, name, base_url, credit_unit_name, is_active)
+        values (${input.code}, ${input.name}, ${input.baseUrl ?? null}, ${input.creditUnitName}, true)
+        returning id
+      `;
+      const providerId = provider!.id;
+
+      // The NAME of an environment variable. The value has never been in this
+      // column and must not start being.
+      await tx`
+        insert into provider_credentials (provider_id, label, secret_ref, is_active)
+        values (${providerId}, ${`${input.code}-primary`}, ${input.secretRef}, true)
+      `;
+
+      if (input.unitCostUsd !== undefined) {
+        // `micro_credits_per_unit` is the unused layer-2 column, and
+        // publish-providers writes 0 into it for the same reason: what a
+        // customer is charged comes from `model_prices`, not from here.
+        await tx`
+          insert into provider_credit_rates (provider_id, provider_unit_cost_usd, micro_credits_per_unit, note, created_by)
+          values (${providerId}, ${input.unitCostUsd}, 0, 'Set from the admin panel', ${actorUserId})
+        `;
+      }
+
+      return providerId;
+    });
+
+    return (await this.getProvider(id))!;
+  }
+
+  /**
+   * Add somewhere a variant can be sent.
+   *
+   * `capabilities` stays at its `{}` default and is not settable through this
+   * path. That is the entire safety property of the method: `catalogRepository`
+   * decides what is in the shop by testing `capabilities ? 'variant'`, so a
+   * routing destination able to carry that key would be a routing destination a
+   * customer could buy.
+   */
+  async createServingModel(input: {
+    providerId: string;
+    externalModelId: string;
+    name: string;
+    modality: Modality;
+  }): Promise<ServingModelSummary> {
+    const [provider] = await this.sql<{ id: string }[]>`select id from providers where id = ${input.providerId}`;
+    if (!provider) throw new UnknownModelError("No provider with that id");
+
+    const [duplicate] = await this.sql<{ id: string }[]>`
+      select id from provider_models
+      where provider_id = ${input.providerId} and external_model_id = ${input.externalModelId}
+    `;
+    if (duplicate) throw new ConflictError("That provider already has a model with that id");
+
+    const [row] = await this.sql<{ id: string }[]>`
+      insert into provider_models (provider_id, external_model_id, name, modality, is_active)
+      values (${input.providerId}, ${input.externalModelId}, ${input.name}, ${input.modality}, true)
+      returning id
+    `;
+    return (await this.listServingModels()).find((model) => model.id === row!.id)!;
+  }
+
+  /**
+   * Make one destination the winner, in a single transaction.
+   *
+   * Two statements that must not be observable apart. Everything active for
+   * this variant stands down first, then the chosen route is switched on —
+   * doing it in the other order trips the partial unique index on
+   * `(catalog_model_id, priority) where is_active`, which is the same hazard
+   * `replaceRoutes` exists to avoid.
+   *
+   * **`param_overrides` is deliberately left alone on conflict.** The seeded
+   * WaveSpeed routes carry the translations that make them work at all — qwen's
+   * `aspect_ratio` becoming `size`, with `16:9` remapped to `1344*768`. A
+   * one-click move that reset those to `{}` would post KIE's vocabulary to
+   * WaveSpeed and fail every job on arrival, which is precisely the failure
+   * this button looks like it is avoiding.
+   */
+  async routeTo(catalogModelId: string, servingModelId: string, actorUserId: string | null): Promise<RouteRecord[]> {
+    return atomically(this.sql)(async (transaction) => {
+      const tx = transaction as unknown as Sql;
+
+      const [model] = await tx<{ id: string }[]>`
+        select id from provider_models
+        where id = ${catalogModelId} and capabilities ? 'variant'
+        for update
+      `;
+      if (!model) throw new UnknownModelError("No catalogue variant with that id");
+      if (catalogModelId === servingModelId) throw new UnknownModelError("A variant cannot be routed to itself");
+
+      const [serving] = await tx<{ id: string }[]>`select id from provider_models where id = ${servingModelId}`;
+      if (!serving) throw new UnknownModelError("No model with that id to route to");
+
+      await tx`update model_routes set is_active = false where catalog_model_id = ${catalogModelId} and is_active`;
+
+      await tx`
+        insert into model_routes (catalog_model_id, serving_model_id, priority, is_active, created_by)
+        values (${catalogModelId}, ${servingModelId}, 10, true, ${actorUserId})
+        on conflict (catalog_model_id, serving_model_id) do update set
+          is_active = true,
+          priority  = 10,
+          created_by = coalesce(model_routes.created_by, excluded.created_by)
+      `;
+
+      return this.listRoutes(catalogModelId, tx);
+    });
   }
 
   /**
@@ -249,13 +406,14 @@ export class PostgresModelRoutesRepository {
         id: string;
         provider_id: string;
         provider_code: string;
+        provider_name: string;
         external_model_id: string;
         name: string;
         modality: Modality;
         is_active: boolean;
       }[]
     >`
-      select model.id, model.provider_id, provider.code as provider_code,
+      select model.id, model.provider_id, provider.code as provider_code, provider.name as provider_name,
              model.external_model_id, model.name, model.modality, model.is_active
       from provider_models model
       join providers provider on provider.id = model.provider_id
@@ -266,6 +424,7 @@ export class PostgresModelRoutesRepository {
       id: row.id,
       providerId: row.provider_id,
       providerCode: row.provider_code,
+      providerName: row.provider_name,
       externalModelId: row.external_model_id,
       name: row.name,
       modality: row.modality,

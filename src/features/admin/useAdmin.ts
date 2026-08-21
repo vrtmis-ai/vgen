@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tan
 import { ApiError } from "../../runtime/apiError";
 import { browserEnvironment } from "../../runtime/runtime";
 import { createAdminApiFor, type AdminApi, type CreateInviteInput, type CreatePromoInput } from "./adminApi";
-import type { AdminRouteInput, AdminSessionState } from "../../runtime/contracts/admin";
+import type { AdminProviderCreate, AdminRouteInput, AdminServingModelCreate, AdminSessionState } from "../../runtime/contracts/admin";
 
 /**
  * The staff panel's data layer.
@@ -127,13 +127,37 @@ export function useProviders(api: AdminApi, enabled: boolean) {
 export function useProviderPatch(api: AdminApi) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: { isActive?: boolean; baseUrl?: string | null } }) => api.patchProvider(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: { isActive?: boolean; baseUrl?: string | null; name?: string } }) =>
+      api.patchProvider(id, patch),
     // Both: deactivating a provider changes what every model routed to it is
     // serving, and the models list computes that the same way `claim()` does.
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: adminKeys.providers });
       await queryClient.invalidateQueries({ queryKey: adminKeys.models });
     },
+  });
+}
+
+/**
+ * Both lists, because a new provider is also a new place to route to and the
+ * models query is what carries `servingModels`.
+ */
+export function useProviderCreate(api: AdminApi) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AdminProviderCreate) => api.createProvider(input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: adminKeys.providers });
+      await queryClient.invalidateQueries({ queryKey: adminKeys.models });
+    },
+  });
+}
+
+export function useServingModelCreate(api: AdminApi) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AdminServingModelCreate) => api.createServingModel(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.models }),
   });
 }
 
@@ -155,6 +179,37 @@ export function useReplaceRoutes(api: AdminApi) {
   return useMutation({
     mutationFn: ({ modelId, routes }: { modelId: string; routes: AdminRouteInput[] }) => api.replaceRoutes(modelId, routes),
     onSuccess: async (_result, { modelId }) => {
+      await queryClient.invalidateQueries({ queryKey: adminKeys.routes(modelId) });
+      await queryClient.invalidateQueries({ queryKey: adminKeys.models });
+    },
+  });
+}
+
+/**
+ * The one-click move.
+ *
+ * Invalidates the routes for the model AND the models list, because the list's
+ * "running on" column is the thing this changed — leaving it stale would show
+ * an admin the old provider immediately after they moved off it, which is the
+ * one moment they are most likely to believe it.
+ */
+export function useRouteTo(api: AdminApi) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ modelId, servingModelId }: { modelId: string; servingModelId: string }) => api.routeTo(modelId, servingModelId),
+    onSuccess: async (_result, { modelId }) => {
+      await queryClient.invalidateQueries({ queryKey: adminKeys.routes(modelId) });
+      await queryClient.invalidateQueries({ queryKey: adminKeys.models });
+    },
+  });
+}
+
+/** Back to the provider that owns the catalogue row. Not a delete of anything a customer sees. */
+export function useClearRoutes(api: AdminApi) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (modelId: string) => api.clearRoutes(modelId),
+    onSuccess: async (_result, modelId) => {
       await queryClient.invalidateQueries({ queryKey: adminKeys.routes(modelId) });
       await queryClient.invalidateQueries({ queryKey: adminKeys.models });
     },

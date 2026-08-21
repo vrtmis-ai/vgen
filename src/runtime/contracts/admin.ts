@@ -81,20 +81,109 @@ export const AdminProviderPatchSchema = z
   .object({
     isActive: z.boolean().optional(),
     baseUrl: z.url().nullable().optional(),
+    name: z.string().trim().min(1).max(120).optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, { message: "Nothing to change" });
+
+/**
+ * An environment variable's name, and nothing else.
+ *
+ * Two rules, both with teeth. The shape is the shell's — a leading letter, then
+ * upper-case, digits and underscores — because `secret_ref` is looked up in
+ * `process.env`, and a name the shell cannot export is a credential that can
+ * never be set.
+ *
+ * The second matters more. **`NEXT_PUBLIC_` is refused outright.** Next inlines
+ * anything carrying that prefix into the browser bundle at build time, and this
+ * repository is public. A provider key named that way would not leak one day;
+ * it would be built into the client and served to every visitor the moment
+ * somebody set it.
+ */
+export const SecretRefSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Z][A-Z0-9_]*$/, "An environment variable name: A-Z, 0-9 and underscore, starting with a letter")
+  .refine((value) => !value.startsWith("NEXT_PUBLIC_"), {
+    message: "NEXT_PUBLIC_ is the browser bundle, and this repository is public. A provider key must never carry that prefix.",
+  });
+
+/**
+ * A new provider, as an admin proposes one.
+ *
+ * It arrives unable to do anything, which is correct rather than unfortunate:
+ * `hasAdapter` is false until somebody writes one, and `configured` is false
+ * until a deploy sets the variable named here. The panel shows both in red
+ * instead of pretending the provider is ready.
+ *
+ * `unitCostUsd` is optional and worth filling in anyway. It becomes the open
+ * `provider_credit_rates` row, and a provider without one records no cost
+ * against the jobs it runs — a hole in the margin trail rather than a zero in
+ * it.
+ */
+export const AdminProviderCreateSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(2)
+      .max(32)
+      .regex(/^[a-z][a-z0-9-]*$/, "Lower-case letters, digits and dashes, starting with a letter"),
+    name: z.string().trim().min(1).max(120),
+    baseUrl: z.url().max(500).optional(),
+    secretRef: SecretRefSchema,
+    /** What THEY call their unit: 'credit' for KIE, 'usd' for one that bills in dollars. */
+    creditUnitName: z.string().trim().min(1).max(32).default("credit"),
+    /** What one of their units costs us. Opens a `provider_credit_rates` row. */
+    unitCostUsd: z.number().positive().max(1_000).optional(),
+  })
+  .strict();
 
 /** A `provider_models` row that is not in the shop — somewhere a variant can be sent. */
 export const AdminServingModelSchema = z.object({
   id: z.uuid(),
   providerId: z.uuid(),
   providerCode: z.string(),
+  /** The provider's display name. Carried so a picker can group by it without a second request. */
+  providerName: z.string(),
   externalModelId: z.string(),
   name: z.string(),
   modality: z.enum(["image", "video", "audio", "text"]),
   isActive: z.boolean(),
 });
+
+/**
+ * A new routing destination.
+ *
+ * There is no `capabilities` field here and there never will be one. A
+ * `provider_models` row carrying a `variant` key is a thing in the shop —
+ * `catalogRepository` decides exactly that way — so letting this endpoint set
+ * capabilities would let a routing target become something a customer can buy.
+ * The repository writes `{}` and an integration test asserts the row never
+ * reaches the catalogue.
+ */
+export const AdminServingModelCreateSchema = z
+  .object({
+    providerId: z.uuid(),
+    externalModelId: z.string().trim().min(1).max(200),
+    name: z.string().trim().min(1).max(200),
+    modality: z.enum(["image", "video", "audio", "text"]),
+  })
+  .strict();
+
+/**
+ * "Run this variant here, now."
+ *
+ * The entire body. Priority is deliberately not offered: the point of this
+ * route is that the caller does not have to reason about it — the server picks
+ * one that wins and stands down whatever was winning before, in a single
+ * transaction. An admin who wants to express something more complicated than
+ * "this one" uses `PUT /routes`, which still takes the whole ordered list.
+ */
+export const AdminRouteToSchema = z.object({ servingModelId: z.uuid() }).strict();
 
 export const AdminRouteSchema = z.object({
   id: z.uuid(),
@@ -173,6 +262,8 @@ export const AdminCatalogModelsResponseSchema = z.object({
   servingModels: z.array(AdminServingModelSchema),
 });
 export const AdminRoutesResponseSchema = z.object({ routes: z.array(AdminRouteSchema) });
+export const AdminProviderResponseSchema = z.object({ provider: AdminProviderSchema });
+export const AdminServingModelResponseSchema = z.object({ servingModel: AdminServingModelSchema });
 
 export type AdminSessionState = z.infer<typeof AdminSessionSchema>;
 export type RouteParamOverrides = z.infer<typeof ParamOverridesSchema>;
@@ -182,3 +273,5 @@ export type AdminServingModel = z.infer<typeof AdminServingModelSchema>;
 export type AdminRoute = z.infer<typeof AdminRouteSchema>;
 export type AdminCatalogModel = z.infer<typeof AdminCatalogModelSchema>;
 export type AdminRouteInput = z.infer<typeof AdminRouteInputSchema>;
+export type AdminProviderCreate = z.infer<typeof AdminProviderCreateSchema>;
+export type AdminServingModelCreate = z.infer<typeof AdminServingModelCreateSchema>;
