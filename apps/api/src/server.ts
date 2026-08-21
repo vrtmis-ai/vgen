@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import {
   PostgresAccessRepository,
   PostgresAdminRepository,
+  PostgresAnalyticsRepository,
+  PostgresBansRepository,
   PostgresModelRoutesRepository,
   PostgresAuthRepository,
   PostgresCatalogRepository,
@@ -132,6 +134,8 @@ const mfaSealingKey = sealingKeyFrom(infrastructureSetting("MFA_SEALING_KEY", "d
 const authRepository = new PostgresAuthRepository(sql, phonePepper);
 const adminRepository = new PostgresAdminRepository(sql, mfaSealingKey);
 const modelRoutesRepository = new PostgresModelRoutesRepository(sql);
+const analyticsRepository = new PostgresAnalyticsRepository(sql);
+const bansRepository = new PostgresBansRepository(sql);
 const accessRepository = new PostgresAccessRepository(sql);
 const authRateLimiters = await createAuthRateLimiters(sql, redisUrl, rateLimitHashSecret);
 const telemetryRateLimiter = createRedisFixedWindowRateLimiter(redisUrl, {
@@ -198,6 +202,7 @@ const app = createApp(
         // variables this process would actually resolve a secret_ref against,
         // and a snapshot taken at boot would go stale on the first reload.
         catalog: { routes: modelRoutesRepository, secrets: process.env },
+        analytics: { analytics: analyticsRepository, bans: bansRepository },
         // Staff prove who they are exactly as customers do; the second factor
         // is what makes it a staff session.
         verifyPassword: async (email, password) => {

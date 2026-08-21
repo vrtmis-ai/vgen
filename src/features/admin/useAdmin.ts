@@ -2,7 +2,15 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { ApiError } from "../../runtime/apiError";
 import { browserEnvironment } from "../../runtime/runtime";
-import { createAdminApiFor, type AdminApi, type CreateInviteInput, type CreatePromoInput } from "./adminApi";
+import {
+  createAdminApiFor,
+  type AdminApi,
+  type AdminBan,
+  type AdminUsersQuery,
+  type AnalyticsWindow,
+  type CreateInviteInput,
+  type CreatePromoInput,
+} from "./adminApi";
 import type { AdminProviderCreate, AdminRouteInput, AdminServingModelCreate, AdminSessionState } from "../../runtime/contracts/admin";
 
 /**
@@ -30,6 +38,11 @@ export const adminKeys = {
   invites: ["admin", "invites"] as const,
   promos: ["admin", "promos"] as const,
   earlyAccess: ["admin", "early-access"] as const,
+  overview: (window: AnalyticsWindow) => ["admin", "analytics", "overview", window] as const,
+  modelMargin: (window: AnalyticsWindow) => ["admin", "analytics", "models", window] as const,
+  providerHealth: (window: AnalyticsWindow) => ["admin", "analytics", "providers", window] as const,
+  users: (query: AdminUsersQuery) => ["admin", "users", query] as const,
+  user: (id: string) => ["admin", "user", id] as const,
 };
 
 export type AdminAvailability = { available: true; api: AdminApi } | { available: false; reason: string };
@@ -250,5 +263,88 @@ export function useEarlyAccess(api: AdminApi, enabled: boolean) {
       mutationFn: (value: boolean) => api.setEarlyAccess(value),
       onSuccess: (value) => queryClient.setQueryData(adminKeys.earlyAccess, value),
     }),
+  };
+}
+
+// ---------------------------------------------------------------- analytics
+
+/**
+ * The window is part of the key, not a parameter to one query.
+ *
+ * Switching from 30d to today then back is then instant and offline, which
+ * matters because comparing two windows is the actual thing an operator does
+ * with this screen — and a refetch on every toggle would make that a
+ * three-second habit instead of a free one.
+ */
+export function useOverview(api: AdminApi, window: AnalyticsWindow, enabled: boolean) {
+  return useQuery({
+    queryKey: adminKeys.overview(window),
+    enabled,
+    queryFn: () => api.getOverview(window),
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
+export function useModelMargin(api: AdminApi, window: AnalyticsWindow, enabled: boolean) {
+  return useQuery({
+    queryKey: adminKeys.modelMargin(window),
+    enabled,
+    queryFn: () => api.listModelMargin(window),
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
+export function useProviderHealth(api: AdminApi, window: AnalyticsWindow, enabled: boolean) {
+  return useQuery({
+    queryKey: adminKeys.providerHealth(window),
+    enabled,
+    queryFn: () => api.listProviderHealth(window),
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
+export function useUsers(api: AdminApi, query: AdminUsersQuery, enabled: boolean) {
+  return useQuery({
+    queryKey: adminKeys.users(query),
+    enabled,
+    queryFn: () => api.listUsers(query),
+    retry: false,
+    // The list is a table someone is typing into. Keeping the previous page
+    // visible while the next one loads stops every keystroke blanking it.
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useUser(api: AdminApi, id: string | null) {
+  return useQuery({ queryKey: adminKeys.user(id ?? "none"), enabled: id !== null, queryFn: () => api.getUser(id!), retry: false });
+}
+
+/**
+ * Everything that changes one customer.
+ *
+ * All four invalidate the user AND the list: a grant moves a balance the list
+ * shows, and a ban moves a count it shows. Refreshing only the open drawer
+ * would leave the row behind it contradicting the drawer in front of it.
+ */
+export function useUserActions(api: AdminApi, userId: string) {
+  const queryClient = useQueryClient();
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: adminKeys.user(userId) });
+    await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+  };
+  return {
+    adjustCredits: useMutation({
+      mutationFn: (input: { coins: number; note: string }) => api.adjustCredits(userId, input),
+      onSuccess: refresh,
+    }),
+    ban: useMutation({
+      mutationFn: (input: { scope: AdminBan["scope"]; reason?: string; expiresAt?: string }) => api.banUser(userId, input),
+      onSuccess: refresh,
+    }),
+    liftBan: useMutation({ mutationFn: (banId: string) => api.liftBan(userId, banId), onSuccess: refresh }),
+    revokeSessions: useMutation({ mutationFn: () => api.revokeUserSessions(userId), onSuccess: refresh }),
   };
 }

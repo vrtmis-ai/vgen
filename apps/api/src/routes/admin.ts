@@ -2,6 +2,7 @@ import { grantsPermission, type AdminSession, type PostgresAccessRepository, typ
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { clearAdminCookie, readAdminToken, setAdminCookie, type CookieOptions } from "../auth/cookies";
+import { registerAdminAnalyticsRoutes, type AdminAnalyticsDependencies } from "./adminAnalytics";
 import { registerAdminCatalogRoutes, type AdminCatalogDependencies } from "./adminCatalog";
 
 export interface AdminDependencies {
@@ -13,6 +14,13 @@ export interface AdminDependencies {
    * the section exists but cannot answer.
    */
   catalog?: AdminCatalogDependencies | undefined;
+  /**
+   * The money and the customer list. Optional for the same reason `catalog` is
+   * — the customer-surface tests mount the staff routes without a database
+   * behind them, and a section that existed but could not answer would be worse
+   * than one that is absent.
+   */
+  analytics?: AdminAnalyticsDependencies | undefined;
   /** Reused so staff prove who they are the same way customers do, before the second factor. */
   verifyPassword(email: string, password: string): Promise<{ id: string; emailNormalized: string }>;
 }
@@ -134,6 +142,7 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
     });
 
   if (dependencies.catalog) registerAdminCatalogRoutes(app, dependencies.catalog, { require, audit });
+  if (dependencies.analytics) registerAdminAnalyticsRoutes(app, dependencies.analytics, { require, audit });
 
   // ------------------------------------------------------------ signing in
 

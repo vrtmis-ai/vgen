@@ -531,6 +531,67 @@ so a key named that way would be published rather than leaked. `POST
 existing `kie` row would change a provider's base URL with nobody having decided
 to.
 
+### Analytics, and the customer list
+
+Read live out of Postgres. `usage_daily` exists in the schema for a nightly
+rollup that nothing has ever written to; with almost no rows yet, scanning the
+real tables is correct to the second and is less machinery. That table is the
+upgrade path, and one of these queries getting slow is the signal to take it.
+
+| route                                 | permission                      | does                                         |
+| ------------------------------------- | ------------------------------- | -------------------------------------------- |
+| `GET /admin/analytics/overview`       | `analytics.read`                | KPIs, standing totals, and a per-day series  |
+| `GET /admin/analytics/models`         | `analytics.read`                | jobs, coins, cost and failure rate per model |
+| `GET /admin/analytics/providers`      | `analytics.read`                | attempts, failures and latency per provider  |
+| `GET /admin/users`                    | `analytics.read` + `users.read` | paginated, searchable customer list          |
+| `GET /admin/users/:id`                | `analytics.read` + `users.read` | one customer, recent jobs, ledger, live bans |
+| `POST /admin/users/:id/credits`       | `credits.grant`                 | `{ coins, note }` — signed; note required    |
+| `POST /admin/users/:id/bans`          | `users.write`                   | `{ scope, reason?, expiresAt? }` → **201**   |
+| `DELETE /admin/users/:id/bans/:banId` | `users.write`                   | lift one ban                                 |
+| `DELETE /admin/users/:id/sessions`    | `users.write`                   | end every customer session → `{ revoked }`   |
+
+All take `?window=today|7d|30d|all`, defaulting to `30d`. An unknown window is a
+400 rather than a silent fallback.
+
+**Two permissions on the customer list, deliberately.** Aggregates need
+`analytics.read`. The list carries every customer's email beside what they
+spent, so it additionally needs `users.read` — which is what makes it possible
+to hand somebody the money dashboard without also handing them the mailing list.
+That refusal is a **403**, not the surface's usual 404: the caller demonstrably
+has a staff session, and denying the route exists would be a lie told to
+somebody already inside.
+
+**A day means a Tehran day.** The server is UTC, where midnight falls at 03:30
+Tehran, so a UTC boundary would split one evening's session across two days and
+make "today" wrong for every operator reading it. Same reasoning as the
+free-tier reset in `0018_unlimited_access.sql`.
+
+**Coins are usage; money is separate.** `coinsSold` comes from
+`credit_lots.source = 'purchase'` — _not_ from a ledger `entry_type`, because
+`grant_credits` writes every arrival as `grant` whatever its origin, and reading
+entry_type there returns zero for everything. Revenue is `orders`, in Rial.
+`grossMarginUsd` is **null** while nothing has been sold rather than a large
+negative number, which would read as a business losing money instead of one that
+has not opened.
+
+**Adjustments go through `adjust_credits`.** Positive delegates to
+`grant_credits`, so it becomes a real lot that expires and reconciles like any
+other. Negative consumes lots FIFO and **refuses to overdraw rather than
+clamping** — that refusal surfaces as **409** `insufficient_credits`. The note
+is required: `credit_ledger` is append-only at the database, so an unexplained
+entry is a permanent mystery.
+
+**A ban does not stop sign-in.** `generation` and `platform` refuse new jobs
+with **403** `banned` at `POST /jobs`; `explore` and `platform` are meant to
+refuse publishing. Someone who paid for generations keeps access to the ones
+they already have.
+
+> **`explore` bans currently refuse nothing.** There is no endpoint that
+> publishes to the community — `GET /api/v1/community` is read-only and the
+> seeded posts came from `scripts/publish-community.ts`. The scope is stored and
+> `isBannedFromPublishing` is written and tested; whoever builds the `POST` calls
+> it from there.
+
 ### `GET /plans`
 
 The plan ladder. Public on purpose: someone deciding whether to sign up has to

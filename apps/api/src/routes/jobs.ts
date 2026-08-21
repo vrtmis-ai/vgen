@@ -25,6 +25,9 @@ const REFUSAL_STATUS: Record<string, { status: number; message: string }> = {
   idempotency_conflict: { status: 409, message: "That idempotency key was used for a different request." },
   concurrency_reached: { status: 429, message: "You already have as many generations running as your plan allows." },
   allowance_spent: { status: 409, message: "Your free generations for today ran out. Ask for a new price." },
+  // 403, not 402: nothing about this is fixable by paying, and a client that
+  // offered to top up would be lying about what went wrong.
+  banned: { status: 403, message: "This account cannot start new generations." },
 };
 
 export function registerGenerationJobsRoute(
