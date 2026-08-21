@@ -1,0 +1,72 @@
+# =====================================================================
+#  Dependency updates
+#
+#  This repository is public, takes payments, and carries roughly 1,200
+#  packages once transitives are counted. Nobody is tracking those by
+#  hand, and the first sign that one of them published a security fix is
+#  otherwise somebody telling us — or not.
+#
+#  The configuration below is shaped around one distinction that is easy
+#  to miss when reading it:
+#
+#    * **Security updates ignore everything here.** When a package we
+#      depend on has a published advisory, Dependabot opens its own PR
+#      immediately, one per advisory, regardless of the schedule, the
+#      grouping and the `ignore` block. That is the behaviour we actually
+#      care about and it is not configurable from this file.
+#
+#    * **Version updates are the noisy half**, and are what the schedule
+#      and grouping below tame. Batched weekly, majors left alone.
+#
+#  So `ignore: semver-major` does NOT mean "never bump a major". It means
+#  "do not open routine PRs for majors" — a major with a CVE still gets
+#  one.
+# =====================================================================
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    # pnpm workspaces resolve through the single root lockfile, so one
+    # entry covers apps/*, packages/* and the root together. Splitting it
+    # per workspace would produce PRs that each rewrite the same file.
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Tehran
+    # Routine bumps arrive as ONE pull request. Ungrouped, a 1,200-package
+    # tree buries the security PRs that matter in a wall of ones that do
+    # not.
+    groups:
+      routine:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      # Majors are a deliberate act with a changelog to read, not
+      # something to merge on a Monday. Next, React and Fastify majors
+      # have all broken this repository's build before.
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
+      include: scope
+    labels: [dependencies]
+
+  - package-ecosystem: github-actions
+    directory: /
+    # ci.yml and codeql.yml pin actions by major tag. Nothing else watches
+    # them, and a pinned action is exactly as stale as the day it was
+    # written.
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Tehran
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+    labels: [dependencies]
