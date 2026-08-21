@@ -1,0 +1,71 @@
+# =====================================================================
+#  CodeQL — static security analysis
+#
+#  Separate from ci.yml on purpose. Findings here are ADVISORY: this
+#  workflow is not in the branch-protection required checks, so an alert
+#  never blocks a merge. The first run on a codebase this size normally
+#  surfaces a handful of things that turn out to be fine, and being
+#  unable to merge until each one is dismissed is how a scanner gets
+#  switched off in week two.
+#
+#  What it is actually watching for, on a public repository that will
+#  take Iranian payments and stores hashed phone numbers: a request
+#  parameter reaching a query, a path reaching the filesystem, a secret
+#  reaching a log. CodeQL follows values across function boundaries,
+#  which is the part grep and ESLint cannot do — `secret_ref` flowing
+#  three calls into a response is exactly the shape of bug that would
+#  otherwise be found by someone else.
+# =====================================================================
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Weekly deep pass. Catches advisories published against patterns in
+  # code that nobody has touched since the last push — the scan finding
+  # something new without the code changing is the whole point of it.
+  schedule:
+    - cron: "27 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze — JavaScript/TypeScript
+    runs-on: ubuntu-latest
+    # Long enough for a cold run on a repository this size; short enough
+    # that a wedged extraction does not burn an hour of CI minutes.
+    timeout-minutes: 30
+
+    permissions:
+      # The only write this workflow needs. It uploads results to the
+      # Security tab and touches nothing else in the repository.
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          # TypeScript is extracted from source. There is no compilation
+          # step to observe, so asking for one only slows the run down —
+          # and it means the analysis never depends on the build passing.
+          build-mode: none
+          # Wider than the default `security` suite: it adds correctness
+          # and maintainability queries. Worth it while this is advisory,
+          # and trivially narrowed to `security-extended` if the quality
+          # findings turn out to be noise.
+          queries: security-and-quality
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:javascript-typescript
