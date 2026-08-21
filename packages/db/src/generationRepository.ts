@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Sql } from "postgres";
 import { microCreditsToCoins } from "@vgen/core";
+import { isBannedFromGenerating } from "./bansRepository";
 import { PostgresEntitlementsRepository } from "./entitlementsRepository";
 import { atomically } from "./transaction";
 
@@ -39,7 +40,9 @@ export type CreateQueuedJobResult =
         /** The account already has as many generations running as its plan allows. */
         | "concurrency_reached"
         /** Free when quoted, but the daily allowance ran out in between. */
-        | "allowance_spent";
+        | "allowance_spent"
+        /** A `generation` or `platform` ban is in force on this account. */
+        | "banned";
     };
 
 function canonicalJson(value: unknown): string {
@@ -163,6 +166,16 @@ export class PostgresGenerationRepository {
         `;
         const accountId = user?.personal_account_id;
         if (!accountId) throw new SubmissionRefused("quote_unavailable");
+
+        // Inside the transaction, on the connection that is about to hold the
+        // credits. Checking before `atomically` would leave a gap for a ban to
+        // land in between deciding and charging — small, but the whole reason
+        // an admin presses that button is that the account is costing money
+        // right now.
+        //
+        // Before the replay check on purpose: a banned account must not be able
+        // to retry its way into a job either.
+        if (await isBannedFromGenerating(tx as unknown as Sql, input.userId)) throw new SubmissionRefused("banned");
 
         // Replay first, before anything is locked or spent. A client that
         // retried a request whose response it never saw must get the original

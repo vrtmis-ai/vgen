@@ -16,6 +16,7 @@ export * from "./quotesRepository";
 export * from "./frontendTelemetryRepository";
 export * from "./generationRepository";
 export * from "./jobRunnerRepository";
+export * from "./bansRepository";
 export * from "./modelRoutesRepository";
 export * from "./galleryRepository";
 export * from "./assetsRepository";
