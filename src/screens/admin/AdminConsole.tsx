@@ -4,8 +4,10 @@ import type { AdminApi } from "../../features/admin/adminApi";
 import type { AdminSessionState } from "../../runtime/contracts/admin";
 import { AccessSection } from "./AccessSection";
 import { AdminSignIn } from "./AdminSignIn";
+import { DashboardSection } from "./DashboardSection";
 import { ProvidersSection } from "./ProvidersSection";
 import { RoutingSection } from "./RoutingSection";
+import { UsersSection } from "./UsersSection";
 
 /**
  * The staff console.
@@ -21,6 +23,10 @@ import { RoutingSection } from "./RoutingSection";
  * cannot write routes does not get a disabled Save button — a disabled control
  * is still an invitation to find out who can press it — and a person with no
  * `catalog.read` does not see that the section exists.
+ *
+ * A rail rather than a row of tabs, because there are six sections now and a
+ * tab row wraps onto two lines at six. The rail also lets the dashboard be
+ * where /admin opens, which answers "how are we doing" before anybody clicks.
  */
 export function AdminConsole() {
   const availability = useAdminAvailability();
@@ -41,21 +47,37 @@ export function AdminConsole() {
   return <Console api={api!} session={session.data} />;
 }
 
-type TabId = "routing" | "providers" | "access";
+type SectionId = "dashboard" | "users" | "routing" | "providers" | "access";
 
 function Console({ api, session }: { api: AdminApi; session: AdminSessionState }) {
   const { signOut } = useAdminSignIn(api);
 
-  const tabs: { id: TabId; label: string; visible: boolean }[] = [
-    { id: "routing", label: "مسیر مدل‌ها", visible: permits(session, "catalog.read") },
-    { id: "providers", label: "ارائه‌دهنده‌ها", visible: permits(session, "catalog.read") },
-    { id: "access", label: "دعوت و تخفیف", visible: permits(session, "invites.read") || permits(session, "promos.read") },
+  const sections: { id: SectionId; label: string; group: string; visible: boolean }[] = [
+    { id: "dashboard", label: "داشبورد", group: "سنجه‌ها", visible: permits(session, "analytics.read") },
+    // The customer list carries email addresses beside spending, so it needs a
+    // second permission the aggregate numbers do not.
+    {
+      id: "users",
+      label: "کاربران",
+      group: "سنجه‌ها",
+      visible: permits(session, "analytics.read") && permits(session, "users.read"),
+    },
+    { id: "routing", label: "مسیر مدل‌ها", group: "کاتالوگ", visible: permits(session, "catalog.read") },
+    { id: "providers", label: "ارائه‌دهنده‌ها", group: "کاتالوگ", visible: permits(session, "catalog.read") },
+    {
+      id: "access",
+      label: "دعوت و تخفیف",
+      group: "دسترسی",
+      visible: permits(session, "invites.read") || permits(session, "promos.read"),
+    },
   ];
-  const visible = tabs.filter((tab) => tab.visible);
-  const [tab, setTab] = useState<TabId>(visible[0]?.id ?? "routing");
+  const visible = sections.filter((section) => section.visible);
+  const [current, setCurrent] = useState<SectionId>(visible[0]?.id ?? "dashboard");
+
+  const groups = [...new Set(visible.map((section) => section.group))];
 
   return (
-    <div className="mx-auto w-full max-w-[1000px] px-4 pb-20 pt-6">
+    <div className="mx-auto w-full max-w-[1180px] px-4 pb-20 pt-6">
       <header className="flex flex-wrap items-baseline gap-2">
         <h1 className="text-[18px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
           پنل مدیریت
@@ -75,33 +97,48 @@ function Console({ api, session }: { api: AdminApi; session: AdminSessionState }
       {visible.length === 0 ? (
         <Notice title="هیچ بخشی">این نقش به هیچ بخشی از این پنل دسترسی ندارد.</Notice>
       ) : (
-        <>
-          <nav className="mt-4 flex flex-wrap gap-1.5">
-            {visible.map((entry) => (
-              <button
-                key={entry.id}
-                onClick={() => setTab(entry.id)}
-                aria-pressed={tab === entry.id}
-                className="h-8 rounded-lg px-3 text-[12.5px] font-semibold"
-                style={{
-                  background: tab === entry.id ? "var(--vg-primary-a18)" : "var(--vg-surface)",
-                  color: tab === entry.id ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
-                  border: "1px solid var(--vg-border-subtle)",
-                }}
-              >
-                {entry.label}
-              </button>
+        <div className="mt-5 flex flex-col gap-5 md:flex-row md:gap-6">
+          <nav className="flex shrink-0 flex-col gap-3 md:w-[170px]" aria-label="بخش‌ها">
+            {groups.map((group) => (
+              <div key={group}>
+                <div className="mb-1 px-1 text-[10.5px] font-semibold" style={{ color: "var(--vg-text-faint)" }}>
+                  {group}
+                </div>
+                <div className="flex flex-wrap gap-1 md:flex-col">
+                  {visible
+                    .filter((section) => section.group === group)
+                    .map((section) => (
+                      <button
+                        key={section.id}
+                        onClick={() => setCurrent(section.id)}
+                        aria-pressed={current === section.id}
+                        className="h-8 rounded-lg px-3 text-start text-[12.5px] font-semibold"
+                        style={{
+                          background: current === section.id ? "var(--vg-primary-a18)" : "transparent",
+                          color: current === section.id ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                          border: `1px solid ${current === section.id ? "var(--vg-border-subtle)" : "transparent"}`,
+                        }}
+                      >
+                        {section.label}
+                      </button>
+                    ))}
+                </div>
+              </div>
             ))}
           </nav>
 
-          <main className="mt-5">
-            {tab === "routing" ? <RoutingSection api={api} canWrite={permits(session, "catalog.write")} /> : null}
-            {tab === "providers" ? <ProvidersSection api={api} canWrite={permits(session, "catalog.write")} /> : null}
-            {tab === "access" ? (
+          <main className="min-w-0 flex-1">
+            {current === "dashboard" ? <DashboardSection api={api} /> : null}
+            {current === "users" ? (
+              <UsersSection api={api} canWrite={permits(session, "users.write")} canGrant={permits(session, "credits.grant")} />
+            ) : null}
+            {current === "routing" ? <RoutingSection api={api} canWrite={permits(session, "catalog.write")} /> : null}
+            {current === "providers" ? <ProvidersSection api={api} canWrite={permits(session, "catalog.write")} /> : null}
+            {current === "access" ? (
               <AccessSection api={api} canWrite={permits(session, "invites.write")} canFlags={permits(session, "flags.write")} />
             ) : null}
           </main>
-        </>
+        </div>
       )}
     </div>
   );

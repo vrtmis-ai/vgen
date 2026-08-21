@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { AdminApi } from "../../features/admin/adminApi";
 import { useProviderCreate, useProviderPatch, useProviders } from "../../features/admin/useAdmin";
 import { AdminProviderCreateSchema } from "../../runtime/contracts/admin";
-import { Cell, Muted, Table } from "./RoutingSection";
+import { Cell, Muted, Table } from "./primitives";
 
 /**
  * The upstream accounts, and whether each one can actually be called.

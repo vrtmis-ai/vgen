@@ -9,6 +9,7 @@ import {
   useRoutes,
   useServingModelCreate,
 } from "../../features/admin/useAdmin";
+import { Cell, Muted, Row, Table } from "./primitives";
 import {
   ParamOverridesSchema,
   type AdminCatalogModel,
@@ -67,7 +68,7 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
         {models.data.models.map((model) => {
           const moved = model.servingProviderCode !== model.homeProviderCode;
           return (
-            <tr key={model.id} className="border-t" style={{ borderColor: "var(--vg-border-subtle)" }}>
+            <Row key={model.id}>
               <Cell>
                 <button onClick={() => setOpenId(model.id)} className="text-start underline-offset-2 hover:underline">
                   {model.name}
@@ -89,7 +90,7 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
               <Cell>
                 <MoveTo api={api} model={model} servingModels={models.data.servingModels} canWrite={canWrite} />
               </Cell>
-            </tr>
+            </Row>
           );
         })}
       </Table>
@@ -556,40 +557,5 @@ function NewDestination({
         این مقصد در فروشگاه دیده نمی‌شود؛ فقط جایی است که می‌شود جابی را به آن فرستاد.
       </p>
     </form>
-  );
-}
-
-export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-[12.5px]">
-        <thead>
-          <tr style={{ color: "var(--vg-text-faint)" }}>
-            {head.map((label) => (
-              <th key={label} className="pb-2 text-start font-medium">
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>{children}</tbody>
-      </table>
-    </div>
-  );
-}
-
-export function Cell({ children, dim = false }: { children: React.ReactNode; dim?: boolean }) {
-  return (
-    <td className="py-2 align-top" style={{ color: dim ? "var(--vg-text-faint)" : "var(--vg-text)" }}>
-      {children}
-    </td>
-  );
-}
-
-export function Muted({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mt-3 text-[12.5px]" style={{ color: "var(--vg-text-faint)" }}>
-      {children}
-    </p>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { AdminApi } from "../../features/admin/adminApi";
 import { useEarlyAccess, useInviteMutations, useInvites, usePromoMutations, usePromos } from "../../features/admin/useAdmin";
-import { Cell, Muted, Table } from "./RoutingSection";
+import { Cell, Muted, Table } from "./primitives";
 
 /**
  * Who gets in, and what they pay.
