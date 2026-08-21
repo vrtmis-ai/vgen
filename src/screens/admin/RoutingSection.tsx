@@ -1,7 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { AdminApi } from "../../features/admin/adminApi";
-import { useModels, useReplaceRoutes, useRoutes } from "../../features/admin/useAdmin";
-import { ParamOverridesSchema, type AdminCatalogModel, type AdminRouteInput, type AdminServingModel } from "../../runtime/contracts/admin";
+import {
+  useClearRoutes,
+  useModels,
+  useProviders,
+  useReplaceRoutes,
+  useRouteTo,
+  useRoutes,
+  useServingModelCreate,
+} from "../../features/admin/useAdmin";
+import {
+  ParamOverridesSchema,
+  type AdminCatalogModel,
+  type AdminProvider,
+  type AdminRouteInput,
+  type AdminServingModel,
+} from "../../runtime/contracts/admin";
 
 /**
  * Which provider actually runs each thing we sell.
@@ -12,14 +26,18 @@ import { ParamOverridesSchema, type AdminCatalogModel, type AdminRouteInput, typ
  * says and what a submitted job does cannot disagree. Everything else here is
  * how you change it.
  *
- * Saving replaces the whole list rather than patching a row. That is not a
- * simplification: the partial unique index on `(catalog_model_id, priority)
- * where is_active` means swapping two priorities one statement at a time
- * collides on the value that is only transiently taken, and a variant would be
- * left routed somewhere nobody chose.
+ * There are two ways to change it, for two different situations. The dropdown
+ * in the list is for "a provider is failing, move this now": one choice, and
+ * the server works out the priority. The editor behind a model's name is for
+ * deciding an order in advance — several destinations, ranked, most of them
+ * switched off until they are needed.
  */
 export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boolean }) {
   const models = useModels(api, true);
+  // Cached — the providers section has usually fetched this already. Needed
+  // here because a provider with no serving models yet appears in no other
+  // list, and adding the first destination for one is the common case.
+  const providers = useProviders(api, true);
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (models.isPending) return <Muted>در حال خواندن کاتالوگ…</Muted>;
@@ -29,7 +47,14 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
 
   if (open) {
     return (
-      <RouteEditor api={api} model={open} servingModels={models.data.servingModels} canWrite={canWrite} onClose={() => setOpenId(null)} />
+      <RouteEditor
+        api={api}
+        model={open}
+        servingModels={models.data.servingModels}
+        providers={providers.data?.providers ?? []}
+        canWrite={canWrite}
+        onClose={() => setOpenId(null)}
+      />
     );
   }
 
@@ -38,7 +63,7 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
       <p className="mb-3 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
         «اجرا روی» یعنی اگر همین حالا جابی ثبت شود، کجا می‌رود. سرور همان‌طور حسابش می‌کند که هنگام اجرا حساب می‌کند.
       </p>
-      <Table head={["مدل", "خانه", "اجرا روی", "مسیرها"]}>
+      <Table head={["مدل", "خانه", "اجرا روی", "مسیرها", "انتقال به"]}>
         {models.data.models.map((model) => {
           const moved = model.servingProviderCode !== model.homeProviderCode;
           return (
@@ -61,11 +86,109 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
               <Cell dim>
                 {model.activeRouteCount} / {model.routeCount}
               </Cell>
+              <Cell>
+                <MoveTo api={api} model={model} servingModels={models.data.servingModels} canWrite={canWrite} />
+              </Cell>
             </tr>
           );
         })}
       </Table>
     </div>
+  );
+}
+
+/**
+ * Move one variant somewhere else, in one choice.
+ *
+ * Only destinations of the same modality are offered. Routing an image variant
+ * at a video endpoint is not a preference anyone holds; it is a typo that would
+ * be found by every job failing until somebody noticed.
+ *
+ * Selecting the blank option clears every route, which sends the variant back
+ * to the provider that owns its catalogue row. That is a return, not a
+ * deletion — nothing a customer can see changes either way.
+ */
+function MoveTo({
+  api,
+  model,
+  servingModels,
+  canWrite,
+}: {
+  api: AdminApi;
+  model: AdminCatalogModel;
+  servingModels: AdminServingModel[];
+  canWrite: boolean;
+}) {
+  const routeTo = useRouteTo(api);
+  const clear = useClearRoutes(api);
+  const busy = routeTo.isPending || clear.isPending;
+
+  const options = useMemo(() => servingModels.filter((serving) => serving.modality === model.modality), [servingModels, model.modality]);
+
+  // The select shows where it is going, not what was last picked: an active
+  // route's target, or blank for "home".
+  const current =
+    model.activeRouteCount > 0 ? (options.find((serving) => serving.externalModelId === model.servingExternalModelId)?.id ?? "") : "";
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <select
+        value={current}
+        disabled={!canWrite || busy}
+        aria-label={`انتقال ${model.name}`}
+        dir="ltr"
+        onChange={(event) =>
+          event.target.value === "" ? clear.mutate(model.id) : routeTo.mutate({ modelId: model.id, servingModelId: event.target.value })
+        }
+        className="h-8 max-w-[220px] rounded-lg px-2 text-[11.5px]"
+        style={{ background: "var(--vg-bg, #0a0a0b)", color: "var(--vg-text)", border: "1px solid var(--vg-border-subtle)" }}
+      >
+        <option value="">— خانه —</option>
+        <ProviderOptions servingModels={options} />
+      </select>
+      {busy ? <span className="text-[11px]">…</span> : null}
+      {routeTo.error || clear.error ? (
+        <span role="alert" className="text-[11px]" style={{ color: "var(--vg-danger, #ff6c52)" }}>
+          نشد
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Destinations grouped under the provider that runs them.
+ *
+ * The grouping is the whole point. Flat, this list reads as a pile of model
+ * slugs and an admin has to already know that `bytedance/seedance-2.0-fast` is
+ * a WaveSpeed path — which is exactly what made the old picker unusable. The
+ * group header carries the provider's real name; the options carry the id the
+ * provider actually expects, because inside one provider that string is the
+ * only thing that distinguishes two entries.
+ */
+function ProviderOptions({ servingModels }: { servingModels: AdminServingModel[] }) {
+  const grouped = useMemo(() => {
+    const byProvider = new Map<string, AdminServingModel[]>();
+    for (const serving of servingModels) {
+      const bucket = byProvider.get(serving.providerId);
+      if (bucket) bucket.push(serving);
+      else byProvider.set(serving.providerId, [serving]);
+    }
+    return [...byProvider.values()].sort((a, b) => a[0]!.providerName.localeCompare(b[0]!.providerName));
+  }, [servingModels]);
+
+  return (
+    <>
+      {grouped.map((group) => (
+        <optgroup key={group[0]!.providerId} label={group[0]!.providerName}>
+          {group.map((serving) => (
+            <option key={serving.id} value={serving.id}>
+              {serving.externalModelId}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </>
   );
 }
 
@@ -79,12 +202,14 @@ function RouteEditor({
   api,
   model,
   servingModels,
+  providers,
   canWrite,
   onClose,
 }: {
   api: AdminApi;
   model: AdminCatalogModel;
   servingModels: AdminServingModel[];
+  providers: AdminProvider[];
   canWrite: boolean;
   onClose: () => void;
 }) {
@@ -106,6 +231,11 @@ function RouteEditor({
       })),
     );
   }, [routes.data]);
+
+  const sameModality = useMemo(
+    () => servingModels.filter((serving) => serving.modality === model.modality),
+    [servingModels, model.modality],
+  );
 
   /**
    * The same two rules the server refuses on, checked here so the message says
@@ -182,11 +312,7 @@ function RouteEditor({
                   style={{ background: "var(--vg-bg, #0a0a0b)", color: "var(--vg-text)", border: "1px solid var(--vg-border-subtle)" }}
                 >
                   <option value="">— انتخاب مقصد —</option>
-                  {servingModels.map((serving) => (
-                    <option key={serving.id} value={serving.id}>
-                      {serving.providerCode} · {serving.externalModelId}
-                    </option>
-                  ))}
+                  <ProviderOptions servingModels={sameModality} />
                 </select>
 
                 <label className="flex items-center gap-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
@@ -308,9 +434,128 @@ function RouteEditor({
           ) : (
             <Muted>برای تغییر مسیرها اجازه‌ی catalog.write لازم است.</Muted>
           )}
+
+          {canWrite ? <NewDestination api={api} providers={providers} modality={model.modality} /> : null}
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Add a destination that does not exist yet.
+ *
+ * Before this, the list of places a model could be sent was whatever
+ * `pnpm providers:publish` had seeded — four rows — and a fifth meant editing
+ * `routes.wavespeed.json` and re-running a script against production. The
+ * routing table was admin-editable; the set of things it could point at was
+ * not.
+ *
+ * The model id is the provider's exact string and there is no validating it
+ * from here: WaveSpeed's `bytedance/seedance-2.0-fast/text-to-video` either
+ * exists or answers 404 at submit time. That is why a new destination is worth
+ * proving on one job before anything is routed to it.
+ */
+function NewDestination({
+  api,
+  providers,
+  modality,
+}: {
+  api: AdminApi;
+  providers: AdminProvider[];
+  modality: AdminCatalogModel["modality"];
+}) {
+  const create = useServingModelCreate(api);
+  const [open, setOpen] = useState(false);
+  const [providerId, setProviderId] = useState("");
+  const [externalModelId, setExternalModelId] = useState("");
+  const [name, setName] = useState("");
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="self-start text-[12px] underline-offset-2 hover:underline"
+        style={{ color: "var(--vg-text-faint)" }}
+      >
+        + مقصد تازه
+      </button>
+    );
+  }
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    create.mutate(
+      { providerId, externalModelId: externalModelId.trim(), name: name.trim(), modality },
+      {
+        onSuccess: () => {
+          setExternalModelId("");
+          setName("");
+        },
+      },
+    );
+  };
+
+  return (
+    <form
+      onSubmit={submit}
+      className="rounded-xl p-3"
+      style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+    >
+      <p className="text-[12px] font-semibold" style={{ color: "var(--vg-text)" }}>
+        مقصد تازه ({modality})
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <select
+          value={providerId}
+          onChange={(event) => setProviderId(event.target.value)}
+          aria-label="ارائه‌دهنده"
+          dir="ltr"
+          className="h-8 rounded-lg px-2 text-[12px]"
+          style={{ background: "var(--vg-bg, #0a0a0b)", color: "var(--vg-text)", border: "1px solid var(--vg-border-subtle)" }}
+        >
+          <option value="">— ارائه‌دهنده —</option>
+          {providers.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.name}
+            </option>
+          ))}
+        </select>
+        <input
+          value={externalModelId}
+          onChange={(event) => setExternalModelId(event.target.value)}
+          placeholder="شناسه‌ی مدل نزد ارائه‌دهنده"
+          aria-label="شناسه‌ی مدل نزد ارائه‌دهنده"
+          dir="ltr"
+          className="h-8 min-w-[240px] flex-1 rounded-lg px-2 font-mono text-[11.5px]"
+          style={{ background: "var(--vg-bg, #0a0a0b)", color: "var(--vg-text)", border: "1px solid var(--vg-border-subtle)" }}
+        />
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="نام خوانا"
+          aria-label="نام خوانا"
+          className="h-8 min-w-[140px] rounded-lg px-2 text-[12px]"
+          style={{ background: "var(--vg-bg, #0a0a0b)", color: "var(--vg-text)", border: "1px solid var(--vg-border-subtle)" }}
+        />
+        <button
+          type="submit"
+          disabled={!providerId || !externalModelId.trim() || !name.trim() || create.isPending}
+          className="h-8 rounded-lg px-3 text-[12px] font-bold disabled:opacity-50"
+          style={{ background: "var(--vg-primary-a18)", color: "var(--vg-primary-soft)", border: "1px solid var(--vg-border-subtle)" }}
+        >
+          {create.isPending ? "…" : "افزودن"}
+        </button>
+      </div>
+      {create.error ? (
+        <p role="alert" className="mt-1.5 text-[11.5px]" style={{ color: "var(--vg-danger, #ff6c52)" }}>
+          افزوده نشد — شاید همین شناسه از قبل برای این ارائه‌دهنده ثبت شده باشد.
+        </p>
+      ) : null}
+      <p className="mt-1.5 text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+        این مقصد در فروشگاه دیده نمی‌شود؛ فقط جایی است که می‌شود جابی را به آن فرستاد.
+      </p>
+    </form>
   );
 }
 

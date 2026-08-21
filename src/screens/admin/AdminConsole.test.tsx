@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -68,6 +68,7 @@ function stubApi(): AdminApi {
       ],
     })),
     patchProvider: vi.fn(async () => undefined),
+    createProvider: vi.fn(async () => undefined),
     listModels: vi.fn(async () => ({
       models: [
         {
@@ -90,15 +91,28 @@ function stubApi(): AdminApi {
           id: "44444444-4444-4444-8444-444444444444",
           providerId: "11111111-1111-4111-8111-111111111111",
           providerCode: "wavespeed",
+          providerName: "WaveSpeed",
           externalModelId: "wavespeed-ai/qwen-image/text-to-image",
           name: "Qwen Image (WaveSpeed)",
           modality: "image" as const,
           isActive: true,
         },
+        {
+          id: "55555555-5555-4555-8555-555555555555",
+          providerId: "11111111-1111-4111-8111-111111111111",
+          providerCode: "wavespeed",
+          providerName: "WaveSpeed",
+          externalModelId: "bytedance/seedance-2.0-fast/text-to-video",
+          name: "Seedance 2.0 Fast (WaveSpeed)",
+          modality: "video" as const,
+          isActive: true,
+        },
       ],
     })),
+    createServingModel: vi.fn(async () => undefined),
     listRoutes: vi.fn(async () => ({ routes: [] })),
     replaceRoutes: vi.fn(async () => ({ routes: [] })),
+    routeTo: vi.fn(async () => ({ routes: [] })),
     clearRoutes: vi.fn(async () => undefined),
     listInvites: vi.fn(async () => []),
     createInvite: vi.fn(async () => []),
@@ -274,6 +288,83 @@ describe("the admin console", () => {
     // next person at that desk the credential names and the routing table.
     await waitFor(() => expect(screen.getByRole("heading", { name: "ورود کارکنان" })).toBeInTheDocument());
     expect(screen.queryByText("WAVESPEED_API_KEY")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The routing picker.
+ *
+ * These cover the thing that made the old one unusable rather than the plumbing
+ * behind it. A flat list of `bytedance/seedance-2.0-fast/text-to-video` reads as
+ * a pile of model names unless something says which provider runs it, and the
+ * whole question this screen answers is *which provider*.
+ */
+describe("choosing where a model runs", () => {
+  const signedIn = () => {
+    sessionState = { status: "authed", email: "admin@deev.test", roles: ["admin"], permissions: ["*"] };
+  };
+
+  it("groups destinations under the provider's name, not its code", async () => {
+    signedIn();
+    renderConsole();
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+
+    const select = await screen.findByLabelText("انتقال Qwen Image");
+    // An <optgroup> is a group, and its label is what an admin actually reads.
+    expect(within(select).getByRole("group", { name: "WaveSpeed" })).toBeInTheDocument();
+  });
+
+  it("does not offer a video endpoint as somewhere to send an image variant", async () => {
+    signedIn();
+    renderConsole();
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+
+    const select = await screen.findByLabelText("انتقال Qwen Image");
+    expect(within(select).getByRole("option", { name: "wavespeed-ai/qwen-image/text-to-image" })).toBeInTheDocument();
+    // Not a preference anyone holds — a typo that every job would fail on.
+    expect(within(select).queryByRole("option", { name: "bytedance/seedance-2.0-fast/text-to-video" })).not.toBeInTheDocument();
+  });
+
+  it("moves the model in one choice", async () => {
+    signedIn();
+    const user = userEvent.setup();
+    renderConsole();
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+
+    await user.selectOptions(await screen.findByLabelText("انتقال Qwen Image"), "44444444-4444-4444-8444-444444444444");
+
+    await waitFor(() =>
+      expect(api.routeTo).toHaveBeenCalledWith("33333333-3333-4333-8333-333333333333", "44444444-4444-4444-8444-444444444444"),
+    );
+    // The one-click path must never go through the whole-list replace: that
+    // would send `paramOverrides: {}` and strip the translation the destination
+    // needs to accept the request at all.
+    expect(api.replaceRoutes).not.toHaveBeenCalled();
+  });
+
+  it("sends the model home by clearing its routes, not by routing it to itself", async () => {
+    signedIn();
+    const user = userEvent.setup();
+    renderConsole();
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+
+    await user.selectOptions(await screen.findByLabelText("انتقال Qwen Image"), "");
+
+    await waitFor(() => expect(api.clearRoutes).toHaveBeenCalledWith("33333333-3333-4333-8333-333333333333"));
+    expect(api.routeTo).not.toHaveBeenCalled();
+  });
+
+  it("refuses a provider key named for the browser bundle", async () => {
+    const { AdminProviderCreateSchema } =
+      await vi.importActual<typeof import("../../runtime/contracts/admin")>("../../runtime/contracts/admin");
+    const base = { code: "example", name: "Example", creditUnitName: "credit" };
+
+    expect(AdminProviderCreateSchema.safeParse({ ...base, secretRef: "EXAMPLE_API_KEY" }).success).toBe(true);
+    // NEXT_PUBLIC_ is inlined into the client at build time and this repository
+    // is public, so a key named this way would be published, not leaked.
+    expect(AdminProviderCreateSchema.safeParse({ ...base, secretRef: "NEXT_PUBLIC_EXAMPLE_API_KEY" }).success).toBe(false);
+    // Not an env var name the shell could export, so it could never be set.
+    expect(AdminProviderCreateSchema.safeParse({ ...base, secretRef: "example-api-key" }).success).toBe(false);
   });
 });
 

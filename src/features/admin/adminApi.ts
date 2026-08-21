@@ -2,11 +2,15 @@ import { z } from "zod";
 import { createHttpClient, type HttpClient } from "../../adapters/http/client";
 import {
   AdminCatalogModelsResponseSchema,
+  AdminProviderResponseSchema,
   AdminProviderSchema,
   AdminProvidersResponseSchema,
   AdminRoutesResponseSchema,
+  AdminServingModelResponseSchema,
   AdminSessionSchema,
+  type AdminProviderCreate,
   type AdminRouteInput,
+  type AdminServingModelCreate,
   type AdminSessionState,
 } from "../../runtime/contracts/admin";
 
@@ -124,11 +128,15 @@ export interface AdminApi {
   signOut(): Promise<void>;
 
   listProviders(): Promise<z.infer<typeof AdminProvidersResponseSchema>>;
-  patchProvider(id: string, patch: { isActive?: boolean; baseUrl?: string | null }): Promise<void>;
+  patchProvider(id: string, patch: { isActive?: boolean; baseUrl?: string | null; name?: string }): Promise<void>;
+  createProvider(input: AdminProviderCreate): Promise<void>;
 
   listModels(): Promise<z.infer<typeof AdminCatalogModelsResponseSchema>>;
+  createServingModel(input: AdminServingModelCreate): Promise<void>;
   listRoutes(modelId: string): Promise<z.infer<typeof AdminRoutesResponseSchema>>;
   replaceRoutes(modelId: string, routes: AdminRouteInput[]): Promise<z.infer<typeof AdminRoutesResponseSchema>>;
+  /** Make one destination the winner. The server picks the priority. */
+  routeTo(modelId: string, servingModelId: string): Promise<z.infer<typeof AdminRoutesResponseSchema>>;
   clearRoutes(modelId: string): Promise<void>;
 
   listInvites(): Promise<AdminInvite[]>;
@@ -162,7 +170,20 @@ export function createAdminApi(client: HttpClient): AdminApi {
       await client.request(`/admin/providers/${id}`, { method: "PATCH", body: patch, schema: z.object({ provider: AdminProviderSchema }) });
     },
 
+    createProvider: async (input) => {
+      await client.request("/admin/providers", { method: "POST", body: input, schema: AdminProviderResponseSchema });
+    },
+
     listModels: () => client.request("/admin/models", { schema: AdminCatalogModelsResponseSchema }),
+    createServingModel: async (input) => {
+      await client.request("/admin/serving-models", { method: "POST", body: input, schema: AdminServingModelResponseSchema });
+    },
+    routeTo: (modelId, servingModelId) =>
+      client.request(`/admin/models/${modelId}/route-to`, {
+        method: "POST",
+        body: { servingModelId },
+        schema: AdminRoutesResponseSchema,
+      }),
     listRoutes: (modelId) => client.request(`/admin/models/${modelId}/routes`, { schema: AdminRoutesResponseSchema }),
     replaceRoutes: (modelId, routes) =>
       client.request(`/admin/models/${modelId}/routes`, { method: "PUT", body: { routes }, schema: AdminRoutesResponseSchema }),

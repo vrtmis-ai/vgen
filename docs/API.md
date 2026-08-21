@@ -477,10 +477,13 @@ thing we sell?"_ — and the ability to change it without a deploy.
 | route                             | permission      | does                                                                                               |
 | --------------------------------- | --------------- | -------------------------------------------------------------------------------------------------- |
 | `GET /admin/providers`            | `catalog.read`  | providers, their credential pool, whether an adapter exists, whether the key is set                |
-| `PATCH /admin/providers/:id`      | `catalog.write` | `{ isActive?, baseUrl? }`                                                                          |
+| `POST /admin/providers`           | `catalog.write` | add one → **201**. `{ code, name, baseUrl?, secretRef, creditUnitName?, unitCostUsd? }`            |
+| `PATCH /admin/providers/:id`      | `catalog.write` | `{ isActive?, baseUrl?, name? }`                                                                   |
 | `GET /admin/models`               | `catalog.read`  | every catalogue variant plus where it is currently sent, and every serving row it could be sent to |
+| `POST /admin/serving-models`      | `catalog.write` | add a destination → **201**. `{ providerId, externalModelId, name, modality }`                     |
 | `GET /admin/models/:id/routes`    | `catalog.read`  | one variant's routes, active first, then by priority                                               |
-| `PUT /admin/models/:id/routes`    | `catalog.write` | **replaces** the list — this is the switch                                                         |
+| `PUT /admin/models/:id/routes`    | `catalog.write` | **replaces** the list — the deliberate, ordered switch                                             |
+| `POST /admin/models/:id/route-to` | `catalog.write` | `{ servingModelId }` — make it the winner now, in one transaction                                  |
 | `DELETE /admin/models/:id/routes` | `catalog.write` | back to the provider that owns the catalogue row                                                   |
 
 Three things about this are worth knowing before you build against it.
@@ -498,6 +501,35 @@ the whole list; the write is one transaction.
 **A route ships inactive and stays that way until somebody says otherwise.**
 `isActive` defaults to `false` on input, and re-running the seeder never turns a
 route on or off. Adding a route is not the same act as moving traffic onto it.
+
+**There are two ways to switch, for two situations.** `PUT /routes` takes the
+whole ordered list and is how you decide a ranking in advance — several
+destinations, most of them parked. `POST /route-to` takes one id and is how you
+move something while a provider is failing: the server stands down whatever was
+winning and switches the chosen route on, in one transaction. It deliberately
+does **not** accept a priority — two admins each computing one against a list
+that moved underneath them is the race the single statement removes.
+
+`route-to` never rewrites an existing route's `param_overrides`. The seeded
+WaveSpeed routes carry the translations that make them work at all — qwen's
+`aspect_ratio` becoming `size`, with `16:9` remapped to `1344*768` — and
+resetting those would post KIE's vocabulary at a provider that does not speak
+it.
+
+**A destination is not a product.** `POST /admin/serving-models` writes a
+`provider_models` row with empty `capabilities`, and the schema is `.strict()`,
+so a caller naming `capabilities` gets a 400 rather than a silently dropped
+field. `catalogRepository` decides what is in the shop by testing
+`capabilities ? 'variant'`; a destination able to carry that key would be a
+destination a customer could buy.
+
+**`secretRef` refuses the `NEXT_PUBLIC_` prefix.** Next inlines anything
+carrying it into the browser bundle at build time and this repository is public,
+so a key named that way would be published rather than leaked. `POST
+/admin/providers` answers 400. A duplicate provider code or model id answers
+**409** `conflict` — creation is not idempotent, because silently updating the
+existing `kie` row would change a provider's base URL with nobody having decided
+to.
 
 ### `GET /plans`
 

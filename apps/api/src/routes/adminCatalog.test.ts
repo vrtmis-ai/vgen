@@ -93,6 +93,7 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN, secrets: Record<st
         id: SERVING_MODEL_ID,
         providerId: PROVIDER.id,
         providerCode: "wavespeed",
+        providerName: "WaveSpeed",
         externalModelId: "wavespeed-ai/qwen-image/text-to-image",
         name: "Qwen Image (WaveSpeed)",
         modality: "image" as const,
@@ -101,6 +102,17 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN, secrets: Record<st
     ]),
     listRoutes: vi.fn(async () => [ROUTE]),
     replaceRoutes: vi.fn(async (_id: string, input: { isActive: boolean }[]) => input.map((route) => ({ ...ROUTE, ...route }))),
+    createProvider: vi.fn(async (input: { code: string; name: string }) => ({ ...PROVIDER, ...input })),
+    createServingModel: vi.fn(async (input: { externalModelId: string; name: string }) => ({
+      id: "66666666-6666-4666-8666-666666666666",
+      providerId: PROVIDER.id,
+      providerCode: "wavespeed",
+      providerName: "WaveSpeed",
+      modality: "image" as const,
+      isActive: true,
+      ...input,
+    })),
+    routeTo: vi.fn(async () => [{ ...ROUTE, isActive: true }]),
   };
 
   const app: FastifyInstance = Fastify({ logger: false });
@@ -339,6 +351,184 @@ describe("listing models", () => {
 
     expect(body.models[0]).toMatchObject({ variantId: "qwen-image", servingProviderCode: "kie", activeRouteCount: 0 });
     expect(body.servingModels[0]).toMatchObject({ providerCode: "wavespeed" });
+    await app.close();
+  });
+});
+
+/**
+ * The three writes that turned routing from "arrange the four rows a seeder
+ * wrote" into "send anything anywhere".
+ *
+ * The gate and the audit trail are the same ones the rest of this file covers,
+ * so what is asserted here is what is specific to these: that the secret still
+ * does not cross the boundary when a provider is created, that a duplicate is a
+ * 409 rather than a 500, and that the one-click move is audited with both sides
+ * — "which provider was this on last Tuesday" is a question a refund argument
+ * turns on, and the route rows only ever hold the current answer.
+ */
+describe("adding providers and destinations", () => {
+  it("creates a provider and answers with the key's NAME, never a value", async () => {
+    const { app, routes, admin } = build(ADMIN, { NEW_PROVIDER_API_KEY: "sk-live-do-not-leak" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/providers",
+      headers: AS_ADMIN,
+      payload: { code: "newprov", name: "New Provider", secretRef: "NEW_PROVIDER_API_KEY" },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(routes.createProvider).toHaveBeenCalled();
+    // The whole body, not just the credential: a value that reached any field
+    // here would be a read permission turned into a provider account.
+    expect(response.body).not.toContain("sk-live-do-not-leak");
+    expect(admin.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "provider.created" }));
+    await app.close();
+  });
+
+  it("refuses a key named for the browser bundle", async () => {
+    const { app, routes } = build();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/providers",
+      headers: AS_ADMIN,
+      // Next inlines this prefix into the client at build time and the
+      // repository is public, so such a key would be published, not leaked.
+      payload: { code: "newprov", name: "New Provider", secretRef: "NEXT_PUBLIC_NEW_PROVIDER_API_KEY" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(routes.createProvider).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("turns a duplicate into a 409 rather than an unhandled failure", async () => {
+    const { app, routes } = build();
+    const { ConflictError } = await import("@vgen/db");
+    routes.createProvider.mockRejectedValueOnce(new ConflictError('A provider with code "kie" already exists'));
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/providers",
+      headers: AS_ADMIN,
+      payload: { code: "kie", name: "Duplicate", secretRef: "KIE_API_KEY" },
+    });
+
+    // A panel can tell "you already made that" apart from "the database is
+    // down" only if these are different codes.
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("conflict");
+    await app.close();
+  });
+
+  it("creates a destination without letting the caller make it a product", async () => {
+    const { app, routes } = build();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/serving-models",
+      headers: AS_ADMIN,
+      // `capabilities` is not in the schema, and .strict() means naming it is
+      // an error rather than a field that is quietly dropped.
+      payload: {
+        providerId: PROVIDER.id,
+        externalModelId: "wavespeed-ai/wan-2.7/text-to-video",
+        name: "WAN 2.7",
+        modality: "video",
+        capabilities: { variant: { id: "smuggled" } },
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(routes.createServingModel).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("needs catalog.write to add a destination, not merely catalog.read", async () => {
+    const { app, routes } = build({ roles: ["support"], permissions: ["catalog.read"] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/serving-models",
+      headers: AS_ADMIN,
+      payload: { providerId: PROVIDER.id, externalModelId: "alt/model", name: "Alt", modality: "image" },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(routes.createServingModel).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
+describe("moving a model in one request", () => {
+  it("switches the route and audits both sides of the change", async () => {
+    const { app, routes, admin } = build();
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/admin/models/${CATALOG_MODEL_ID}/route-to`,
+      headers: AS_ADMIN,
+      payload: { servingModelId: SERVING_MODEL_ID },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(routes.routeTo).toHaveBeenCalledWith(CATALOG_MODEL_ID, SERVING_MODEL_ID, "u-admin");
+    expect(response.json().routes[0].isActive).toBe(true);
+    expect(admin.recordAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "model_route.switched",
+        // Both sides in full: the rows themselves only hold the current answer.
+        before: expect.any(Array),
+        after: expect.any(Array),
+      }),
+    );
+    await app.close();
+  });
+
+  it("will not take a priority, so two admins cannot race over one", async () => {
+    const { app, routes } = build();
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/admin/models/${CATALOG_MODEL_ID}/route-to`,
+      headers: AS_ADMIN,
+      payload: { servingModelId: SERVING_MODEL_ID, priority: 1 },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(routes.routeTo).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("answers 404 for a variant that is not in the catalogue", async () => {
+    const { app, routes } = build();
+    const { UnknownModelError } = await import("@vgen/db");
+    routes.routeTo.mockRejectedValueOnce(new UnknownModelError("No catalogue variant with that id"));
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/admin/models/${CATALOG_MODEL_ID}/route-to`,
+      headers: AS_ADMIN,
+      payload: { servingModelId: SERVING_MODEL_ID },
+    });
+
+    expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("needs catalog.write, since it moves production traffic", async () => {
+    const { app, routes } = build({ roles: ["support"], permissions: ["catalog.read"] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/admin/models/${CATALOG_MODEL_ID}/route-to`,
+      headers: AS_ADMIN,
+      payload: { servingModelId: SERVING_MODEL_ID },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(routes.routeTo).not.toHaveBeenCalled();
     await app.close();
   });
 });
