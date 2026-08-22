@@ -159,11 +159,11 @@ describe("Postgres catalog repository", () => {
     await inRollback(sql, async (tx) => {
       await tx`update provider_models set is_active = false where is_active`;
       const providerId = await seedProvider(tx);
-      const legacy = capabilities("alpha", 0, 0, "ultra") as {
-        variant: Record<string, unknown>;
+      const base = capabilities("alpha", 0, 0, "ultra");
+      const legacy = {
+        ...base,
+        variant: { ...base.variant, model: "acme-labs/seedance-2-fast", modelWithRefs: "acme-labs/seedance-2-fast-image-to-video" },
       };
-      legacy.variant["model"] = "acme-labs/seedance-2-fast";
-      legacy.variant["modelWithRefs"] = "acme-labs/seedance-2-fast-image-to-video";
 
       await tx`
         insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)

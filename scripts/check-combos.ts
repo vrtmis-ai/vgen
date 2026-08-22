@@ -183,7 +183,8 @@ async function main() {
   // the drift that matters is somebody regenerating it from a source that still
   // has the private fields in it.
   const drift = priceListDrift();
-  if (drift) console.log(`
+  if (drift)
+    console.log(`
 ${drift}
 `);
 
