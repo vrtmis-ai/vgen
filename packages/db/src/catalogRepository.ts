@@ -1,5 +1,6 @@
 import { CatalogCapabilitiesSchema, CatalogSnapshotSchema, type CatalogFamily, type CatalogSnapshot } from "@vgen/contracts";
 import type { Sql } from "postgres";
+import { PublicDocument, fingerprintOf } from "./publicDocument";
 
 export interface CustomerCatalogRepository {
   list(): Promise<CatalogSnapshot>;
@@ -21,7 +22,34 @@ export interface CustomerCatalogRepository {
 export class PostgresCatalogRepository implements CustomerCatalogRepository {
   constructor(private readonly sql: Sql) {}
 
+  /**
+   * Rebuilt only when something publishes. See `PublicDocument`.
+   *
+   * This one had the most to gain: forty-four rows, each with a `capabilities`
+   * blob, each parsed through a discriminated union of controls and reference
+   * slots, on every request. Both timestamps are read because switching off a
+   * whole provider removes its models from the shop without touching
+   * `provider_models` at all — the trigger is on that table and the write was
+   * to `providers`.
+   */
+  private readonly document = new PublicDocument(
+    async () => {
+      const [row] = await this.sql<{ n: string; model: Date | null; provider: Date | null }[]>`
+        select count(*)::text as n, max(model.updated_at) as model, max(provider.updated_at) as provider
+        from provider_models model
+        join providers provider on provider.id = model.provider_id
+        where model.is_active and provider.is_active and model.capabilities ? 'variant'
+      `;
+      return fingerprintOf(row?.n ?? "0", row?.model, row?.provider);
+    },
+    () => this.build(),
+  );
+
   async list(): Promise<CatalogSnapshot> {
+    return this.document.get();
+  }
+
+  private async build(): Promise<CatalogSnapshot> {
     const rows = await this.sql<{ family: string; capabilities: unknown; updated_at: Date }[]>`
       select model.family, model.capabilities, model.updated_at
       from provider_models model

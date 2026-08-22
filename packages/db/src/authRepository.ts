@@ -415,21 +415,46 @@ export class PostgresAuthRepository {
   }
 
   async resolveSession(token: string): Promise<CustomerSessionUser | null> {
+    const hash = hashToken(token);
     // Looked up by hash, so the table never holds anything usable as a
     // credential. The touch and the read are one statement because this runs on
     // every authenticated request and a second round trip there is not free.
+    //
+    // **The touch is throttled and the read is not.** This used to be a single
+    // UPDATE whose returned row *was* the lookup, which made every
+    // authenticated GET a write. Two things came of that. Every read produced a
+    // WAL record, so no read replica could ever serve one; and because the
+    // write took a row lock, requests sharing a session queued behind each
+    // other — a load test measured 445 requests a second on one session against
+    // 2,329 on two hundred, the same server, entirely on that lock. The browser
+    // opens a screen by firing three of these at once.
+    //
+    // Five minutes is chosen against what reads the column, which today is
+    // nothing: `last_used_at` on *customer* sessions has no reader in the
+    // product. It is kept for support and forensics — "when was this session
+    // last active" — and five-minute granularity answers that question exactly
+    // as well. Note this is not the staff table: `admin_sessions.last_used_at`
+    // drives an idle timeout and is deliberately left alone.
+    //
+    // The CTE is not referenced by the SELECT below and still runs. A
+    // data-modifying statement in WITH is executed exactly once and always to
+    // completion, whether or not the primary query reads its output.
     const [row] = await this.sql<UserRow[]>`
       with touched as (
         update sessions
         set last_used_at = now()
-        where token_hash = ${hashToken(token)}
+        where token_hash = ${hash}
           and revoked_at is null
           and expires_at > now()
-        returning user_id
+          and (last_used_at is null or last_used_at < now() - interval '5 minutes')
+        returning 1
       )
       select u.id, u.email, u.phone, u.display_name, u.locale, u.status, u.personal_account_id
-      from users u
-      join touched t on t.user_id = u.id
+      from sessions s
+      join users u on u.id = s.user_id
+      where s.token_hash = ${hash}
+        and s.revoked_at is null
+        and s.expires_at > now()
     `;
     if (!row || row.status !== "active") return null;
     return publicUser(row);

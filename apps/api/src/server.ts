@@ -144,6 +144,36 @@ const telemetryRateLimiter = createRedisFixedWindowRateLimiter(redisUrl, {
   keyPrefix: "deev:rate-limit:telemetry:v1",
   hashSecret: rateLimitHashSecret,
 });
+
+/**
+ * The ceiling on the customer routes, in two budgets.
+ *
+ * Sized from the measured shape of a real screen rather than from a round
+ * number. Opening the studio fires five or six reads at once and a busy session
+ * might do a few hundred in a minute, so 600 leaves an order of magnitude of
+ * headroom for a person and still refuses a script. Writes are far rarer —
+ * price a generation, submit it, upload a reference — and 60 a minute is one a
+ * second sustained, which no human interface produces.
+ *
+ * Separate key prefixes so the two budgets cannot spend each other, and so a
+ * limit can be re-tuned by changing the version suffix rather than by waiting
+ * out every key already in Redis.
+ */
+const rateLimitReads = Number(process.env.RATE_LIMIT_READS_PER_MINUTE ?? "600");
+const rateLimitWrites = Number(process.env.RATE_LIMIT_WRITES_PER_MINUTE ?? "60");
+const readLimiter = createRedisFixedWindowRateLimiter(redisUrl, {
+  max: rateLimitReads,
+  windowMs: 60_000,
+  keyPrefix: "deev:rate-limit:read:v1",
+  hashSecret: rateLimitHashSecret,
+});
+const writeLimiter = createRedisFixedWindowRateLimiter(redisUrl, {
+  max: rateLimitWrites,
+  windowMs: 60_000,
+  keyPrefix: "deev:rate-limit:write:v1",
+  hashSecret: rateLimitHashSecret,
+});
+
 const customerSession = new CustomerSessionService(new SessionCookiePrincipalResolver(authRepository));
 
 /**
@@ -193,6 +223,7 @@ const app = createApp(
     corsOrigin: webOrigin,
     logger: true,
     telemetryRateLimiter,
+    rateLimit: { read: readLimiter, write: writeLimiter },
     ...(trustProxy ? { trustProxy } : {}),
     admin: {
       dependencies: {
@@ -229,6 +260,8 @@ const app = createApp(
 const close = async () => {
   await app.close();
   telemetryRateLimiter.close();
+  readLimiter.close();
+  writeLimiter.close();
   authRateLimiters.close();
   await sql.end();
 };

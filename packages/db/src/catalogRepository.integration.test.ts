@@ -149,6 +149,50 @@ describe("Postgres catalog repository", () => {
       expect(snapshot.version).toBe(`catalog-${snapshot.publishedAt}`);
     });
   });
+  /**
+   * The memo, and the case that makes its fingerprint more than a timestamp.
+   *
+   * Switching a provider off removes its models from the shop without touching
+   * `provider_models.updated_at` at all — the trigger is on that table and the
+   * write was to `providers`. A cache keyed on the newest model timestamp would
+   * therefore keep serving a retired provider's models until something
+   * unrelated happened to be edited. Which is a shop selling what it cannot run.
+   */
+  it("stops offering a provider's models the moment the provider is switched off", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`update provider_models set is_active = false where is_active`;
+      const live = await seedProvider(tx, "live-provider");
+      const dark = await seedProvider(tx, "dark-provider");
+      await seedModel(tx, live, "alpha", 0, 0, "ultra");
+      await seedModel(tx, dark, "omega", 1, 0, "hidden");
+
+      // One repository across both calls, so the second one is served from the
+      // memo unless something invalidates it.
+      const catalog = new PostgresCatalogRepository(tx);
+      expect((await catalog.list()).families.map((family) => family.id)).toEqual(["alpha", "omega"]);
+
+      await tx`update providers set is_active = false where id = ${dark}`;
+
+      expect((await catalog.list()).families.map((family) => family.id)).toEqual(["alpha"]);
+    });
+  });
+
+  it("serves the same document twice without rebuilding it", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`update provider_models set is_active = false where is_active`;
+      const providerId = await seedProvider(tx);
+      await seedModel(tx, providerId, "alpha", 0, 0, "ultra");
+
+      const catalog = new PostgresCatalogRepository(tx);
+      const first = await catalog.list();
+      const second = await catalog.list();
+
+      // Identity, not equality: a rebuilt snapshot would be a new object with
+      // the same contents, and `toEqual` could not tell the two apart.
+      expect(second).toBe(first);
+    });
+  });
+
   // The seeder no longer puts the supplier's id in `capabilities`, but rows
   // written before that change still do, and a stale row must not be a leak.
   // Nothing strips these by hand: CatalogCapabilitiesSchema no longer declares

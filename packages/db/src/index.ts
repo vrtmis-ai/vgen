@@ -23,6 +23,7 @@ export * from "./galleryRepository";
 export * from "./assetsRepository";
 export * from "./outbox";
 export * from "./transaction";
+export * from "./publicDocument";
 
 /* The Drizzle schema mirror is gone. It described the 30-table schema this
    package no longer targets, nothing ever queried through it — every statement

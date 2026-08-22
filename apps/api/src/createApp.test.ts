@@ -838,3 +838,34 @@ describe("the CORS preflight", () => {
     await app.close();
   });
 });
+
+/**
+ * The plugin's own behaviour is covered in `plugins/rateLimit.test.ts`. What is
+ * checked here is only that it is actually attached — a limiter that works
+ * perfectly and is never called is the failure this catches.
+ */
+describe("the ceiling on customer routes", () => {
+  it("is applied when buckets are supplied", async () => {
+    const app = createApp(healthyDependencies(), {
+      rateLimit: {
+        read: { consume: vi.fn(async () => 12) },
+        write: { consume: vi.fn(async () => null) },
+      },
+    });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/catalog" });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.headers["retry-after"]).toBe("12");
+    await app.close();
+  });
+
+  it("is absent when they are not, which is how every other test here runs", async () => {
+    const app = createApp(healthyDependencies());
+
+    // Not an oversight: an API with no Redis configured has to serve, and the
+    // whole existing suite was written against an unlimited one.
+    expect((await app.inject({ method: "GET", url: "/api/v1/catalog" })).statusCode).toBe(200);
+    await app.close();
+  });
+});

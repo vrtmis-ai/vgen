@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import { OAuthProviderSchema, ReadinessSchema, type Readiness } from "@vgen/contracts";
 import { registerErrorHandling } from "./plugins/errors";
+import { registerRateLimits, type RateLimitBuckets } from "./plugins/rateLimit";
 import { registerCustomerSessionRoute, type CustomerSessionApplication } from "./routes/session";
 import { registerCatalogRoute, type CustomerCatalogApplication } from "./routes/catalog";
 import { registerContentRoute, type CustomerContentApplication } from "./routes/content";
@@ -50,6 +51,12 @@ export interface ApiOptions {
   logger?: boolean;
   telemetryRateLimit?: TelemetryRateLimitOptions;
   telemetryRateLimiter?: TelemetryRateLimiter;
+  /**
+   * The ceiling on every other customer route. Absent in tests that are not
+   * about limiting, which is most of them — an unlimited API is the old
+   * behaviour and every existing test was written against it.
+   */
+  rateLimit?: RateLimitBuckets | undefined;
   trustProxy?: FastifyServerOptions["trustProxy"];
   /**
    * Absent in tests that only exercise the customer surface. When absent the
@@ -67,6 +74,10 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
     ...(options.trustProxy !== undefined ? { trustProxy: options.trustProxy } : {}),
   });
   registerErrorHandling(app);
+  // Before the routes and before CORS matters: an onRequest hook runs ahead of
+  // every handler, so a refused request costs a Redis round trip and nothing
+  // else — no session lookup, no body parse, no database.
+  if (options.rateLimit) registerRateLimits(app, { buckets: options.rateLimit });
   if (options.corsOrigin) {
     // `methods` is spelled out because @fastify/cors defaults to
     // `GET,HEAD,POST` — not the fuller list most CORS middleware uses. Every
