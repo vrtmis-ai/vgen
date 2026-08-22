@@ -235,6 +235,57 @@ describe("what the panel reports", () => {
     });
   });
 
+  it("lists only the destinations declared for a variant, never every endpoint of its modality", async () => {
+    await inRollback(sql, async (tx) => {
+      const f = await fixture(tx);
+      const routes = new PostgresModelRoutesRepository(tx);
+
+      const [variant] = await tx<{ modality: string }[]>`select modality from provider_models where id = ${f.catalogModelId}`;
+
+      // A second endpoint on the same provider, same modality, that nobody has
+      // ever said can run this model. Under the old rule -- match the modality
+      // -- it was an offered alternative, which is how Qwen Image ended up on
+      // Nano Banana Pro's menu. Both make images; that is the whole overlap.
+      const [stranger] = await tx<{ id: string }[]>`
+        insert into provider_models (provider_id, external_model_id, name, modality, capabilities)
+        values (${f.altProviderId}, 'alt/unrelated-model', 'Unrelated model', ${variant!.modality}, '{}'::jsonb)
+        returning id
+      `;
+
+      const before = (await routes.listCatalogModels()).find((model) => model.id === f.catalogModelId)!;
+      expect(before.routeTargetIds).toEqual([]);
+
+      await route(tx, f, { isActive: false });
+
+      const after = (await routes.listCatalogModels()).find((model) => model.id === f.catalogModelId)!;
+      // Declared and switched off is still declared. That is the point of the
+      // one-click move: the alternates were worked out in advance, and the
+      // outage is not when you want to be inventing one.
+      expect(after.routeTargetIds).toEqual([f.altModelId]);
+      expect(after.activeRouteCount).toBe(0);
+      expect(after.routeTargetIds).not.toContain(stranger!.id);
+    });
+  });
+
+  it("counts an unlimited pairing as a declared destination", async () => {
+    await inRollback(sql, async (tx) => {
+      const f = await fixture(tx);
+      const routes = new PostgresModelRoutesRepository(tx);
+
+      await tx`
+        insert into unlimited_entitlements (catalog_model_id, serving_model_id, min_tier)
+        values (${f.catalogModelId}, ${f.altModelId}, 2)
+      `;
+
+      const model = (await routes.listCatalogModels()).find((row) => row.id === f.catalogModelId)!;
+      // 0018 defines the pair in as many words as "a second provider's copy of
+      // the same logical model", which is the same assertion a route makes. If
+      // the home provider falls over, this is the alternative you want offered.
+      expect(model.routeTargetIds).toEqual([f.altModelId]);
+      expect(model.routeCount).toBe(0);
+    });
+  });
+
   it("keeps serving rows out of the catalogue list and catalogue rows out of the serving list", async () => {
     await inRollback(sql, async (tx) => {
       const f = await fixture(tx);

@@ -62,6 +62,22 @@ export interface CatalogModelSummary {
   servingExternalModelId: string;
   routeCount: number;
   activeRouteCount: number;
+  /**
+   * Everywhere this variant has been *declared* able to run, active or not.
+   *
+   * Two sources, and both are assertions somebody made deliberately about the
+   * outside world: a `model_routes` row, and an `unlimited_entitlements`
+   * pairing — which 0018 defines in as many words as "a second provider's copy
+   * of the same logical model: same picture, same prompt, different bill".
+   *
+   * Nothing else belongs in a destination list. Whether WaveSpeed hosts our
+   * Nano Banana Pro is a fact about WaveSpeed, and the schema has no column
+   * that knows it; matching on modality only asks whether both sides make
+   * images, which is true of every image model there has ever been. A panel
+   * that offered the modality match would be offering a different product
+   * under this one's name, and the customer would be the one to find out.
+   */
+  routeTargetIds: string[];
 }
 
 export interface RouteRecord {
@@ -352,6 +368,7 @@ export class PostgresModelRoutesRepository {
         serving_external_model_id: string;
         route_count: string;
         active_route_count: string;
+        route_target_ids: string[];
       }[]
     >`
       select
@@ -363,7 +380,20 @@ export class PostgresModelRoutesRepository {
         coalesce(serving_provider.code, home.code) as serving_provider_code,
         coalesce(serving.external_model_id, model.external_model_id) as serving_external_model_id,
         (select count(*) from model_routes r where r.catalog_model_id = model.id) as route_count,
-        (select count(*) from model_routes r where r.catalog_model_id = model.id and r.is_active) as active_route_count
+        (select count(*) from model_routes r where r.catalog_model_id = model.id and r.is_active) as active_route_count,
+        -- Every destination declared for this model, not every destination of
+        -- the same modality. The union is deliberate: an entitlement pairing is
+        -- the same assertion a route makes -- another provider runs this exact
+        -- model -- and during an outage it is the alternative you want offered.
+        (
+          select coalesce(array_agg(distinct declared.serving_model_id::text), '{}')
+          from (
+            select r.serving_model_id from model_routes r where r.catalog_model_id = model.id
+            union
+            select e.serving_model_id from unlimited_entitlements e
+              where e.catalog_model_id = model.id and e.is_active
+          ) declared
+        ) as route_target_ids
       from provider_models model
       join providers home on home.id = model.provider_id
       -- Same shape as the lateral in claim(), minus the entitlement branch: a
@@ -396,6 +426,7 @@ export class PostgresModelRoutesRepository {
       servingExternalModelId: row.serving_external_model_id,
       routeCount: Number(row.route_count),
       activeRouteCount: Number(row.active_route_count),
+      routeTargetIds: row.route_target_ids,
     }));
   }
 

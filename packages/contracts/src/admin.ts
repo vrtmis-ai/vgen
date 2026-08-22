@@ -219,6 +219,17 @@ export const AdminCatalogModelSchema = z.object({
   servingExternalModelId: z.string(),
   routeCount: z.number().int().nonnegative(),
   activeRouteCount: z.number().int().nonnegative(),
+  /**
+   * Everywhere this variant has been declared able to run, active or not: its
+   * routes, plus any unlimited-entitlement pairing.
+   *
+   * This is what a "move it somewhere else" picker must be built from. Whether
+   * another provider hosts this exact model is a fact about that provider, and
+   * only a person can assert it; a same-modality match asserts nothing beyond
+   * "both make images", which would put Qwen Image on the menu for Nano Banana
+   * Pro and sell one under the other's name.
+   */
+  routeTargetIds: z.array(z.uuid()),
 });
 
 /**
