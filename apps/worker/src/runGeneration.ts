@@ -64,6 +64,41 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : "unknown error";
 }
 
+/**
+ * Every error code a customer may be told, and the only wording each may carry.
+ *
+ * **The keys are the allow-list.** A code that is not here becomes
+ * `provider_failed`, which is what keeps a provider's own vocabulary — KIE
+ * returns its `failCode` verbatim — from reaching `jobs.error_code` and out
+ * through the API.
+ *
+ * The wording is English and deliberately vague about *why*. Nothing renders
+ * it: the client picks a Persian message from `src/features/generation/
+ * validation.ts` keyed by the code, and these are what an API consumer or a log
+ * reader sees. Every one of them is a refund — the worker either captures the
+ * hold because a file exists or releases it because one does not — so none of
+ * them needs to explain itself to justify a charge.
+ *
+ * Adding a code here is the deliberate act of deciding a customer may see it.
+ * The real reason always survives, in the log line and on `job_attempts`, both
+ * of which are behind the admin guard.
+ */
+const PUBLIC_FAILURE: Record<string, string> = {
+  provider_unavailable: "This model cannot be run right now.",
+  credential_unavailable: "This model cannot be run right now.",
+  submit_failed: "This generation was not accepted.",
+  poll_failed: "This generation stopped reporting progress.",
+  provider_timeout: "This generation did not finish in time.",
+  provider_cancelled: "This generation was cancelled before it finished.",
+  provider_failed: "This generation could not be completed.",
+  // Actionable, and it names nobody: the person can rephrase and try again.
+  // Telling them "could not be completed" would withhold the one thing that
+  // would have helped, so this earns its place on the list.
+  content_policy: "This prompt was refused.",
+  no_output: "This generation produced no files.",
+  storage_failed: "The generation finished but could not be saved.",
+};
+
 export async function runGeneration(jobId: string, deps: RunGenerationDeps): Promise<RunGenerationResult> {
   const { runner, secrets, isFinalAttempt } = deps;
   const sleep = deps.sleep ?? defaultSleep;
@@ -75,21 +110,42 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
   if (!job) return { outcome: "skipped", jobId };
 
   /**
-   * Settle, or ask for another go.
+   * Settle, or ask for another go — telling the customer only what is theirs
+   * to know.
    *
    * A retryable failure with attempts left leaves the job `running` and the
    * hold intact on purpose: the next delivery re-claims the same row and tries
    * the same generation, and re-releasing a hold each time would turn one
    * customer's credits into a stream of ledger noise.
+   *
+   * `detail` is the real reason and it stays here: it goes to the log and to
+   * `recordAttempt`, both of which are ours. What reaches `jobs.error_message`
+   * — and from there straight out of `GET /generation/jobs/:id` — is a fixed
+   * string chosen by code.
+   *
+   * This is not cosmetic. The detail on this path has said
+   * `WAVESPEED_API_KEY is not set`, `This model's provider (useapi) is not
+   * connected yet`, and, verbatim from upstream, `Insufficient credits. Please
+   * top up your account to continue.` — which names the company, our secret
+   * naming convention, and the fact that we are a reseller, to anyone who opens
+   * the network tab. The screen never rendered any of it (the client picks a
+   * message by code), so the leak was invisible while being completely public.
+   *
+   * The code is normalised too, and for the same reason plus one more: KIE
+   * returns its own `failCode` string, which would both leak and miss the
+   * client's lookup table, so every job failed by KIE showed the generic
+   * fallback message rather than the specific one.
    */
-  const settle = async (errorCode: string, errorMessage: string, retryable: boolean): Promise<RunGenerationResult> => {
+  const settle = async (errorCode: string, detail: string, retryable: boolean): Promise<RunGenerationResult> => {
     if (retryable && !isFinalAttempt) {
-      log({ event: "generation.retry", jobId, errorCode, errorMessage });
-      return { outcome: "retry", jobId, reason: errorMessage };
+      log({ event: "generation.retry", jobId, errorCode, detail });
+      return { outcome: "retry", jobId, reason: detail };
     }
-    await runner.fail(jobId, errorCode, errorMessage);
-    log({ event: "generation.failed", jobId, errorCode, errorMessage });
-    return { outcome: "failed", jobId, errorCode };
+    const code = PUBLIC_FAILURE[errorCode] ? errorCode : "provider_failed";
+    await runner.fail(jobId, code, PUBLIC_FAILURE[code]!);
+    // The raw text is logged, never stored on the job. Correlate by jobId.
+    log({ event: "generation.failed", jobId, errorCode, code, detail });
+    return { outcome: "failed", jobId, errorCode: code };
   };
 
   const attempt = (record: Partial<AttemptRecord> & Pick<AttemptRecord, "status">): AttemptRecord => ({
@@ -114,7 +170,8 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
         finished: true,
       }),
     );
-    return settle("provider_unavailable", `This model's provider (${job.providerCode}) is not connected yet.`, false);
+    // The provider code is the detail, not the message. settle() keeps it here.
+    return settle("provider_unavailable", `no adapter for provider "${job.providerCode}"`, false);
   }
 
   const credential = await runner.pickCredential(job.providerId);
@@ -130,7 +187,7 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
         finished: true,
       }),
     );
-    return settle("credential_unavailable", `This model's provider is not configured (${detail}).`, false);
+    return settle("credential_unavailable", detail, false);
   }
 
   // ---------------------------------------------------------------- submit
@@ -249,7 +306,7 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
           finished: true,
         }),
       );
-      return settle("no_output", "The provider reported success but returned no files.", false);
+      return settle("no_output", "the provider reported success but returned no files", false);
     }
 
     // Ours before it is theirs. A provider URL is a loan of a few hours, so

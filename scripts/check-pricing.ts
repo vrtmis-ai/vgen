@@ -20,6 +20,7 @@ import { PostgresPricingRepository, PriceUnavailableError } from "../packages/db
 import { COIN_USD, KIE_CREDIT_USD, MARGIN } from "@vgen/core";
 import expected from "../src/data/pricing.expected.json" with { type: "json" };
 import { eachVariant } from "./pricing/combos";
+import { upstreamModel } from "./upstream";
 
 config({ path: ".env.development.local", quiet: true });
 config({ path: ".env.local", quiet: true });
@@ -74,7 +75,7 @@ try {
       mismatches.push(`${entry.variant}: in the fixture but no longer in the catalogue`);
       continue;
     }
-    const providerModelId = modelIdByExternal.get(variant.model);
+    const providerModelId = modelIdByExternal.get(upstreamModel(variant.id));
     const featureId = featureIdByCode.get(variant.featureCode);
     if (!providerModelId || !featureId) {
       mismatches.push(`${entry.variant}: the database has no model or feature row (run pnpm catalog:publish)`);

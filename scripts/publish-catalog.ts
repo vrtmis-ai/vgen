@@ -23,6 +23,7 @@ import { config } from "dotenv";
 import postgres from "postgres";
 import { CatalogSnapshotSchema } from "../src/runtime/contracts/catalog";
 import { FAMILIES, type Family, type Variant } from "../src/data/models";
+import { upstreamModel } from "./upstream";
 
 config({ path: ".env.development.local", quiet: true });
 config({ path: ".env.local", quiet: true });
@@ -157,7 +158,7 @@ try {
           insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
           values (
             ${provider.id},
-            ${variant.model},
+            ${upstreamModel(variant.id)},
             ${`${family.name} ${variant.label}`},
             ${MODALITY_BY_FEATURE[variant.featureCode] as string},
             ${family.id},
@@ -188,7 +189,7 @@ try {
           (
             await tx<{ id: string }[]>`
               select id from provider_models
-              where provider_id = ${provider.id} and external_model_id = ${variant.model}
+              where provider_id = ${provider.id} and external_model_id = ${upstreamModel(variant.id)}
             `
           )[0]?.id;
         if (!modelId) throw new Error(`provider_models upsert lost ${variant.id}`);

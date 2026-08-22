@@ -79,6 +79,16 @@ const GENERATION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   submit_failed: "ارائه‌دهنده این درخواست را نپذیرفت؛ سکه‌ای از شما کم نشد.",
   poll_failed: "ارائه‌دهنده دیگر دربارهٔ این ساخت پاسخ نداد؛ سکه‌ای از شما کم نشد.",
   provider_timeout: "این ساخت به نتیجه نرسید؛ سکه‌ای از شما کم نشد.",
+  /* The worker normalises every provider-specific failure code into one of
+     these two before it leaves the server, so they are the codes a customer
+     actually receives when a generation is refused upstream. Without an entry
+     each would fall through to the generic fallback -- which is what happened
+     to every KIE failure, because KIE returns its own `failCode` string. */
+  provider_failed: "ارائه‌دهنده نتوانست این ساخت را کامل کند؛ سکه‌ای از شما کم نشد.",
+  /* The one refusal the person can do something about: change the words. */
+  content_policy: "این درخواست پذیرفته نشد؛ متن را عوض کنید و دوباره تلاش کنید. سکه‌ای از شما کم نشد.",
+  provider_cancelled: "این ساخت پیش از پایان لغو شد؛ سکه‌ای از شما کم نشد.",
+  storage_failed: "ساخت انجام شد اما ذخیره نشد؛ سکه‌ای از شما کم نشد.",
   no_output: "هیچ خروجی‌ای ساخته نشد؛ سکه‌ای از شما کم نشد.",
 
   /* Never reached the API at all. `src/adapters/http/client.ts` raises these

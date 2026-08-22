@@ -15,7 +15,10 @@
 import { config } from "dotenv";
 import postgres from "postgres";
 import { MARGIN } from "@vgen/core";
-import priceList from "../src/data/pricing.rows.json" with { type: "json" };
+// The full rows, with the supplier path and our cost. The browser reads the
+// reduced copy at src/data/pricing.rows.json, generated from this by
+// scripts/build-price-list.ts.
+import priceList from "../src/data/upstream.pricing.json" with { type: "json" };
 
 /**
  * One price row as the committed list holds it.

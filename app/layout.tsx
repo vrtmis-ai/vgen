@@ -48,10 +48,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <style>{"html,body{background:#0a0a0b}"}</style>
         {/* Start the DNS+TCP+TLS chain for the runtime third-party origins during
             parse instead of serially after it. On a high-latency connection the
-            handshakes, not the bytes, are the expensive part. */}
+            handshakes, not the bytes, are the expensive part.
+
+            Only origins a visitor is *meant* to know about belong here. A
+            preconnect is a public statement: it sits in the head of every page,
+            it is in view-source before a single script runs, and the browser
+            resolves it whether or not the resource is ever used. Two upstream
+            hosts were listed here, which told anyone who pressed Ctrl-U which
+            company actually renders our models. Whoever adds the next one:
+            preconnect is for origins the product depends on openly. */}
         <link rel="preconnect" href="https://telegram.org" crossOrigin="" />
-        <link rel="preconnect" href="https://api.kie.ai" crossOrigin="" />
-        <link rel="preconnect" href="https://file.aiquickdraw.com" crossOrigin="" />
       </head>
       <body>
         <Providers initialLang={lang}>{children}</Providers>

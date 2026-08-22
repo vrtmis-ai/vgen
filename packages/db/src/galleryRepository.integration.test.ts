@@ -157,9 +157,20 @@ describe("paging a gallery", () => {
         if (!cursor) break;
       }
 
-      expect(seen).toEqual([...seeded].reverse());
+      // Every row exactly once, which is the claim in the name of this test and
+      // the only thing keyset paging can actually guarantee.
       expect(new Set(seen).size).toBe(5);
+      expect([...seen].sort()).toEqual([...seeded].sort());
       expect(cursor).toBeUndefined();
+
+      // Newest first, by the same key the cursor walks. This used to assert
+      // insertion order, which is not the same thing and failed roughly one run
+      // in ten: job ids are UUIDv7, and two rows created inside the same
+      // millisecond are ordered by the random bits below the timestamp, not by
+      // which was inserted first. The pagination was never wrong — `job.id <
+      // cursor` over a unique column cannot skip or repeat — the expectation
+      // was.
+      expect(seen).toEqual([...seen].sort().reverse());
     });
   });
 
