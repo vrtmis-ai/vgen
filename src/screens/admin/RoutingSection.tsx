@@ -73,7 +73,7 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
         «انتقال به» فقط مقصدهایی را نشان می‌دهد که برای همین مدل تعریف شده‌اند — نه هر نقطه‌پایانی هم‌نوع. برای افزودن مقصد تازه، روی نام
         مدل بزن.
       </p>
-      <Table head={["مدل", "خانه", "اجرا روی", "مسیرها", "انتقال به"]}>
+      <Table head={["مدل", "اجرا روی", "مسیرها و اولویت‌ها", "انتقال به"]}>
         {models.data.models.map((model) => {
           const moved = model.servingProviderCode !== model.homeProviderCode;
           return (
@@ -86,15 +86,14 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
                   {model.variantId}
                 </span>
               </Cell>
-              <Cell dim>{model.homeProviderCode}</Cell>
               <Cell>
                 <span style={{ color: moved ? "var(--vg-primary-soft)" : "var(--vg-text-muted)" }} dir="ltr">
                   {model.servingProviderCode}
                 </span>
                 {moved ? <span className="ms-1 text-[11px]">↩</span> : null}
               </Cell>
-              <Cell dim>
-                {model.activeRouteCount} / {model.routeCount}
+              <Cell>
+                <Paths model={model} />
               </Cell>
               <Cell>
                 <MoveTo
@@ -110,6 +109,95 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
           );
         })}
       </Table>
+    </div>
+  );
+}
+
+/**
+ * Every path this model runs on, and the rank of each.
+ *
+ * This replaced a cell that read `0 / 1`. A count answers "are there routes"
+ * and nothing else — not which provider, not which endpoint, and not which one
+ * wins, which are the three things anybody looking at this column wants.
+ *
+ * **Home is listed first and always**, because it is a real destination and it
+ * is where the job goes when nothing outranks it. Leaving it out made the
+ * common case — a model with no routes at all — render as an empty cell that
+ * looked like missing data rather than the complete answer it was.
+ *
+ * The winner is marked rather than inferred. It is the first active route in a
+ * list the server already ordered by priority, falling back to home, which is
+ * how `claim()` resolves it — so the mark and the job agree by construction
+ * instead of by two places doing the same arithmetic.
+ */
+function Paths({ model }: { model: AdminCatalogModel }) {
+  const winner = model.routeTargets.find((target) => target.isActive && target.source === "route");
+
+  return (
+    <div className="flex flex-col gap-1">
+      <PathLine
+        provider={model.homeProviderCode}
+        path={model.homeExternalModelId}
+        rank="خانه"
+        winning={winner === undefined}
+        dim={winner !== undefined}
+      />
+      {model.routeTargets.map((target) => (
+        <PathLine
+          key={`${target.source}-${target.servingModelId}`}
+          provider={target.providerCode}
+          path={target.externalModelId}
+          rank={
+            target.source === "entitlement"
+              ? // No priority, and none missing: an entitlement is not ranked
+                // against routes, it is the free lane for a different audience.
+                "رایگانِ اشتراک"
+              : `اولویت ${target.priority} · ${target.isActive ? "فعال" : "خاموش"}`
+          }
+          winning={target === winner}
+          dim={!target.isActive}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PathLine({
+  provider,
+  path,
+  rank,
+  winning,
+  dim,
+}: {
+  provider: string;
+  path: string;
+  rank: string;
+  winning: boolean;
+  dim: boolean;
+}) {
+  return (
+    <div className="flex items-baseline gap-1.5 leading-5">
+      {/* A filled mark on the one that would serve a job submitted now, and an
+          empty slot rather than nothing on the others, so the lines stay
+          aligned and the mark is the only thing that varies. */}
+      <span
+        aria-hidden
+        className="inline-block w-1.5 shrink-0 text-[9px]"
+        style={{ color: winning ? "var(--vg-primary-soft)" : "transparent" }}
+      >
+        ●
+      </span>
+      <span
+        dir="ltr"
+        className="font-mono text-[11px]"
+        style={{ color: dim ? "var(--vg-text-faint)" : "var(--vg-text)" }}
+        title={`${provider} · ${path}`}
+      >
+        <span style={{ color: "var(--vg-text-faint)" }}>{provider}</span> {path}
+      </span>
+      <span className="shrink-0 text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+        {rank}
+      </span>
     </div>
   );
 }
@@ -156,9 +244,9 @@ function MoveTo({
   const busy = routeTo.isPending || clear.isPending;
 
   const options = useMemo(() => {
-    const declared = new Set(model.routeTargetIds);
+    const declared = new Set(model.routeTargets.map((target) => target.servingModelId));
     return servingModels.filter((serving) => declared.has(serving.id));
-  }, [servingModels, model.routeTargetIds]);
+  }, [servingModels, model.routeTargets]);
 
   // The select shows where it is going, not what was last picked: an active
   // route's target, or blank for "home".

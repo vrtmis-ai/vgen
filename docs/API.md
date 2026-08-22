@@ -505,17 +505,17 @@ allowed and clears the cookie in the same response.
 The answer to _"which provider, and which of their models, actually runs this
 thing we sell?"_ — and the ability to change it without a deploy.
 
-| route                             | permission      | does                                                                                             |
-| --------------------------------- | --------------- | ------------------------------------------------------------------------------------------------ |
-| `GET /admin/providers`            | `catalog.read`  | providers, their credential pool, whether an adapter exists, whether the key is set              |
-| `POST /admin/providers`           | `catalog.write` | add one → **201**. `{ code, name, baseUrl?, secretRef, creditUnitName?, unitCostUsd? }`          |
-| `PATCH /admin/providers/:id`      | `catalog.write` | `{ isActive?, baseUrl?, name? }`                                                                 |
-| `GET /admin/models`               | `catalog.read`  | every catalogue variant, where it is currently sent, its `routeTargetIds`, and every serving row |
-| `POST /admin/serving-models`      | `catalog.write` | add a destination → **201**. `{ providerId, externalModelId, name, modality }`                   |
-| `GET /admin/models/:id/routes`    | `catalog.read`  | one variant's routes, active first, then by priority                                             |
-| `PUT /admin/models/:id/routes`    | `catalog.write` | **replaces** the list — the deliberate, ordered switch                                           |
-| `POST /admin/models/:id/route-to` | `catalog.write` | `{ servingModelId }` — make it the winner now, in one transaction                                |
-| `DELETE /admin/models/:id/routes` | `catalog.write` | back to the provider that owns the catalogue row                                                 |
+| route                             | permission      | does                                                                                           |
+| --------------------------------- | --------------- | ---------------------------------------------------------------------------------------------- |
+| `GET /admin/providers`            | `catalog.read`  | providers, their credential pool, whether an adapter exists, whether the key is set            |
+| `POST /admin/providers`           | `catalog.write` | add one → **201**. `{ code, name, baseUrl?, secretRef, creditUnitName?, unitCostUsd? }`        |
+| `PATCH /admin/providers/:id`      | `catalog.write` | `{ isActive?, baseUrl?, name? }`                                                               |
+| `GET /admin/models`               | `catalog.read`  | every catalogue variant, where it is currently sent, its `routeTargets`, and every serving row |
+| `POST /admin/serving-models`      | `catalog.write` | add a destination → **201**. `{ providerId, externalModelId, name, modality }`                 |
+| `GET /admin/models/:id/routes`    | `catalog.read`  | one variant's routes, active first, then by priority                                           |
+| `PUT /admin/models/:id/routes`    | `catalog.write` | **replaces** the list — the deliberate, ordered switch                                         |
+| `POST /admin/models/:id/route-to` | `catalog.write` | `{ servingModelId }` — make it the winner now, in one transaction                              |
+| `DELETE /admin/models/:id/routes` | `catalog.write` | back to the provider that owns the catalogue row                                               |
 
 Three things about this are worth knowing before you build against it.
 
@@ -533,11 +533,20 @@ the whole list; the write is one transaction.
 `isActive` defaults to `false` on input, and re-running the seeder never turns a
 route on or off. Adding a route is not the same act as moving traffic onto it.
 
-**`routeTargetIds` is the list a picker must be built from.** It holds every
+**`routeTargets` is the list a picker must be built from.** It holds every
 destination _declared_ for that variant — its `model_routes` rows, active or
 not, plus its `unlimited_entitlements` pairing, which 0018 defines as "a second
 provider's copy of the same logical model". It is usually empty, and an empty
 list is the true answer: most models have nowhere else to go.
+
+Each entry carries `providerCode`, `externalModelId`, `priority`, `isActive`
+and `source`, ordered lowest priority first — the order the runner reads them,
+so the first active `route` entry is the one that would serve a job submitted
+now. `source` separates a `route` (a routing preference, ranked) from an
+`entitlement` (where unlimited subscribers are served free, `priority: null`).
+The null is the honest answer rather than a missing number, and a client that
+renders it as "priority —" without saying which kind it is invites somebody to
+go looking for the rank.
 
 The temptation is to skip it and filter `servingModels` by modality instead.
 That is what the panel did, and it was wrong in a way that does not announce

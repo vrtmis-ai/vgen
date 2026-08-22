@@ -198,6 +198,25 @@ export const AdminRouteSchema = z.object({
   note: z.string().nullable(),
 });
 
+/**
+ * One declared destination, with the rank and state the panel lists it by.
+ *
+ * `source` is not decoration. A route is a routing preference and carries a
+ * priority; an entitlement pairing is where unlimited subscribers are served
+ * for free and has no rank at all. Rendering the second as "priority —" without
+ * saying which it is would invite somebody to go looking for the missing number.
+ */
+export const RouteTargetSchema = z.object({
+  servingModelId: z.uuid(),
+  providerCode: z.string(),
+  /** The id the provider itself expects — the path a job is actually sent to. */
+  externalModelId: z.string(),
+  /** Lower wins. Null for an entitlement pairing, which is not ranked. */
+  priority: z.number().int().nullable(),
+  isActive: z.boolean(),
+  source: z.enum(["route", "entitlement"]),
+});
+
 /** A catalogue variant, and where it is currently being sent. */
 export const AdminCatalogModelSchema = z.object({
   id: z.uuid(),
@@ -220,8 +239,10 @@ export const AdminCatalogModelSchema = z.object({
   routeCount: z.number().int().nonnegative(),
   activeRouteCount: z.number().int().nonnegative(),
   /**
-   * Everywhere this variant has been declared able to run, active or not: its
-   * routes, plus any unlimited-entitlement pairing.
+   * Everywhere this variant has been declared able to run, active or not, with
+   * the priority and state of each — its routes, plus any unlimited-entitlement
+   * pairing. Ordered lowest priority first, the way the runner reads them, so
+   * the first active entry is the one that would serve a job submitted now.
    *
    * This is what a "move it somewhere else" picker must be built from. Whether
    * another provider hosts this exact model is a fact about that provider, and
@@ -229,7 +250,7 @@ export const AdminCatalogModelSchema = z.object({
    * "both make images", which would put Qwen Image on the menu for Nano Banana
    * Pro and sell one under the other's name.
    */
-  routeTargetIds: z.array(z.uuid()),
+  routeTargets: z.array(RouteTargetSchema),
 });
 
 /**
@@ -283,6 +304,7 @@ export type RouteParamOverrides = z.infer<typeof ParamOverridesSchema>;
 export type AdminProvider = z.infer<typeof AdminProviderSchema>;
 export type AdminCredential = z.infer<typeof AdminCredentialSchema>;
 export type AdminServingModel = z.infer<typeof AdminServingModelSchema>;
+export type AdminRouteTarget = z.infer<typeof RouteTargetSchema>;
 export type AdminRoute = z.infer<typeof AdminRouteSchema>;
 export type AdminCatalogModel = z.infer<typeof AdminCatalogModelSchema>;
 export type AdminRouteInput = z.infer<typeof AdminRouteInputSchema>;
