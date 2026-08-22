@@ -171,6 +171,52 @@
   --vg-info: var(--vg-accent);
 
   /* ---------------------------------------------------------------------
+     4b. REWARD — what the product gives away
+
+     Separate from --vg-success on purpose. Success means an operation
+     finished; reward means "this is a perk, and it is worth having". A
+     checkmark green says the first and undersells the second — #4ade80 is
+     the stock green every dashboard uses for "OK", and gift coins dressed in
+     it read as a status line rather than as something you want.
+
+     An electric lime instead: very high chroma, very high lightness, so it
+     announces itself on a near-black canvas without borrowing the primary's
+     job. It is bright enough that it must never carry dark-on-light body
+     text — --vg-text-on-reward is the only thing that goes on the fill.
+     Measured in the browser: 16.5:1 as text on the card, and the near-black
+     reads 14.5:1 the other way round, on the fill.
+
+     The alpha steps are the whole usable range: a08/a15 for tinted panels
+     and badge backgrounds, a30 for their hairline. Never a solid fill for
+     anything larger than a chip — at this chroma it takes over a screen.
+     --------------------------------------------------------------------- */
+  --vg-reward: #c6f52e;
+  --vg-reward-a08: rgb(198 245 46 / 0.08);
+  --vg-reward-a15: rgb(198 245 46 / 0.15);
+  --vg-reward-a30: rgb(198 245 46 / 0.3);
+  --vg-text-on-reward: #131507;
+
+  /* ---------------------------------------------------------------------
+     4c. PLAN MARKS — one hue per rung of the ladder
+
+     Read as a climb: silver, teal, mint, orchid, the primary's own electric
+     blue on the recommended rung, indigo, and warm orange at the top. The
+     first four were #77808c / #5b8ea9 / #5ba88e / #8a70d6 — the same hues at
+     roughly half the chroma, which made the cheap half of the ladder look
+     like a disabled state rather than a smaller plan.
+
+     Each is used as a card's --plan-color: the name, the mark, and a wash
+     behind them. Never as a fill under text.
+     --------------------------------------------------------------------- */
+  --vg-plan-starter: #96a3b5;
+  --vg-plan-basic: #2fc6c0;
+  --vg-plan-flow: #3fd6a4;
+  --vg-plan-plus: #c77dff;
+  --vg-plan-pro: #00b4ff;
+  --vg-plan-studio: #8b6dff;
+  --vg-plan-creator: #ff793f;
+
+  /* ---------------------------------------------------------------------
      5. BORDERS — depth through fine lines, not shadows
      Higher z-index gets a brighter edge. This is the "hardware" look.
      --------------------------------------------------------------------- */

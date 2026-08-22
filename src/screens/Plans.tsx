@@ -23,7 +23,7 @@ import {
   CheckCircle,
   CircleNotch,
   Crown,
-  Cube,
+  Feather,
   FilmSlate,
   ImageSquare,
   Info,
@@ -31,10 +31,10 @@ import {
   Lightning,
   LockKey,
   MusicNotes,
+  PaintBrush,
+  Palette,
   Sparkle,
-  TrendUp,
   VideoCamera,
-  Waves,
   X,
   XCircle,
 } from "@phosphor-icons/react";
@@ -73,17 +73,21 @@ const PLAN_AUDIENCE_KEY = {
     glyph is the same on every render and every machine. */
 const VISUAL_BARS = [74, 52, 86, 63, 42, 70];
 /**
- * One mark per plan, reading up the ladder: a leaf for the one you try, a block
- * for the one you build small things with, a wave for steady output, a rising
- * line for more of it, a bolt for daily production, a slate for professional
- * work, a crown for the top. Seven identical bolts said nothing about which
- * plan you were looking at, which is the one job this mark has.
+ * One mark per plan, reading up the ladder as a maker's progression rather than
+ * a spreadsheet's: a leaf for the one you try, a brush for the first real work,
+ * a quill for output that comes easily, a palette for more range than one brush
+ * gives, a bolt for daily production, a slate for professional work, a crown
+ * for the top.
+ *
+ * The middle three were a cube, a waveform and a rising trend line — accurate
+ * about volume and wrong about the product. This is a tool people make pictures
+ * with; its plan ladder should not look like a billing dashboard.
  */
 const PLAN_MARK = {
   starter: Leaf,
-  basic: Cube,
-  flow: Waves,
-  plus: TrendUp,
+  basic: PaintBrush,
+  flow: Feather,
+  plus: Palette,
   pro: Lightning,
   studio: FilmSlate,
   creator: Crown,
@@ -119,19 +123,22 @@ function PlanFeatures({ plan, compact = false }: { plan: Plan; compact?: boolean
 }
 
 /**
- * Green is what you are given: free generations, gift coins, the money an
- * annual cycle keeps in your pocket. These were orange, which is the colour
- * this system reserves for the thing to press — so a card could carry three
- * oranges and none of them pointed at the buy button. Green splits the two
- * apart: orange asks, green gives. `--color-success` already existed for it.
+ * The reward lime is what you are given: free generations, gift coins, the
+ * money an annual cycle keeps in your pocket. These were orange, the colour
+ * reserved for the thing to press, so a card could carry three oranges and
+ * none of them pointed at the buy button. Now orange asks and lime gives.
+ *
+ * Lime rather than the stock success green: a perk should read as something
+ * worth having, and #4ade80 is the colour every dashboard uses for "OK".
+ * See 4b in tokens.css.
  */
 function UnlimitedBenefit({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
   const { t, n } = useI18n();
   if (plan.tier < 2) return null;
   const isProTrial = plan.id === "pro";
   return (
-    <div className={`rounded-xl border border-success/30 bg-success/[0.08] ${compact ? "p-2" : "p-3"}`}>
-      <div className="flex items-center gap-2 text-[11px] font-bold text-success">
+    <div className={`rounded-xl border border-reward-line bg-reward-wash ${compact ? "p-2" : "p-3"}`}>
+      <div className="flex items-center gap-2 text-[11px] font-bold text-reward">
         <Sparkle size={13} weight="fill" />
         {t(isProTrial ? "pl_unlimited_7d_title" : "pl_unlimited_title")}
       </div>
@@ -164,8 +171,8 @@ function PlanAccessList({ plan, compact = false }: { plan: Plan; compact?: boole
         {rows.map((row) => {
           const Icon = row.active ? CheckCircle : XCircle;
           // The free-generation row is something given rather than something
-          // included, so it ticks green while the rest of the list stays neutral.
-          const tick = !row.active ? "text-ink3/45" : row.key === "unlimited" ? "text-success" : "text-accent";
+          // included, so it ticks in the reward lime; the rest stay neutral.
+          const tick = !row.active ? "text-ink3/45" : row.key === "unlimited" ? "text-reward" : "text-accent";
           return (
             <span key={row.key} className={`flex items-start gap-2 ${row.active ? "text-ink2" : "text-ink3/60"}`}>
               <Icon size={compact ? 11 : 13} weight="fill" className={`mt-0.5 shrink-0 ${tick}`} />
@@ -241,10 +248,10 @@ function TagChip({ plan }: { plan: Plan }) {
       style={
         plan.popular
           ? { background: "var(--color-accent)", color: "var(--color-on-accent)" }
-          : // A gift tag names something given, so it takes the green the rest
-            // of the giving reads in rather than the neutral chip.
+          : // A gift tag names something given, so it takes the reward lime the
+            // rest of the giving reads in rather than the neutral chip.
             plan.tag === "gift"
-            ? { background: "color-mix(in srgb, var(--color-success) 12%, transparent)", color: "var(--color-success)" }
+            ? { background: "var(--color-reward-tint)", color: "var(--color-reward)" }
             : { background: "var(--color-card2)", color: "var(--color-ink2)" }
       }
     >
@@ -460,7 +467,7 @@ function Price({ plan, cycle, account }: { plan: Plan; cycle: Cycle; account?: P
         </div>
       )}
       {annualSaving > 0 && (
-        <div className="mt-1 text-[10.5px] text-success">{t("pl_save_amount").replace("{n}", n(toman(annualSaving)))}</div>
+        <div className="mt-1 text-[10.5px] font-medium text-reward">{t("pl_save_amount").replace("{n}", n(toman(annualSaving)))}</div>
       )}
       {cycle === "annual" && plan.annualUsdPerMonth == null && <div className="mt-1 text-[10.5px] text-ink3">{t("pl_monthly_only")}</div>}
     </>
@@ -484,14 +491,16 @@ function PlanFlipShell({
   const [flipped, setFlipped] = useState(false);
   const audienceKey = PLAN_AUDIENCE_KEY[plan.id as keyof typeof PLAN_AUDIENCE_KEY];
   const PlanMark = PLAN_MARK[plan.id as keyof typeof PLAN_MARK] ?? Lightning;
+  // Values live in tokens.css §4c, not here — a hex typed into a screen is a
+  // colour nothing else in the system can find again.
   const accents: Record<string, string> = {
-    starter: "#77808c",
-    basic: "#5b8ea9",
-    flow: "#5ba88e",
-    plus: "#8a70d6",
-    pro: "#00b4ff",
-    studio: "#795cff",
-    creator: "#ff793f",
+    starter: "var(--vg-plan-starter)",
+    basic: "var(--vg-plan-basic)",
+    flow: "var(--vg-plan-flow)",
+    plus: "var(--vg-plan-plus)",
+    pro: "var(--vg-plan-pro)",
+    studio: "var(--vg-plan-studio)",
+    creator: "var(--vg-plan-creator)",
   };
 
   return (
@@ -532,7 +541,7 @@ function PlanFlipShell({
                 </p>
               </div>
               {plan.bonus > 0 && (
-                <span className="rounded-full bg-success/10 px-2.5 py-1 text-[10px] text-success">
+                <span className="rounded-full bg-reward-wash px-2.5 py-1 text-[10px] font-semibold text-reward">
                   +{n(plan.bonus)} {t("w_gift")}
                 </span>
               )}
@@ -655,7 +664,8 @@ type CheckoutState =
   | { status: "review" }
   | { status: "submitting" }
   | { status: "redirecting" }
-  | { status: "recorded"; order: CheckoutOrder }
+  /** The order exists but there is no gateway to send anyone to. Not a sale. */
+  | { status: "blocked"; order: CheckoutOrder }
   | { status: "failed"; message: string };
 
 /**
@@ -683,6 +693,8 @@ function CheckoutSheet({
   const monthlyPrice = effectiveUsd(plan, annual, account);
   const total = annual ? annualTotalUsd(plan, account) : monthlyPrice;
   const [state, setState] = useState<CheckoutState>({ status: "review" });
+  const shownAmount = toman(total ?? monthlyPrice);
+  const busy = state.status === "submitting" || state.status === "redirecting";
 
   /**
    * Confirm, then hand off. The server prices the order and answers with the
@@ -690,10 +702,10 @@ function CheckoutSheet({
    * and the browser leaves. It is a full navigation rather than a fetch because
    * the person has to arrive at the bank on the gateway's own origin.
    *
-   * When there is no gateway to go to, the sheet stops on the recorded order
-   * instead. That is demo mode's answer, and it is also what a person sees if
-   * the payments route is not live yet: an order that exists and a plain
-   * sentence about why nothing opened, rather than a button that does nothing.
+   * When there is no gateway to go to, the sheet says so and stays where it is.
+   * It deliberately does not congratulate anyone: no tick, no receipt, no
+   * order number presented as proof. Nothing has been bought at that point, and
+   * a sheet that looks like it has is worse than a button that does nothing.
    */
   async function confirm() {
     setState({ status: "submitting" });
@@ -704,7 +716,7 @@ function CheckoutSheet({
         window.location.assign(order.gatewayUrl);
         return;
       }
-      setState({ status: "recorded", order });
+      setState({ status: "blocked", order });
     } catch (error) {
       setState({ status: "failed", message: error instanceof Error ? error.message : String(error) });
     }
@@ -765,57 +777,58 @@ function CheckoutSheet({
             <dt className="text-ink2">{t("pl_checkout_cycle")}</dt>
             <dd className="font-medium">{t(annual ? "pl_checkout_annual_cycle" : "pl_checkout_monthly_cycle")}</dd>
           </div>
-          <div className="flex items-center justify-between py-3 text-[12.5px]">
-            <dt className="text-ink2">{t("pl_checkout_due")}</dt>
-            <dd className="font-semibold tabular-nums">
-              {n(toman(total ?? monthlyPrice))} {t("w_toman")}
-            </dd>
-          </div>
         </dl>
+
+        {/* The amount is the thing this sheet exists to show, so it is the
+            largest figure on it — the person is agreeing to this number before
+            a gateway ever opens, not reading it back afterwards. */}
+        <div className="mt-3 flex items-baseline justify-between gap-3 rounded-bezel border border-line bg-card2/60 px-4 py-3.5">
+          <span className="text-[12px] text-ink2">{t("pl_checkout_due")}</span>
+          <span className="font-display text-[22px] font-bold tabular-nums">
+            {n(shownAmount)} <span className="text-[12px] font-normal text-ink2">{t("w_toman")}</span>
+          </span>
+        </div>
 
         <p className="mt-3 text-[11px] leading-relaxed text-ink3">{t(annual ? "pl_checkout_annual_hint" : "pl_checkout_monthly_hint")}</p>
 
-        {state.status === "recorded" ? (
-          <div className="mt-5 rounded-bezel border border-accent/40 bg-accent-soft/25 p-4 text-center">
-            <CheckCircle size={26} weight="fill" className="mx-auto text-success" />
-            <p className="mt-2 text-[13px] font-bold">{t("pl_checkout_recorded")}</p>
-            {/* The server's own figure, not the one this screen calculated to
-                fill the row above. They should match; showing both is how a
-                disagreement becomes visible instead of becoming a support
-                ticket. */}
-            <p className="mt-1 text-[15px] font-semibold tabular-nums">
-              {n(state.order.amountToman)} {t("w_toman")}
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-ink2">{t("pl_checkout_recorded_sub")}</p>
-            <p dir="ltr" className="mt-2 font-mono text-[10.5px] text-ink3">
-              {state.order.orderId}
-            </p>
-          </div>
-        ) : (
-          <>
-            <button
-              onClick={confirm}
-              disabled={state.status === "submitting" || state.status === "redirecting"}
-              className="plans-modern-cta mt-5 w-full gap-2 py-3.5 text-[13px] font-bold"
-            >
-              {state.status === "submitting" || state.status === "redirecting" ? (
-                <>
-                  <CircleNotch size={15} weight="bold" className="animate-spin" />
-                  {t(state.status === "redirecting" ? "pl_checkout_redirecting" : "pl_checkout_submitting")}
-                </>
-              ) : (
-                <>
-                  <LockKey size={15} weight="fill" />
-                  {t("pl_checkout_pay").replace("{n}", n(toman(total ?? monthlyPrice)))}
-                </>
+        <button onClick={confirm} disabled={busy} className="plans-modern-cta mt-5 w-full gap-2 py-3.5 text-[13px] font-bold">
+          {busy ? (
+            <>
+              <CircleNotch size={15} weight="bold" className="animate-spin" />
+              {t(state.status === "redirecting" ? "pl_checkout_redirecting" : "pl_checkout_submitting")}
+            </>
+          ) : (
+            <>
+              <LockKey size={15} weight="fill" />
+              {t("pl_checkout_confirm")}
+            </>
+          )}
+        </button>
+        <p className="mt-2 text-center text-[10.5px] leading-relaxed text-ink3">{t("pl_checkout_gateway_note")}</p>
+
+        {/* Reaching no gateway is a blocked step, not a completed purchase, so
+            it gets a neutral notice rather than a tick and a receipt. Nothing
+            here may read as "paid" — nothing has been. */}
+        {state.status === "blocked" && (
+          <div className="mt-4 flex gap-2.5 rounded-bezel border border-line bg-card2 p-3.5 text-start">
+            <Info size={16} weight="fill" className="mt-0.5 shrink-0 text-ink3" />
+            <div className="min-w-0">
+              <p className="text-[12px] font-semibold">{t("pl_checkout_gateway_off")}</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-ink2">{t("pl_checkout_gateway_off_sub")}</p>
+              {/* Silent while the two figures agree. A mismatch means the price
+                  this screen computed is not the price the server reserved, and
+                  that has to be visible before anybody pays either of them. */}
+              {state.order.amountToman !== shownAmount && (
+                <p className="mt-2 text-[11px] font-semibold text-[#ff8a8a]">
+                  {t("pl_checkout_amount_mismatch").replace("{n}", n(state.order.amountToman))}
+                </p>
               )}
-            </button>
-            {state.status === "failed" ? (
-              <p className="mt-2 text-center text-[10.5px] leading-relaxed text-[#ff8a8a]">{t("pl_checkout_failed")}</p>
-            ) : (
-              <p className="mt-2 text-center text-[10.5px] leading-relaxed text-ink3">{t("pl_checkout_gateway_note")}</p>
-            )}
-          </>
+            </div>
+          </div>
+        )}
+
+        {state.status === "failed" && (
+          <p className="mt-4 text-center text-[11px] leading-relaxed text-[#ff8a8a]">{t("pl_checkout_failed")}</p>
         )}
       </section>
     </div>

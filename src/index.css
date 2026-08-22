@@ -121,6 +121,16 @@
   --color-success: var(--vg-success);
   --color-danger: var(--vg-danger);
 
+  /* What the product gives away — gift coins, free generations, the money an
+     annual cycle keeps. Distinct from success, which only means an operation
+     finished. See 4b in tokens.css for why it is a lime and not a green, and
+     for the rule that it never fills anything bigger than a chip. */
+  --color-reward: var(--vg-reward);
+  --color-reward-wash: var(--vg-reward-a08);
+  --color-reward-tint: var(--vg-reward-a15);
+  --color-reward-line: var(--vg-reward-a30);
+  --color-on-reward: var(--vg-text-on-reward);
+
   /* Type. --vg-font-ui flips to Vazirmatn under [dir="rtl"], so one token
      serves both languages. Syne is the display face and has NO Arabic
      coverage — see the note under html[lang] below. */
