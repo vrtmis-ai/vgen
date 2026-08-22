@@ -823,6 +823,22 @@ taken for nothing, and a job with no outbox row sits queued forever.
 exist and no longer does, and the fix is a fresh quote rather than a fixed
 request.
 
+**All three of those promises hold when the two requests arrive at the same
+moment**, which is not the same claim and used not to be true. Submissions are
+serialised per account — `for no key update` on the account row, taken before
+anything is read — because each of the three decisions is made from a count that
+another uncommitted transaction was about to invalidate. Without it, two
+simultaneous retries with one `Idempotency-Key` both inserted and the loser died
+on a unique index: a 500 for the one thing an idempotency key exists to make
+safe. Same for a quote submitted twice at once, and a plan's concurrency limit
+could be walked straight past. `generationConcurrency.integration.test.ts`
+reproduces all three on two real connections; each was seen failing before it
+was fixed.
+
+Only same-account submissions serialise. Two customers never touch the same row,
+so what this costs is exactly the concurrency the per-account limit already
+denied.
+
 ### `GET /generation/jobs/:jobId`
 
 The same shape, scoped to the caller. Somebody else's job is a **404, not a

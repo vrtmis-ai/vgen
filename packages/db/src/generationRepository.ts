@@ -167,6 +167,42 @@ export class PostgresGenerationRepository {
         const accountId = user?.personal_account_id;
         if (!accountId) throw new SubmissionRefused("quote_unavailable");
 
+        // One submission per account at a time, and everything below depends on
+        // it. Without this line all three of the following are wrong, and every
+        // one of them was reproduced before it was fixed
+        // (generationConcurrency.integration.test.ts):
+        //
+        //  - the replay check reads `jobs` and finds nothing, because the other
+        //    transaction's row is inserted and not yet committed. Both insert,
+        //    and the loser dies on `jobs_account_id_idempotency_key_idx` — a
+        //    500 for the one thing an idempotency key exists to make safe.
+        //  - the quote's `spent` subquery says false for the same reason. The
+        //    `for update` below does not help: nothing UPDATEs the quote row, so
+        //    the second reader is not re-evaluated after the first commits. Both
+        //    insert, and the loser dies on `jobs_quote_idx`.
+        //  - `concurrencyForTx` counts running jobs and takes no lock, so two
+        //    submissions on different quotes both read `running = 0` and both
+        //    pass a limit of one.
+        //
+        // All three are the same bug: a decision made from a count another
+        // uncommitted transaction is about to invalidate. Serialising per
+        // account fixes them together, because each of the three re-reads on a
+        // fresh statement snapshot once the lock is released.
+        //
+        // FOR NO KEY UPDATE rather than FOR UPDATE: it conflicts with itself,
+        // which is all that is wanted here, and unlike FOR UPDATE it does not
+        // conflict with the FOR KEY SHARE that every insert referencing this
+        // account takes. FOR UPDATE would make a submission block an unrelated
+        // asset or order for the same customer for as long as it ran.
+        //
+        // Only same-account submissions serialise. Different accounts never
+        // touch this row, so the throughput this costs is exactly the
+        // throughput the per-account limit was always meant to deny.
+        const [locked] = await tx<{ id: string }[]>`
+          select id from accounts where id = ${accountId} for no key update
+        `;
+        if (!locked) throw new SubmissionRefused("quote_unavailable");
+
         // Inside the transaction, on the connection that is about to hold the
         // credits. Checking before `atomically` would leave a gap for a ban to
         // land in between deciding and charging — small, but the whole reason
