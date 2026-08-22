@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { DotField } from "../components/DotField";
-import { VendorMark } from "../components/VendorMark";
+import { AuthProviderMark } from "../components/AuthProviderMark";
 import { BRAND } from "../data/brand";
 import { useAuth } from "../features/session/useAuth";
 import { useSession } from "../features/session/useSession";
@@ -122,13 +122,16 @@ const TERMINAL_FOR_CODE: readonly TKey[] = ["auth_err_otp_exhausted", "auth_err_
  * credentials are unset has no route at all server-side, and drawing its
  * button sent people into a 404 after they had already chosen it.
  *
- * The mark is `VendorMark`'s monogram rather than either company's logo, for the
- * same reason the model row uses one: a trademark is not ours to ship until
- * somebody has read that brand's terms.
+ * The mark is each company's real logo, which is the one place in the product
+ * that is true — everywhere else a brand is a monogram, because a model
+ * vendor's trademark is not ours to ship. Google and Microsoft both publish
+ * their sign-in mark and require it, and the reason is worth keeping in mind:
+ * "sign in with Google" beside a home-made blue circle is what a phishing page
+ * looks like. See `AuthProviderMark`.
  */
-const PROVIDERS: { id: OAuthProvider; vendor: string; label: TKey }[] = [
-  { id: "google", vendor: "Google", label: "auth_with_google" },
-  { id: "microsoft", vendor: "Microsoft", label: "auth_with_microsoft" },
+const PROVIDERS: { id: OAuthProvider; label: TKey }[] = [
+  { id: "google", label: "auth_with_google" },
+  { id: "microsoft", label: "auth_with_microsoft" },
 ];
 
 const isInviteFailure = (error: unknown) =>
@@ -768,7 +771,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
               </div>
 
               <div className="mt-5 grid gap-2.5">
-                {providers.map(({ id, vendor, label }) => (
+                {providers.map(({ id, label }) => (
                   <button
                     key={id}
                     type="button"
@@ -777,7 +780,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
                     className="vg-ease flex w-full items-center justify-center gap-2.5 rounded-full border py-3 text-[13.5px] font-semibold disabled:opacity-60"
                     style={{ borderColor: "var(--vg-border)", background: "rgb(255 255 255 / 0.02)", color: "var(--vg-text-secondary)" }}
                   >
-                    <VendorMark vendor={vendor} size={18} />
+                    <AuthProviderMark provider={id} size={18} />
                     {t(label)}
                   </button>
                 ))}

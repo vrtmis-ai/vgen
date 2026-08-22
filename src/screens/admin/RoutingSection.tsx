@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { AdminApi } from "../../features/admin/adminApi";
 import {
   useClearRoutes,
@@ -40,6 +40,18 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
   // list, and adding the first destination for one is the common case.
   const providers = useProviders(api, true);
   const [openId, setOpenId] = useState<string | null>(null);
+  // Collapsed ids, not open ones, so the default with no state is "everything
+  // showing" — the behaviour this screen had before it was grouped. A console
+  // that opens folded hides the outage somebody came here to find.
+  //
+  // Above the `open` branch below on purpose: that branch unmounts the whole
+  // list, so state held inside it would reset every time somebody opened a
+  // model's route editor and came back.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  // Before the early returns: hooks cannot be conditional, and the list is
+  // already ordered by family from the server, so this is a fold, not a sort.
+  const groups = useMemo(() => groupByFamily(models.data?.models ?? []), [models.data]);
 
   if (models.isPending) return <Muted>در حال خواندن کاتالوگ…</Muted>;
   if (models.error) return <Muted>کاتالوگ خوانده نشد.</Muted>;
@@ -74,42 +86,167 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
         مدل بزن.
       </p>
       <Table head={["مدل", "اجرا روی", "مسیرها و اولویت‌ها", "انتقال به"]}>
-        {models.data.models.map((model) => {
-          const moved = model.servingProviderCode !== model.homeProviderCode;
+        {groups.map((group) => {
+          const modelRows = group.models.map((model) => (
+            <ModelRow
+              key={model.id}
+              api={api}
+              model={model}
+              servingModels={models.data.servingModels}
+              withoutAdapter={withoutAdapter}
+              canWrite={canWrite}
+              onOpen={() => setOpenId(model.id)}
+            />
+          ));
+
+          // Every family gets a heading, including the six that sell a single
+          // variant. Leaving a lone model unheaded looked tidier and was wrong:
+          // rendered flat under the family above it, "MiniMax H3" read as a
+          // seventh Kling and "Gemini Omni" as a third Flux. A heading over one
+          // row is a fold with nothing to fold; a row under the wrong heading is
+          // a person routing the wrong model during an incident.
+          const shut = collapsed[group.id] ?? false;
           return (
-            <Row key={model.id}>
-              <Cell>
-                <button onClick={() => setOpenId(model.id)} className="text-start underline-offset-2 hover:underline">
-                  {model.name}
-                </button>
-                <span className="ms-2 text-[11px]" style={{ color: "var(--vg-text-faint)" }} dir="ltr">
-                  {model.variantId}
-                </span>
-              </Cell>
-              <Cell>
-                <span style={{ color: moved ? "var(--vg-primary-soft)" : "var(--vg-text-muted)" }} dir="ltr">
-                  {model.servingProviderCode}
-                </span>
-                {moved ? <span className="ms-1 text-[11px]">↩</span> : null}
-              </Cell>
-              <Cell>
-                <Paths model={model} />
-              </Cell>
-              <Cell>
-                <MoveTo
-                  api={api}
-                  model={model}
-                  servingModels={models.data.servingModels}
-                  withoutAdapter={withoutAdapter}
-                  canWrite={canWrite}
-                  onDeclare={() => setOpenId(model.id)}
-                />
-              </Cell>
-            </Row>
+            <Fragment key={group.id}>
+              <FamilyHeader group={group} collapsed={shut} onToggle={() => setCollapsed((state) => ({ ...state, [group.id]: !shut }))} />
+              {shut ? null : modelRows}
+            </Fragment>
           );
         })}
       </Table>
     </div>
+  );
+}
+
+interface FamilyGroup {
+  id: string;
+  models: AdminCatalogModel[];
+  /** How many are not running on the provider that owns their catalogue row. */
+  moved: number;
+  /** How many have somewhere else declared they could go. */
+  withAlternate: number;
+}
+
+/**
+ * The flat model list, cut into families.
+ *
+ * A fold rather than a group-by, because `listCatalogModels` already ends
+ * `order by model.family nulls last, model.name` — so a family's rows arrive
+ * adjacent and in the order the shop presents them. Re-sorting here would be a
+ * second opinion about catalogue order that could disagree with the first.
+ *
+ * Models with no family land in one group under their own key. That is a
+ * seeding mistake rather than a category, and burying them inside a section
+ * called "—" is how it stays unnoticed.
+ */
+function groupByFamily(models: AdminCatalogModel[]): FamilyGroup[] {
+  const groups: FamilyGroup[] = [];
+  for (const model of models) {
+    const id = model.familyId ?? "بدون خانواده";
+    let group = groups.at(-1);
+    if (!group || group.id !== id) {
+      group = { id, models: [], moved: 0, withAlternate: 0 };
+      groups.push(group);
+    }
+    group.models.push(model);
+    if (model.servingProviderCode !== model.homeProviderCode) group.moved += 1;
+    if (model.routeTargets.length > 0) group.withAlternate += 1;
+  }
+  return groups;
+}
+
+/**
+ * The line a family's variants sit under.
+ *
+ * It carries the two counts worth knowing before opening the section, and the
+ * ordering of them is the point: **how many are running somewhere other than
+ * home** comes first, because that is the fact somebody opens this screen
+ * during an incident to find. How many merely *could* move is preparedness, and
+ * only interesting once nothing is on fire.
+ *
+ * The family's own name is not available here. `AdminCatalogModel.familyId` is
+ * the slug the database groups by, and the Persian display names live in
+ * `src/data/models.ts` — a 44-variant catalogue with every control and price
+ * attached, which the staff console does not import and should not start
+ * importing for one string per section.
+ */
+function FamilyHeader({ group, collapsed, onToggle }: { group: FamilyGroup; collapsed: boolean; onToggle: () => void }) {
+  return (
+    <tr className="border-t" style={{ borderColor: "var(--vg-border-subtle)" }}>
+      <td colSpan={4} className="pb-1 pt-4">
+        <button
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          className="flex w-full items-center gap-2 text-start"
+          style={{ color: "var(--vg-text)" }}
+        >
+          <span
+            aria-hidden="true"
+            className="inline-block text-[10px] transition-transform"
+            style={{ transform: collapsed ? "none" : "rotate(-90deg)" }}
+          >
+            ◀
+          </span>
+          <span className="text-[13px] font-bold" dir="ltr">
+            {group.id}
+          </span>
+          <span className="text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+            {group.models.length} مدل
+            {group.moved > 0 ? ` · ${group.moved} جابه‌جا شده` : ""}
+            {group.withAlternate > 0 ? ` · ${group.withAlternate} با مقصد جایگزین` : ""}
+          </span>
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+function ModelRow({
+  api,
+  model,
+  servingModels,
+  withoutAdapter,
+  canWrite,
+  onOpen,
+}: {
+  api: AdminApi;
+  model: AdminCatalogModel;
+  servingModels: AdminServingModel[];
+  withoutAdapter: Set<string>;
+  canWrite: boolean;
+  onOpen: () => void;
+}) {
+  const moved = model.servingProviderCode !== model.homeProviderCode;
+  return (
+    <Row>
+      <Cell>
+        <button onClick={onOpen} className="text-start underline-offset-2 hover:underline">
+          {model.name}
+        </button>
+        <span className="ms-2 text-[11px]" style={{ color: "var(--vg-text-faint)" }} dir="ltr">
+          {model.variantId}
+        </span>
+      </Cell>
+      <Cell>
+        <span style={{ color: moved ? "var(--vg-primary-soft)" : "var(--vg-text-muted)" }} dir="ltr">
+          {model.servingProviderCode}
+        </span>
+        {moved ? <span className="ms-1 text-[11px]">↩</span> : null}
+      </Cell>
+      <Cell>
+        <Paths model={model} />
+      </Cell>
+      <Cell>
+        <MoveTo
+          api={api}
+          model={model}
+          servingModels={servingModels}
+          withoutAdapter={withoutAdapter}
+          canWrite={canWrite}
+          onDeclare={onOpen}
+        />
+      </Cell>
+    </Row>
   );
 }
 
