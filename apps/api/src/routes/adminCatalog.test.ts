@@ -86,6 +86,7 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN, secrets: Record<st
         servingExternalModelId: "qwen/text-to-image",
         routeCount: 1,
         activeRouteCount: 0,
+        routeTargetIds: [SERVING_MODEL_ID],
       },
     ]),
     listServingModels: vi.fn(async () => [

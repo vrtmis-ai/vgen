@@ -135,13 +135,20 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
 
   // ---------------------------------------------------------------- submit
   const submittedAt = now();
+  // Translated to this provider's vocabulary immediately before the call and
+  // nowhere else. `job.params` stays the settings the customer chose and the
+  // ones the price was hashed from; what a route renames is a property of
+  // where the job is being sent, not of what was asked for.
+  //
+  // Computed outside the try so the failure path can record it. A provider
+  // rejecting our parameters is the likeliest failure once a route moves, and
+  // "400 invalid parameter" with no record of what was sent is the one message
+  // that cannot be acted on — especially here, where the route's overrides mean
+  // what went out is not what the customer chose.
+  const params = applyParamOverrides(job.params, job.paramOverrides);
+
   let submission;
   try {
-    // Translated to this provider's vocabulary immediately before the call and
-    // nowhere else. `job.params` stays the settings the customer chose and the
-    // ones the price was hashed from; what a route renames is a property of
-    // where the job is being sent, not of what was asked for.
-    const params = applyParamOverrides(job.params, job.paramOverrides);
     submission = await provider.submit({ externalModelId: job.externalModelId, params, apiKey });
   } catch (error) {
     const retryable = error instanceof ProviderTransportError ? error.retryable : true;
@@ -149,6 +156,7 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
       attempt({
         status: "failed",
         credentialId: credential.id,
+        requestPayload: params,
         errorCode: "submit_failed",
         errorMessage: messageOf(error),
         latencyMs: now() - submittedAt,

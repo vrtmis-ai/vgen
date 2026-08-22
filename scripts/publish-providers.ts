@@ -186,6 +186,39 @@ try {
     );
   }
   console.log("every route is inactive. Run scripts/spike-wavespeed.ts with a real key before activating any of them.");
+
+  /**
+   * Destinations on this provider that the seed file no longer names.
+   *
+   * This seeder only ever inserts and updates, which is right — it must not
+   * delete a destination an admin added through the panel. But it means
+   * **correcting a wrong path leaves the wrong one behind**, and both then show
+   * up as places the model can be sent. That is exactly what happened when
+   * `wavespeed-ai/wan-2.7/text-to-video` was corrected to `alibaba/...` on
+   * 2026-08-22: the model briefly offered two destinations, one of which
+   * answered "Model not found."
+   *
+   * Reported rather than deleted, because from here a stale row and one an
+   * admin created deliberately look identical, and only one of them is safe to
+   * remove. Naming it is enough to stop it being a surprise.
+   */
+  const stale = await sql<{ external_model_id: string; routes: number }[]>`
+    select model.external_model_id,
+           (select count(*)::int from model_routes r where r.serving_model_id = model.id) as routes
+    from provider_models model
+    join providers provider on provider.id = model.provider_id
+    where provider.code = ${seed.provider.code}
+      and not (model.capabilities ? 'variant')
+      and model.external_model_id <> all (${seed.routes.map((route) => route.externalModelId)})
+    order by model.external_model_id
+  `;
+
+  if (stale.length > 0) {
+    console.log(`\n⚠  ${stale.length} destination(s) on ${seed.provider.code} are not named by this file:`);
+    for (const row of stale) console.log(`     ${row.external_model_id}  (${row.routes} route${row.routes === 1 ? "" : "s"})`);
+    console.log("   If one is a path this file used to name and no longer does, it is dead and its");
+    console.log("   routes should go. If an admin added it through the panel, leave it alone.");
+  }
 } finally {
   await sql.end();
 }

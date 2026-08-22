@@ -100,6 +100,11 @@ function stubApi(): AdminApi {
           servingExternalModelId: "qwen/image",
           routeCount: 1,
           activeRouteCount: 0,
+          // Declared for this model, and the only thing the one-click dropdown
+          // may offer. The video row below is excluded by never being here --
+          // not by a modality check, which is what used to do the excluding and
+          // let every same-modality endpoint through.
+          routeTargetIds: ["44444444-4444-4444-8444-444444444444"],
         },
       ],
       servingModels: [
@@ -121,6 +126,19 @@ function stubApi(): AdminApi {
           externalModelId: "bytedance/seedance-2.0-fast/text-to-video",
           name: "Seedance 2.0 Fast (WaveSpeed)",
           modality: "video" as const,
+          isActive: true,
+        },
+        {
+          // An image endpoint nobody has declared able to run Qwen Image. This
+          // is the shape of the reported bug: same modality, different model,
+          // and the old picker offered it as if it were an alternative.
+          id: "66666666-6666-4666-8666-666666666666",
+          providerId: "77777777-7777-4777-8777-777777777777",
+          providerCode: "useapi",
+          providerName: "useapi.net",
+          externalModelId: "nano-banana-pro",
+          name: "Nano Banana Pro (unlimited)",
+          modality: "image" as const,
           isActive: true,
         },
       ],
@@ -419,7 +437,7 @@ describe("choosing where a model runs", () => {
     expect(within(select).getByRole("group", { name: "WaveSpeed" })).toBeInTheDocument();
   });
 
-  it("does not offer a video endpoint as somewhere to send an image variant", async () => {
+  it("offers only the destinations declared for this model, not every endpoint of the same modality", async () => {
     signedIn();
     renderConsole();
     await screen.findByRole("heading", { name: "پنل مدیریت" });
@@ -427,8 +445,30 @@ describe("choosing where a model runs", () => {
 
     const select = await screen.findByLabelText("انتقال Qwen Image");
     expect(within(select).getByRole("option", { name: "wavespeed-ai/qwen-image/text-to-image" })).toBeInTheDocument();
-    // Not a preference anyone holds — a typo that every job would fail on.
+
+    // The reported bug. Both make images and that is all they share; routing
+    // one at the other would not fail, it would sell the wrong model at this
+    // one's price and wait for a customer to notice.
+    expect(within(select).queryByRole("option", { name: "nano-banana-pro" })).not.toBeInTheDocument();
+
+    // A different modality was never the real filter, but it must still hold.
     expect(within(select).queryByRole("option", { name: "bytedance/seedance-2.0-fast/text-to-video" })).not.toBeInTheDocument();
+  });
+
+  it("says so plainly when a model has nowhere else to go", async () => {
+    signedIn();
+    const base = await api.listModels();
+    vi.mocked(api.listModels).mockResolvedValue({
+      models: [{ ...base.models[0]!, routeTargetIds: [] }],
+      servingModels: base.servingModels,
+    });
+    renderConsole();
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+    await userEvent.setup().click(await screen.findByRole("button", { name: "مسیر مدل‌ها" }));
+
+    // Rather than a select holding only "home", which looks operable and is not.
+    expect(await screen.findByRole("button", { name: "مقصدی تعریف نشده" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("انتقال Qwen Image")).not.toBeInTheDocument();
   });
 
   it("moves the model in one choice", async () => {

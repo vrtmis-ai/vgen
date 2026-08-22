@@ -505,17 +505,17 @@ allowed and clears the cookie in the same response.
 The answer to _"which provider, and which of their models, actually runs this
 thing we sell?"_ — and the ability to change it without a deploy.
 
-| route                             | permission      | does                                                                                               |
-| --------------------------------- | --------------- | -------------------------------------------------------------------------------------------------- |
-| `GET /admin/providers`            | `catalog.read`  | providers, their credential pool, whether an adapter exists, whether the key is set                |
-| `POST /admin/providers`           | `catalog.write` | add one → **201**. `{ code, name, baseUrl?, secretRef, creditUnitName?, unitCostUsd? }`            |
-| `PATCH /admin/providers/:id`      | `catalog.write` | `{ isActive?, baseUrl?, name? }`                                                                   |
-| `GET /admin/models`               | `catalog.read`  | every catalogue variant plus where it is currently sent, and every serving row it could be sent to |
-| `POST /admin/serving-models`      | `catalog.write` | add a destination → **201**. `{ providerId, externalModelId, name, modality }`                     |
-| `GET /admin/models/:id/routes`    | `catalog.read`  | one variant's routes, active first, then by priority                                               |
-| `PUT /admin/models/:id/routes`    | `catalog.write` | **replaces** the list — the deliberate, ordered switch                                             |
-| `POST /admin/models/:id/route-to` | `catalog.write` | `{ servingModelId }` — make it the winner now, in one transaction                                  |
-| `DELETE /admin/models/:id/routes` | `catalog.write` | back to the provider that owns the catalogue row                                                   |
+| route                             | permission      | does                                                                                             |
+| --------------------------------- | --------------- | ------------------------------------------------------------------------------------------------ |
+| `GET /admin/providers`            | `catalog.read`  | providers, their credential pool, whether an adapter exists, whether the key is set              |
+| `POST /admin/providers`           | `catalog.write` | add one → **201**. `{ code, name, baseUrl?, secretRef, creditUnitName?, unitCostUsd? }`          |
+| `PATCH /admin/providers/:id`      | `catalog.write` | `{ isActive?, baseUrl?, name? }`                                                                 |
+| `GET /admin/models`               | `catalog.read`  | every catalogue variant, where it is currently sent, its `routeTargetIds`, and every serving row |
+| `POST /admin/serving-models`      | `catalog.write` | add a destination → **201**. `{ providerId, externalModelId, name, modality }`                   |
+| `GET /admin/models/:id/routes`    | `catalog.read`  | one variant's routes, active first, then by priority                                             |
+| `PUT /admin/models/:id/routes`    | `catalog.write` | **replaces** the list — the deliberate, ordered switch                                           |
+| `POST /admin/models/:id/route-to` | `catalog.write` | `{ servingModelId }` — make it the winner now, in one transaction                                |
+| `DELETE /admin/models/:id/routes` | `catalog.write` | back to the provider that owns the catalogue row                                                 |
 
 Three things about this are worth knowing before you build against it.
 
@@ -532,6 +532,22 @@ the whole list; the write is one transaction.
 **A route ships inactive and stays that way until somebody says otherwise.**
 `isActive` defaults to `false` on input, and re-running the seeder never turns a
 route on or off. Adding a route is not the same act as moving traffic onto it.
+
+**`routeTargetIds` is the list a picker must be built from.** It holds every
+destination _declared_ for that variant — its `model_routes` rows, active or
+not, plus its `unlimited_entitlements` pairing, which 0018 defines as "a second
+provider's copy of the same logical model". It is usually empty, and an empty
+list is the true answer: most models have nowhere else to go.
+
+The temptation is to skip it and filter `servingModels` by modality instead.
+That is what the panel did, and it was wrong in a way that does not announce
+itself: it offered `wavespeed-ai/qwen-image/text-to-image` as somewhere to send
+Nano Banana Pro. Both make images and that is the entire overlap. Nothing would
+have failed — the job would have run, returned a picture, and charged Nano
+Banana Pro's price for a Qwen one. Whether a provider hosts a given model is a
+fact about that provider, no column in this schema knows it, and a person has to
+assert it before it can be offered. `PUT /routes` and `POST /admin/serving-models`
+are where the assertion is made.
 
 **There are two ways to switch, for two situations.** `PUT /routes` takes the
 whole ordered list and is how you decide a ranking in advance — several

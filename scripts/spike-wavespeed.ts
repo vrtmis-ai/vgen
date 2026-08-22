@@ -77,18 +77,76 @@ const dataOf = (body: unknown) => asRecord(asRecord(body).data);
 // exist at all? A wrong path is the most likely thing to be wrong, because
 // three of the four were written from a convention rather than read off a page.
 
+// ------------------------------------------------------- 0. balance, and the
+//                                                             model catalogue
+//
+// Both of these are free, and each answers a question that otherwise gets
+// misread further down. A zero balance makes every submit fail for a reason
+// that has nothing to do with our request shape; and GET /api/v3/models is the
+// authoritative list, which turns "does this path exist" from a probe into a
+// lookup. Neither endpoint is in WaveSpeed's own quickstart — both were found
+// by asking.
+
+const balance = await call(`${BASE}/api/v3/balance`);
+const funds = Number(dataOf(balance.body).balance ?? Number.NaN);
+console.log(`0. balance: ${Number.isFinite(funds) ? `$${funds}` : "unreadable"}\n`);
+save("balance", balance);
+
+const catalogue = await call(`${BASE}/api/v3/models`);
+const listed = Array.isArray(asRecord(catalogue.body).data) ? (asRecord(catalogue.body).data as { model_id?: string }[]) : [];
+if (listed.length === 0) die("GET /api/v3/models returned nothing usable — the path check below cannot be trusted", catalogue);
+save("models", listed);
+const known = new Set(listed.map((entry) => String(entry.model_id)));
+console.log(`   ${listed.length} models listed by the provider\n`);
+
 console.log("1. do the seeded model paths resolve?\n");
+
+/**
+ * WaveSpeed answers **400 "Model not found."** for a model it does not have,
+ * not 404. A 404 here means the URL did not match their router at all — a
+ * malformed path rather than a missing model.
+ *
+ * Reading only the status was this script's own bug, and it was an expensive
+ * one: it reported all four seeded paths as "exists" when two of them did not,
+ * which is precisely the fact the script was written to establish. Both the
+ * message and the status are consulted now, and anything unrecognised is
+ * reported as unclear rather than quietly passed.
+ */
+function verdictOf(status: number, body: unknown): string {
+  const message = String(asRecord(body).message ?? "");
+  if (status === 404 || /model not found/i.test(message)) return "MISSING";
+  if (status >= 500) return "unclear (5xx)";
+  // "field prompt is required" — the model exists and validated our empty body.
+  if (/required|invalid request/i.test(message)) return "exists";
+  // Insufficient credit is answered before validation on some paths, and it
+  // says nothing either way about whether the model is real.
+  if (/insufficient/i.test(message)) return "unclear (no credit)";
+  return `unclear (${status})`;
+}
+
+let missing = 0;
 for (const route of seed.routes) {
-  // A deliberately empty body. A path that exists answers 400 "missing prompt";
-  // one that does not answers 404. Both are cheap and neither generates.
+  // A deliberately empty body: a model that exists rejects it for a missing
+  // prompt, and one that does not is named as missing. Neither generates.
   const { status, body } = await call(`${BASE}/api/v3/${route.externalModelId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: "{}",
   });
-  const verdict = status === 404 ? "MISSING" : status >= 500 ? "unclear (5xx)" : "exists";
-  console.log(`   ${verdict.padEnd(14)} ${route.externalModelId}  (HTTP ${status})`);
-  save(`path-${route.variantId}`, { status, body });
+  // The list is the authority; the POST is the corroboration. They have agreed
+  // every time so far, and a disagreement is worth seeing rather than averaging.
+  const verdict = known.has(route.externalModelId) ? "exists" : verdictOf(status, body);
+  if (verdict === "MISSING") missing += 1;
+  console.log(`   ${verdict.padEnd(20)} ${route.externalModelId}  (HTTP ${status}) ${String(asRecord(body).message ?? "")}`);
+  save(`path-${route.variantId}`, { status, body, listedInCatalogue: known.has(route.externalModelId) });
+}
+
+if (missing > 0) {
+  // Stop rather than spend. A seed file naming models that do not exist is the
+  // finding; going on to generate would bury it under a success further down.
+  die(`${missing} seeded path(s) name a model WaveSpeed does not have`, {
+    fix: "correct src/data/routes.wavespeed.json against GET /api/v3/models, then re-run",
+  });
 }
 
 // ------------------------------------------------------------- 2. a real run
@@ -108,6 +166,19 @@ save("submit", submitted);
 
 const id = dataOf(submitted.body).id;
 if (typeof id !== "string" || !id) {
+  // Distinguish "no money" from "wrong shape". They arrive as the same 400 and
+  // mean opposite things: one is a top-up, the other is a bug in the adapter.
+  // Reporting the first as the second sends somebody looking for a fault that
+  // is not there, which is what happened the first time this was run.
+  if (/insufficient/i.test(String(asRecord(submitted.body).message ?? ""))) {
+    console.log("   the account has no credit, so nothing below can run.\n");
+    console.log("   Everything above is still settled: the key authenticates, the paths");
+    console.log("   resolve, and the error envelope is the shape the adapter parses.");
+    console.log("   What stays unproven is the success path — data.id, the polling");
+    console.log("   states, and whether data.outputs is really an array of strings.");
+    console.log("\n   Top up and re-run; it costs about $0.02 to settle the rest.");
+    process.exit(0);
+  }
   die("submit did not return data.id — the adapter reads exactly this and would refuse every job", submitted);
 }
 console.log(`   submitted, id = ${id}`);

@@ -46,6 +46,12 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
 
   const open = models.data.models.find((model) => model.id === openId) ?? null;
 
+  // Which providers `createGenerationProvider` has no way to call. Routing to
+  // one is a legitimate choice — it is how you stage a move before the adapter
+  // lands — but it must be a choice made knowingly, not a dropdown entry that
+  // looks exactly like a working one and refuses every job.
+  const withoutAdapter = new Set((providers.data?.providers ?? []).filter((provider) => !provider.hasAdapter).map((p) => p.id));
+
   if (open) {
     return (
       <RouteEditor
@@ -61,8 +67,11 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
 
   return (
     <div>
-      <p className="mb-3 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
+      <p className="mb-3 text-[12px] leading-6" style={{ color: "var(--vg-text-faint)" }}>
         «اجرا روی» یعنی اگر همین حالا جابی ثبت شود، کجا می‌رود. سرور همان‌طور حسابش می‌کند که هنگام اجرا حساب می‌کند.
+        <br />
+        «انتقال به» فقط مقصدهایی را نشان می‌دهد که برای همین مدل تعریف شده‌اند — نه هر نقطه‌پایانی هم‌نوع. برای افزودن مقصد تازه، روی نام
+        مدل بزن.
       </p>
       <Table head={["مدل", "خانه", "اجرا روی", "مسیرها", "انتقال به"]}>
         {models.data.models.map((model) => {
@@ -88,7 +97,14 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
                 {model.activeRouteCount} / {model.routeCount}
               </Cell>
               <Cell>
-                <MoveTo api={api} model={model} servingModels={models.data.servingModels} canWrite={canWrite} />
+                <MoveTo
+                  api={api}
+                  model={model}
+                  servingModels={models.data.servingModels}
+                  withoutAdapter={withoutAdapter}
+                  canWrite={canWrite}
+                  onDeclare={() => setOpenId(model.id)}
+                />
               </Cell>
             </Row>
           );
@@ -101,9 +117,20 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
 /**
  * Move one variant somewhere else, in one choice.
  *
- * Only destinations of the same modality are offered. Routing an image variant
- * at a video endpoint is not a preference anyone holds; it is a typo that would
- * be found by every job failing until somebody noticed.
+ * **Only destinations declared for this model are offered** — its own routes,
+ * active or not, plus its unlimited-entitlement pairing. Not every endpoint of
+ * the same modality, which is what this used to do and was the bug: it put
+ * `wavespeed-ai/qwen-image/text-to-image` on Nano Banana Pro's menu. Both make
+ * images, and that is the entire extent of what the two have in common. Picking
+ * it would not have failed; it would have quietly sold a Qwen picture at Nano
+ * Banana Pro's price, and the only way to find out is a customer noticing.
+ *
+ * Whether another provider hosts *this* model is a fact about that provider
+ * that no column in the schema knows. Somebody has to assert it, and the place
+ * to assert it is the route editor behind the model's name, where the
+ * assertion arrives switched off and carries a note saying what it is based on.
+ * This dropdown is for the outage, not the decision: it offers the alternatives
+ * that were worked out in advance, which is the only kind you want at 3am.
  *
  * Selecting the blank option clears every route, which sends the variant back
  * to the provider that owns its catalogue row. That is a return, not a
@@ -113,23 +140,41 @@ function MoveTo({
   api,
   model,
   servingModels,
+  withoutAdapter,
   canWrite,
+  onDeclare,
 }: {
   api: AdminApi;
   model: AdminCatalogModel;
   servingModels: AdminServingModel[];
+  withoutAdapter: Set<string>;
   canWrite: boolean;
+  onDeclare: () => void;
 }) {
   const routeTo = useRouteTo(api);
   const clear = useClearRoutes(api);
   const busy = routeTo.isPending || clear.isPending;
 
-  const options = useMemo(() => servingModels.filter((serving) => serving.modality === model.modality), [servingModels, model.modality]);
+  const options = useMemo(() => {
+    const declared = new Set(model.routeTargetIds);
+    return servingModels.filter((serving) => declared.has(serving.id));
+  }, [servingModels, model.routeTargetIds]);
 
   // The select shows where it is going, not what was last picked: an active
   // route's target, or blank for "home".
   const current =
     model.activeRouteCount > 0 ? (options.find((serving) => serving.externalModelId === model.servingExternalModelId)?.id ?? "") : "";
+
+  // Nowhere to go is a real answer, and a select holding only "home" would hide
+  // it behind a control that looks operable. The link goes where the missing
+  // thing is actually created.
+  if (options.length === 0) {
+    return (
+      <button onClick={onDeclare} className="text-[11.5px] underline-offset-2 hover:underline" style={{ color: "var(--vg-text-faint)" }}>
+        مقصدی تعریف نشده
+      </button>
+    );
+  }
 
   return (
     <div className="flex items-center gap-1.5">
@@ -145,7 +190,7 @@ function MoveTo({
         style={{ background: "var(--vg-bg, #0a0a0b)", color: "var(--vg-text)", border: "1px solid var(--vg-border-subtle)" }}
       >
         <option value="">— خانه —</option>
-        <ProviderOptions servingModels={options} />
+        <ProviderOptions servingModels={options} withoutAdapter={withoutAdapter} />
       </select>
       {busy ? <span className="text-[11px]">…</span> : null}
       {routeTo.error || clear.error ? (
@@ -167,7 +212,7 @@ function MoveTo({
  * provider actually expects, because inside one provider that string is the
  * only thing that distinguishes two entries.
  */
-function ProviderOptions({ servingModels }: { servingModels: AdminServingModel[] }) {
+function ProviderOptions({ servingModels, withoutAdapter }: { servingModels: AdminServingModel[]; withoutAdapter?: Set<string> }) {
   const grouped = useMemo(() => {
     const byProvider = new Map<string, AdminServingModel[]>();
     for (const serving of servingModels) {
@@ -181,7 +226,12 @@ function ProviderOptions({ servingModels }: { servingModels: AdminServingModel[]
   return (
     <>
       {grouped.map((group) => (
-        <optgroup key={group[0]!.providerId} label={group[0]!.providerName}>
+        <optgroup
+          key={group[0]!.providerId}
+          // Said on the group, because having an adapter is a property of the
+          // provider rather than of any one endpoint under it.
+          label={withoutAdapter?.has(group[0]!.providerId) ? `${group[0]!.providerName} — بدون آداپتور` : group[0]!.providerName}
+        >
           {group.map((serving) => (
             <option key={serving.id} value={serving.id}>
               {serving.externalModelId}
@@ -233,9 +283,24 @@ function RouteEditor({
     );
   }, [routes.data]);
 
+  /**
+   * Here — and only here — every endpoint of the right modality is offered.
+   *
+   * This screen is where a pairing is *asserted*: "WaveSpeed's Kling v3 runs
+   * the same model our Kling 3.0 does". Nothing in the database can check that
+   * claim, so the list cannot be narrowed for you; what it can do is make the
+   * claim deliberate. A row added here starts switched off, carries a note
+   * saying what it is based on, and only then shows up in the one-click
+   * dropdown on the list.
+   */
   const sameModality = useMemo(
     () => servingModels.filter((serving) => serving.modality === model.modality),
     [servingModels, model.modality],
+  );
+
+  const withoutAdapter = useMemo(
+    () => new Set(providers.filter((provider) => !provider.hasAdapter).map((provider) => provider.id)),
+    [providers],
   );
 
   /**
@@ -291,6 +356,11 @@ function RouteEditor({
       <p className="mt-2 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
         بدون هیچ مسیر فعالی، این مدل روی همان ارائه‌دهنده‌ی خانه‌اش اجرا می‌شود. کم‌ترین اولویت برنده است.
       </p>
+      <p className="mt-1.5 text-[11.5px] leading-6" style={{ color: "var(--vg-text-faint)" }}>
+        فهرست مقصدها اینجا فیلتر نشده — هر نقطه‌پایانی با همین نوع خروجی می‌آید. اینکه فلان ارائه‌دهنده واقعاً همین مدل را اجرا می‌کند چیزی
+        است که فقط آدم می‌تواند تأییدش کند، نه دیتابیس. هر ردیفی که اینجا اضافه کنی، خاموش می‌ماند و در دکمه‌ی «انتقال به» فهرست مدل‌ها دیده
+        می‌شود؛ پیش از فعال‌کردن، یک جاب واقعی رویش امتحان کن.
+      </p>
 
       {routes.isPending || !draft ? (
         <Muted>در حال خواندن مسیرها…</Muted>
@@ -313,7 +383,7 @@ function RouteEditor({
                   style={{ background: "var(--vg-bg, #0a0a0b)", color: "var(--vg-text)", border: "1px solid var(--vg-border-subtle)" }}
                 >
                   <option value="">— انتخاب مقصد —</option>
-                  <ProviderOptions servingModels={sameModality} />
+                  <ProviderOptions servingModels={sameModality} withoutAdapter={withoutAdapter} />
                 </select>
 
                 <label className="flex items-center gap-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>

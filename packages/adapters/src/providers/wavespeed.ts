@@ -13,13 +13,21 @@ import {
 /**
  * WaveSpeed, against the published REST documentation.
  *
- * UNVERIFIED. Every shape below comes from wavespeed.ai/docs rather than from a
- * call that returned 200, which is the thing `index.ts` argues against for
- * `useapi`. It is written anyway because the docs here are specific where
- * useapi's were a model list, and because the routing this serves is testable
- * without it — but the distinction is real, and `scripts/spike-wavespeed.ts`
- * exists to close it. Until that has been run with a live key, every
- * `model_routes` row pointing here ships inactive.
+ * HALF VERIFIED, and the halves are worth keeping straight.
+ *
+ * **Proved against the live API on 2026-08-22**, with a real key on a $0
+ * account: the request shape is accepted, a bad key is rejected as one, a model
+ * they do not have is named as missing, and every 4xx body parses where
+ * `submit` reads it. All three failure modes come back through
+ * `ProviderTransportError` as not-retryable, which is right — none of them
+ * improves on a second attempt.
+ *
+ * **Still from the documentation alone**: everything after a successful submit.
+ * `data.id`, the polling states, and whether `data.outputs` is really an array
+ * of URL strings have never been seen, because a $0 account cannot generate.
+ * `scripts/spike-wavespeed.ts` settles the rest for about two cents the moment
+ * there is credit, and until then every `model_routes` row pointing here ships
+ * inactive.
  *
  * Four differences from KIE shape the whole file:
  *
