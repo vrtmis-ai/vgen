@@ -1,6 +1,7 @@
 import { ContentSnapshotSchema, type ContentSnapshot } from "@vgen/contracts";
 import { toContentItem } from "@vgen/core";
 import type { Sql } from "postgres";
+import { PublicDocument, fingerprintOf } from "./publicDocument";
 
 /**
  * The editorial content, read out of `content_items`.
@@ -20,7 +21,29 @@ export interface CustomerContentRepository {
 export class PostgresContentRepository implements CustomerContentRepository {
   constructor(private readonly sql: Sql) {}
 
+  /**
+   * Rebuilt only when something publishes. See `PublicDocument`.
+   *
+   * The count matters here more than anywhere: unpublishing an item is the
+   * ordinary editorial action, and it changes what this document says without
+   * touching the newest `updated_at` in the remaining set.
+   */
+  private readonly document = new PublicDocument(
+    async () => {
+      const [row] = await this.sql<{ n: string; newest: Date | null }[]>`
+        select count(*)::text as n, max(updated_at) as newest
+        from content_items where status = 'published'
+      `;
+      return fingerprintOf(row?.n ?? "0", row?.newest);
+    },
+    () => this.build(),
+  );
+
   async list(): Promise<ContentSnapshot> {
+    return this.document.get();
+  }
+
+  private async build(): Promise<ContentSnapshot> {
     const rows = await this.sql<
       {
         kind: string;

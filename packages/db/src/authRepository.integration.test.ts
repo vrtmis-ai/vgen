@@ -340,6 +340,67 @@ describe("sessions", () => {
     });
   });
 
+  /**
+   * Reads were writes, and the write was the lookup.
+   *
+   * Every authenticated request stamped `last_used_at`, which meant a WAL
+   * record per GET and — because the stamp took a row lock — requests sharing a
+   * session queued behind one another. Measured at 445 requests a second on one
+   * session against 2,329 on two hundred, on the same server.
+   */
+  it("does not write to the database on every read", async () => {
+    await inRollback(sql, async (tx) => {
+      const repository = auth(tx);
+      const code = await usableInvite(tx, "session-touch");
+      const user = await repository.signInWithPhone(phone("34"), { inviteCode: code });
+      const { token } = await repository.createSession(user.id);
+
+      const stampOf = async () => {
+        const [row] = await tx<{ last_used_at: Date | null }[]>`
+          select last_used_at from sessions where user_id = ${user.id}
+        `;
+        return row?.last_used_at?.getTime() ?? null;
+      };
+
+      expect(await repository.resolveSession(token)).toMatchObject({ id: user.id });
+      const first = await stampOf();
+      expect(first).not.toBeNull();
+
+      // Resolving again must still answer, and must not touch the row. Written
+      // back by hand rather than waited out: `now()` does not advance inside a
+      // transaction, so a real five minutes could not be observed here anyway.
+      await tx`update sessions set last_used_at = now() - interval '30 seconds' where user_id = ${user.id}`;
+      const parked = await stampOf();
+
+      expect(await repository.resolveSession(token)).toMatchObject({ id: user.id });
+      expect(await stampOf()).toBe(parked);
+
+      // Past the threshold it stamps again, so the column stays roughly true.
+      await tx`update sessions set last_used_at = now() - interval '10 minutes' where user_id = ${user.id}`;
+      expect(await repository.resolveSession(token)).toMatchObject({ id: user.id });
+      expect(await stampOf()).not.toBe(parked);
+      expect(await stampOf()).toBeGreaterThan((parked ?? 0) - 1);
+    });
+  });
+
+  it("still refuses a revoked session on the very next request", async () => {
+    await inRollback(sql, async (tx) => {
+      const repository = auth(tx);
+      const code = await usableInvite(tx, "session-revoke-now");
+      const user = await repository.signInWithPhone(phone("35"), { inviteCode: code });
+      const { token } = await repository.createSession(user.id);
+
+      // The guarantee that makes this a database lookup rather than a JWT, and
+      // the one the touch-throttling above must not have weakened: the read is
+      // still unconditional, only the write is skipped.
+      await repository.resolveSession(token);
+      await tx`update sessions set last_used_at = now() where user_id = ${user.id}`;
+      await repository.revokeSession(token);
+
+      expect(await repository.resolveSession(token)).toBeNull();
+    });
+  });
+
   it("suspending an account ends its sessions", async () => {
     await inRollback(sql, async (tx) => {
       const repository = auth(tx);

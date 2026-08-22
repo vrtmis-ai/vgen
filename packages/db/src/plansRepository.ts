@@ -1,6 +1,7 @@
 import type { Plan } from "@vgen/contracts";
 import { microCreditsToCoins } from "@vgen/core";
 import type { Sql } from "postgres";
+import { PublicDocument, fingerprintOf } from "./publicDocument";
 
 /**
  * The plan ladder, read from the table that bills for it.
@@ -58,8 +59,32 @@ const SELECT_COLUMNS = `
 export class PostgresPlansRepository {
   constructor(private readonly sql: Sql) {}
 
+  /**
+   * Rebuilt only when a plan changes. See `PublicDocument`.
+   *
+   * The pricing table is the least volatile thing the API serves and was being
+   * assembled from scratch several thousand times a second under load.
+   * Withdrawing a plan is the case the count catches: `is_public` flips, the
+   * row leaves the set, and the newest timestamp among what remains is
+   * unchanged.
+   */
+  private readonly document = new PublicDocument(
+    async () => {
+      const [row] = await this.sql<{ n: string; newest: Date | null }[]>`
+        select count(*)::text as n, max(updated_at) as newest
+        from plans where is_active and is_public
+      `;
+      return fingerprintOf(row?.n ?? "0", row?.newest);
+    },
+    () => this.build(),
+  );
+
   /** Everything on sale, in the order the cards are meant to read. */
   async list(): Promise<Plan[]> {
+    return this.document.get();
+  }
+
+  private async build(): Promise<Plan[]> {
     const rows = await this.sql<PlanRow[]>`
       select ${this.sql.unsafe(SELECT_COLUMNS)}
       from plans
