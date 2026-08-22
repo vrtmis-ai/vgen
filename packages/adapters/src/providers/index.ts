@@ -26,12 +26,18 @@ export interface ProviderOptions {
  * adapter is trustworthy precisely because `scripts/spike-kie.ts` spent real
  * credits proving each of its assumptions wrong or right.
  *
- * `wavespeed` is the deliberate exception to that rule and is marked as one in
- * its own file. It is written from published documentation specific enough to
- * implement, unlike useapi's, and it is safe to ship unproven only because
- * every `model_routes` row pointing at it is seeded inactive — so nothing
- * reaches it until somebody runs `scripts/spike-wavespeed.ts` with a real key
- * and turns a route on.
+ * `wavespeed` was the deliberate exception to that rule. As of 2026-08-22 a real
+ * key has exercised its submit path and all three of its failure modes, so the
+ * request shape and the error envelope are now known rather than believed. Its
+ * success path is not: the account holds $0, so no generation has completed.
+ * The file says which half is which.
+ *
+ * That same session settled something about this rule that is worth writing
+ * down. Two of the four seeded WaveSpeed paths named models that do not exist —
+ * both of them the ones transcribed from a naming convention rather than read
+ * off a page. Documentation specific enough to implement is still not evidence
+ * that a particular model id is real, and the cheapest thing that tells you is
+ * `GET /api/v3/models`, which their quickstart never mentions.
  */
 export function createGenerationProvider(code: string, options: ProviderOptions = {}): GenerationProvider | null {
   if (code === "kie") return new KieGenerationProvider(options);
