@@ -199,22 +199,40 @@
   /* ---------------------------------------------------------------------
      4c. PLAN MARKS — one hue per rung of the ladder
 
-     Read as a climb: silver, teal, mint, orchid, the primary's own electric
-     blue on the recommended rung, indigo, and warm orange at the top. The
-     first four were #77808c / #5b8ea9 / #5ba88e / #8a70d6 — the same hues at
-     roughly half the chroma, which made the cheap half of the ladder look
-     like a disabled state rather than a smaller plan.
+     Read as a climb: silver, cyan, spring green, orchid, the brand's electric
+     blue on the recommended rung, violet, warm orange at the top.
 
-     Each is used as a card's --plan-color: the name, the mark, and a wash
-     behind them. Never as a fill under text.
+     EVERY ONE SITS AT ITS HUE'S CHROMA CEILING IN sRGB. That is the whole
+     method, and it is why they are not all as bright as --vg-reward: the
+     gamut is lopsided. Yellow-green holds C 0.21 at L 0.90, which is what
+     makes the lime glow. Blue's ceiling is C 0.165 and it peaks at L 0.72;
+     violet peaks at C 0.28 down at L 0.55. Lifting a blue to the lime's
+     lightness does not brighten it, it bleaches it — L 0.84 on this hue can
+     only hold C 0.099, a pastel weaker than what is here now. So each rung is
+     placed at its own cusp instead, then lifted only as far as the 4.5:1
+     floor on --vg-surface demands.
+
+     Worth knowing before anyone tries: **--vg-primary is already at the blue
+     cusp.** #00b4ff cannot be made more vivid in sRGB. If the brand needs to
+     hit harder, that is a hue decision, not a saturation one.
+
+     Previous values were the same hues at roughly half chroma — #77808c,
+     #5b8ea9, #5ba88e, #8a70d6 — which made the cheap half of the ladder read
+     as a disabled state rather than as a smaller plan.
+
+     Measured as text on --vg-surface: starter 10.1, basic 12.9, flow 13.8,
+     plus 5.7, pro 7.8, studio 5.4, creator 6.9.
+
+     Each is a card's --plan-color: the name, the mark, and a wash behind
+     them. Never a fill under text.
      --------------------------------------------------------------------- */
-  --vg-plan-starter: #96a3b5;
-  --vg-plan-basic: #2fc6c0;
-  --vg-plan-flow: #3fd6a4;
-  --vg-plan-plus: #c77dff;
-  --vg-plan-pro: #00b4ff;
-  --vg-plan-studio: #8b6dff;
-  --vg-plan-creator: #ff793f;
+  --vg-plan-starter: #a8c1da; /* L .80 C .045 H 250 — quiet on purpose  */
+  --vg-plan-basic: #00ecff; /* L .86 C .151 H 205                     */
+  --vg-plan-flow: #00fc9d; /* L .87 C .211 H 158                     */
+  --vg-plan-plus: #d34fff; /* L .68 C .264 H 315                     */
+  --vg-plan-pro: #00b1fe; /* L .72 C .165 H 237 — the blue cusp     */
+  --vg-plan-studio: #8775ff; /* L .65 C .201 H 285                     */
+  --vg-plan-creator: #ff7421; /* L .72 C .194 H  45                     */
 
   /* ---------------------------------------------------------------------
      5. BORDERS — depth through fine lines, not shadows
