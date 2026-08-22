@@ -3,6 +3,33 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# pnpm reads overrides from HERE, not from package.json. A top-level
+# "overrides" block in package.json is npm's spelling and is silently ignored,
+# which is how a nanoid pin sat in this repo resolving to a different version
+# than it named. If a pin matters, it goes in this file and the lockfile proves
+# it took.
+overrides:
+  # One copy of the smithy type definitions, shared by every AWS SDK package.
+  #
+  # @aws-sdk/client-s3 and @aws-sdk/s3-request-presigner release in lockstep but
+  # do not upgrade their transitive @smithy/types in lockstep, so a routine bump
+  # can leave two copies installed. Two copies means two structural identities
+  # for the same class, and passing an S3Client built against one into a
+  # presigner typed against the other fails with "Types have separate
+  # declarations of a private property 'handlers'" -- which reads like a bug in
+  # our code and is not.
+  "@smithy/types": "^4.17.2"
+  # @smithy/core is the one that actually carries the Client class, and its
+  # private `handlers` field is what the compiler compares. Both are pinned
+  # because pinning only the types left two copies of core and the identical
+  # error.
+  "@smithy/core": "^3.33.2"
+
+  # Kept from package.json, where it never did anything. A floor rather than an
+  # exact pin: the installed 3.3.18 already clears it, and an exact pin here
+  # would be a downgrade dressed up as a security control.
+  nanoid: "^3.3.17"
+
 allowBuilds:
   esbuild: true
   msgpackr-extract: false
