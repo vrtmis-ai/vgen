@@ -487,6 +487,91 @@ describe("choosing where a model runs", () => {
     expect(paths).toContain("خاموش");
   });
 
+  /**
+   * Two variants of one family plus a third family, so the fold has something to
+   * fold and something to leave alone. The base fixture is a single model in a
+   * single family, which is exactly the case that must *not* grow a heading.
+   */
+  const twoFamilies = async () => {
+    const base = await api.listModels();
+    const qwen = base.models[0]!;
+    return {
+      models: [
+        { ...qwen, id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", familyId: "kling", variantId: "kling-std", name: "Kling Standard" },
+        {
+          ...qwen,
+          id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          familyId: "kling",
+          variantId: "kling-pro",
+          name: "Kling Pro",
+          servingProviderCode: "wavespeed",
+        },
+        qwen,
+      ],
+      servingModels: base.servingModels,
+    };
+  };
+
+  it("puts a family's variants under one heading and leaves a lone model alone", async () => {
+    signedIn();
+    vi.mocked(api.listModels).mockResolvedValue(await twoFamilies());
+    renderConsole();
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+    await userEvent.setup().click(await screen.findByRole("button", { name: "مسیر مدل‌ها" }));
+
+    // The counts are the reason to look before opening: one of the two is
+    // running somewhere other than home, and both have an alternate declared.
+    const heading = await screen.findByRole("button", { name: /kling/ });
+    expect(heading).toHaveTextContent("2 مدل");
+    expect(heading).toHaveTextContent("1 جابه‌جا شده");
+
+    // A family selling one variant gets a heading too. Leaving it unheaded read
+    // tidier and put it under whichever family happened to precede it: flat
+    // beneath Kling's six rows, MiniMax H3 looked like a seventh Kling.
+    expect(await screen.findByRole("button", { name: /qwen/ })).toHaveTextContent("1 مدل");
+    expect(screen.getByRole("button", { name: "Qwen Image" })).toBeInTheDocument();
+  });
+
+  it("opens expanded, and folds a family away without touching the rest", async () => {
+    signedIn();
+    const user = userEvent.setup();
+    vi.mocked(api.listModels).mockResolvedValue(await twoFamilies());
+    renderConsole();
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+    await user.click(await screen.findByRole("button", { name: "مسیر مدل‌ها" }));
+
+    // Expanded first: this screen is read during an incident, and one that
+    // opens folded hides the thing somebody came to find.
+    const heading = await screen.findByRole("button", { name: /kling/ });
+    expect(heading).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Kling Pro" })).toBeInTheDocument();
+
+    await user.click(heading);
+
+    expect(heading).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "Kling Pro" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Qwen Image" })).toBeInTheDocument();
+  });
+
+  it("keeps a folded family folded across a trip into the route editor", async () => {
+    signedIn();
+    const user = userEvent.setup();
+    vi.mocked(api.listModels).mockResolvedValue(await twoFamilies());
+    renderConsole();
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+    await user.click(await screen.findByRole("button", { name: "مسیر مدل‌ها" }));
+
+    await user.click(await screen.findByRole("button", { name: /kling/ }));
+    expect(screen.queryByRole("button", { name: "Kling Pro" })).not.toBeInTheDocument();
+
+    // The editor replaces the list entirely, so group state held below that
+    // branch would reset here and quietly re-expand everything.
+    await user.click(screen.getByRole("button", { name: "Qwen Image" }));
+    await user.click(await screen.findByRole("button", { name: "← برگشت به فهرست" }));
+
+    expect(await screen.findByRole("button", { name: /kling/ })).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("says so plainly when a model has nowhere else to go", async () => {
     signedIn();
     const base = await api.listModels();

@@ -158,6 +158,28 @@ describe("the sign-in screen", () => {
     await waitFor(() => expect(startProviderSignIn).toHaveBeenCalledWith("microsoft"));
   });
 
+  it("draws each provider's own mark, in its own colours", async () => {
+    const services = createDemoServices({ startAnonymous: true });
+    renderAuth(services);
+
+    const google = await screen.findByRole("button", { name: "Continue with Google" });
+    const microsoft = await screen.findByRole("button", { name: "Continue with Microsoft" });
+
+    // Four paths each, because both marks are four-part: rendering one of them
+    // draws a quarter of a logo, which reads as a glitch rather than a brand.
+    // And the fills are the companies' own, not `currentColor` — a monochrome
+    // Microsoft mark is four grey squares, indistinguishable from an icon for
+    // "grid". The whole point of a real mark here is that it is recognised.
+    const fills = (button: HTMLElement) => [...button.querySelectorAll("svg path")].map((path) => path.getAttribute("fill"));
+
+    expect(fills(google)).toEqual(["#4285F4", "#34A853", "#FBBC05", "#EA4335"]);
+    expect(fills(microsoft)).toEqual(["#F25022", "#7FBA00", "#00A4EF", "#FFB900"]);
+
+    // The name still comes from the text, not the mark: it is aria-hidden, so
+    // nobody hears the brand twice.
+    expect(google.querySelector("svg")).toHaveAttribute("aria-hidden");
+  });
+
   it("draws no button for a provider the server does not offer", async () => {
     const services = createDemoServices({ startAnonymous: true });
     // A deployment with Google credentials and no Microsoft ones — the exact
