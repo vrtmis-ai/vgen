@@ -253,7 +253,7 @@ describe("what the panel reports", () => {
       `;
 
       const before = (await routes.listCatalogModels()).find((model) => model.id === f.catalogModelId)!;
-      expect(before.routeTargetIds).toEqual([]);
+      expect(before.routeTargets).toEqual([]);
 
       await route(tx, f, { isActive: false });
 
@@ -261,9 +261,18 @@ describe("what the panel reports", () => {
       // Declared and switched off is still declared. That is the point of the
       // one-click move: the alternates were worked out in advance, and the
       // outage is not when you want to be inventing one.
-      expect(after.routeTargetIds).toEqual([f.altModelId]);
+      expect(after.routeTargets).toEqual([
+        {
+          servingModelId: f.altModelId,
+          providerCode: expect.any(String),
+          externalModelId: "alt/some-model",
+          priority: 10,
+          isActive: false,
+          source: "route",
+        },
+      ]);
       expect(after.activeRouteCount).toBe(0);
-      expect(after.routeTargetIds).not.toContain(stranger!.id);
+      expect(after.routeTargets.map((target) => target.servingModelId)).not.toContain(stranger!.id);
     });
   });
 
@@ -281,7 +290,12 @@ describe("what the panel reports", () => {
       // 0018 defines the pair in as many words as "a second provider's copy of
       // the same logical model", which is the same assertion a route makes. If
       // the home provider falls over, this is the alternative you want offered.
-      expect(model.routeTargetIds).toEqual([f.altModelId]);
+      expect(model.routeTargets).toHaveLength(1);
+      expect(model.routeTargets[0]!.servingModelId).toBe(f.altModelId);
+      // Not ranked, and the null is the honest answer rather than a missing
+      // number: an entitlement is the free lane, not a routing preference.
+      expect(model.routeTargets[0]!.priority).toBeNull();
+      expect(model.routeTargets[0]!.source).toBe("entitlement");
       expect(model.routeCount).toBe(0);
     });
   });

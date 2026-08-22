@@ -63,12 +63,16 @@ export interface CatalogModelSummary {
   routeCount: number;
   activeRouteCount: number;
   /**
-   * Everywhere this variant has been *declared* able to run, active or not.
+   * Everywhere this variant has been *declared* able to run, active or not,
+   * with the priority and state of each.
    *
    * Two sources, and both are assertions somebody made deliberately about the
    * outside world: a `model_routes` row, and an `unlimited_entitlements`
    * pairing — which 0018 defines in as many words as "a second provider's copy
    * of the same logical model: same picture, same prompt, different bill".
+   * `source` keeps them apart, because they are not the same claim: one is a
+   * routing preference with a rank, the other is where unlimited subscribers
+   * are served for free and has no rank at all.
    *
    * Nothing else belongs in a destination list. Whether WaveSpeed hosts our
    * Nano Banana Pro is a fact about WaveSpeed, and the schema has no column
@@ -77,7 +81,19 @@ export interface CatalogModelSummary {
    * that offered the modality match would be offering a different product
    * under this one's name, and the customer would be the one to find out.
    */
-  routeTargetIds: string[];
+  routeTargets: RouteTarget[];
+}
+
+/** One declared destination, as the panel lists it. */
+export interface RouteTarget {
+  servingModelId: string;
+  providerCode: string;
+  /** The id the provider itself expects — the path a job is actually sent to. */
+  externalModelId: string;
+  /** Lower wins. Null for an entitlement pairing, which is not ranked. */
+  priority: number | null;
+  isActive: boolean;
+  source: "route" | "entitlement";
 }
 
 export interface RouteRecord {
@@ -368,7 +384,7 @@ export class PostgresModelRoutesRepository {
         serving_external_model_id: string;
         route_count: string;
         active_route_count: string;
-        route_target_ids: string[];
+        route_targets: RouteTarget[];
       }[]
     >`
       select
@@ -385,15 +401,30 @@ export class PostgresModelRoutesRepository {
         -- the same modality. The union is deliberate: an entitlement pairing is
         -- the same assertion a route makes -- another provider runs this exact
         -- model -- and during an outage it is the alternative you want offered.
+        --
+        -- Ordered the way the runner reads them: lowest priority first, which
+        -- makes the first active row in this list the one that would serve a
+        -- job submitted now. A panel rendering them in order is therefore
+        -- showing the same ranking claim() acts on.
         (
-          select coalesce(array_agg(distinct declared.serving_model_id::text), '{}')
+          select coalesce(json_agg(declared order by declared.priority nulls last, declared."externalModelId"), '[]'::json)
           from (
-            select r.serving_model_id from model_routes r where r.catalog_model_id = model.id
-            union
-            select e.serving_model_id from unlimited_entitlements e
-              where e.catalog_model_id = model.id and e.is_active
+            select s.id as "servingModelId", sp.code as "providerCode",
+                   s.external_model_id as "externalModelId",
+                   r.priority, r.is_active as "isActive", 'route' as source
+            from model_routes r
+            join provider_models s on s.id = r.serving_model_id
+            join providers sp on sp.id = s.provider_id
+            where r.catalog_model_id = model.id
+            union all
+            select s.id, sp.code, s.external_model_id,
+                   null::integer, e.is_active, 'entitlement'
+            from unlimited_entitlements e
+            join provider_models s on s.id = e.serving_model_id
+            join providers sp on sp.id = s.provider_id
+            where e.catalog_model_id = model.id and e.is_active
           ) declared
-        ) as route_target_ids
+        ) as route_targets
       from provider_models model
       join providers home on home.id = model.provider_id
       -- Same shape as the lateral in claim(), minus the entitlement branch: a
@@ -426,7 +457,7 @@ export class PostgresModelRoutesRepository {
       servingExternalModelId: row.serving_external_model_id,
       routeCount: Number(row.route_count),
       activeRouteCount: Number(row.active_route_count),
-      routeTargetIds: row.route_target_ids,
+      routeTargets: row.route_targets,
     }));
   }
 

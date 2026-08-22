@@ -104,7 +104,16 @@ function stubApi(): AdminApi {
           // may offer. The video row below is excluded by never being here --
           // not by a modality check, which is what used to do the excluding and
           // let every same-modality endpoint through.
-          routeTargetIds: ["44444444-4444-4444-8444-444444444444"],
+          routeTargets: [
+            {
+              servingModelId: "44444444-4444-4444-8444-444444444444",
+              providerCode: "wavespeed",
+              externalModelId: "wavespeed-ai/qwen-image/text-to-image",
+              priority: 10,
+              isActive: false,
+              source: "route" as const,
+            },
+          ],
         },
       ],
       servingModels: [
@@ -455,11 +464,34 @@ describe("choosing where a model runs", () => {
     expect(within(select).queryByRole("option", { name: "bytedance/seedance-2.0-fast/text-to-video" })).not.toBeInTheDocument();
   });
 
+  it("names every path the model runs on, with its rank, instead of counting them", async () => {
+    signedIn();
+    renderConsole();
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+    await userEvent.setup().click(await screen.findByRole("button", { name: "مسیر مدل‌ها" }));
+
+    const row = (await screen.findByRole("button", { name: "Qwen Image" })).closest("tr")!;
+    // The paths cell, not the whole row: the destination also appears in the
+    // move-to dropdown, and matching there would pass without this cell.
+    const paths = row.querySelectorAll("td")[2]!.textContent!;
+
+    // Home is a real destination and is listed as one. Leaving it out made a
+    // model with no routes render as an empty cell that read as missing data.
+    expect(paths).toContain("qwen/image");
+    expect(paths).toContain("خانه");
+
+    // The path itself and its rank, not a count. "0 / 1" said there was a route
+    // and refused to say which provider, which endpoint, or whether it won.
+    expect(paths).toContain("wavespeed-ai/qwen-image/text-to-image");
+    expect(paths).toContain("اولویت 10");
+    expect(paths).toContain("خاموش");
+  });
+
   it("says so plainly when a model has nowhere else to go", async () => {
     signedIn();
     const base = await api.listModels();
     vi.mocked(api.listModels).mockResolvedValue({
-      models: [{ ...base.models[0]!, routeTargetIds: [] }],
+      models: [{ ...base.models[0]!, routeTargets: [] }],
       servingModels: base.servingModels,
     });
     renderConsole();

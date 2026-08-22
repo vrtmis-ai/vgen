@@ -86,7 +86,16 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN, secrets: Record<st
         servingExternalModelId: "qwen/text-to-image",
         routeCount: 1,
         activeRouteCount: 0,
-        routeTargetIds: [SERVING_MODEL_ID],
+        routeTargets: [
+          {
+            servingModelId: SERVING_MODEL_ID,
+            providerCode: "wavespeed",
+            externalModelId: "wavespeed-ai/qwen-image/text-to-image",
+            priority: 10,
+            isActive: false,
+            source: "route" as const,
+          },
+        ],
       },
     ]),
     listServingModels: vi.fn(async () => [
