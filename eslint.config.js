@@ -34,6 +34,32 @@ export default tseslint.config(
     },
   },
   {
+    // What the browser bundle is not allowed to contain.
+    //
+    // These three files name our suppliers, their endpoint paths, and what a
+    // generation costs us. A JSON import is inlined into the bundle whether or
+    // not any code reads the fields, so "we only import it for one value" is not
+    // a defence — every one of these leaked exactly that way before.
+    //
+    // Anything under app/ or src/ ships. The seeders in scripts/ do not, which
+    // is why they may read them.
+    files: ["app/**/*.{ts,tsx}", "src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/data/upstream.json", "**/data/upstream.pricing.json", "**/data/routes.wavespeed.json"],
+              message:
+                "Server-only: this names a supplier, its endpoints, or our cost, and app/ and src/ are shipped to the browser. Read it from scripts/ instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["packages/core/**/*.ts"],
     rules: {
       "no-restricted-imports": [

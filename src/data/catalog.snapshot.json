@@ -133,14 +133,12 @@
       "variants": [
         {
           "id": "nano-banana-pro",
-          "model": "nano-banana-pro",
           "featureCode": "image_generate",
           "label": "Pro",
           "badge": "پرچم‌دار"
         },
         {
           "id": "nano-banana-2",
-          "model": "nano-banana-2",
           "featureCode": "image_generate",
           "label": "نسخه ۲",
           "badge": "جدید",
@@ -342,13 +340,11 @@
       "variants": [
         {
           "id": "seedream-4-5",
-          "model": "seedream/4.5-text-to-image",
           "featureCode": "image_generate",
           "label": "۴٫۵"
         },
         {
           "id": "seedream-5-lite",
-          "model": "seedream/5-lite-text-to-image",
           "featureCode": "image_generate",
           "label": "۵ Lite",
           "badge": "ارزان"
@@ -464,13 +460,11 @@
       "variants": [
         {
           "id": "gpt-image-2",
-          "model": "gpt-image-2-text-to-image",
           "featureCode": "image_generate",
           "label": "نسخه ۲"
         },
         {
           "id": "gpt-image-1-5",
-          "model": "gpt-image/1.5-text-to-image",
           "featureCode": "image_generate",
           "label": "۱٫۵",
           "controls": [
@@ -600,13 +594,11 @@
       "variants": [
         {
           "id": "flux-2-pro",
-          "model": "flux-2/pro-text-to-image",
           "featureCode": "image_generate",
           "label": "Pro"
         },
         {
           "id": "flux-2-flex",
-          "model": "flux-2/flex-text-to-image",
           "featureCode": "image_generate",
           "label": "Flex"
         }
@@ -677,20 +669,17 @@
       "variants": [
         {
           "id": "imagen-4-ultra",
-          "model": "google/imagen4-ultra",
           "featureCode": "image_generate",
           "label": "Ultra",
           "badge": "بهترین"
         },
         {
           "id": "imagen-4",
-          "model": "google/imagen4",
           "featureCode": "image_generate",
           "label": "معمولی"
         },
         {
           "id": "imagen-4-fast",
-          "model": "google/imagen4-fast",
           "featureCode": "image_generate",
           "label": "سریع",
           "badge": "ارزان"
@@ -807,7 +796,6 @@
       "variants": [
         {
           "id": "ideogram-v3",
-          "model": "ideogram/v3-text-to-image",
           "featureCode": "image_generate",
           "label": "V3"
         }
@@ -894,7 +882,6 @@
       "variants": [
         {
           "id": "qwen-image",
-          "model": "qwen/text-to-image",
           "featureCode": "image_generate",
           "label": "Image"
         }
@@ -953,7 +940,6 @@
       "variants": [
         {
           "id": "z-image",
-          "model": "z-image",
           "featureCode": "image_generate",
           "label": "Z"
         }
@@ -1080,7 +1066,6 @@
       "variants": [
         {
           "id": "seedance-2-5",
-          "model": "bytedance/seedance-2-5",
           "featureCode": "video_generate",
           "label": "۲٫۵",
           "badge": "جدید",
@@ -1165,14 +1150,12 @@
         },
         {
           "id": "seedance-2",
-          "model": "bytedance/seedance-2",
           "featureCode": "video_generate",
           "label": "نسخه ۲",
           "badge": "پرچم‌دار"
         },
         {
           "id": "seedance-2-fast",
-          "model": "bytedance/seedance-2-fast",
           "featureCode": "video_generate",
           "label": "سریع",
           "controls": [
@@ -1256,7 +1239,6 @@
         },
         {
           "id": "seedance-2-mini",
-          "model": "bytedance/seedance-2-mini",
           "featureCode": "video_generate",
           "label": "۲ مینی",
           "badge": "ارزان",
@@ -1341,7 +1323,6 @@
         },
         {
           "id": "seedance-1-5-pro",
-          "model": "bytedance/seedance-1.5-pro",
           "featureCode": "video_generate",
           "label": "۱٫۵ Pro",
           "refs": [
@@ -1536,15 +1517,12 @@
       "variants": [
         {
           "id": "kling-3",
-          "model": "kling-3.0/video",
           "featureCode": "video_generate",
           "label": "۳٫۰"
         },
         {
           "id": "kling-3-turbo",
-          "model": "kling/v3-turbo-text-to-video",
           "featureCode": "video_generate",
-          "modelWithRefs": "kling/v3-turbo-image-to-video",
           "label": "۳٫۰ Turbo",
           "badge": "سریع",
           "refs": [
@@ -1611,9 +1589,7 @@
         },
         {
           "id": "kling-2-6",
-          "model": "kling-2.6/text-to-video",
           "featureCode": "video_generate",
-          "modelWithRefs": "kling-2.6/image-to-video",
           "label": "۲٫۶",
           "refs": [
             {
@@ -1675,7 +1651,6 @@
         },
         {
           "id": "kling-3-motion",
-          "model": "kling-3.0/motion-control",
           "featureCode": "image_to_video",
           "label": "Motion Control",
           "badge": "جدید",
@@ -1733,7 +1708,6 @@
         },
         {
           "id": "kling-2-6-motion",
-          "model": "kling-2.6/motion-control",
           "featureCode": "image_to_video",
           "label": "Motion Control ۲٫۶",
           "badge": "ارزان",
@@ -1791,9 +1765,7 @@
         },
         {
           "id": "kling-2-5-turbo",
-          "model": "kling/v2-5-turbo-text-to-video-pro",
           "featureCode": "video_generate",
-          "modelWithRefs": "kling/v2-5-turbo-image-to-video-pro",
           "label": "۲٫۵ Turbo",
           "refs": [
             {
@@ -1979,7 +1951,6 @@
       "variants": [
         {
           "id": "minimax-h3",
-          "model": "minimax-h3/text-to-video",
           "featureCode": "video_generate",
           "label": "H3",
           "badge": "جدید"
@@ -2074,9 +2045,7 @@
       "variants": [
         {
           "id": "wan-2-5",
-          "model": "wan/2-5-text-to-video",
           "featureCode": "video_generate",
-          "modelWithRefs": "wan/2-5-image-to-video",
           "maxPrompt": 800,
           "label": "۲٫۵",
           "refs": [
@@ -2089,9 +2058,7 @@
         },
         {
           "id": "wan-2-6",
-          "model": "wan/2-6-text-to-video",
           "featureCode": "video_generate",
-          "modelWithRefs": "wan/2-6-image-to-video",
           "label": "۲٫۶",
           "refs": [
             {
@@ -2148,9 +2115,7 @@
         },
         {
           "id": "wan-2-7",
-          "model": "wan/2-7-text-to-video",
           "featureCode": "video_generate",
-          "modelWithRefs": "wan/2-7-image-to-video",
           "label": "۲٫۷",
           "refs": [
             {
@@ -2270,7 +2235,6 @@
         },
         {
           "id": "wan-2-7-videoedit",
-          "model": "wan/2-7-videoedit",
           "featureCode": "video_edit",
           "label": "۲٫۷ ویرایش",
           "badge": "ویدیو",
@@ -2418,7 +2382,6 @@
         },
         {
           "id": "wan-2-7-r2v",
-          "model": "wan/2-7-r2v",
           "featureCode": "image_to_video",
           "label": "۲٫۷ مرجع",
           "refs": [
@@ -2571,7 +2534,6 @@
       "variants": [
         {
           "id": "hailuo-2-3",
-          "model": "hailuo/2-3-image-to-video-pro",
           "featureCode": "image_to_video",
           "label": "۲٫۳ Pro",
           "refs": [
@@ -2619,7 +2581,6 @@
         },
         {
           "id": "hailuo-2-3-standard",
-          "model": "hailuo/2-3-image-to-video-standard",
           "featureCode": "image_to_video",
           "label": "۲٫۳ استاندارد",
           "badge": "ارزان",
@@ -2754,7 +2715,6 @@
       "variants": [
         {
           "id": "gemini-omni-video",
-          "model": "gemini-omni-video",
           "featureCode": "video_generate",
           "label": "Omni"
         }
@@ -2842,21 +2802,18 @@
       "variants": [
         {
           "id": "veo-fast",
-          "model": "veo3_fast",
           "featureCode": "video_generate",
           "label": "سریع",
           "badge": "ارزان"
         },
         {
           "id": "veo-quality",
-          "model": "veo3",
           "featureCode": "video_generate",
           "label": "کیفیت",
           "badge": "پرچم‌دار"
         },
         {
           "id": "veo-lite",
-          "model": "veo3_lite",
           "featureCode": "video_generate",
           "label": "Lite"
         }
@@ -2920,7 +2877,6 @@
       "variants": [
         {
           "id": "grok-image",
-          "model": "grok-imagine/text-to-image",
           "featureCode": "image_generate",
           "label": "Imagine"
         }
@@ -2986,7 +2942,6 @@
       "variants": [
         {
           "id": "eleven-turbo",
-          "model": "elevenlabs/text-to-speech-turbo-2-5",
           "featureCode": "speech_generate",
           "label": "Turbo",
           "badge": "ارزان",
@@ -3065,7 +3020,6 @@
         },
         {
           "id": "eleven-multilingual",
-          "model": "elevenlabs/text-to-speech-multilingual-v2",
           "featureCode": "speech_generate",
           "label": "چندزبانه",
           "badge": "کیفیت"
@@ -3115,13 +3069,11 @@
       "variants": [
         {
           "id": "topaz-image-upscale",
-          "model": "topaz/image-upscale",
           "featureCode": "image_edit",
           "label": "بزرگ‌نمایی"
         },
         {
           "id": "topaz-video-upscale",
-          "model": "topaz/video-upscale",
           "featureCode": "video_edit",
           "label": "ویدیو",
           "refs": [
@@ -3181,14 +3133,12 @@
       "variants": [
         {
           "id": "recraft-crisp-upscale",
-          "model": "recraft/crisp-upscale",
           "featureCode": "image_edit",
           "label": "بزرگ‌نمایی",
           "badge": "ارزان"
         },
         {
           "id": "recraft-remove-bg",
-          "model": "recraft/remove-background",
           "featureCode": "image_edit",
           "label": "حذف پس‌زمینه"
         }

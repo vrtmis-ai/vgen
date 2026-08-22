@@ -52,12 +52,20 @@ export const RefSlotSchema = z.object({
   requires: z.string().min(1).optional(),
 });
 
+/**
+ * A variant as the shop describes it.
+ *
+ * **No upstream endpoint, by design.** `/api/v1/catalog` is unauthenticated, so
+ * anything here is public to anyone with curl. It used to carry `model` and
+ * `modelWithRefs` — the exact strings our supplier expects — which named the
+ * supplier to every visitor. The browser never read either: a customer picks by
+ * `id`, and the price and the job both key off that. The mapping now lives in
+ * `src/data/upstream.json`, which only the seeders may import.
+ */
 export const VariantSchema = z.object({
   id: z.string().min(1),
-  model: z.string().min(1),
   /** `features.code` — the product section a job from this variant is filed under. */
   featureCode: z.string().min(1),
-  modelWithRefs: z.string().min(1).optional(),
   maxPrompt: z.number().int().positive().optional(),
   label: z.string(),
   badge: z.string().optional(),

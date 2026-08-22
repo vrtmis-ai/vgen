@@ -1,0 +1,157 @@
+{
+  "$comment": [
+    "Which upstream endpoint each catalogue variant is actually sent to.",
+    "",
+    "SERVER ONLY. Nothing under src/ or app/ may import this file, and ESLint",
+    "refuses the import so the rule is enforced rather than remembered. These",
+    "strings used to live on `Variant` in models.ts, which the browser bundles",
+    "for FAMILIES -- so `model:\"bytedance/seedance-2-fast\"` shipped to every",
+    "visitor and named our supplier in plain text in a JS chunk.",
+    "",
+    "Nothing in the browser ever read them: a customer picks a variant by our",
+    "own id, and the price and the job both key off that. Only the seeders need",
+    "the mapping, and seeders run on our machines.",
+    "",
+    "`modelWithRefs` is the separate entry point some models have for the",
+    "image-to-X case; same price either way, so it selects an endpoint and",
+    "nothing else."
+  ],
+  "nano-banana-pro": {
+    "model": "nano-banana-pro"
+  },
+  "nano-banana-2": {
+    "model": "nano-banana-2"
+  },
+  "seedream-4-5": {
+    "model": "seedream/4.5-text-to-image"
+  },
+  "seedream-5-lite": {
+    "model": "seedream/5-lite-text-to-image"
+  },
+  "gpt-image-2": {
+    "model": "gpt-image-2-text-to-image"
+  },
+  "gpt-image-1-5": {
+    "model": "gpt-image/1.5-text-to-image"
+  },
+  "flux-2-pro": {
+    "model": "flux-2/pro-text-to-image"
+  },
+  "flux-2-flex": {
+    "model": "flux-2/flex-text-to-image"
+  },
+  "imagen-4-ultra": {
+    "model": "google/imagen4-ultra"
+  },
+  "imagen-4": {
+    "model": "google/imagen4"
+  },
+  "imagen-4-fast": {
+    "model": "google/imagen4-fast"
+  },
+  "ideogram-v3": {
+    "model": "ideogram/v3-text-to-image"
+  },
+  "qwen-image": {
+    "model": "qwen/text-to-image"
+  },
+  "z-image": {
+    "model": "z-image"
+  },
+  "seedance-2-5": {
+    "model": "bytedance/seedance-2-5"
+  },
+  "seedance-2": {
+    "model": "bytedance/seedance-2"
+  },
+  "seedance-2-fast": {
+    "model": "bytedance/seedance-2-fast"
+  },
+  "seedance-2-mini": {
+    "model": "bytedance/seedance-2-mini"
+  },
+  "seedance-1-5-pro": {
+    "model": "bytedance/seedance-1.5-pro"
+  },
+  "kling-3": {
+    "model": "kling-3.0/video"
+  },
+  "kling-3-turbo": {
+    "model": "kling/v3-turbo-text-to-video",
+    "modelWithRefs": "kling/v3-turbo-image-to-video"
+  },
+  "kling-2-6": {
+    "model": "kling-2.6/text-to-video",
+    "modelWithRefs": "kling-2.6/image-to-video"
+  },
+  "kling-3-motion": {
+    "model": "kling-3.0/motion-control"
+  },
+  "kling-2-6-motion": {
+    "model": "kling-2.6/motion-control"
+  },
+  "kling-2-5-turbo": {
+    "model": "kling/v2-5-turbo-text-to-video-pro",
+    "modelWithRefs": "kling/v2-5-turbo-image-to-video-pro"
+  },
+  "minimax-h3": {
+    "model": "minimax-h3/text-to-video"
+  },
+  "wan-2-5": {
+    "model": "wan/2-5-text-to-video",
+    "modelWithRefs": "wan/2-5-image-to-video"
+  },
+  "wan-2-6": {
+    "model": "wan/2-6-text-to-video",
+    "modelWithRefs": "wan/2-6-image-to-video"
+  },
+  "wan-2-7": {
+    "model": "wan/2-7-text-to-video",
+    "modelWithRefs": "wan/2-7-image-to-video"
+  },
+  "wan-2-7-videoedit": {
+    "model": "wan/2-7-videoedit"
+  },
+  "wan-2-7-r2v": {
+    "model": "wan/2-7-r2v"
+  },
+  "hailuo-2-3": {
+    "model": "hailuo/2-3-image-to-video-pro"
+  },
+  "hailuo-2-3-standard": {
+    "model": "hailuo/2-3-image-to-video-standard"
+  },
+  "gemini-omni-video": {
+    "model": "gemini-omni-video"
+  },
+  "veo-fast": {
+    "model": "veo3_fast"
+  },
+  "veo-quality": {
+    "model": "veo3"
+  },
+  "veo-lite": {
+    "model": "veo3_lite"
+  },
+  "grok-image": {
+    "model": "grok-imagine/text-to-image"
+  },
+  "eleven-turbo": {
+    "model": "elevenlabs/text-to-speech-turbo-2-5"
+  },
+  "eleven-multilingual": {
+    "model": "elevenlabs/text-to-speech-multilingual-v2"
+  },
+  "topaz-image-upscale": {
+    "model": "topaz/image-upscale"
+  },
+  "topaz-video-upscale": {
+    "model": "topaz/video-upscale"
+  },
+  "recraft-crisp-upscale": {
+    "model": "recraft/crisp-upscale"
+  },
+  "recraft-remove-bg": {
+    "model": "recraft/remove-background"
+  }
+}

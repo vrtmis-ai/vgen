@@ -35,3 +35,6 @@ public/_ref/
 
 # Playwright run artifacts
 test-results/
+
+# Playwright MCP scratch output (console logs, page snapshots, screenshots)
+.playwright-mcp/

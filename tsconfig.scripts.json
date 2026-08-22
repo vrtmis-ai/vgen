@@ -6,7 +6,18 @@
 //
 // Same compiler settings as the app — they share its code, so they should share
 // its rules — with src included because the scripts import from it.
+//
+// `exclude` has to be restated. It is inherited from the base config, which
+// lists "scripts" in it — so `include` named the files and `exclude` threw them
+// straight back out, and this config typechecked nothing it was created for.
+// Proved by putting `const x: number = "s"` in a script and watching tsc pass.
 {
   "extends": "./tsconfig.json",
-  "include": ["src", "scripts"]
+  "include": ["src", "scripts"],
+  // make-mark-mask.ts is a one-off image tool, run by hand and by nothing else.
+  // Switching this config on surfaced 24 pre-existing strict-mode errors in it
+  // and none anywhere else. Fixing them is unrelated to whatever brought you
+  // here; leaving the whole config off to avoid them is how it got missed for
+  // this long.
+  "exclude": ["node_modules", ".next", "apps", "packages", "e2e", "scripts/make-mark-mask.ts"]
 }

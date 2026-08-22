@@ -21,6 +21,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { reducePriceRows, type FullPriceRow } from "./priceList";
 import { FAMILIES, variantControls, type Control } from "../src/data/models";
 import { priceCoins } from "../src/data/pricing";
 import { MODEL_MIN_TIER, auditPlans } from "../src/data/plans";
@@ -176,14 +177,54 @@ async function main() {
     console.log("");
   }
 
-  if (untiered.length === 0 && planProblems.length === 0) {
+  // The browser's price list must be exactly the full one with the supplier's
+  // path and our cost removed. Checked here because this already runs in
+  // `pnpm check`: a generated file nothing verifies is a file that drifts, and
+  // the drift that matters is somebody regenerating it from a source that still
+  // has the private fields in it.
+  const drift = priceListDrift();
+  if (drift) console.log(`
+${drift}
+`);
+
+  if (untiered.length === 0 && planProblems.length === 0 && !drift) {
     console.log("every priced combination resolves to a real price row ✅");
     console.log("every variant routes to a seeded feature ✅");
     console.log("every family has a tier ✅");
     console.log("plan ladder holds and every plan clears the margin floor ✅");
+    console.log("the browser's price list carries no supplier path and no cost ✅");
     process.exit(0);
   }
-  process.exit(2); // untiered families / plan problems
+  process.exit(2); // untiered families / plan problems / price-list drift
+}
+
+/**
+ * Is `pricing.rows.json` still what `upstream.pricing.json` reduces to?
+ *
+ * Returns a description of the problem, or null. Two ways this fails and both
+ * matter: the browser copy has gone stale against a repriced model, or it has
+ * regained a field it must not carry.
+ */
+function priceListDrift(): string | null {
+  const shipped = JSON.parse(readFileSync(new URL("../src/data/pricing.rows.json", import.meta.url), "utf8")) as {
+    rows: Record<string, unknown>[];
+  };
+  const full = JSON.parse(readFileSync(new URL("../src/data/upstream.pricing.json", import.meta.url), "utf8")) as {
+    rows: FullPriceRow[];
+  };
+
+  const leaked = shipped.rows.flatMap((row) =>
+    ["externalModelId", "providerUnits"].filter((field) => field in row).map((field) => `${String(row.variantId)}.${field}`),
+  );
+  if (leaked.length > 0) {
+    return `src/data/pricing.rows.json carries fields the browser must not see: ${[...new Set(leaked)].join(", ")}`;
+  }
+
+  const expected = JSON.stringify(reducePriceRows(full.rows));
+  if (JSON.stringify(shipped.rows) !== expected) {
+    return "src/data/pricing.rows.json is stale. Run: pnpm exec tsx scripts/build-price-list.ts";
+  }
+  return null;
 }
 
 void main();

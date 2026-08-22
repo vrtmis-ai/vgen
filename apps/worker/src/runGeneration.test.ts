@@ -199,8 +199,34 @@ describe("running a generation", () => {
     const result = await runGeneration(JOB_ID, deps(rec, fakeProvider([refusal])));
 
     expect(result).toEqual({ outcome: "failed", jobId: JOB_ID, errorCode: "content_policy" });
-    expect(rec.failures).toEqual([{ jobId: JOB_ID, errorCode: "content_policy", errorMessage: "Prompt rejected." }]);
+    // The code survives -- it is on the allow-list because a person can act on
+    // it -- but the provider's own wording does not reach the job row.
+    expect(rec.failures).toEqual([{ jobId: JOB_ID, errorCode: "content_policy", errorMessage: "This prompt was refused." }]);
     expect(rec.succeeded).toHaveLength(0);
+  });
+
+  it("never lets a provider's own code or wording reach the customer", async () => {
+    const rec = recorder(claimedJob());
+    // What KIE actually does: `failCode` is its string, `failMsg` its prose.
+    const refusal: GenerationOutcome = {
+      state: "failed",
+      errorCode: "ACCOUNT_BALANCE_INSUFFICIENT",
+      errorMessage: "Insufficient credits. Please top up your account to continue.",
+      retryable: false,
+      responsePayload: { data: { state: "fail" } },
+    };
+
+    const result = await runGeneration(JOB_ID, deps(rec, fakeProvider([refusal])));
+
+    // Collapsed to one of ours. An unrecognised code is the provider's, and a
+    // customer reading it learns both that we resell and who from.
+    expect(result).toEqual({ outcome: "failed", jobId: JOB_ID, errorCode: "provider_failed" });
+    expect(rec.failures).toEqual([
+      { jobId: JOB_ID, errorCode: "provider_failed", errorMessage: "This generation could not be completed." },
+    ]);
+    // The real reason is not thrown away -- it is on the attempt, which is
+    // admin-only and is the row you debug from.
+    expect(rec.attempts.at(-1)?.errorMessage).toContain("Insufficient credits");
   });
 
   it("asks for another delivery on a transient failure, settling nothing", async () => {

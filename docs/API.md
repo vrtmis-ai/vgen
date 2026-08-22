@@ -154,6 +154,19 @@ at. A change to `src/data/models.ts` reaches the API through
 `pnpm catalog:publish`, which is idempotent; the version string derives from the
 newest row's `updated_at`, so it changes exactly when the catalog does.
 
+**What it deliberately does not carry.** No upstream endpoint. `variant.model`
+and `variant.modelWithRefs` — the exact strings our supplier expects — used to
+ride along in every response, and this route needs no session, so they were
+public to anyone with curl. They now live only in `src/data/upstream.json`,
+which the seeders read and which an ESLint rule forbids `src/**` and `app/**`
+from importing. `CatalogVariantSchema` no longer declares either field, so a
+`provider_models` row written before the change still parses — Zod drops what it
+does not declare — and an integration test pins that.
+
+Model _names_ are not the secret. "Veo 3.1" and "Kling" are what the customer is
+buying and stay visible; who we buy them through, at what path, and for how much
+does not.
+
 **Demo mode serves the same document.** `src/data/catalog.snapshot.json` is
 generated out of Postgres by `pnpm catalog:snapshot` and committed, and demo
 mode reads it instead of importing `FAMILIES`. Two CI checks pin it: a unit test
@@ -863,6 +876,18 @@ anyone who knows a key is not access control. Treat a URL as a loan — store
 `assetId` if something has to be remembered, and refetch when `urlsExpireAt`
 passes rather than after an image has already failed to load.
 
+**A failed job's `error` is ours, not the supplier's.** `error.code` is one of a
+fixed set — `provider_unavailable`, `submit_failed`, `poll_failed`,
+`provider_timeout`, `provider_cancelled`, `provider_failed`, `content_policy`,
+`no_output`, `storage_failed` — and `error.message` is a fixed sentence chosen by
+that code. Anything the upstream said is written to `job_attempts` and to the log
+for whoever debugs it, and is never copied onto the job. It used to be: a missing
+credential came back as "…is not configured (WAVESPEED_API_KEY is not set)",
+which named the supplier and our env-var convention in one string. Codes outside
+the set collapse to `provider_failed`, so a provider inventing a new one cannot
+leak through the gap. Render by `code`; treat `message` as a fallback, not a
+diagnosis.
+
 `width`, `height` and `durationMs` are null today. The columns exist and the
 gallery reads them; nothing measures a file on the way in yet, and a screen
 should lay out from the variant's aspect ratio rather than wait for them.
@@ -1113,6 +1138,15 @@ So you can tell a gap from a bug:
   `provider_unavailable` and a full refund of the day's allowance. Nothing is
   charged and nothing is lost, but nothing is produced either. Needs a token
   and a spike — see "KIE is wired; useapi is not" above.
+- **Cover images and voice previews still hotlink the supplier's CDN.** Every
+  other trace of who runs our models is out of the browser now, but a family
+  cover in `src/data/models.ts` and a voice preview in
+  `src/features/content/labels.ts` are still `<img>`/`<audio>` sources pointing
+  at the upstream's asset host — so the network tab names them even though no
+  JSON does. Fixing it means mirroring those files into our own bucket and
+  reseeding the URLs; deliberately deferred, recorded here so the next person
+  finds a known gap rather than a discovery. Generated outputs are already
+  mirrored — this is only the static catalog art.
 - **Payments.** Plans render and price correctly; nothing charges. Blocked on
   which Iranian gateway to use — ZarinPal, IDPay, NextPay and Zibal all work
   differently enough that the choice comes first.

@@ -5,7 +5,7 @@ import { validateGenerationInput } from "./validation";
 import { ApiError } from "../../adapters/http/client";
 import { generationErrorMessage } from "./validation";
 
-const variant: Variant = { id: "v1", model: "provider/model", featureCode: "image_to_video", label: "V1" };
+const variant: Variant = { id: "v1", featureCode: "image_to_video", label: "V1" };
 const family: Family = {
   id: "family",
   name: "Family",

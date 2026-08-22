@@ -149,4 +149,34 @@ describe("Postgres catalog repository", () => {
       expect(snapshot.version).toBe(`catalog-${snapshot.publishedAt}`);
     });
   });
+  // The seeder no longer puts the supplier's id in `capabilities`, but rows
+  // written before that change still do, and a stale row must not be a leak.
+  // Nothing strips these by hand: CatalogCapabilitiesSchema no longer declares
+  // them, and Zod drops what it does not declare. The guarantee is therefore
+  // "the contract is the filter", which is worth pinning — the day somebody adds
+  // `.passthrough()` for an unrelated reason, this fails.
+  it("never hands the customer the supplier's own model id, even from an old row", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`update provider_models set is_active = false where is_active`;
+      const providerId = await seedProvider(tx);
+      const legacy = capabilities("alpha", 0, 0, "ultra") as {
+        variant: Record<string, unknown>;
+      };
+      legacy.variant["model"] = "acme-labs/seedance-2-fast";
+      legacy.variant["modelWithRefs"] = "acme-labs/seedance-2-fast-image-to-video";
+
+      await tx`
+        insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
+        values (${providerId}, 'alpha/ultra', 'alpha ultra', 'image', 'alpha', ${tx.json(legacy)}, true)
+      `;
+
+      const snapshot = await new PostgresCatalogRepository(tx).list();
+      const variant = snapshot.families[0]?.variants[0] as Record<string, unknown> | undefined;
+
+      expect(variant?.["label"]).toBe("ultra");
+      expect(variant).not.toHaveProperty("model");
+      expect(variant).not.toHaveProperty("modelWithRefs");
+      expect(JSON.stringify(snapshot)).not.toMatch(/acme-labs/i);
+    });
+  });
 });
