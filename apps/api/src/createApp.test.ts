@@ -789,3 +789,52 @@ describe("the plan ladder", () => {
     await app.close();
   });
 });
+
+/**
+ * The preflight, which nothing else here exercises.
+ *
+ * `@fastify/cors` defaults to `methods: 'GET,HEAD,POST'` — not the fuller list
+ * most CORS middleware ships with. Because of that default, every PUT, PATCH
+ * and DELETE this API serves was refused at the preflight from a browser on the
+ * web origin: saving a route list, toggling a provider, revoking an invite,
+ * signing out. All of them.
+ *
+ * It was invisible everywhere it would normally be caught. `app.inject` does
+ * not send a preflight, curl does not send one, and the panel's own component
+ * tests mock the HTTP client — so the reads worked, the screenshots looked
+ * right, and only a real browser ever saw it.
+ */
+describe("the CORS preflight", () => {
+  const preflight = (app: ReturnType<typeof createApp>, method: string) =>
+    app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/admin/sessions",
+      headers: {
+        origin: "https://deev.test",
+        "access-control-request-method": method,
+      },
+    });
+
+  it("allows every method the API actually serves", async () => {
+    const app = createApp(healthyDependencies(), { corsOrigin: "https://deev.test" });
+
+    for (const method of ["GET", "POST", "PUT", "PATCH", "DELETE"]) {
+      const response = await preflight(app, method);
+      expect(response.statusCode, `${method} preflight`).toBe(204);
+      expect(String(response.headers["access-control-allow-methods"]), `${method} allowed`).toContain(method);
+    }
+    await app.close();
+  });
+
+  it("still reflects the credentialed origin, so the session cookie travels", async () => {
+    const app = createApp(healthyDependencies(), { corsOrigin: "https://deev.test" });
+
+    const response = await preflight(app, "DELETE");
+
+    // Without this the browser drops the cookie on a cross-origin write and
+    // every staff request arrives signed out.
+    expect(response.headers["access-control-allow-credentials"]).toBe("true");
+    expect(response.headers["access-control-allow-origin"]).toBe("https://deev.test");
+    await app.close();
+  });
+});

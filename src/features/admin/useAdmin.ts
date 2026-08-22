@@ -43,6 +43,7 @@ export const adminKeys = {
   providerHealth: (window: AnalyticsWindow) => ["admin", "analytics", "providers", window] as const,
   users: (query: AdminUsersQuery) => ["admin", "users", query] as const,
   user: (id: string) => ["admin", "user", id] as const,
+  adminSessions: ["admin", "sessions"] as const,
 };
 
 export type AdminAvailability = { available: true; api: AdminApi } | { available: false; reason: string };
@@ -346,5 +347,31 @@ export function useUserActions(api: AdminApi, userId: string) {
     }),
     liftBan: useMutation({ mutationFn: (banId: string) => api.liftBan(userId, banId), onSuccess: refresh }),
     revokeSessions: useMutation({ mutationFn: () => api.revokeUserSessions(userId), onSuccess: refresh }),
+  };
+}
+
+// ----------------------------------------------------------------- security
+
+export function useAdminSessions(api: AdminApi, enabled: boolean) {
+  return useQuery({ queryKey: adminKeys.adminSessions, enabled, queryFn: () => api.listAdminSessions(), retry: false });
+}
+
+/**
+ * Ending a staff session, including possibly your own.
+ *
+ * The session query is invalidated as well as the list, because revoking the
+ * row you are sitting on is a legitimate thing to do from here — and the panel
+ * has to notice it is now signed out rather than carry on drawing sections it
+ * can no longer load.
+ */
+export function useAdminSessionRevoke(api: AdminApi) {
+  const queryClient = useQueryClient();
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: adminKeys.adminSessions });
+    await queryClient.invalidateQueries({ queryKey: adminKeys.session });
+  };
+  return {
+    one: useMutation({ mutationFn: (id: string) => api.revokeAdminSession(id), onSuccess: refresh }),
+    others: useMutation({ mutationFn: () => api.revokeOtherAdminSessions(), onSuccess: refresh }),
   };
 }

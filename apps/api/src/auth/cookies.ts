@@ -62,11 +62,11 @@ export function clearSessionCookie(reply: FastifyReply, options: CookieOptions):
 export const readAdminToken = (request: FastifyRequest): string | null => readCookie(request, ADMIN_COOKIE);
 
 export function setAdminCookie(reply: FastifyReply, token: string, expiresAt: Date, options: CookieOptions): void {
-  appendCookie(reply, serialize(ADMIN_COOKIE, token, expiresAt, options));
+  appendCookie(reply, serialize(ADMIN_COOKIE, token, expiresAt, options, "Strict"));
 }
 
 export function clearAdminCookie(reply: FastifyReply, options: CookieOptions): void {
-  appendCookie(reply, serialize(ADMIN_COOKIE, "", new Date(0), options));
+  appendCookie(reply, serialize(ADMIN_COOKIE, "", new Date(0), options, "Strict"));
 }
 
 export function setOAuthStateCookie(reply: FastifyReply, state: string, options: CookieOptions): void {
@@ -79,7 +79,22 @@ export function clearOAuthStateCookie(reply: FastifyReply, options: CookieOption
   appendCookie(reply, serialize(OAUTH_STATE_COOKIE, "", new Date(0), options));
 }
 
-function serialize(name: string, value: string, expiresAt: Date, options: CookieOptions): string {
+/**
+ * `Lax` for customers, `Strict` for staff.
+ *
+ * The customer session has to be Lax and the reason is specific: the Google
+ * callback is a cross-site navigation back into the app, and Strict would drop
+ * the cookie at exactly the moment it arrives.
+ *
+ * None of that applies to the staff cookie. Nothing navigates cross-site into
+ * /admin — there is no OAuth flow, no email link, no payment return — so Strict
+ * costs nothing and removes the whole class of request where another site
+ * causes a browser to send a staff session somewhere. That is worth having on
+ * the cookie that can re-route production traffic and adjust balances.
+ */
+type SameSite = "Lax" | "Strict";
+
+function serialize(name: string, value: string, expiresAt: Date, options: CookieOptions, sameSite: SameSite = "Lax"): string {
   const parts = [
     `${name}=${encodeURIComponent(value)}`,
     "Path=/",
@@ -87,9 +102,7 @@ function serialize(name: string, value: string, expiresAt: Date, options: Cookie
     // HttpOnly: a session token readable from JavaScript is one XSS away from
     // being someone else's account.
     "HttpOnly",
-    // Lax, not Strict: the Google callback is a cross-site navigation back into
-    // the app, and Strict would drop the cookie exactly on arrival.
-    "SameSite=Lax",
+    `SameSite=${sameSite}`,
   ];
   if (options.secure) parts.push("Secure");
   if (options.domain) parts.push(`Domain=${options.domain}`);

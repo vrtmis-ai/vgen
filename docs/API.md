@@ -469,6 +469,37 @@ Every mutation on this surface writes an `audit_log` row before it answers, and
 that table is append-only at the database, so the record cannot be tidied
 afterwards by the person who made it.
 
+Two clocks run on a staff session. **Twelve hours** is the ceiling, and
+**ninety minutes** is how long one may sit untouched — `last_used_at` has been
+stamped on every request since migration 0012 and was consulted by nothing,
+which meant a panel left open on a machine somebody walked away from stayed
+usable for the full twelve.
+
+The staff cookie is **`SameSite=Strict`**, unlike the customer one. Nothing
+navigates cross-site into `/admin` — no OAuth return, no email link, no payment
+callback — so Strict costs nothing there and removes the class of request where
+another site causes a browser to send a staff session somewhere. `deev_session`
+stays `Lax` because the Google callback genuinely is such a navigation and
+Strict would drop it exactly on arrival.
+
+### Open staff sessions
+
+| route                        | permission       | does                                             |
+| ---------------------------- | ---------------- | ------------------------------------------------ |
+| `GET /admin/sessions`        | `security.read`  | every open staff session; yours marked `current` |
+| `DELETE /admin/sessions/:id` | `security.write` | end one → `{ revoked: 1 }`, or **404** if none   |
+| `DELETE /admin/sessions`     | `security.write` | end all except the caller's → `{ revoked }`      |
+
+The question this exists to answer is _is there a session open that I do not
+recognise?_ Rows carry the IP, the user agent, whether the second factor was
+passed, and when it was last used. **No token and no hash appears** —
+`admin_sessions` stores only a hash of the token and the query never selects
+it.
+
+Your own session is marked rather than hidden: it is the one row a person can
+definitely identify, which is what makes the others legible. Ending it is
+allowed and clears the cookie in the same response.
+
 ### Providers and routing
 
 The answer to _"which provider, and which of their models, actually runs this
