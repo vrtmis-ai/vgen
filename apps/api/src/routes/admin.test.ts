@@ -23,6 +23,32 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN) {
     markSessionMfaVerified: vi.fn(async () => undefined),
     verifySecondFactor: vi.fn(async (_userId: string, code: string) => code === "111111"),
     revokeSession: vi.fn(async () => undefined),
+    listSessions: vi.fn(async () => [
+      {
+        id: "s1",
+        userId: "u-admin",
+        email: "admin@deev.test",
+        ip: "127.0.0.1",
+        userAgent: "Mozilla/5.0 (test)",
+        mfaVerified: true,
+        createdAt: 1,
+        lastUsedAt: 2,
+        expiresAt: 3,
+      },
+      {
+        id: "s2",
+        userId: "u-other",
+        email: "other@deev.test",
+        ip: "5.5.5.5",
+        userAgent: "Mozilla/5.0 (elsewhere)",
+        mfaVerified: false,
+        createdAt: 1,
+        lastUsedAt: null,
+        expiresAt: 3,
+      },
+    ]),
+    revokeSessionById: vi.fn(async () => true),
+    revokeOtherSessions: vi.fn(async () => 3),
     recordAudit: vi.fn(async () => undefined),
   };
   const access = {
@@ -406,6 +432,120 @@ describe("the early access gate", () => {
 
     expect(read.statusCode).toBe(200);
     expect(write.statusCode).toBe(403);
+    await app.close();
+  });
+});
+
+/**
+ * Listing and ending staff sessions.
+ *
+ * The point of the surface is the question *is there a session open that I do
+ * not recognise?* — so what matters is that it answers honestly, marks the
+ * caller's own row, and never carries a token. `admin_sessions` stores only a
+ * hash, and these assert the route has not started selecting one.
+ */
+describe("open staff sessions", () => {
+  it("answers 404 with no staff session at all", async () => {
+    const { app } = build(null);
+    expect((await app.inject({ method: "GET", url: "/api/v1/admin/sessions", headers: AS_ADMIN })).statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("needs security.read, which catalogue or invite permissions do not give", async () => {
+    const { app, admin } = build({ roles: ["support"], permissions: ["catalog.read", "invites.read"] });
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/sessions", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(403);
+    expect(admin.listSessions).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("marks the caller's own session and returns no token", async () => {
+    const { app } = build();
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/sessions", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(200);
+    const rows = response.json().sessions as { id: string; current: boolean }[];
+    expect(rows.find((row) => row.id === "s1")?.current).toBe(true);
+    expect(rows.find((row) => row.id === "s2")?.current).toBe(false);
+    // The whole body, not just one field: a column added later must not smuggle
+    // a secret onto a screen four people can open.
+    expect(response.body).not.toMatch(/token/i);
+    await app.close();
+  });
+
+  it("refuses to end a session without security.write", async () => {
+    const { app, admin } = build({ roles: ["auditor"], permissions: ["security.read"] });
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/admin/sessions/s2", headers: AS_ADMIN });
+
+    // Reading who is signed in and being able to sign them out are different
+    // jobs, and an auditor only needs the first.
+    expect(response.statusCode).toBe(403);
+    expect(admin.revokeSessionById).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("ends one session and audits which", async () => {
+    const { app, admin } = build();
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/admin/sessions/s2", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(200);
+    expect(admin.revokeSessionById).toHaveBeenCalledWith("s2");
+    expect(admin.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "admin_session.revoked", targetId: "s2" }));
+    await app.close();
+  });
+
+  it("clears the cookie when you end your own session", async () => {
+    const { app } = build();
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/admin/sessions/s1", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(200);
+    // Revoking the row you are sitting on is a legitimate thing to do from
+    // here; leaving the cookie would send a dead token on every later request.
+    expect(String(response.headers["set-cookie"])).toContain("deev_admin=;");
+    await app.close();
+  });
+
+  it("answers 404 when there was nothing open to end", async () => {
+    const { app, admin } = build();
+    admin.revokeSessionById.mockResolvedValueOnce(false);
+
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/admin/sessions/gone", headers: AS_ADMIN });
+
+    // A cheerful 204 would leave the caller believing they had closed something.
+    expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("ends every other session and keeps the one asking", async () => {
+    const { app, admin } = build();
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/admin/sessions", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().revoked).toBe(3);
+    // Keeping the caller's is the point: this is the button somebody presses
+    // when they think they have been compromised, and locking themselves out
+    // in the same act would be unhelpful.
+    expect(admin.revokeOtherSessions).toHaveBeenCalledWith("s1");
+    await app.close();
+  });
+});
+
+describe("the staff cookie", () => {
+  it("is SameSite=Strict, unlike the customer one", async () => {
+    const { app } = build();
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/session",
+      payload: { email: "admin@deev.test", password: "hunter2hunter2" },
+    });
+
+    // Nothing navigates cross-site into /admin — no OAuth return, no email
+    // link, no payment callback — so Strict costs nothing here and removes the
+    // whole class of request where another site makes a browser send a staff
+    // session somewhere. The customer cookie stays Lax because the Google
+    // callback genuinely is such a navigation.
+    expect(String(response.headers["set-cookie"])).toContain("SameSite=Strict");
     await app.close();
   });
 });

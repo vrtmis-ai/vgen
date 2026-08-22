@@ -262,6 +262,34 @@ export interface AdminUsersQuery {
   offset?: number | undefined;
 }
 
+/**
+ * An open staff session, as the Security section lists it.
+ *
+ * No token and no hash. `admin_sessions` stores only a hash of the token and
+ * this route has never selected it — what a person needs in order to recognise
+ * a session is where it came from and when it was last used, not its secret.
+ */
+const AdminSessionRowSchema = z
+  .object({
+    id: z.string(),
+    userId: z.string(),
+    email: z.string().nullable(),
+    ip: z.string().nullable(),
+    userAgent: z.string().nullable(),
+    mfaVerified: z.boolean(),
+    createdAt: z.number(),
+    lastUsedAt: z.number().nullable(),
+    expiresAt: z.number(),
+    /** True for the session making the request — the row you can identify. */
+    current: z.boolean(),
+  })
+  .loose();
+
+const AdminSessionsResponseSchema = z.object({ sessions: z.array(AdminSessionRowSchema) });
+const RevokedSchema = z.object({ revoked: z.number() });
+
+export type AdminSessionRow = z.infer<typeof AdminSessionRowSchema>;
+
 const InvitesResponseSchema = z.object({ invites: z.array(InviteSchema) });
 const PromosResponseSchema = z.object({ promos: z.array(PromoSchema) });
 const EarlyAccessSchema = z.object({ enabled: z.boolean() });
@@ -330,6 +358,10 @@ export interface AdminApi {
   banUser(id: string, input: { scope: AdminBan["scope"]; reason?: string; expiresAt?: string }): Promise<void>;
   liftBan(id: string, banId: string): Promise<AdminBan[]>;
   revokeUserSessions(id: string): Promise<number>;
+
+  listAdminSessions(): Promise<AdminSessionRow[]>;
+  revokeAdminSession(id: string): Promise<void>;
+  revokeOtherAdminSessions(): Promise<number>;
 }
 
 /** 204 and 200-with-no-body both parse as this. */
@@ -411,6 +443,12 @@ export function createAdminApi(client: HttpClient): AdminApi {
       (await client.request(`/admin/users/${id}/bans/${banId}`, { method: "DELETE", schema: z.object({ bans: z.array(BanSchema) }) })).bans,
     revokeUserSessions: async (id) =>
       (await client.request(`/admin/users/${id}/sessions`, { method: "DELETE", schema: z.object({ revoked: z.number() }) })).revoked,
+
+    listAdminSessions: async () => (await client.request("/admin/sessions", { schema: AdminSessionsResponseSchema })).sessions,
+    revokeAdminSession: async (id) => {
+      await client.request(`/admin/sessions/${id}`, { method: "DELETE", schema: RevokedSchema });
+    },
+    revokeOtherAdminSessions: async () => (await client.request("/admin/sessions", { method: "DELETE", schema: RevokedSchema })).revoked,
 
     getEarlyAccess: async () => (await client.request("/admin/early-access", { schema: EarlyAccessSchema })).enabled,
     setEarlyAccess: async (enabled) =>

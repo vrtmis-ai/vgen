@@ -3,6 +3,8 @@ import Script from "next/script";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import "../src/index.css";
+import { CookieConsent } from "../src/components/CookieConsent";
+import { CONSENT_COOKIE } from "../src/lib/cookies";
 import { dirFor, LANG_COOKIE, parseLang } from "../src/lib/lang";
 import { Providers } from "./providers";
 
@@ -31,7 +33,11 @@ export const viewport: Viewport = {
  * nothing cacheable.
  */
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const lang = parseLang((await cookies()).get(LANG_COOKIE)?.value);
+  const jar = await cookies();
+  const lang = parseLang(jar.get(LANG_COOKIE)?.value);
+  // Read on the server so a returning visitor never sees the notice flash for
+  // one frame after hydration.
+  const consent = jar.get(CONSENT_COOKIE)?.value;
 
   return (
     <html lang={lang} dir={dirFor(lang)}>
@@ -49,6 +55,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       </head>
       <body>
         <Providers initialLang={lang}>{children}</Providers>
+        <CookieConsent initial={consent} />
         {/* `afterInteractive`, and the reason is the same one that made this
             `defer` in index.html: telegram.org is filtered in Iran, where a
             blocked connection typically hangs rather than resets. A

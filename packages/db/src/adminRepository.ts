@@ -5,6 +5,15 @@ import { atomically } from "./transaction";
 
 /** Staff sessions are short. A month is right for a phone, not for an account that can revoke codes. */
 const ADMIN_SESSION_TTL_HOURS = 12;
+/**
+ * And they go stale sooner than they expire.
+ *
+ * Twelve hours is the ceiling on a session; ninety minutes is how long one may
+ * sit untouched. The two answer different risks — the first bounds a stolen
+ * token, the second bounds a laptop left unlocked at a desk — and only the
+ * first existed.
+ */
+const ADMIN_SESSION_IDLE_MINUTES = 90;
 const RECOVERY_CODE_COUNT = 10;
 
 export class AdminAuthError extends Error {
@@ -44,6 +53,19 @@ export function grantsPermission(held: readonly string[], required: string): boo
     if (permission.endsWith(".*") && required.startsWith(permission.slice(0, -1))) return true;
   }
   return false;
+}
+
+/** One open staff session, as the Security section lists it. Never a token — the table holds only a hash. */
+export interface AdminSessionSummary {
+  id: string;
+  userId: string;
+  email: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  mfaVerified: boolean;
+  createdAt: number;
+  lastUsedAt: number | null;
+  expiresAt: number;
 }
 
 export interface AuditEntry {
@@ -189,6 +211,13 @@ export class PostgresAdminRepository {
       with touched as (
         update admin_sessions set last_used_at = now()
         where token_hash = ${hashToken(token)} and revoked_at is null and expires_at > now()
+          -- Idle timeout, alongside the absolute one. last_used_at has been
+          -- written on every request since migration 0012 and consulted by
+          -- nothing, which meant a staff session left open on a machine
+          -- somebody walked away from stayed usable for the full twelve hours.
+          -- coalesce, because a session that has never been used still has a
+          -- creation time to be measured from.
+          and coalesce(last_used_at, created_at) > now() - (${ADMIN_SESSION_IDLE_MINUTES} * interval '1 minute')
         returning id, user_id, mfa_verified_at
       )
       select id, user_id, mfa_verified_at is not null as mfa_verified from touched
@@ -205,6 +234,81 @@ export class PostgresAdminRepository {
       update admin_sessions set revoked_at = now()
       where token_hash = ${hashToken(token)} and revoked_at is null
     `;
+  }
+
+  /**
+   * Every staff session currently open, for every member of staff.
+   *
+   * `admin_sessions` has recorded the IP, the user agent, when MFA was passed
+   * and when the session was last used since migration 0012, and nothing has
+   * ever read any of it. The point of showing it is the question it answers:
+   * *is there a session open that I do not recognise?* — which nobody could ask
+   * before, and which is the whole reason those columns were written.
+   *
+   * Not scoped to the caller. A second admin's live session is exactly what one
+   * admin needs to be able to see, and a token still never appears — the table
+   * holds only its hash.
+   */
+  async listSessions(): Promise<AdminSessionSummary[]> {
+    const rows = await this.sql<
+      {
+        id: string;
+        user_id: string;
+        email: string | null;
+        ip: string | null;
+        user_agent: string | null;
+        mfa_verified: boolean;
+        created_at: Date;
+        last_used_at: Date | null;
+        expires_at: Date;
+      }[]
+    >`
+      select session.id, session.user_id, staff.email, host(session.ip) as ip, session.user_agent,
+             session.mfa_verified_at is not null as mfa_verified,
+             session.created_at, session.last_used_at, session.expires_at
+      from admin_sessions session
+      join users staff on staff.id = session.user_id
+      where session.revoked_at is null and session.expires_at > now()
+      order by session.last_used_at desc nulls last, session.created_at desc
+    `;
+    return rows.map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      email: row.email,
+      ip: row.ip,
+      userAgent: row.user_agent,
+      mfaVerified: row.mfa_verified,
+      createdAt: row.created_at.getTime(),
+      lastUsedAt: row.last_used_at?.getTime() ?? null,
+      expiresAt: row.expires_at.getTime(),
+    }));
+  }
+
+  /**
+   * End one staff session by its id.
+   *
+   * By id rather than by token, because the point is to end somebody *else's*
+   * — a laptop left at a desk, a session from an address nobody recognises.
+   * Answers false when there was nothing open, so the route can say so instead
+   * of implying something was undone.
+   */
+  async revokeSessionById(sessionId: string): Promise<boolean> {
+    const rows = await this.sql<{ id: string }[]>`
+      update admin_sessions set revoked_at = now()
+      where id = ${sessionId} and revoked_at is null
+      returning id
+    `;
+    return rows.length > 0;
+  }
+
+  /** Everything except the one asking. The "I think I have been compromised" button. */
+  async revokeOtherSessions(keepSessionId: string): Promise<number> {
+    const rows = await this.sql<{ id: string }[]>`
+      update admin_sessions set revoked_at = now()
+      where revoked_at is null and expires_at > now() and id <> ${keepSessionId}
+      returning id
+    `;
+    return rows.length;
   }
 
   // ----------------------------------------------------------------- audit

@@ -192,6 +192,34 @@ function stubApi(): AdminApi {
     banUser: vi.fn(async () => undefined),
     liftBan: vi.fn(async () => []),
     revokeUserSessions: vi.fn(async () => 2),
+    listAdminSessions: vi.fn(async () => [
+      {
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        userId: "u-admin",
+        email: "admin@deev.test",
+        ip: "127.0.0.1",
+        userAgent: "Mozilla/5.0 (test)",
+        mfaVerified: true,
+        createdAt: 1_787_000_000_000,
+        lastUsedAt: 1_787_000_100_000,
+        expiresAt: 1_787_040_000_000,
+        current: true,
+      },
+      {
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        userId: "u-other",
+        email: "other@deev.test",
+        ip: "5.5.5.5",
+        userAgent: "Mozilla/5.0 (elsewhere)",
+        mfaVerified: false,
+        createdAt: 1_787_000_000_000,
+        lastUsedAt: null,
+        expiresAt: 1_787_040_000_000,
+        current: false,
+      },
+    ]),
+    revokeAdminSession: vi.fn(async () => undefined),
+    revokeOtherAdminSessions: vi.fn(async () => 1),
     getEarlyAccess: vi.fn(async () => true),
     setEarlyAccess: vi.fn(async (value: boolean) => value),
   };
@@ -610,5 +638,90 @@ describe("the customer list", () => {
     expect(await screen.findByLabelText("دامنه‌ی مسدودی")).toHaveValue("generation");
     await user.click(screen.getByRole("button", { name: "مسدود کن" }));
     await waitFor(() => expect(api.banUser).toHaveBeenCalledWith(USER_ROW.id, { scope: "generation" }));
+  });
+});
+
+/**
+ * Who is signed in to the panel.
+ *
+ * `admin_sessions` recorded all of this from migration 0012 and nothing read
+ * it. What these cover is the two ways the screen could mislead: hiding your
+ * own session so the other rows have nothing to be compared against, and
+ * showing a half-finished sign-in as though it authorised something.
+ */
+describe("open staff sessions", () => {
+  const signedIn = (permissions: string[]) => {
+    sessionState = { status: "authed", email: "admin@deev.test", roles: ["admin"], permissions };
+  };
+
+  const openSecurity = async (user: ReturnType<typeof userEvent.setup>) => {
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+    await user.click(await screen.findByRole("button", { name: "نشست‌ها" }));
+  };
+
+  it("is hidden without security.read", async () => {
+    signedIn(["analytics.read", "users.read", "catalog.read"]);
+    renderConsole();
+
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+    expect(screen.queryByRole("button", { name: "نشست‌ها" })).not.toBeInTheDocument();
+  });
+
+  it("marks your own session rather than hiding it", async () => {
+    signedIn(["*"]);
+    const user = userEvent.setup();
+    renderConsole();
+    await openSecurity(user);
+
+    // It is the one row a person can definitely identify, which is what makes
+    // the others legible.
+    expect(await screen.findByText("همین نشست")).toBeInTheDocument();
+    expect(screen.getByText("other@deev.test")).toBeInTheDocument();
+  });
+
+  it("shows a session that never passed its second factor as authorising nothing", async () => {
+    signedIn(["*"]);
+    const user = userEvent.setup();
+    renderConsole();
+    await openSecurity(user);
+
+    // Not "half signed in" — a password step that never finished.
+    expect(await screen.findByText("نه — هنوز چیزی اجازه نمی‌دهد")).toBeInTheDocument();
+  });
+
+  it("never puts a token on the screen", async () => {
+    signedIn(["*"]);
+    const user = userEvent.setup();
+    renderConsole();
+    await openSecurity(user);
+    await screen.findByText("همین نشست");
+
+    // The table stores only a hash and the query never selects it. This asserts
+    // the shape of what is rendered, so a future column cannot leak one in.
+    expect(document.body.textContent).not.toMatch(/token/i);
+  });
+
+  it("closes one session, and offers to close all the others", async () => {
+    signedIn(["*"]);
+    const user = userEvent.setup();
+    renderConsole();
+    await openSecurity(user);
+
+    await user.click(await screen.findByRole("button", { name: "بستن" }));
+    await waitFor(() => expect(api.revokeAdminSession).toHaveBeenCalledWith("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));
+
+    // Counted, so the button says how much it is about to do.
+    await user.click(screen.getByRole("button", { name: "بستن 1 نشست دیگر" }));
+    await waitFor(() => expect(api.revokeOtherAdminSessions).toHaveBeenCalled());
+  });
+
+  it("offers no buttons to a reader who cannot write", async () => {
+    signedIn(["security.read"]);
+    const user = userEvent.setup();
+    renderConsole();
+    await openSecurity(user);
+
+    expect(await screen.findByText(/security\.write/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "بستن" })).not.toBeInTheDocument();
   });
 });

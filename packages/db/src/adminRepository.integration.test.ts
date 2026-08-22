@@ -222,3 +222,143 @@ describe("the audit trail", () => {
     });
   });
 });
+
+/**
+ * Two clocks on a staff session, and the list that shows them.
+ *
+ * Twelve hours is the ceiling; ninety minutes is how long one may sit
+ * untouched. They answer different risks — the first bounds a stolen token,
+ * the second bounds a laptop left unlocked at a desk — and until now only the
+ * first existed, even though `last_used_at` was written on every single
+ * request.
+ */
+describe("session lifetimes", () => {
+  it("dies after sitting idle, well before it expires", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = repo(tx);
+      await admin.grantRole(userId, "admin", null);
+      const { token } = await admin.createSession(userId);
+
+      expect(await admin.resolveSession(token)).not.toBeNull();
+
+      // Two hours untouched. The absolute expiry is still hours away, so
+      // before the idle check this session resolved happily.
+      await tx`
+        update admin_sessions set last_used_at = now() - interval '2 hours'
+        where user_id = ${userId}
+      `;
+      expect(await admin.resolveSession(token)).toBeNull();
+    });
+  });
+
+  it("counts from creation for a session nobody has used yet", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = repo(tx);
+      await admin.grantRole(userId, "admin", null);
+      const { token } = await admin.createSession(userId);
+
+      // `last_used_at` is null until the first resolve, so without the
+      // coalesce a brand-new session would either never go idle or never
+      // resolve at all, depending on which way the comparison fell.
+      await tx`
+        update admin_sessions set created_at = now() - interval '2 hours', last_used_at = null
+        where user_id = ${userId}
+      `;
+      expect(await admin.resolveSession(token)).toBeNull();
+    });
+  });
+
+  it("keeps a session alive while it is being used", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = repo(tx);
+      await admin.grantRole(userId, "admin", null);
+      const { token } = await admin.createSession(userId);
+
+      // Every resolve stamps last_used_at, so an hour of steady work is not
+      // an hour of idleness.
+      await tx`update admin_sessions set last_used_at = now() - interval '80 minutes' where user_id = ${userId}`;
+      expect(await admin.resolveSession(token)).not.toBeNull();
+      await tx`update admin_sessions set last_used_at = now() - interval '80 minutes' where user_id = ${userId}`;
+      expect(await admin.resolveSession(token)).not.toBeNull();
+    });
+  });
+});
+
+describe("listing open sessions", () => {
+  it("shows what identifies a session and never the token", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = repo(tx);
+      await admin.grantRole(userId, "admin", null);
+      const { token } = await admin.createSession(userId, "203.0.113.9", "Mozilla/5.0 (test)");
+      await admin.markSessionMfaVerified(token);
+
+      const mine = (await admin.listSessions()).filter((session) => session.userId === userId);
+
+      expect(mine).toHaveLength(1);
+      expect(mine[0]!.ip).toBe("203.0.113.9");
+      expect(mine[0]!.userAgent).toBe("Mozilla/5.0 (test)");
+      expect(mine[0]!.mfaVerified).toBe(true);
+      // The row carries no token and no hash. What identifies a session to a
+      // person is where it came from, not its secret.
+      expect(JSON.stringify(mine[0])).not.toContain(token);
+    });
+  });
+
+  it("leaves out the revoked and the expired", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = repo(tx);
+      await admin.grantRole(userId, "admin", null);
+
+      const revoked = await admin.createSession(userId);
+      await admin.revokeSession(revoked.token);
+      await admin.createSession(userId);
+      await tx`
+        update admin_sessions set expires_at = now() - interval '1 hour'
+        where user_id = ${userId} and revoked_at is null
+      `;
+
+      // A list of sessions that are not open would answer the question it
+      // exists for with noise.
+      expect((await admin.listSessions()).filter((session) => session.userId === userId)).toHaveLength(0);
+    });
+  });
+
+  it("ends one by id, and reports honestly when there was nothing to end", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = repo(tx);
+      await admin.grantRole(userId, "admin", null);
+      const { token } = await admin.createSession(userId);
+      const [row] = await tx<{ id: string }[]>`select id from admin_sessions where user_id = ${userId}`;
+
+      expect(await admin.revokeSessionById(row!.id)).toBe(true);
+      expect(await admin.resolveSession(token)).toBeNull();
+      // Already closed is not a second closing.
+      expect(await admin.revokeSessionById(row!.id)).toBe(false);
+    });
+  });
+
+  it("ends every other session and keeps the one asking", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = repo(tx);
+      await admin.grantRole(userId, "admin", null);
+      const keep = await admin.createSession(userId);
+      await admin.createSession(userId);
+      await admin.createSession(userId);
+
+      const mine = await admin.resolveSession(keep.token);
+      const revoked = await admin.revokeOtherSessions(mine!.sessionId);
+
+      // Locking yourself out in the same act as securing the account would be
+      // an unhelpful way to answer "I think somebody is in here".
+      expect(revoked).toBeGreaterThanOrEqual(2);
+      expect(await admin.resolveSession(keep.token)).not.toBeNull();
+    });
+  });
+});

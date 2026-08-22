@@ -230,6 +230,56 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
     return reply.code(204).send();
   });
 
+  /**
+   * Every staff session currently open.
+   *
+   * `admin_sessions` has recorded the IP, the user agent, when the second
+   * factor was passed and when the session was last used since migration 0012,
+   * and nothing has ever read a byte of it. The question it exists to answer is
+   * *is there a session open that I do not recognise* — which nobody could ask
+   * until now.
+   *
+   * Behind `security.read` rather than an invite or catalogue permission,
+   * because it is a different job: this is the list an admin checks when they
+   * think something is wrong, not something they administer.
+   */
+  app.get("/api/v1/admin/sessions", async (request, reply) => {
+    const session = await require(request, reply, "security.read");
+    if (!session) return reply;
+    const sessions = await admin.listSessions();
+    // Marked rather than filtered. Seeing your own session in the list is what
+    // makes the other rows legible — it is the one you can identify.
+    return reply.send({ sessions: sessions.map((row) => ({ ...row, current: row.id === session.sessionId })) });
+  });
+
+  app.delete("/api/v1/admin/sessions/:id", async (request, reply) => {
+    const session = await require(request, reply, "security.write");
+    if (!session) return reply;
+    const { id } = request.params as { id: string };
+
+    if (!(await admin.revokeSessionById(id))) {
+      // The caller believed there was a live session to end. A cheerful 204
+      // would leave them thinking they had closed something.
+      return reply.code(404).send({ error: { code: "not_found", message: "No such open session." } });
+    }
+    // Audited with the target, never with a token: the table holds only hashes
+    // and this route has never seen one.
+    await audit(request, session, { action: "admin_session.revoked", targetType: "admin_session", targetId: id });
+
+    if (id === session.sessionId) clearAdminCookie(reply, cookie);
+    return reply.send({ revoked: 1 });
+  });
+
+  /** The "I think I have been compromised" button. Everything but the one asking. */
+  app.delete("/api/v1/admin/sessions", async (request, reply) => {
+    const session = await require(request, reply, "security.write");
+    if (!session) return reply;
+
+    const revoked = await admin.revokeOtherSessions(session.sessionId);
+    await audit(request, session, { action: "admin_session.revoked_others", targetType: "admin_session", after: { revoked } });
+    return reply.send({ revoked });
+  });
+
   // ---------------------------------------------------------------- invites
 
   app.get("/api/v1/admin/invites", async (request, reply) => {

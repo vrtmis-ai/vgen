@@ -68,7 +68,18 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   });
   registerErrorHandling(app);
   if (options.corsOrigin) {
-    void app.register(cors, { origin: options.corsOrigin, credentials: true });
+    // `methods` is spelled out because @fastify/cors defaults to
+    // `GET,HEAD,POST` — not the fuller list most CORS middleware uses. Every
+    // PUT, PATCH and DELETE this API serves was therefore refused at the
+    // preflight from a browser on the web origin, which is every write the
+    // admin panel makes: saving a route list, toggling a provider, revoking an
+    // invite, signing out. It was invisible from curl and from the tests,
+    // because neither sends a preflight.
+    void app.register(cors, {
+      origin: options.corsOrigin,
+      credentials: true,
+      methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    });
   }
   // The ceiling is set here as well as checked in the route. This one refuses
   // the connection; the route's turns a truncated file into a clear 413 rather
