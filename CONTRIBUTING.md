@@ -93,7 +93,9 @@ invalidates every TOTP enrolment in it.
 
 **Genuinely shared**, and passed person to person rather than through the repo:
 `KIE_API_KEY`, `KAVENEGAR_API_KEY` and `KAVENEGAR_TEMPLATE`, the `GOOGLE_` and
-`MICROSOFT_` OAuth pairs. `WAVESPEED_API_KEY` nobody holds yet and `USEAPI_*`
+`MICROSOFT_` OAuth pairs — though nobody holds those last two yet, because the
+applications behind them have never been registered; see
+[docs/OAUTH-SETUP.md](docs/OAUTH-SETUP.md) if that is the job you picked up. `WAVESPEED_API_KEY` nobody holds yet and `USEAPI_*`
 has no adapter, so both stay blank.
 
 **You need none of them for most backend work.** The migrations, all five
