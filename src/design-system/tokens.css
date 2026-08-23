@@ -76,17 +76,23 @@
 
      The rule now is CONCENTRATION, measured rather than argued:
 
-       · Saturated colour should be roughly 4% of the page's painted area.
-         Below ~2% the page reads grey; above ~6% it reads like a toy.
-       · The primary should hold 90%+ of that 4%. Every other hue combined
-         gets the remainder.
-       · So: fill as many elements with the primary as the composition wants —
-         the promo bar, the CTA, tags, the active nav item. What must stay rare
-         is a SECOND saturated hue, not a second primary-filled element.
+       · The primary holds 90%+ of all saturated colour on the page. Every
+         other hue combined gets the remainder. This is the part that
+         transfers between screens, and it is the part that makes one hue
+         read as the brand rather than as one of several accents.
+       · Fill as many elements with the primary as the composition wants —
+         the CTA, the selected state, the recommended item. What must stay
+         rare is a SECOND saturated hue, not a second primary-filled element.
+       · Big colour fields belong LOW on a page. The strip at the top stays
+         one row; the reference's is 49px and one line, and its large lime
+         surfaces sit at 28% and 91% down, so the top stays dark.
 
-     Both numbers are checkable in the browser, and the method is written down
-     in docs/COLOUR.md. Measured on the reference this system is calibrated
-     against: 4.28% saturated, of which the primary holds 97%.
+     TOTAL colour area is NOT a fixed target, and an earlier version of this
+     block wrongly said 4%. That figure came from a marketing homepage whose
+     footer is a 1104px lime field. An app screen with no such surface lands
+     near 2% and is not thereby under-branded. Concentration is the rule;
+     area follows the composition. docs/COLOUR.md has the method and the
+     numbers for both.
 
      Everything that is not the primary is neutral. The accent, the reward and
      the plan marks each carry one specific meaning and are deliberately small.

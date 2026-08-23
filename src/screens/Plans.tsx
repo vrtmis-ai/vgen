@@ -351,14 +351,21 @@ function CycleToggle({ cycle, onChange }: { cycle: Cycle; onChange: (c: Cycle) =
 }
 
 /**
- * The campaign banner, counted down against the campaign's own end instant.
+ * The campaign strip, counted down against the campaign's own end instant.
  *
  * Renders nothing at all when the API has no campaign to report, and removes
- * itself the second the countdown reaches zero. Both matter: this banner says
- * "last chance" and "limited time" next to a clock, and a clock that restarts
- * on reload — which is what a hardcoded duration gives you — makes both of
- * those statements false. The headline discount and bonus are the server's
- * numbers too, so the banner cannot promise a rate the checkout will not honour.
+ * itself the second the countdown reaches zero. Both matter: this strip says
+ * "limited time" next to a clock, and a clock that restarts on reload — which
+ * is what a hardcoded duration gives you — makes that false. The headline
+ * discount and bonus are the server's numbers too, so it cannot promise a rate
+ * the checkout will not honour.
+ *
+ * ONE ROW. It was a 203px block carrying fourteen lines — a heading, a
+ * subtitle, a button and a four-cell clock — filled solid in the brand colour
+ * at the top of the page, which put 21% of the first screen under lime. The
+ * reference's equivalent strip is 49px and one line; its big colour fields sit
+ * at 28% and 91% down the page, so the top stays dark and the product breathes.
+ * Keep this to a single row: the offer, the time left, and the way in.
  */
 function FestivalBanner({ onSeePlans }: { onSeePlans: () => void }) {
   const { t, n, lang } = useI18n();
@@ -380,57 +387,34 @@ function FestivalBanner({ onSeePlans }: { onSeePlans: () => void }) {
   const minutes = Math.floor((remaining % 3600) / 60);
   const seconds = remaining % 60;
   const pad = (value: number) => n(value).padStart(2, lang === "fa" ? "۰" : "0");
-  const clock = [
-    { value: days, label: "pl_festival_days" },
-    { value: hours, label: "pl_festival_hours" },
-    { value: minutes, label: "pl_festival_minutes" },
-    { value: seconds, label: "pl_festival_seconds" },
-  ] as const;
 
   return (
-    <section className="plans-festival-banner relative mb-8 overflow-hidden rounded-bezel px-5 py-5 md:px-7">
-      <div className="relative grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex rounded-full bg-[#131507] px-3 py-1 text-[10px] font-bold text-accent">
-              {t("pl_festival_badge")}
-            </span>
-            <span className="rounded-full border border-black/20 bg-black/10 px-3 py-1 text-[10px] font-medium text-[#131507]/80">
-              {t("pl_festival_limited")}
-            </span>
-          </div>
-          <h2 className="mt-3 max-w-[600px] font-display text-[24px] font-extrabold leading-tight md:text-[30px]">
-            {t("pl_festival_title").replace("{pct}", n(campaign.maxDiscountPct))}
-          </h2>
-          <p className="mt-2 max-w-[620px] text-[12px] leading-relaxed text-[#131507]/75 md:text-[13px]">
-            {t("pl_festival_sub").replace("{n}", n(campaign.maxBonusCoins))}
-          </p>
-          <button
-            onClick={onSeePlans}
-            className="mt-4 inline-flex items-center gap-2 rounded-[14px] bg-[#131507] px-4 py-2.5 text-[12px] font-bold text-accent transition-transform active:scale-[0.98]"
-          >
-            {t("pl_festival_cta")}
-            <ArrowRight size={14} weight="bold" className="rtl:rotate-180" />
-          </button>
-        </div>
+    <section className="plans-festival-banner relative mb-7 flex flex-wrap items-center gap-x-4 gap-y-2.5 overflow-hidden rounded-2xl px-4 py-2.5 md:px-5">
+      <span className="inline-flex shrink-0 rounded-full bg-[#131507] px-2.5 py-1 text-[10px] font-bold text-accent">
+        {t("pl_festival_badge")}
+      </span>
 
-        <div className="plans-festival-clock rounded-2xl p-3">
-          <div className="mb-3 flex items-center gap-2 text-[10.5px] font-medium text-[#131507]/70">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#131507]" />
-            {t("pl_festival_timer")}
-          </div>
-          <div className="grid grid-cols-4 gap-2" dir="ltr">
-            {clock.map(({ value, label }) => (
-              <div key={label} className="plans-countdown-cell min-w-[52px] rounded-xl px-2 py-2.5 text-center md:min-w-[62px]">
-                <strong className="block font-display text-[20px] font-bold tabular-nums text-[#131507] md:text-[23px]">
-                  {pad(value)}
-                </strong>
-                <span className="mt-1 block text-[9px] text-[#131507]/60">{t(label)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <p className="min-w-0 flex-1 text-[12.5px] font-bold leading-snug md:text-[13.5px]">
+        {t("pl_festival_strip").replace("{pct}", n(campaign.maxDiscountPct)).replace("{n}", n(campaign.maxBonusCoins))}
+      </p>
+
+      {/* Digits only, and LTR so the clock reads the way a clock does even
+          inside an RTL line. The unit labels the four-cell version carried are
+          most of what made it tall; the colons say the same thing. */}
+      <span dir="ltr" className="flex shrink-0 items-center gap-1.5">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#131507]" aria-hidden />
+        <span className="font-display text-[13.5px] font-bold tabular-nums text-[#131507]">
+          {pad(days)}:{pad(hours)}:{pad(minutes)}:{pad(seconds)}
+        </span>
+      </span>
+
+      <button
+        onClick={onSeePlans}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#131507] px-3.5 py-1.5 text-[11.5px] font-bold text-accent transition-transform active:scale-[0.98]"
+      >
+        {t("pl_festival_cta")}
+        <ArrowRight size={12} weight="bold" className="rtl:rotate-180" />
+      </button>
     </section>
   );
 }

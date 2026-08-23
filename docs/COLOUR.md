@@ -7,12 +7,9 @@ Last measured 2026-08-22.
 
 ## The rule
 
-Two numbers, both measurable in a browser:
-
-|                                                                | Target | Why                                                                                   |
-| -------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------- |
-| **Colour budget** — saturated share of the page's painted area | ~4%    | Below ~2% the page reads grey. Above ~6% it reads like a toy.                         |
-| **Concentration** — the primary's share of that colour         | 90%+   | This is what makes one hue read as _the brand_ rather than as one of several accents. |
+**The primary holds 90%+ of all saturated colour on the page.** Every other hue
+combined gets the remainder. That is the whole rule, and it is the part that
+transfers between screens.
 
 Everything that is not the primary is neutral. The accent, the reward and the
 plan marks each carry one specific meaning and are deliberately small.
@@ -21,6 +18,32 @@ This replaced an older rule that said "on a screen with two primary-filled
 elements, one of them is wrong". That rule counted elements, which is the wrong
 unit — it is satisfied perfectly by a page with no brand colour on it at all,
 and that is exactly what we had.
+
+### Total colour area is not a target
+
+An earlier version of this file said to aim for ~4% of painted area. That was
+wrong, and it is worth writing down why, because the number is seductive.
+
+4.28% is what the reference homepage measures — but that page ends in a 1104px
+lime footer and carries a 380px lime section at 28% down. Those two surfaces
+are most of the figure. An app screen with no closing surface cannot reach it
+without inventing one, and chasing it is how you end up filling a promo banner
+that should have been a strip.
+
+Area follows the composition. Concentration does not.
+
+### Where the colour goes
+
+Position matters more than quantity:
+
+- **The strip at the top stays one row.** The reference's is 49px and one line
+  of text. Ours was briefly a 203px block with a heading, a subtitle, a button
+  and a four-cell clock — 21% of the first screen filled with brand colour,
+  which reads as loud rather than as confident.
+- **Big colour fields belong low** — a closing section, a footer. The top of
+  the page stays dark so the product can breathe.
+- In between, the primary takes the CTA, the selected state of a binary
+  control, and the recommended item in a set.
 
 ## What "fill more things" does and does not mean
 
@@ -108,15 +131,21 @@ Notes on the method, so results stay comparable:
 
 ## Measurements
 
-|                           | Budget | Primary's share |
-| ------------------------- | ------ | --------------- |
-| Reference (higgsfield.ai) | 4.28%  | 97%             |
-| `/plans` before           | 2.50%  | 7%              |
-| `/plans` now              | 3.45%  | 98.6%           |
+|                             | Colour budget | Primary's share | Top strip       |
+| --------------------------- | ------------- | --------------- | --------------- |
+| Reference (higgsfield.ai)   | 4.28%         | 97%             | 49px, 1 line    |
+| `/plans` before             | 2.50%         | 7%              | —               |
+| `/plans`, banner as a block | 3.45%         | 98.6%           | 203px, 14 lines |
+| `/plans` now                | 2.03%         | 97.5%           | 52px, 1 line    |
 
 The 7% is not a typo. The primary painted **zero** elements: `.plans-modern-cta`
 was three literal oranges left from before the DEEV rebrand, so the loudest
 thing on the pricing page was a colour the design system did not contain.
+
+The third row is the version that chased the 4%. It hit the number and looked
+wrong — the strip alone was a fifth of the first screen. The fourth row is the
+one to copy: same concentration, a strip that matches the reference's, and a
+lower total because this screen has no footer to fill.
 
 ## Contrast floors
 
