@@ -36,6 +36,7 @@ const EXPECTED_MIGRATIONS = [
   "0022_admin_adjustments.sql",
   "0023_purge_quotes.sql",
   "0024_share_once.sql",
+  "0025_usage_and_events.sql",
 ];
 
 describe("database migration chain", () => {
