@@ -22,6 +22,7 @@
 
    Economics (locked):
      1 coin = $0.05 to the user · margin 2x · KIE credit = $0.005
+     Billed in hundredths of a coin — see MICRO_CREDITS_PER_BILLED_STEP.
    --------------------------------------------------------------------------- */
 
 export const KIE_CREDIT_USD = 0.005;
@@ -44,34 +45,65 @@ export function coinsToMicroCredits(coins: number): number {
 }
 
 /**
- * Rounds toward the customer. A partial coin is displayed as the whole coin it
- * came out of, so a balance never reads as more than it can actually buy.
+ * The smallest slice of a coin a generation can be billed, in micro-credits.
+ *
+ * Prices used to round up to a whole coin. At the cheap end that rounding is
+ * larger than the price itself: Z-Image costs $0.004, which is 0.16 of a coin,
+ * and charging one whole coin for it is 6.25x the margin the economics above
+ * name. The models it hurt most were the cheap ones — exactly the ones a plan's
+ * headline output count is quoted from.
+ *
+ * Nothing in storage ever needed the whole coin: the ledger has been BIGINT
+ * micro-credits from the start, and `model_prices` already holds exact
+ * sub-coin rates (Flux 2 Flex is 2_800_000, not 3_000_000). The whole coin was
+ * a display convention that reached into the money path.
+ *
+ * A hundredth of a coin is fine enough that no offered model rounds up by more
+ * than a fraction of a percent, and coarse enough that a quote is two decimal
+ * places rather than a float tail. Rounding is still upward — the only
+ * direction that cannot sell a job below cost.
+ */
+export const MICRO_CREDITS_PER_BILLED_STEP = MICRO_CREDITS_PER_COIN / 100;
+
+/** Micro-credits rounded up to the next billable step. */
+export function roundUpToBilledStep(microCredits: number): number {
+  return Math.ceil(microCredits / MICRO_CREDITS_PER_BILLED_STEP) * MICRO_CREDITS_PER_BILLED_STEP;
+}
+
+/**
+ * Rounds toward the customer. A balance is shown to the step it can actually be
+ * spent in, never up, so it never reads as more than it can buy. Flooring to a
+ * whole coin would now hide real money: a wallet holding 0.9 of a coin can pay
+ * for five Z-Image runs, and displaying that as zero is wrong in the direction
+ * that makes a customer top up when they did not need to.
  */
 export function microCreditsToCoins(microCredits: number): number {
-  return Math.floor(microCredits / MICRO_CREDITS_PER_COIN);
-}
-
-/** Coins we charge for a generation that costs us `costUsd` at the provider. */
-export function coinsFor(costUsd: number): number {
-  return Math.ceil((costUsd * MARGIN) / COIN_USD);
-}
-
-/** Same, for a provider that quotes in KIE credits. */
-export function coinsForKieCredits(credits: number): number {
-  return coinsFor(credits * KIE_CREDIT_USD);
+  return (Math.floor(microCredits / MICRO_CREDITS_PER_BILLED_STEP) * MICRO_CREDITS_PER_BILLED_STEP) / MICRO_CREDITS_PER_COIN;
 }
 
 /**
  * What a generation costs in storage units.
  *
- * Deliberately routed through `coinsFor` rather than computing micro-credits
- * directly: the ceil to a whole coin is the price the customer was quoted, and
- * pricing to sub-coin precision here would charge a number no screen ever showed.
+ * The multiplication is rounded to a whole micro-credit before the step ceil:
+ * `0.004 * 2 / 0.05 * 1e6` lands on 160000.00000000003 in binary floating
+ * point, and a bare ceil on that noise would bill 0.17 of a coin for a price
+ * that is exactly 0.16. A micro-credit is $0.00000005, so the rounding cannot
+ * move real money — it only deletes the float tail.
  */
 export function microCreditsFor(costUsd: number): number {
-  return coinsToMicroCredits(coinsFor(costUsd));
+  return roundUpToBilledStep(Math.round((costUsd * MARGIN * MICRO_CREDITS_PER_COIN) / COIN_USD));
 }
 
 export function microCreditsForKieCredits(credits: number): number {
-  return coinsToMicroCredits(coinsForKieCredits(credits));
+  return microCreditsFor(credits * KIE_CREDIT_USD);
+}
+
+/** Coins we charge for a generation that costs us `costUsd` at the provider. */
+export function coinsFor(costUsd: number): number {
+  return microCreditsFor(costUsd) / MICRO_CREDITS_PER_COIN;
+}
+
+/** Same, for a provider that quotes in KIE credits. */
+export function coinsForKieCredits(credits: number): number {
+  return coinsFor(credits * KIE_CREDIT_USD);
 }

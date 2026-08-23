@@ -3,8 +3,14 @@
  *
  * This is the check that makes moving the rate table into Postgres safe. The
  * fixture was generated from the rate functions before they were deleted, so a
- * disagreement here means the migration changed what a customer pays — which is
- * the one outcome that is never acceptable, in either direction.
+ * disagreement here means the seeded rows changed what a customer pays — which
+ * is never acceptable as a side effect, in either direction.
+ *
+ * It was re-frozen once, deliberately, when billing moved from whole coins to
+ * hundredths (MICRO_CREDITS_PER_BILLED_STEP): 411 of the 738 combinations got
+ * cheaper because the whole-coin ceil was rounding a $0.004 model up to a
+ * $0.05 charge. Re-freeze it again only for a price change that is the point
+ * of the commit, never to make a red check go green.
  *
  * It also audits the margin, because a price row that clears less than cost is
  * a job sold at a loss and no amount of matching the old number makes that fine.

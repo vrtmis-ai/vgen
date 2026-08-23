@@ -1,4 +1,4 @@
-import { MICRO_CREDITS_PER_COIN } from "./pricing";
+import { MICRO_CREDITS_PER_COIN, roundUpToBilledStep } from "./pricing";
 
 /**
  * One pricing algorithm, over rows that come from wherever.
@@ -36,6 +36,7 @@ export interface PriceInputs {
 }
 
 export interface PriceOutcome {
+  /** What the customer is charged, in coins — a multiple of a hundredth. */
   coins: number;
   microCredits: number;
   providerUnits: number;
@@ -91,10 +92,12 @@ export function resolvePrice(rows: readonly PriceRowLike[], inputs: PriceInputs)
     return "missing_quantity";
   }
 
-  // Charged in whole coins, because a whole coin is what the screen quoted.
-  // Rounding up is the only direction that cannot sell a job below cost.
-  const coins = Math.ceil(microCredits / MICRO_CREDITS_PER_COIN);
-  return { coins, microCredits: coins * MICRO_CREDITS_PER_COIN, providerUnits };
+  // Charged to the hundredth of a coin, because that is what the screen quotes.
+  // Still rounded up: the only direction that cannot sell a job below cost. The
+  // whole-coin ceil this replaced billed 1 coin for Z-Image's 0.16, which is the
+  // margin multiplied by six on the models a plan's headline count is quoted from.
+  const billed = roundUpToBilledStep(microCredits);
+  return { coins: billed / MICRO_CREDITS_PER_COIN, microCredits: billed, providerUnits };
 }
 
 export const isRefusal = (outcome: PriceOutcome | PriceRefusal): outcome is PriceRefusal => typeof outcome === "string";

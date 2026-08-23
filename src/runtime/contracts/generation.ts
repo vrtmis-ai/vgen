@@ -27,10 +27,14 @@ export const QuoteGenerationRequestSchema = z.object({
  * `coins` is authoritative and zero is a real answer, not a missing one:
  * `unlimited` is present exactly when the zero came from a grant, so a screen
  * can say why it is free and what is left of today.
+ *
+ * It is not a whole number. Generations bill in hundredths of a coin
+ * (MICRO_CREDITS_PER_BILLED_STEP), so a cheap model quotes 0.16 rather than
+ * rounding up to 1 — see the note on that constant.
  */
 export const GenerationQuoteSchema = z.object({
   id: z.string().min(1),
-  coins: z.number().int().nonnegative(),
+  coins: z.number().nonnegative(),
   expiresAt: z.number().int().nonnegative(),
   unlimited: z
     .object({
@@ -89,7 +93,8 @@ export const GenerationJobSchema = z.object({
   status: JobStatusSchema,
   familyId: z.string().min(1),
   variantId: z.string().min(1),
-  coins: z.number().int().nonnegative(),
+  /** Charged in hundredths of a coin, so not a whole number. */
+  coins: z.number().nonnegative(),
   prompt: z.string(),
   createdAt: z.number().int().nonnegative(),
   updatedAt: z.number().int().nonnegative(),
