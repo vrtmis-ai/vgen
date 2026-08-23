@@ -11,6 +11,8 @@ import {
   PostgresCatalogRepository,
   PostgresContentRepository,
   PostgresCommunityRepository,
+  PostgresCommunityModeration,
+  PostgresCommunitySubmissions,
   PostgresPlansRepository,
   PostgresFrontendTelemetryRepository,
   PostgresAssetsRepository,
@@ -212,6 +214,7 @@ const app = createApp(
     customerCatalog: new PostgresCatalogRepository(sql),
     customerContent: new PostgresContentRepository(sql),
     customerCommunity: new PostgresCommunityRepository(sql),
+    communitySubmissions: new PostgresCommunitySubmissions(sql),
     customerPlans: new PostgresPlansRepository(sql),
     frontendTelemetry: new PostgresFrontendTelemetryRepository(sql),
     generationJobs: new PostgresGenerationRepository(sql),
@@ -234,6 +237,7 @@ const app = createApp(
         // and a snapshot taken at boot would go stale on the first reload.
         catalog: { routes: modelRoutesRepository, secrets: process.env },
         analytics: { analytics: analyticsRepository, bans: bansRepository },
+        community: { moderation: new PostgresCommunityModeration(sql) },
         // Staff prove who they are exactly as customers do; the second factor
         // is what makes it a staff session.
         verifyPassword: async (email, password) => {
