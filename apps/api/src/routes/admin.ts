@@ -4,6 +4,7 @@ import { z } from "zod";
 import { clearAdminCookie, readAdminToken, setAdminCookie, type CookieOptions } from "../auth/cookies";
 import { registerAdminAnalyticsRoutes, type AdminAnalyticsDependencies } from "./adminAnalytics";
 import { registerAdminCatalogRoutes, type AdminCatalogDependencies } from "./adminCatalog";
+import { registerAdminCommunityRoutes, type AdminCommunityDependencies } from "./adminCommunity";
 
 export interface AdminDependencies {
   admin: PostgresAdminRepository;
@@ -21,6 +22,12 @@ export interface AdminDependencies {
    * than one that is absent.
    */
   analytics?: AdminAnalyticsDependencies | undefined;
+  /**
+   * The moderation queue. Optional like the two above, and for the same reason:
+   * a section that existed but could not answer would be worse than one that is
+   * absent.
+   */
+  community?: AdminCommunityDependencies | undefined;
   /** Reused so staff prove who they are the same way customers do, before the second factor. */
   verifyPassword(email: string, password: string): Promise<{ id: string; emailNormalized: string }>;
 }
@@ -143,6 +150,7 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
 
   if (dependencies.catalog) registerAdminCatalogRoutes(app, dependencies.catalog, { require, audit });
   if (dependencies.analytics) registerAdminAnalyticsRoutes(app, dependencies.analytics, { require, audit });
+  if (dependencies.community) registerAdminCommunityRoutes(app, dependencies.community, { require, audit });
 
   // ------------------------------------------------------------ signing in
 

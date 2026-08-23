@@ -1,3 +1,4 @@
+import type { ShareOutcome } from "@vgen/db";
 import { describe, expect, it, vi } from "vitest";
 import { createApp, type ApiDependencies } from "./createApp";
 
@@ -34,6 +35,7 @@ function healthyDependencies(): ApiDependencies {
       list: vi.fn(async () => ({ version: "bootstrap-v1", publishedAt: 0, families: [] })),
     },
     customerCommunity: { list: vi.fn(async () => ({ posts: [] })) },
+    communitySubmissions: { share: vi.fn(async () => ({ outcome: "unknown_job" }) as ShareOutcome) },
     customerContent: {
       list: vi.fn(async () => ({
         version: "bootstrap-v1",

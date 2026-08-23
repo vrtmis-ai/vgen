@@ -37,6 +37,7 @@ gallery had no route at all.
 | `catalog.list()`       | `GET /catalog`             | `routes/catalog.ts`   | **Live** |
 | `content.list()`       | `GET /content`             | `routes/content.ts`   | **Live** |
 | `community.list()`     | `GET /community`           | `routes/community.ts` | **Live** |
+| `community.share()`    | `POST /community`          | `routes/community.ts` | **Live** |
 | `plans.list()`         | `GET /plans`               | `routes/plans.ts`     | **Live** |
 | `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`    | **Live** |
 | `generation.quote()`   | `POST /generation/quotes`  | `routes/quotes.ts`    | **Live** |
@@ -655,11 +656,114 @@ with **403** `banned` at `POST /jobs`; `explore` and `platform` are meant to
 refuse publishing. Someone who paid for generations keeps access to the ones
 they already have.
 
-> **`explore` bans currently refuse nothing.** There is no endpoint that
-> publishes to the community — `GET /api/v1/community` is read-only and the
-> seeded posts came from `scripts/publish-community.ts`. The scope is stored and
-> `isBannedFromPublishing` is written and tested; whoever builds the `POST` calls
-> it from there.
+**`explore` and `platform` bans refuse `POST /api/v1/community`** with **403**
+`banned`, checked before the job is read. That is the only thing they refuse:
+the account keeps signing in and keeps generating, because it paid for that.
+
+### `POST /community`
+
+Share a finished generation into the feed. Authenticated, unlike the `GET`
+beside it — a post carries an account's name on it for as long as it exists.
+
+```jsonc
+// request
+{
+  "jobId": "…",
+  "consent": true, // required, and `true` is the only accepted value
+  "caption": "sunset no. 4", // optional
+  "promptVisible": true, // optional, defaults true
+}
+```
+
+```jsonc
+// 202
+{ "id": "…", "status": "pending" }
+```
+
+Schema: `SharePostRequestSchema` / `SharedPostSchema` in
+`packages/contracts/src/community.ts`.
+
+**202, not 201.** The post exists and the feed does not have it. A `201` would
+send the author to look for something that is not there, which reads as a bug
+rather than as a queue. Nothing on this route publishes; a moderator does, at
+`POST /admin/community/pending/:id`.
+
+**`consent` is `z.literal(true)`.** §14 requires the author's agreement to
+expose the prompt, the settings and any reference files, taken **at share
+time**. A default would make an omitted field mean yes, which is the one
+reading of silence that is not available here. `consent_at` is stamped on the
+row and is never backfilled — see migration 0021.
+
+**The caller names a job and nothing else about the post.** The author, the
+account, the model family and the cover picture are all read from that job. A
+request that could name its own `familyId` could file a post under a model that
+never ran it; one that could name its own author could publish as somebody
+else.
+
+**`promptVisible: false` does not fall back to the prompt.** The feed draws
+`caption` as the post's `prompt`, so an empty caption from someone who withheld
+the recipe would publish the very thing they withheld. That combination is
+refused with `nothing_to_show` instead.
+
+| Outcome           | Status  | When                                                              |
+| ----------------- | ------- | ----------------------------------------------------------------- |
+| shared            | **202** | Queued for moderation.                                            |
+| `banned`          | **403** | An `explore` or `platform` ban. Bars publishing and nothing else. |
+| `unknown_job`     | **404** | No such job **or** it is not on this account.                     |
+| `already_shared`  | **409** | One live post per generation — `posts_one_per_job_idx`, 0024.     |
+| `not_finished`    | **409** | The job has not succeeded.                                        |
+| `nothing_to_show` | **409** | Audio, deleted outputs, or a withheld prompt with no caption.     |
+
+**Somebody else's job is `unknown_job`, not a refusal.** Confirming that an id
+exists but belongs to another account would make this route a way of
+discovering job ids by guessing them.
+
+**Sharing twice is one post.** Migration 0024 adds a unique index on `job_id`,
+partial on `job_id IS NOT NULL` (the seeded demo posts have no job and would
+otherwise collide with one another) and on `deleted_at IS NULL` (deleting a post
+releases the job, or an author who removes something could never share it
+again). A double-tapped button and a client retrying after a timeout both land
+on it, and both get `already_shared`.
+
+> **An approved post still will not appear in the feed.** `GET /community`
+> draws each card from a placeholder art key on the cover asset — the picsum
+> stand-in `pnpm community:publish` writes — and a real rendered output does not
+> carry one. Closing that means being able to serve a customer's file to a
+> browser, which nothing here does yet: there is no asset read route, the object
+> store is deliberately unreachable from a browser, and a **public** feed means
+> deciding what a public asset URL may expose. That is a privacy decision rather
+> than a missing function, so this route stops short of it. The gap is asserted
+> in `communitySubmissions.integration.test.ts` rather than left to be found.
+
+### `GET /admin/community/pending` · `POST /admin/community/pending/:id`
+
+The moderation queue, and the other half of `POST /community`. Permissions
+`community.read` and `community.write`; the seeded `admin` role holds `*` and so
+has both already.
+
+```jsonc
+// GET → 200
+{ "posts": [{ "id": "…", "author": "reza.vfx", "kind": "image", "familyId": "flux",
+              "caption": "…", "prompt": "…", "promptVisible": false, "submittedAt": 0 }] }
+
+// POST { "decision": "approve" } → 200
+{ "id": "…", "status": "approved" }
+```
+
+**The queue carries the prompt whether or not the feed may show it.** A
+moderator deciding whether something may be published has to see what made it,
+and that is exactly what the public feed must not hand out. It is the reason
+these are separate repositories rather than one with a flag.
+
+**Deciding is `where status = 'pending'`, not `where id = …`.** Two moderators
+reaching the same row would otherwise each be told theirs was the decision, and
+`audit_log` would hold two entries that disagree. The second one gets **404**
+`not_pending`, which also covers "no such post" — the answer is the same either
+way, and so is the fix: re-read the queue.
+
+Both decisions are audited as `community.post.approve` / `community.post.reject`,
+with the rejection reason in `after`. Approving is a decision to show one
+person's work, and their prompt, to everyone who opens the site.
 
 ### `GET /plans`
 
