@@ -6,7 +6,6 @@ import "../src/index.css";
 import { CookieConsent } from "../src/components/CookieConsent";
 import { CONSENT_COOKIE } from "../src/lib/cookies";
 import { dirFor, LANG_COOKIE, parseLang } from "../src/lib/lang";
-import { PaletteSwitcher } from "../src/components/PaletteSwitcher";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
@@ -20,7 +19,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#0a0a0b",
+  themeColor: "#0e1012",
 };
 
 /**
@@ -46,7 +45,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         {/* Fonts are bundled (src/fonts.css). Nothing is fetched from Google at
             runtime: it is slow from Iran, and a blocked stylesheet dropped the
             whole UI to a system font part-way through loading. */}
-        <style>{"html,body{background:#0a0a0b}"}</style>
+        <style>{"html,body{background:#0e1012}"}</style>
         {/* Start the DNS+TCP+TLS chain for the runtime third-party origins during
             parse instead of serially after it. On a high-latency connection the
             handshakes, not the bytes, are the expensive part.
@@ -63,11 +62,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <Providers initialLang={lang}>{children}</Providers>
         <CookieConsent initial={consent} />
-        {/* TEMPORARY — brand-direction picker. The condition is a build-time
-            constant, so a production build folds it to false and drops the
-            component from the bundle entirely. Remove with the rest of the
-            preview scaffolding once a direction is chosen. */}
-        {process.env.NEXT_PUBLIC_APP_MODE === "demo" && <PaletteSwitcher />}
         {/* `afterInteractive`, and the reason is the same one that made this
             `defer` in index.html: telegram.org is filtered in Iran, where a
             blocked connection typically hangs rather than resets. A

@@ -123,14 +123,15 @@ function PlanFeatures({ plan, compact = false }: { plan: Plan; compact?: boolean
 }
 
 /**
- * The reward lime is what you are given: free generations, gift coins, the
- * money an annual cycle keeps in your pocket. These were orange, the colour
- * reserved for the thing to press, so a card could carry three oranges and
- * none of them pointed at the buy button. Now orange asks and lime gives.
+ * The reward amber is what you are given: free generations, gift coins, the
+ * money an annual cycle keeps in your pocket.
  *
- * Lime rather than the stock success green: a perk should read as something
- * worth having, and #4ade80 is the colour every dashboard uses for "OK".
- * See 4b in tokens.css.
+ * It has now been three colours, and each move was the same lesson. Orange,
+ * when orange was the CTA — so a card carried three oranges and none of them
+ * pointed at the buy button. Then the stock success green, which reads as "OK"
+ * rather than as something worth having. Then lime, until lime became the
+ * brand and "press this" and "you get this" collapsed into one signal again.
+ * Amber sits next to the lime without being it. See 4b in tokens.css.
  */
 function UnlimitedBenefit({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
   const { t, n } = useI18n();
@@ -171,7 +172,7 @@ function PlanAccessList({ plan, compact = false }: { plan: Plan; compact?: boole
         {rows.map((row) => {
           const Icon = row.active ? CheckCircle : XCircle;
           // The free-generation row is something given rather than something
-          // included, so it ticks in the reward lime; the rest stay neutral.
+          // included, so it ticks in the reward amber; the rest stay neutral.
           const tick = !row.active ? "text-ink3/45" : row.key === "unlimited" ? "text-reward" : "text-accent";
           return (
             <span key={row.key} className={`flex items-start gap-2 ${row.active ? "text-ink2" : "text-ink3/60"}`}>
@@ -248,7 +249,7 @@ function TagChip({ plan }: { plan: Plan }) {
       style={
         plan.popular
           ? { background: "var(--color-accent)", color: "var(--color-on-accent)" }
-          : // A gift tag names something given, so it takes the reward lime the
+          : // A gift tag names something given, so it takes the reward amber the
             // rest of the giving reads in rather than the neutral chip.
             plan.tag === "gift"
             ? { background: "var(--color-reward-tint)", color: "var(--color-reward)" }
@@ -387,39 +388,44 @@ function FestivalBanner({ onSeePlans }: { onSeePlans: () => void }) {
   ] as const;
 
   return (
-    <section className="plans-festival-banner relative mb-8 overflow-hidden rounded-bezel border border-line bg-card px-5 py-5 md:px-7">
+    <section className="plans-festival-banner relative mb-8 overflow-hidden rounded-bezel px-5 py-5 md:px-7">
       <div className="relative grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex rounded-full bg-accent px-3 py-1 text-[10px] font-bold text-on-accent">
+            <span className="inline-flex rounded-full bg-[#131507] px-3 py-1 text-[10px] font-bold text-accent">
               {t("pl_festival_badge")}
             </span>
-            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-medium text-white/75">
+            <span className="rounded-full border border-black/20 bg-black/10 px-3 py-1 text-[10px] font-medium text-[#131507]/80">
               {t("pl_festival_limited")}
             </span>
           </div>
           <h2 className="mt-3 max-w-[600px] font-display text-[24px] font-extrabold leading-tight md:text-[30px]">
             {t("pl_festival_title").replace("{pct}", n(campaign.maxDiscountPct))}
           </h2>
-          <p className="mt-2 max-w-[620px] text-[12px] leading-relaxed text-white/70 md:text-[13px]">
+          <p className="mt-2 max-w-[620px] text-[12px] leading-relaxed text-[#131507]/75 md:text-[13px]">
             {t("pl_festival_sub").replace("{n}", n(campaign.maxBonusCoins))}
           </p>
-          <button onClick={onSeePlans} className="plans-modern-cta mt-4 gap-2 px-4 py-2.5 text-[12px] font-bold">
+          <button
+            onClick={onSeePlans}
+            className="mt-4 inline-flex items-center gap-2 rounded-[14px] bg-[#131507] px-4 py-2.5 text-[12px] font-bold text-accent transition-transform active:scale-[0.98]"
+          >
             {t("pl_festival_cta")}
             <ArrowRight size={14} weight="bold" className="rtl:rotate-180" />
           </button>
         </div>
 
-        <div className="plans-festival-clock rounded-2xl border border-line p-3">
-          <div className="mb-3 flex items-center gap-2 text-[10.5px] font-medium text-white/65">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#ffcf5a] shadow-[0_0_12px_#ffcf5a]" />
+        <div className="plans-festival-clock rounded-2xl p-3">
+          <div className="mb-3 flex items-center gap-2 text-[10.5px] font-medium text-[#131507]/70">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#131507]" />
             {t("pl_festival_timer")}
           </div>
           <div className="grid grid-cols-4 gap-2" dir="ltr">
             {clock.map(({ value, label }) => (
               <div key={label} className="plans-countdown-cell min-w-[52px] rounded-xl px-2 py-2.5 text-center md:min-w-[62px]">
-                <strong className="block font-display text-[20px] font-bold tabular-nums text-white md:text-[23px]">{pad(value)}</strong>
-                <span className="mt-1 block text-[9px] text-white/50">{t(label)}</span>
+                <strong className="block font-display text-[20px] font-bold tabular-nums text-[#131507] md:text-[23px]">
+                  {pad(value)}
+                </strong>
+                <span className="mt-1 block text-[9px] text-[#131507]/60">{t(label)}</span>
               </div>
             ))}
           </div>

@@ -16,23 +16,23 @@
      In near-black, shadows are invisible; elevation is expressed as surface
      lightness. Each step is a real level, not decoration.
      --------------------------------------------------------------------- */
-  --vg-canvas: #090909; /* level 0 — page background, OLED-true  */
+  --vg-canvas: #0e1012; /* level 0 — page background            */
   /* The create panel's own ground. Measured off their audio panel: it sits a
      step above the canvas so the column reads as a separate surface without a
      divider doing the work. */
-  --vg-deep: #131517; /* level 0.5 — the create panel column   */
-  --vg-surface: #121212; /* level 1 — cards, inputs, content      */
-  --vg-surface-raised: #191919; /* level 2 — sheets, menus, popovers     */
-  --vg-surface-overlay: #232323; /* level 3 — active pills, hovered rows  */
-  --vg-surface-bright: #353534; /* level 4 — highest, rare               */
+  --vg-deep: #14171a; /* level 0.5 — the create panel column   */
+  --vg-surface: #16191c; /* level 1 — cards, inputs, content      */
+  --vg-surface-raised: #1e2226; /* level 2 — sheets, menus, popovers     */
+  --vg-surface-overlay: #272c31; /* level 3 — active pills, hovered rows  */
+  --vg-surface-bright: #363c42; /* level 4 — highest, rare               */
 
   /* Translucent surfaces (glass). Pair with --vg-blur-*.
      Two levels, as the Stitch screens had: docked chrome sits at 0.80 because
      content scrolls *under* it and must not distract; a floating panel sits at
      0.70 so you can actually see the blur doing its job. Above ~0.85 the
      backdrop-filter is invisible and you have just built an opaque card. */
-  --vg-glass: rgb(18 18 18 / 0.8); /* docked: header, nav, sheet */
-  --vg-glass-panel: rgb(18 18 18 / 0.7); /* floating panel over media  */
+  --vg-glass: rgb(22 25 28 / 0.8); /* docked: header, nav, sheet */
+  --vg-glass-panel: rgb(22 25 28 / 0.7); /* floating panel over media  */
   --vg-glass-light: rgb(255 255 255 / 0.05);
   --vg-glass-faint: rgb(255 255 255 / 0.02);
   --vg-scrim: rgb(0 0 0 / 0.6);
@@ -50,24 +50,46 @@
      real content. Rather than police every call site, the token now passes on
      its own and genuinely disabled controls carry opacity instead. */
   --vg-text-faint: #8c919b; /* captions, counts, units              */
-  /* Dark ink on the primary fill, not white.
-     It was chosen against the old orange, where white measured 3.43:1 and
-     failed AA while #1A1A1A measured 4.97:1. Re-checked against DEEV's blue:
-     #1A1A1A on rgb(0 180 255) measures 7.44:1, so it still holds — comfortably
-     AAA rather than barely AA. Nothing to change; the reasoning just no longer
-     matches the colour it was written for. */
-  --vg-text-on-primary: #1a1a1a; /* ink on a --vg-primary fill           */
+  /* Dark ink on the primary fill, never white — and on a lime this is not a
+     preference, it is the only legal option: white on rgb(198 245 46) measures
+     1.27:1. The near-black measures 14.5:1.
+
+     It also carries most of the "expensive" read. A bright fill with white text
+     looks like a highlighter; the same fill with near-black text looks like a
+     material the interface is made of. The reference does this everywhere and
+     it is the single most copyable thing about it. */
+  --vg-text-on-primary: #131507; /* ink on a --vg-primary fill — 14.5:1  */
 
   /* ---------------------------------------------------------------------
      3. BRAND — "the spark"
-     A scalpel, not a paint roller. CTAs, active states, progress. Never a
-     large background area.
 
-     DEEV's brand is black, white and one blue, and the rule that matters is
-     scarcity rather than the hue: on a screen with two primary-filled elements,
-     one of them is wrong. That rule is easier to break now than it was when
-     this was orange, because blue is a quieter colour and it stops feeling like
-     an alarm long before it stops being the loudest thing on the page.
+     DEEV is black, white and one electric lime.
+
+     ⚠ THE OLD RULE HERE WAS "SCARCITY", AND IT HAS BEEN REPLACED.
+
+     It read: "on a screen with two primary-filled elements, one of them is
+     wrong." That rule produced a pricing page where the primary painted ZERO
+     elements and 93% of the saturated colour on it belonged to an off-system
+     orange left over from a previous brand. Scarcity policed the wrong thing:
+     it counted elements, when what makes a brand colour read as the brand is
+     how much of the page it holds relative to every OTHER colour.
+
+     The rule now is CONCENTRATION, measured rather than argued:
+
+       · Saturated colour should be roughly 4% of the page's painted area.
+         Below ~2% the page reads grey; above ~6% it reads like a toy.
+       · The primary should hold 90%+ of that 4%. Every other hue combined
+         gets the remainder.
+       · So: fill as many elements with the primary as the composition wants —
+         the promo bar, the CTA, tags, the active nav item. What must stay rare
+         is a SECOND saturated hue, not a second primary-filled element.
+
+     Both numbers are checkable in the browser, and the method is written down
+     in docs/COLOUR.md. Measured on the reference this system is calibrated
+     against: 4.28% saturated, of which the primary holds 97%.
+
+     Everything that is not the primary is neutral. The accent, the reward and
+     the plan marks each carry one specific meaning and are deliberately small.
      --------------------------------------------------------------------- */
   /* ======================================================================
      THE ONE KNOB. Change this line to re-brand the product.
@@ -90,12 +112,21 @@
        1. `--vg-text-on-primary` still reads on the new fill (dark ink needs a
           light brand colour; a dark one needs light ink). White on the original
           orange measured 3.43:1 and failed, which is why that token is
-          near-black; on today's blue it measures 7.44:1.
+          near-black; on the lime it measures 14.5:1.
        2. `--vg-primary-soft` still passes AA as text on --vg-canvas. It is
           derived light enough for that here, but a very dark or desaturated
           brand may need the derivation loosened.
+
+     A THIRD THING, IF THE NEW BRAND IS ALSO THE REWARD HUE: --vg-reward must
+     move. "Press this" and "you are given this" cannot be the same colour.
+     When the brand became lime, reward moved to amber for exactly this reason.
      ====================================================================== */
-  --vg-primary-rgb: 0 180 255;
+  /* Electric lime. Chosen over the blue it replaces after measuring both on the
+     real product: at L .90 C .21 it is the highest-lightness, highest-chroma
+     colour this palette can carry, which is what lets a 4% area budget read as
+     the loudest thing on a near-black page. The blue was not wrong — it simply
+     lost every fight it was in, because nothing was actually painted with it. */
+  --vg-primary-rgb: 198 245 46;
   --vg-primary: rgb(var(--vg-primary-rgb));
 
   /* Derived ramp. oklab keeps the mix perceptually even, so a blue or green
@@ -179,28 +210,37 @@
      the stock green every dashboard uses for "OK", and gift coins dressed in
      it read as a status line rather than as something you want.
 
-     An electric lime instead: very high chroma, very high lightness, so it
-     announces itself on a near-black canvas without borrowing the primary's
-     job. It is bright enough that it must never carry dark-on-light body
-     text — --vg-text-on-reward is the only thing that goes on the fill.
-     Measured in the browser: 16.5:1 as text on the card, and the near-black
-     reads 14.5:1 the other way round, on the fill.
+     This was the lime until the lime became the brand. It had to move the day
+     that happened: "press this" and "you are given this" cannot be the same
+     colour, or the gift chip and the buy button become one signal and the eye
+     stops being able to separate the offer from the ask.
+
+     Amber is the replacement — adjacent to the lime, so the two read as one
+     family rather than as a clash, but far enough round the wheel to stay
+     legible as a different statement. Warmth also suits the meaning: this is
+     the token for things being handed over.
+
+     Measured: 11.18:1 as text on --vg-surface, and the near-black reads
+     10.49:1 on the fill.
 
      The alpha steps are the whole usable range: a08/a15 for tinted panels
      and badge backgrounds, a30 for their hairline. Never a solid fill for
-     anything larger than a chip — at this chroma it takes over a screen.
+     anything larger than a chip — solid fills belong to the primary, and a
+     second one at this chroma would break the concentration rule in §3.
      --------------------------------------------------------------------- */
-  --vg-reward: #c6f52e;
-  --vg-reward-a08: rgb(198 245 46 / 0.08);
-  --vg-reward-a15: rgb(198 245 46 / 0.15);
-  --vg-reward-a30: rgb(198 245 46 / 0.3);
-  --vg-text-on-reward: #131507;
+  --vg-reward: #ffc53d;
+  --vg-reward-a08: rgb(255 197 61 / 0.08);
+  --vg-reward-a15: rgb(255 197 61 / 0.15);
+  --vg-reward-a30: rgb(255 197 61 / 0.3);
+  --vg-text-on-reward: #2b1c00;
 
   /* ---------------------------------------------------------------------
      4c. PLAN MARKS — one hue per rung of the ladder
 
-     Read as a climb: silver, cyan, spring green, orchid, the brand's electric
-     blue on the recommended rung, violet, warm orange at the top.
+     Read as a climb: silver, cyan, spring green, orchid, the brand's own lime
+     on the recommended rung, violet, warm orange at the top. Pro carries the
+     primary deliberately — the recommended plan is the one the page is asking
+     you to press, so it should be wearing the colour that asks.
 
      EVERY ONE SITS AT ITS HUE'S CHROMA CEILING IN sRGB. That is the whole
      method, and it is why they are not all as bright as --vg-reward: the
@@ -212,9 +252,10 @@
      placed at its own cusp instead, then lifted only as far as the 4.5:1
      floor on --vg-surface demands.
 
-     Worth knowing before anyone tries: **--vg-primary is already at the blue
-     cusp.** #00b4ff cannot be made more vivid in sRGB. If the brand needs to
-     hit harder, that is a hue decision, not a saturation one.
+     Worth knowing before anyone tries: **--vg-primary is already at the
+     yellow-green cusp**, which is the brightest place the sRGB gamut has. It
+     cannot be made more vivid. If it needs to hit harder, that is an area
+     decision — see the concentration rule in §3 — not a saturation one.
 
      Previous values were the same hues at roughly half chroma — #77808c,
      #5b8ea9, #5ba88e, #8a70d6 — which made the cheap half of the ladder read
@@ -230,7 +271,7 @@
   --vg-plan-basic: #00ecff; /* L .86 C .151 H 205                     */
   --vg-plan-flow: #00fc9d; /* L .87 C .211 H 158                     */
   --vg-plan-plus: #d34fff; /* L .68 C .264 H 315                     */
-  --vg-plan-pro: #00b1fe; /* L .72 C .165 H 237 — the blue cusp     */
+  --vg-plan-pro: #c6f52e; /* the primary — the recommended rung      */
   --vg-plan-studio: #8775ff; /* L .65 C .201 H 285                     */
   --vg-plan-creator: #ff7421; /* L .72 C .194 H  45                     */
 

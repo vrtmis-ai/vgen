@@ -23,12 +23,6 @@
    names onto it. */
 @import "./design-system/tokens.css";
 
-/* TEMPORARY — the four brand directions, switched by a data attribute on
-   <html> so they can be judged on the real product. Delete this line together
-   with the file and src/components/PaletteSwitcher.tsx once one is chosen.
-   It must sit after tokens.css: it wins by cascade order, not specificity. */
-@import "./design-system/palette-preview.css";
-
 /* The component layer — .vg-btn, .vg-card, .vg-nav, .vg-sheet and the rest.
    It was copied in with the tokens and then never imported, so all fifty
    classes sat in the repo doing nothing.
@@ -538,12 +532,14 @@ input {
    than accounting software. These lights stay behind the content and the
    surfaces remain dark enough for the existing contrast tokens. */
 .plans-festival-banner {
-  background:
-    radial-gradient(circle at 84% 10%, rgba(255, 126, 32, 0.2), transparent 28%), linear-gradient(120deg, #181513, #111214 58%, #17120f),
-    var(--color-card);
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.065);
+  background: linear-gradient(
+    118deg,
+    color-mix(in oklab, var(--vg-primary), white 14%),
+    var(--vg-primary) 46%,
+    color-mix(in oklab, var(--vg-primary), black 10%)
+  );
+  color: var(--vg-text-on-primary);
+  box-shadow: 0 24px 70px color-mix(in srgb, var(--vg-primary) 18%, transparent);
 }
 .plans-festival-banner::before {
   content: "";
@@ -551,7 +547,7 @@ input {
   inset: 0 0 auto;
   height: 3px;
   pointer-events: none;
-  background: linear-gradient(90deg, var(--vg-primary), color-mix(in oklab, var(--vg-primary), white 30%) 58%, var(--vg-primary));
+  background: rgb(0 0 0 / 0.22);
 }
 .plans-festival-banner::after {
   content: "";
@@ -559,20 +555,18 @@ input {
   inset: 0;
   pointer-events: none;
   opacity: 0.16;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.35) 0.7px, transparent 0.8px);
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.3) 0.7px, transparent 0.8px);
   background-size: 13px 13px;
   mask-image: linear-gradient(90deg, transparent 12%, black 75%, transparent);
 }
 .plans-festival-clock {
-  background: rgba(5, 5, 6, 0.5);
-  box-shadow:
-    0 16px 35px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  background: rgb(0 0 0 / 0.14);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
 }
 .plans-countdown-cell {
-  background: linear-gradient(180deg, var(--vg-primary-a10), rgba(255, 255, 255, 0.025));
-  border: 1px solid var(--vg-primary-a10);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  background: rgb(0 0 0 / 0.2);
+  border: 1px solid rgb(0 0 0 / 0.12);
+  box-shadow: none;
 }
 .plans-reference-title {
   color: transparent;
