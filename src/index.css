@@ -23,6 +23,12 @@
    names onto it. */
 @import "./design-system/tokens.css";
 
+/* TEMPORARY — the four brand directions, switched by a data attribute on
+   <html> so they can be judged on the real product. Delete this line together
+   with the file and src/components/PaletteSwitcher.tsx once one is chosen.
+   It must sit after tokens.css: it wins by cascade order, not specificity. */
+@import "./design-system/palette-preview.css";
+
 /* The component layer — .vg-btn, .vg-card, .vg-nav, .vg-sheet and the rest.
    It was copied in with the tokens and then never imported, so all fifty
    classes sat in the repo doing nothing.
@@ -471,13 +477,23 @@ input {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border: 1px solid rgba(255, 177, 99, 0.5);
+  /* Derived from --vg-primary, not painted on top of it. This gradient used to
+     be three literal oranges while the brand was blue, which is how the
+     loudest element on the pricing page ended up being the one colour the
+     design system does not contain: measured, that off-system orange held 70%
+     of all the saturated colour on the page and the actual primary held 7%. */
+  border: 1px solid color-mix(in oklab, var(--vg-primary), white 22%);
   border-radius: 14px;
-  background: linear-gradient(135deg, #ffad5a, #ff7a32 58%, #f96629);
-  color: #170b04;
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--vg-primary), white 18%),
+    var(--vg-primary) 58%,
+    color-mix(in oklab, var(--vg-primary), black 12%)
+  );
+  color: var(--vg-text-on-primary);
   box-shadow:
-    0 12px 28px rgba(255, 113, 43, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+    0 12px 28px color-mix(in srgb, var(--vg-primary) 24%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
   transition:
     transform 180ms ease,
     filter 180ms ease,
@@ -496,8 +512,8 @@ input {
   transform: translateY(-2px);
   filter: saturate(1.08) brightness(1.04);
   box-shadow:
-    0 16px 34px rgba(255, 113, 43, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    0 16px 34px color-mix(in srgb, var(--vg-primary) 32%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
 }
 .plans-modern-cta:hover:not(:disabled)::before {
   transform: translateX(120%);
@@ -506,7 +522,7 @@ input {
   transform: translateY(0) scale(0.985);
 }
 .plans-modern-cta:focus-visible {
-  outline: 2px solid #ff9a4a;
+  outline: 2px solid var(--vg-primary);
   outline-offset: 3px;
 }
 .plans-modern-cta:disabled {
@@ -535,7 +551,7 @@ input {
   inset: 0 0 auto;
   height: 3px;
   pointer-events: none;
-  background: linear-gradient(90deg, #ff6b2c, #ffb347 58%, #ff7247);
+  background: linear-gradient(90deg, var(--vg-primary), color-mix(in oklab, var(--vg-primary), white 30%) 58%, var(--vg-primary));
 }
 .plans-festival-banner::after {
   content: "";
@@ -554,13 +570,18 @@ input {
     inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 .plans-countdown-cell {
-  background: linear-gradient(180deg, rgba(255, 143, 56, 0.09), rgba(255, 255, 255, 0.025));
-  border: 1px solid rgba(255, 150, 67, 0.1);
+  background: linear-gradient(180deg, var(--vg-primary-a10), rgba(255, 255, 255, 0.025));
+  border: 1px solid var(--vg-primary-a10);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 .plans-reference-title {
   color: transparent;
-  background: linear-gradient(92deg, #ffc45c, #ff943f 58%, #ff6b6b);
+  background: linear-gradient(
+    92deg,
+    color-mix(in oklab, var(--vg-primary), white 34%),
+    var(--vg-primary) 58%,
+    color-mix(in oklab, var(--vg-primary), white 12%)
+  );
   background-clip: text;
   -webkit-background-clip: text;
 }

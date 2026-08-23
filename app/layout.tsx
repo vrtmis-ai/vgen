@@ -6,6 +6,7 @@ import "../src/index.css";
 import { CookieConsent } from "../src/components/CookieConsent";
 import { CONSENT_COOKIE } from "../src/lib/cookies";
 import { dirFor, LANG_COOKIE, parseLang } from "../src/lib/lang";
+import { PaletteSwitcher } from "../src/components/PaletteSwitcher";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
@@ -62,6 +63,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <Providers initialLang={lang}>{children}</Providers>
         <CookieConsent initial={consent} />
+        {/* TEMPORARY — brand-direction picker. The condition is a build-time
+            constant, so a production build folds it to false and drops the
+            component from the bundle entirely. Remove with the rest of the
+            preview scaffolding once a direction is chosen. */}
+        {process.env.NEXT_PUBLIC_APP_MODE === "demo" && <PaletteSwitcher />}
         {/* `afterInteractive`, and the reason is the same one that made this
             `defer` in index.html: telegram.org is filtered in Iran, where a
             blocked connection typically hangs rather than resets. A

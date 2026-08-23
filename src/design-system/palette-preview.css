@@ -1,0 +1,168 @@
+/* ==========================================================================
+   TEMPORARY — four brand directions, for choosing between them on the real
+   site rather than on a swatch sheet.
+
+   DELETE THIS FILE once a direction is picked. Its values move into
+   tokens.css, the switcher in src/components/PaletteSwitcher.tsx goes, and
+   the import in index.css goes with it. Nothing in the product should ever
+   import this.
+
+   Each direction sets four roles, which is the whole brief:
+     primary   — the thing to press. Everything in tokens.css §3 derives from
+                 it, so one line moves the CTA, focus rings, meters and every
+                 tinted wash across every screen.
+     accent    — the informational counterweight. "Know", not "act".
+     reward    — what the product gives away: gift coins, free generations,
+                 the money an annual cycle keeps.
+     sides     — carried by the plan-mark ladder, which is the only place the
+                 product currently uses more than three hues at once.
+
+   Surfaces are deliberately NOT part of a direction. They are an orthogonal
+   decision and they move the "expensive" needle more than the hue does, so
+   they get their own switch — see [data-surface="cool"] at the bottom.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1 · LIME — closest to the reference. Loudest, and a real rebrand: the
+   product's blue stops being the brand and becomes the counterweight.
+   -------------------------------------------------------------------------- */
+:root[data-palette="lime"] {
+  --vg-primary-rgb: 198 245 46;
+  --vg-text-on-primary: #131507;
+
+  --vg-accent: #7fd0ff;
+  --vg-accent-strong: #00b1fe;
+  --vg-accent-deep: #00263b;
+  --vg-accent-a10: rgb(0 177 254 / 0.1);
+  --vg-accent-a20: rgb(0 177 254 / 0.2);
+  --vg-accent-a40: rgb(0 177 254 / 0.4);
+
+  /* Reward cannot stay lime when the CTA is lime — "press this" and "you get
+     this" would be the same colour. Amber takes the giving role. */
+  --vg-reward: #ffc53d;
+  --vg-reward-a08: rgb(255 197 61 / 0.08);
+  --vg-reward-a15: rgb(255 197 61 / 0.15);
+  --vg-reward-a30: rgb(255 197 61 / 0.3);
+  --vg-text-on-reward: #2b1c00;
+
+  --vg-plan-starter: #a8c1da;
+  --vg-plan-basic: #00ecff;
+  --vg-plan-flow: #00fc9d;
+  --vg-plan-plus: #ff2d9b;
+  --vg-plan-pro: #c6f52e;
+  --vg-plan-studio: #d34fff;
+  --vg-plan-creator: #ff7421;
+}
+
+/* --------------------------------------------------------------------------
+   2 · BLUE — the current identity, sharpened. Not a rebrand. The blue keeps
+   "act"; the lime takes "you get this", which is the split that was missing.
+   -------------------------------------------------------------------------- */
+:root[data-palette="blue"] {
+  --vg-primary-rgb: 0 177 254;
+  --vg-text-on-primary: #001622;
+
+  /* Accent moves off the brand hue, which is the fix tokens.css §3b says is
+     owed: at #1995f1 it sat nine degrees from the primary and read as the
+     same signal at two strengths. Violet is far enough to mean something. */
+  --vg-accent: #c4b5fd;
+  --vg-accent-strong: #8775ff;
+  --vg-accent-deep: #14093d;
+  --vg-accent-a10: rgb(135 117 255 / 0.1);
+  --vg-accent-a20: rgb(135 117 255 / 0.2);
+  --vg-accent-a40: rgb(135 117 255 / 0.4);
+
+  --vg-reward: #c6f52e;
+  --vg-reward-a08: rgb(198 245 46 / 0.08);
+  --vg-reward-a15: rgb(198 245 46 / 0.15);
+  --vg-reward-a30: rgb(198 245 46 / 0.3);
+  --vg-text-on-reward: #131507;
+
+  --vg-plan-starter: #a8c1da;
+  --vg-plan-basic: #00ecff;
+  --vg-plan-flow: #00fc9d;
+  --vg-plan-plus: #d34fff;
+  --vg-plan-pro: #00b1fe;
+  --vg-plan-studio: #8775ff;
+  --vg-plan-creator: #ff7421;
+}
+
+/* --------------------------------------------------------------------------
+   3 · VIOLET — the cinematic read. Warmer than blue, quieter than lime, and
+   the most crowded hue in this market.
+   -------------------------------------------------------------------------- */
+:root[data-palette="violet"] {
+  --vg-primary-rgb: 169 123 255;
+  --vg-text-on-primary: #160a2b;
+
+  --vg-accent: #7ce9f7;
+  --vg-accent-strong: #00ecff;
+  --vg-accent-deep: #00303a;
+  --vg-accent-a10: rgb(0 236 255 / 0.1);
+  --vg-accent-a20: rgb(0 236 255 / 0.2);
+  --vg-accent-a40: rgb(0 236 255 / 0.4);
+
+  --vg-reward: #c6f52e;
+  --vg-reward-a08: rgb(198 245 46 / 0.08);
+  --vg-reward-a15: rgb(198 245 46 / 0.15);
+  --vg-reward-a30: rgb(198 245 46 / 0.3);
+  --vg-text-on-reward: #131507;
+
+  --vg-plan-starter: #a8c1da;
+  --vg-plan-basic: #00ecff;
+  --vg-plan-flow: #00fc9d;
+  --vg-plan-plus: #d34fff;
+  --vg-plan-pro: #a97bff;
+  --vg-plan-studio: #8775ff;
+  --vg-plan-creator: #ff7421;
+}
+
+/* --------------------------------------------------------------------------
+   4 · EMBER — the orange the design system was originally built on, before
+   the DEEV rebrand moved it to blue. Best-performing CTA of the four, and the
+   hardest to keep scarce on a page made of cards.
+   -------------------------------------------------------------------------- */
+:root[data-palette="ember"] {
+  --vg-primary-rgb: 255 107 44;
+  --vg-text-on-primary: #1a0a02;
+
+  --vg-accent: #7fd0ff;
+  --vg-accent-strong: #00b1fe;
+  --vg-accent-deep: #00263b;
+  --vg-accent-a10: rgb(0 177 254 / 0.1);
+  --vg-accent-a20: rgb(0 177 254 / 0.2);
+  --vg-accent-a40: rgb(0 177 254 / 0.4);
+
+  --vg-reward: #c6f52e;
+  --vg-reward-a08: rgb(198 245 46 / 0.08);
+  --vg-reward-a15: rgb(198 245 46 / 0.15);
+  --vg-reward-a30: rgb(198 245 46 / 0.3);
+  --vg-text-on-reward: #131507;
+
+  --vg-plan-starter: #a8c1da;
+  --vg-plan-basic: #00ecff;
+  --vg-plan-flow: #00fc9d;
+  --vg-plan-plus: #d34fff;
+  --vg-plan-pro: #ff6b2c;
+  --vg-plan-studio: #8775ff;
+  --vg-plan-creator: #f920d1;
+}
+
+/* --------------------------------------------------------------------------
+   SURFACES — orthogonal to hue, switched separately.
+
+   The reference's near-blacks carry a blue cast (#0F1113 / #1C1E20 / #23262A)
+   where ours are neutral. On its own this does more for the "expensive" read
+   than the accent hue does, which is exactly why it must be judged on its own
+   rather than bundled into a direction.
+   -------------------------------------------------------------------------- */
+:root[data-surface="cool"] {
+  --vg-canvas: #0e1012;
+  --vg-deep: #14171a;
+  --vg-surface: #16191c;
+  --vg-surface-raised: #1e2226;
+  --vg-surface-overlay: #272c31;
+  --vg-surface-bright: #363c42;
+  --vg-glass: rgb(22 25 28 / 0.8);
+  --vg-glass-panel: rgb(22 25 28 / 0.7);
+}
