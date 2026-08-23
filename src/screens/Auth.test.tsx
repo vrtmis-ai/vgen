@@ -252,12 +252,28 @@ describe("the code's minute", () => {
     vi.useRealTimers();
   });
 
+  /**
+   * The one-second default is not a second in here.
+   *
+   * `shouldAdvanceTime` moves the fake clock along with real time, and
+   * testing-library measures its own patience against that same fake clock. So
+   * every millisecond the runner spends busy comes off the budget *as well as*
+   * the 50ms `waitFor` advances itself between polls — on a loaded machine the
+   * window closes after a handful of attempts instead of twenty, and the boxes
+   * are simply not on screen yet.
+   *
+   * It failed exactly that way on CI once, on a pull request that changed one
+   * markdown file. `shouldAdvanceTime` cannot just be dropped: without it both
+   * tests below hang for the full five seconds, because the send never settles.
+   */
+  const SENT = { timeout: 3_000 };
+
   async function sendCode() {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderAuth(createDemoServices({ startAnonymous: true }));
     await user.type(screen.getByLabelText("Mobile number"), "09123456789");
     await user.click(screen.getByRole("button", { name: "Send code" }));
-    await screen.findByLabelText("Digit 1 of 6");
+    await screen.findByLabelText("Digit 1 of 6", undefined, SENT);
     return user;
   }
 
@@ -289,7 +305,7 @@ describe("the code's minute", () => {
     // Dead code, dead boxes: the screen stops inviting a keystroke it would
     // reject. Resend unlocks on the same tick, so there is no state where the
     // code is expired and nothing can be done about it.
-    expect(await screen.findByRole("alert")).toHaveTextContent("That code has run out.");
+    expect(await screen.findByRole("alert", undefined, SENT)).toHaveTextContent("That code has run out.");
     expect(screen.getByLabelText("Digit 1 of 6")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Verify and sign in" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Send again" })).toBeEnabled();
@@ -301,12 +317,12 @@ describe("the code's minute", () => {
     await user.click(screen.getByLabelText("Digit 1 of 6"));
     await user.paste("111111");
     await user.click(screen.getByRole("button", { name: "Verify and sign in" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("That code is not right.");
+    expect(await screen.findByRole("alert", undefined, SENT)).toHaveTextContent("That code is not right.");
 
     await passTime(61_000);
 
     // Leaving the older message up would tell someone to correct a code in boxes
     // that are now disabled — advice they cannot take, about the wrong problem.
-    expect(await screen.findByRole("alert")).toHaveTextContent("That code has run out.");
+    expect(await screen.findByRole("alert", undefined, SENT)).toHaveTextContent("That code has run out.");
   });
 });
