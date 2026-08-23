@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { ContentSnapshot } from "@vgen/contracts";
+import { publicJson } from "../publicJson";
 
 export interface CustomerContentApplication {
   list(): Promise<ContentSnapshot>;
@@ -18,5 +19,6 @@ export interface CustomerContentApplication {
  * seven, and the payload is smaller than the catalog it travels with.
  */
 export function registerContentRoute(app: FastifyInstance, content: CustomerContentApplication): void {
-  app.get("/api/v1/content", async () => content.list());
+  const send = publicJson<ContentSnapshot>();
+  app.get("/api/v1/content", async (_request, reply) => send(reply, await content.list()));
 }
