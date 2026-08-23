@@ -398,13 +398,21 @@ function FestivalBanner({ onSeePlans }: { onSeePlans: () => void }) {
         {t("pl_festival_strip").replace("{pct}", n(campaign.maxDiscountPct)).replace("{n}", n(campaign.maxBonusCoins))}
       </p>
 
-      {/* Digits only, and LTR so the clock reads the way a clock does even
-          inside an RTL line. The unit labels the four-cell version carried are
-          most of what made it tall; the colons say the same thing. */}
-      <span dir="ltr" className="flex shrink-0 items-center gap-1.5">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#131507]" aria-hidden />
-        <span className="font-display text-[13.5px] font-bold tabular-nums text-[#131507]">
-          {pad(days)}:{pad(hours)}:{pad(minutes)}:{pad(seconds)}
+      {/* The clock sits on its own dark chip rather than bare on the lime. Two
+          reasons, both legibility: near-black type on a saturated fill is high
+          contrast but low *separation* — the digits sank into the strip — and a
+          bare four-group figure like 03:02:47:25 has no reading. Clocks are
+          three groups, so the days are split out and labelled and the rest
+          reads as an ordinary hh:mm:ss. */}
+      <span className="flex shrink-0 items-center gap-2 rounded-full bg-[#131507] px-3 py-1.5">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" aria-hidden />
+        {days > 0 && (
+          <span className="text-[11px] font-semibold text-accent/85">
+            {n(days)} {t("pl_festival_days")}
+          </span>
+        )}
+        <span dir="ltr" className="font-display text-[14px] font-bold tabular-nums text-accent">
+          {pad(hours)}:{pad(minutes)}:{pad(seconds)}
         </span>
       </span>
 
