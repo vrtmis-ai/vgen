@@ -59,18 +59,33 @@ async function seedPrice(tx: Sql, ids: { providerModelId: string; featureId: str
 }
 
 describe("resolving a price", () => {
-  it("charges the row in force, in whole coins", async () => {
+  it("charges the row in force, to the hundredth of a coin", async () => {
     await inRollback(sql, async (tx) => {
       const ids = await seedModel(tx);
       await seedPrice(tx, ids, { microBase: 2_400_000, unitsBase: 12 });
 
       const price = await new PostgresPricingRepository(tx).priceFor({ ...ids, params: {} });
 
-      // 2.4 coins' worth rounds up to 3, and the stored amount is 3 whole coins
-      // — the customer is never charged a number no screen showed them.
-      expect(price.coins).toBe(3);
-      expect(price.microCredits).toBe(3_000_000);
+      // The row says 2.4 coins, so 2.4 is charged and 2.4 is stored — the
+      // customer is never charged a number no screen showed them. This used to
+      // round up to a whole 3, which on a $0.004 model was 6x the margin.
+      expect(price.coins).toBe(2.4);
+      expect(price.microCredits).toBe(2_400_000);
       expect(price.providerUnits).toBe(12);
+    });
+  });
+
+  it("still rounds a price up when it falls between steps", async () => {
+    await inRollback(sql, async (tx) => {
+      const ids = await seedModel(tx);
+      // 1.2345 coins. Rounding down would sell the job below cost, which is the
+      // one direction the resolver may never take.
+      await seedPrice(tx, ids, { microBase: 1_234_500, unitsBase: 6 });
+
+      const price = await new PostgresPricingRepository(tx).priceFor({ ...ids, params: {} });
+
+      expect(price.coins).toBe(1.24);
+      expect(price.microCredits).toBe(1_240_000);
     });
   });
 
