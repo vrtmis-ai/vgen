@@ -7,6 +7,8 @@ import { registerCatalogRoute, type CustomerCatalogApplication } from "./routes/
 import { registerContentRoute, type CustomerContentApplication } from "./routes/content";
 import { registerCommunityRoutes, type CommunitySubmissionsApplication, type CustomerCommunityApplication } from "./routes/community";
 import { registerPlansRoute, type CustomerPlansApplication } from "./routes/plans";
+import { registerCampaignRoute, type CustomerCampaignApplication } from "./routes/campaigns";
+import { registerPaymentRoutes, type CheckoutApplication } from "./routes/payments";
 import { registerWalletRoute, type CustomerWalletApplication } from "./routes/wallet";
 import { registerGenerationJobsRoute, type GenerationJobsApplication } from "./routes/jobs";
 import { registerGenerationQuotesRoute, type GenerationQuotesApplication } from "./routes/quotes";
@@ -40,6 +42,8 @@ export interface ApiDependencies {
   customerCommunity: CustomerCommunityApplication;
   communitySubmissions: CommunitySubmissionsApplication;
   customerPlans: CustomerPlansApplication;
+  customerCampaigns: CustomerCampaignApplication;
+  checkout: CheckoutApplication;
   frontendTelemetry: FrontendTelemetryApplication;
   generationJobs: GenerationJobsApplication;
   generationQuotes: GenerationQuotesApplication;
@@ -110,6 +114,8 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   registerContentRoute(app, dependencies.customerContent);
   registerCommunityRoutes(app, dependencies.customerSession, dependencies.customerCommunity, dependencies.communitySubmissions);
   registerPlansRoute(app, dependencies.customerPlans);
+  registerCampaignRoute(app, dependencies.customerCampaigns);
+  registerPaymentRoutes(app, dependencies.customerSession, dependencies.checkout);
   registerWalletRoute(app, dependencies.customerSession, dependencies.customerWallet);
   registerFrontendTelemetryRoute(app, dependencies.frontendTelemetry, options.telemetryRateLimit, options.telemetryRateLimiter);
   registerGenerationQuotesRoute(app, dependencies.customerSession, dependencies.generationQuotes);

@@ -28,7 +28,7 @@ import type { InputMap } from "../components/controls";
 // KIE_CREDIT_USD and coinsForKieCredits are deliberately not re-exported: the
 // names alone say who we buy from, and nothing in the browser prices in a
 // supplier's unit. They remain available to server code from @vgen/core.
-export { COIN_USD, MARGIN, MICRO_CREDITS_PER_COIN, coinsFor } from "@vgen/core";
+export { ANNUAL_MONTHS, COIN_USD, MARGIN, MICRO_CREDITS_PER_COIN, coinsFor } from "@vgen/core";
 
 /**
  * What the caller knows that the settings do not say.

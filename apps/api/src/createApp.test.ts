@@ -1,4 +1,4 @@
-import type { ShareOutcome } from "@vgen/db";
+import type { CreateOrderOutcome, ShareOutcome } from "@vgen/db";
 import { describe, expect, it, vi } from "vitest";
 import { createApp, type ApiDependencies } from "./createApp";
 
@@ -28,6 +28,8 @@ function healthyDependencies(): ApiDependencies {
       getCurrent: vi.fn(async () => ({ status: "anonymous" as const, host: "web" as const })),
     },
     customerPlans: { list: vi.fn(async () => []) },
+    customerCampaigns: { getActive: vi.fn(async () => null) },
+    checkout: { createOrder: vi.fn(async () => ({ outcome: "unknown_plan" }) as CreateOrderOutcome) },
     customerWallet: {
       getCurrent: vi.fn(async () => ({ spendable: 0, grants: [] })),
     },

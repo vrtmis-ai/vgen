@@ -36,6 +36,7 @@ export {
 } from "./priceResolution";
 export { base32Decode, base32Encode, generateTotpSecret, totpCode, totpEnrolmentUri, verifyTotp } from "./totp";
 export {
+  ANNUAL_MONTHS,
   KIE_CREDIT_USD,
   COIN_USD,
   MARGIN,

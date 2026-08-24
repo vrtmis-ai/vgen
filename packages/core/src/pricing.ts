@@ -30,6 +30,21 @@ export const COIN_USD = 0.05;
 export const MARGIN = 2;
 
 /**
+ * Months paid up front on the annual option.
+ *
+ * Here rather than in the web app because both halves multiply by it and they
+ * must never disagree: the sheet multiplies to show a total, and the API
+ * multiplies to charge one. If those two numbers ever differ, the customer is
+ * quoted one figure and billed another — so this is a single constant, in the
+ * package the browser and the server already share.
+ *
+ * Annual is a payment cadence and not a longer term. Twelve months are paid at
+ * once; the coins still arrive month by month and still expire after 30 days,
+ * which is where the annual discount comes from.
+ */
+export const ANNUAL_MONTHS = 12;
+
+/**
  * Storage unit. A coin is what the customer sees; a micro-credit is what the
  * database stores, and every money column is BIGINT micro-credits so nothing in
  * the money path is ever a float.

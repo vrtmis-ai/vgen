@@ -14,6 +14,8 @@ import {
   PostgresCommunityModeration,
   PostgresCommunitySubmissions,
   PostgresPlansRepository,
+  PostgresCampaignsRepository,
+  PostgresCheckoutRepository,
   PostgresFrontendTelemetryRepository,
   PostgresAssetsRepository,
   PostgresGalleryRepository,
@@ -139,6 +141,10 @@ const modelRoutesRepository = new PostgresModelRoutesRepository(sql);
 const analyticsRepository = new PostgresAnalyticsRepository(sql);
 const bansRepository = new PostgresBansRepository(sql);
 const accessRepository = new PostgresAccessRepository(sql);
+// Hoisted because the campaign strip's headline numbers are folded out of the
+// plan ladder rather than stored: both routes read the one memoised document,
+// so the strip can never advertise a discount checkout does not honour.
+const plansRepository = new PostgresPlansRepository(sql);
 const authRateLimiters = await createAuthRateLimiters(sql, redisUrl, rateLimitHashSecret);
 const telemetryRateLimiter = createRedisFixedWindowRateLimiter(redisUrl, {
   max: 20,
@@ -215,7 +221,9 @@ const app = createApp(
     customerContent: new PostgresContentRepository(sql),
     customerCommunity: new PostgresCommunityRepository(sql),
     communitySubmissions: new PostgresCommunitySubmissions(sql),
-    customerPlans: new PostgresPlansRepository(sql),
+    customerPlans: plansRepository,
+    customerCampaigns: new PostgresCampaignsRepository(sql, plansRepository),
+    checkout: new PostgresCheckoutRepository(sql),
     frontendTelemetry: new PostgresFrontendTelemetryRepository(sql),
     generationJobs: new PostgresGenerationRepository(sql),
     generationQuotes: new PostgresQuotesRepository(sql),
