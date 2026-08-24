@@ -33,10 +33,14 @@ export const QuoteGenerationRequestSchema = z
  * `coins` is authoritative and always present — zero is a real answer, not a
  * missing one. `unlimited` is present only when the zero came from a grant
  * rather than from a free price, so the UI can say why and show what is left.
+ *
+ * Not a whole number: generations bill in hundredths of a coin, so a cheap
+ * model quotes 0.16 instead of rounding up to 1. See
+ * MICRO_CREDITS_PER_BILLED_STEP in @vgen/core.
  */
 export const GenerationQuoteSchema = z.object({
   id: z.uuid(),
-  coins: z.number().int().nonnegative(),
+  coins: z.number().nonnegative(),
   expiresAt: z.number().int().nonnegative(),
   unlimited: z
     .object({
@@ -115,8 +119,8 @@ export const GenerationJobSchema = z.object({
   status: GenerationJobStatusSchema,
   familyId: z.string().min(1),
   variantId: z.string().min(1),
-  /** What it was quoted at. Also what it was charged, once it succeeds. */
-  coins: z.number().int().nonnegative(),
+  /** What it was quoted at, in hundredths of a coin. Also what it was charged, once it succeeds. */
+  coins: z.number().nonnegative(),
   prompt: z.string(),
   createdAt: z.number().int().nonnegative(),
   updatedAt: z.number().int().nonnegative(),

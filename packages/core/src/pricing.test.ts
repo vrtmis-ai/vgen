@@ -3,6 +3,7 @@ import {
   COIN_USD,
   KIE_CREDIT_USD,
   MARGIN,
+  MICRO_CREDITS_PER_BILLED_STEP,
   MICRO_CREDITS_PER_COIN,
   coinsFor,
   coinsForKieCredits,
@@ -33,14 +34,32 @@ describe("coin pricing", () => {
     expect(MARGIN).toBe(2);
     // 1 KIE credit costs $0.005, doubled is $0.01, which is 0.2 coins.
     expect(coinsForKieCredits(5)).toBe(1);
+    expect(coinsForKieCredits(1)).toBe(0.2);
   });
 
   it("always rounds a price up, never down", () => {
     // Rounding a fractional coin down is selling a generation below cost.
-    expect(coinsFor(0.001)).toBe(1);
-    expect(coinsFor(0.026)).toBe(2);
-    expect(coinsForKieCredits(1)).toBe(1);
-    expect(coinsForKieCredits(6)).toBe(2);
+    // The step is a hundredth of a coin, not a whole one.
+    expect(coinsFor(0.0001)).toBe(0.01);
+    expect(coinsFor(0.026)).toBe(1.04);
+    expect(coinsForKieCredits(6)).toBe(1.2);
+  });
+
+  it("bills a cheap model at its real price rather than a whole coin", () => {
+    // The regression this exists for: Z-Image costs $0.004, which is exactly
+    // 0.16 of a coin. Billing 1 coin for it charged 6.25x the margin — and the
+    // cheap models are the ones a plan's headline output count is quoted from.
+    expect(coinsFor(0.004)).toBe(0.16);
+    expect(microCreditsFor(0.004)).toBe(160_000);
+  });
+
+  it("keeps binary floating point out of the price", () => {
+    // (0.004 * 2) / 0.05 * 1e6 is 160000.00000000003 in doubles. A bare ceil on
+    // that noise bills 0.17 for a price that is exactly 0.16.
+    for (const usd of [0.004, 0.02, 0.029, 0.07, 0.115, 0.35, 1.675]) {
+      expect(microCreditsFor(usd) % 10_000).toBe(0);
+      expect(microCreditsFor(usd)).toBeGreaterThanOrEqual((usd * MARGIN * MICRO_CREDITS_PER_COIN) / COIN_USD - 1);
+    }
   });
 
   it("charges nothing for nothing", () => {
@@ -55,10 +74,13 @@ describe("micro-credit conversion", () => {
     expect(microCreditsToCoins(coinsToMicroCredits(12))).toBe(12);
   });
 
-  it("rounds a partial coin toward the customer's disadvantage when displaying", () => {
-    // Half a coin cannot buy anything, so a balance must not read as if it can.
-    expect(microCreditsToCoins(MICRO_CREDITS_PER_COIN - 1)).toBe(0);
-    expect(microCreditsToCoins(MICRO_CREDITS_PER_COIN * 3 + 999_999)).toBe(3);
+  it("shows a balance down to the step it can be spent in, never up", () => {
+    // A partial coin buys real generations now, so flooring a balance to the
+    // whole coin would hide money the customer has. It still never rounds up:
+    // the remainder below one step cannot be spent, so it is not displayed.
+    expect(microCreditsToCoins(MICRO_CREDITS_PER_COIN - 1)).toBe(0.99);
+    expect(microCreditsToCoins(MICRO_CREDITS_PER_COIN * 3 + 999_999)).toBe(3.99);
+    expect(microCreditsToCoins(9_999)).toBe(0);
   });
 
   it("refuses a fractional coin rather than silently truncating it", () => {
@@ -66,10 +88,11 @@ describe("micro-credit conversion", () => {
     expect(() => coinsToMicroCredits(1.5)).toThrow(RangeError);
   });
 
-  it("prices to a whole coin, so the stored amount matches the quoted one", () => {
-    // 3 coins, not 2.4 coins' worth of micro-credits: the customer was shown 3.
-    expect(microCreditsFor(0.06)).toBe(coinsToMicroCredits(3));
-    expect(microCreditsFor(0.06) % MICRO_CREDITS_PER_COIN).toBe(0);
+  it("stores exactly what was quoted, down to the billed step", () => {
+    // 2.4 coins, not the 3 the whole-coin ceil used to charge: the customer is
+    // shown 2.4, so 2.4 is what the ledger holds.
+    expect(microCreditsFor(0.06)).toBe(2_400_000);
+    expect(microCreditsFor(0.06) % MICRO_CREDITS_PER_BILLED_STEP).toBe(0);
   });
 });
 
@@ -138,8 +161,8 @@ describe("quantities", () => {
 
   it("bills text in whole blocks, and never fewer than one", () => {
     const perBlock = [{ ...FLAT, pricingMode: "derived" as const, microCreditsPer1kInput: 1_200_000, providerUnitsPer1kInput: 6 }];
-    expect(resolvePrice(perBlock, { params: {}, characters: 1 })).toMatchObject({ coins: 2 });
-    expect(resolvePrice(perBlock, { params: {}, characters: 1000 })).toMatchObject({ coins: 2 });
-    expect(resolvePrice(perBlock, { params: {}, characters: 2500 })).toMatchObject({ coins: 4 });
+    expect(resolvePrice(perBlock, { params: {}, characters: 1 })).toMatchObject({ coins: 1.2 });
+    expect(resolvePrice(perBlock, { params: {}, characters: 1000 })).toMatchObject({ coins: 1.2 });
+    expect(resolvePrice(perBlock, { params: {}, characters: 2500 })).toMatchObject({ coins: 3.6 });
   });
 });

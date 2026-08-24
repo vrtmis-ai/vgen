@@ -40,10 +40,12 @@ export {
   COIN_USD,
   MARGIN,
   MICRO_CREDITS_PER_COIN,
+  MICRO_CREDITS_PER_BILLED_STEP,
   coinsFor,
   coinsForKieCredits,
   coinsToMicroCredits,
   microCreditsFor,
   microCreditsForKieCredits,
   microCreditsToCoins,
+  roundUpToBilledStep,
 } from "./pricing";

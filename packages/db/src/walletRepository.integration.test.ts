@@ -48,19 +48,26 @@ describe("Postgres wallet repository", () => {
   it("never reports more coins than the balance can actually buy", async () => {
     await inRollback(sql, async (tx) => {
       const { userId, accountId } = await makeUser(tx);
-      // Three lots that are each half a coin short of a whole one. Converting
-      // per lot and adding would report 0; the total is genuinely 1 coin.
+      // Six lots, none of which is a whole number of billed steps on its own.
+      // Converting per lot and adding reports 1.5; the total is genuinely 1.51.
+      // The three 5000s are each below one step (10000 micro-credits), so per-lot
+      // conversion would floor every one of them to nothing.
       await tx`
         insert into credit_lots (account_id, source, micro_credits_total, micro_credits_remaining, expires_at)
         values
           (${accountId}, 'promo', 500000, 500000, null),
           (${accountId}, 'promo', 500000, 500000, null),
-          (${accountId}, 'promo', 500000, 500000, null)
+          (${accountId}, 'promo', 500000, 500000, null),
+          (${accountId}, 'promo', 5000, 5000, null),
+          (${accountId}, 'promo', 5000, 5000, null),
+          (${accountId}, 'promo', 5000, 5000, null)
       `;
 
       const wallet = await new PostgresWalletRepository(tx).getCurrent(userId);
 
-      expect(wallet.spendable).toBe(1);
+      // Not floored to a whole coin either: half a coin buys three Z-Image
+      // frames, and reporting it as 1 would hide money the customer has.
+      expect(wallet.spendable).toBe(1.51);
     });
   });
 

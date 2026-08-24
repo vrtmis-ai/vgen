@@ -20,8 +20,12 @@ describe("application contracts", () => {
     expect(() => SessionSchema.parse({ status: "authed", host: "web" })).toThrow();
   });
 
-  it("rejects fractional balances at the API boundary", () => {
-    expect(() => WalletSchema.parse({ spendable: 1.5, grants: [] })).toThrow();
+  it("accepts a fractional balance and still rejects a negative one", () => {
+    // Generations bill in hundredths of a coin, so what is left after spending
+    // is a fraction. Rejecting it here would fail a wallet the ledger holds
+    // perfectly well; below zero is still the impossible case.
+    expect(() => WalletSchema.parse({ spendable: 1.5, grants: [] })).not.toThrow();
+    expect(() => WalletSchema.parse({ spendable: -1, grants: [] })).toThrow();
   });
 
   it("requires durable idempotency keys and supports terminal job failures", () => {
