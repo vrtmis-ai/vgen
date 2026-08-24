@@ -320,6 +320,12 @@ redirect — which is exactly what a screen refactor tends to break. If you chan
 navigation, expect to update `e2e/navigation.spec.ts` deliberately, and do not
 "fix" it by loosening the assertion.
 
+**A red check on a file you did not touch is not automatically a flake.**
+[`docs/KNOWN-FLAKES.md`](docs/KNOWN-FLAKES.md) lists the ones that have been
+diagnosed, with what reproduces them. If the failure is not in there, treat it
+as real and say so rather than re-running until it passes — CI going green on
+the second try has hidden a genuine bug in this repository before.
+
 ## Gotchas that will otherwise cost you an afternoon
 
 - **Next refuses to start a second dev server in the same directory.** Stop
