@@ -245,7 +245,11 @@ describe("the sign-in screen", () => {
  */
 describe("the code's minute", () => {
   beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // `Date` only. The countdown reads `Date.now()` on every render, so moving
+    // the clock is all these tests need — and leaving setInterval and the
+    // microtask queue real is what lets a react-query mutation settle by
+    // itself.
+    vi.useFakeTimers({ toFake: ["Date"] });
   });
 
   afterEach(() => {
@@ -253,27 +257,25 @@ describe("the code's minute", () => {
   });
 
   /**
-   * The one-second default is not a second in here.
+   * A real second of patience, not a fake one.
    *
-   * `shouldAdvanceTime` moves the fake clock along with real time, and
-   * testing-library measures its own patience against that same fake clock. So
-   * every millisecond the runner spends busy comes off the budget *as well as*
-   * the 50ms `waitFor` advances itself between polls — on a loaded machine the
-   * window closes after a handful of attempts instead of twenty, and the boxes
-   * are simply not on screen yet.
-   *
-   * It failed exactly that way on CI once, on a pull request that changed one
-   * markdown file. `shouldAdvanceTime` cannot just be dropped: without it both
-   * tests below hang for the full five seconds, because the send never settles.
+   * The old setup faked every timer with `shouldAdvanceTime`, which moves the
+   * fake clock along with real time — and testing-library measures its own
+   * patience against that same clock, so a busy runner spent the budget
+   * without doing the work. It went red that way twice, both on pull requests
+   * that changed only markdown, and each fix raised the number rather than
+   * removing the coupling. With only `Date` faked there is no coupling left:
+   * this budget is real milliseconds, and the countdown's own interval is a
+   * real one that fires on its own.
    */
-  const SENT = { timeout: 3_000 };
+  const TICK = { timeout: 3_000 };
 
   async function sendCode() {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const user = userEvent.setup();
     renderAuth(createDemoServices({ startAnonymous: true }));
     await user.type(screen.getByLabelText("Mobile number"), "09123456789");
     await user.click(screen.getByRole("button", { name: "Send code" }));
-    await screen.findByLabelText("Digit 1 of 6", undefined, SENT);
+    await screen.findByLabelText("Digit 1 of 6", undefined, TICK);
     return user;
   }
 
@@ -287,9 +289,12 @@ describe("the code's minute", () => {
    * fires the interval that makes it read again.
    */
   async function passTime(ms: number) {
+    // Only the clock moves. The component's own one-second interval is real, so
+    // give it one real tick to notice — the assertions after this are about
+    // what it renders once it has.
     await act(async () => {
       vi.setSystemTime(Date.now() + ms);
-      vi.advanceTimersByTime(ms);
+      await new Promise((resolve) => setTimeout(resolve, 1_100));
     });
   }
 
@@ -305,7 +310,7 @@ describe("the code's minute", () => {
     // Dead code, dead boxes: the screen stops inviting a keystroke it would
     // reject. Resend unlocks on the same tick, so there is no state where the
     // code is expired and nothing can be done about it.
-    expect(await screen.findByRole("alert", undefined, SENT)).toHaveTextContent("That code has run out.");
+    expect(await screen.findByRole("alert", undefined, TICK)).toHaveTextContent("That code has run out.");
     expect(screen.getByLabelText("Digit 1 of 6")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Verify and sign in" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Send again" })).toBeEnabled();
@@ -317,12 +322,12 @@ describe("the code's minute", () => {
     await user.click(screen.getByLabelText("Digit 1 of 6"));
     await user.paste("111111");
     await user.click(screen.getByRole("button", { name: "Verify and sign in" }));
-    expect(await screen.findByRole("alert", undefined, SENT)).toHaveTextContent("That code is not right.");
+    expect(await screen.findByRole("alert", undefined, TICK)).toHaveTextContent("That code is not right.");
 
     await passTime(61_000);
 
     // Leaving the older message up would tell someone to correct a code in boxes
     // that are now disabled — advice they cannot take, about the wrong problem.
-    expect(await screen.findByRole("alert", undefined, SENT)).toHaveTextContent("That code has run out.");
+    expect(await screen.findByRole("alert", undefined, TICK)).toHaveTextContent("That code has run out.");
   });
 });
