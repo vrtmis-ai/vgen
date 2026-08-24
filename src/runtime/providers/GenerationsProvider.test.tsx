@@ -3,9 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { AppServicesProvider } from "../AppServices";
 import { CatalogProvider } from "../../features/catalog/CatalogProvider";
+import { createDemoCatalogService } from "../../adapters/demo/catalog";
 import { createDemoServices } from "../../adapters/demo/demoServices";
 import type { AppServices } from "../AppServices";
-import type { Family } from "../../data/models";
+import { defaultInput, variantControls, type Family } from "../../data/models";
 import { loadGenerations, saveGenerations, type Generation } from "../../lib/gallery";
 import { GenerationsProvider, useGenerations } from "./GenerationsProvider";
 import { NavigationProvider } from "./NavigationProvider";
@@ -79,32 +80,25 @@ describe("generations persistence across the hydration gap", () => {
 });
 
 /**
- * A family with one image reference slot, so a generation can carry a file.
- * Minimal on purpose: only the fields the provider and the validator read.
+ * A real catalogue entry, not a fabricated one. The demo quote looks the
+ * variant up and throws "Demo catalog does not contain the requested model
+ * variant" for anything it does not have — which is the right behaviour and is
+ * what caught the first version of this test.
  */
-const FAMILY_WITH_REF = {
-  id: "nano-banana",
-  name: "Nano Banana",
-  vendor: "Google",
-  grad: "grad",
-  kind: "image",
-  blurb: "",
-  variants: [
-    {
-      id: "v1",
-      name: "v1",
-      controls: [],
-      refs: [{ key: "image_url", media: "image", label: "reference", min: 0, max: 2 }],
-    },
-  ],
-} as unknown as Family;
+const catalog = await createDemoCatalogService(() => 0).list();
+const FAMILY_WITH_REF = catalog.families.find((f) => f.id === "nano-banana")! as unknown as Family;
+const VARIANT_WITH_REF = FAMILY_WITH_REF.variants.find((v) => v.id === "nano-banana-pro")!;
+/** The slot that variant actually declares. */
+const REF_SLOT = "image_input";
+/** Real controls, real defaults — an empty input map fails validation. */
+const INPUT = defaultInput(variantControls(FAMILY_WITH_REF, VARIANT_WITH_REF));
 
 function Uploader({ refs }: { refs: Record<string, { file: File; url: string }[]> }) {
   const { startGeneration } = useGenerations();
   return (
     <button
       onClick={() => {
-        void startGeneration("nano-banana", "یک گربه", {}, FAMILY_WITH_REF.variants[0]!, refs as never);
+        void startGeneration("nano-banana", "یک گربه", INPUT, VARIANT_WITH_REF, refs as never);
       }}
     >
       go
@@ -116,7 +110,7 @@ function renderWithServices(services: AppServices, refs: Record<string, { file: 
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
       <AppServicesProvider services={services}>
-        <CatalogProvider families={[FAMILY_WITH_REF]}>
+        <CatalogProvider families={catalog.families}>
           <NavigationProvider>
             <GenerationsProvider>
               <Uploader refs={refs} />
@@ -145,7 +139,7 @@ describe("reference images reach the quote", () => {
     const spied: AppServices = { ...services, assets: { upload }, generation: { ...services.generation, quote, create } };
 
     renderWithServices(spied, {
-      image_url: [
+      [REF_SLOT]: [
         { file: file(), url: "blob:a" },
         { file: file(), url: "blob:b" },
       ],
@@ -154,7 +148,7 @@ describe("reference images reach the quote", () => {
 
     await waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
     const sent = quote.mock.calls[0]?.[0] as { referenceAssetIds: Record<string, string[]> } | undefined;
-    expect(sent?.referenceAssetIds.image_url).toHaveLength(2);
+    expect(sent?.referenceAssetIds[REF_SLOT]).toHaveLength(2);
   });
 
   it("sends an empty map when nothing was picked, rather than an absent field", async () => {
