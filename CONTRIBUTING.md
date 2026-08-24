@@ -48,15 +48,15 @@ pnpm db:setup                     # migrate, then seed
 ```
 
 `pnpm db:setup` is `db:migrate` followed by `db:seed`, and `db:seed` runs the
-five publishers in the one order that works. They are order-dependent because
+seven publishers in the one order that works. They are order-dependent because
 each of the later ones looks the catalogue up by variant id and refuses rather
 than inventing a row:
 
 ```
-catalog → pricing → plans → unlimited → providers
+catalog → pricing → plans → unlimited → providers → content → community
 ```
 
-All five are idempotent. Re-running prints `already current` and writes nothing,
+All seven are idempotent. Re-running prints `already current` and writes nothing,
 which is why `pnpm dev:stack` now seeds on every start — without it you get a
 migrated database with an empty catalogue, and `GET /catalog` answers 200 with
 zero families, which reads as a broken app rather than an unseeded one.
@@ -98,7 +98,7 @@ applications behind them have never been registered; see
 [docs/OAUTH-SETUP.md](docs/OAUTH-SETUP.md) if that is the job you picked up. `WAVESPEED_API_KEY` nobody holds yet and `USEAPI_*`
 has no adapter, so both stay blank.
 
-**You need none of them for most backend work.** The migrations, all five
+**You need none of them for most backend work.** The migrations, all seven
 seeders, the integration suite, quotes, credit holds, the admin API and provider
 routing all run with every third-party key blank. Only actually producing a
 picture needs `KIE_API_KEY`.
@@ -194,6 +194,12 @@ The split is by directory, so it is checkable rather than a matter of memory.
 | `packages/db/`                         | Repositories **and** `migrations/` — never edit an applied migration, add a new one |
 | `packages/core/`, `packages/adapters/` | Pricing, money math, secrets, Redis and S3 adapters                                 |
 | `src/runtime/`                         | Providers, session gates, and the HTTP adapters the screens consume                 |
+
+`src/runtime/` is the one on this list that is easy to walk into by accident:
+it sits under `src/` beside the screens and reads like frontend code, but the
+providers, the session gate and the HTTP adapters are the backend's contract
+with the browser. A screen needing something new from there is a conversation,
+not a commit.
 
 ### Shared — say something first
 
@@ -294,7 +300,9 @@ more than the diff in six months.
 
 `src/design-system/DESIGN.md` and `INTEGRATION.md` are thorough and worth
 reading, but both **predate the DEEV rebrand** and still describe an orange
-accent. The brand is now black, white and one blue. Where they disagree with
+accent. The brand is now black, white and one electric lime — see
+`docs/COLOUR.md` for the rule that governs how much of it a screen may use.
+Where they disagree with
 `tokens.css`, the tokens are right.
 
 ## Tests
