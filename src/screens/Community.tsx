@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Heart, MagicWand, FilmSlate } from "@phosphor-icons/react";
-import { getFamily } from "../data/models";
+
 import { useCommunityFeed } from "../features/session/useSession";
 import type { CommunityPost } from "../runtime/contracts/community";
 import { VendorMark } from "../components/VendorMark";
 import { faNum } from "../lib/format";
+import { useFamily } from "../features/catalog/CatalogProvider";
 import { useI18n } from "../lib/i18n";
 import { riseItem, riseParent } from "../lib/motion";
 
@@ -39,7 +40,7 @@ const CATEGORY_LABEL: Record<CommunityPost["kind"], string> = {
 };
 
 function PostCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
-  const f = getFamily(p.familyId);
+  const f = useFamily(p.familyId);
   // A reel is a showcase cut from several jobs. There is no single generation
   // behind it, so there is nothing to recreate — see data/community.ts.
   const recreatable = p.kind !== "reel" && !!f;

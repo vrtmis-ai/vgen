@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { CalendarCheck, CaretDown, Check, DeviceMobile, Gift, ImageSquare, VideoCamera } from "@phosphor-icons/react";
-import { getFamily, type Family } from "../data/models";
+import type { Family } from "../data/models";
+import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import type { CommunityPost } from "../runtime/contracts/community";
 import {
   toman,
@@ -169,6 +170,7 @@ function Features() {
    --------------------------------------------------------------------------- */
 function Reel({ posts }: { posts: readonly CommunityPost[] }) {
   const { t } = useI18n();
+  const familyOf = useFamilyLookup();
   // The eight most-liked, handed down rather than fetched here. Landing stays a
   // screen that renders what it is given — the same reason `plans` is a prop —
   // so it can be rendered in a test without a service container behind it.
@@ -194,13 +196,13 @@ function Reel({ posts }: { posts: readonly CommunityPost[] }) {
           <motion.figure key={p.id} variants={riseItem} className="flex w-[230px] shrink-0 flex-col gap-3 md:w-[280px]">
             <div className="vg-bezel">
               <div className="relative h-[300px] w-full md:h-[360px]">
-                <Art family={getFamily(p.familyId)} />
+                <Art family={familyOf(p.familyId)} />
               </div>
             </div>
             <figcaption className="grid gap-1.5">
               <span className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: "var(--vg-text-secondary)" }}>
-                <ModelMark vendor={getFamily(p.familyId)?.vendor ?? ""} size={14} />
-                <span lang="en">{getFamily(p.familyId)?.name ?? p.familyId}</span>
+                <ModelMark vendor={familyOf(p.familyId)?.vendor ?? ""} size={14} />
+                <span lang="en">{familyOf(p.familyId)?.name ?? p.familyId}</span>
               </span>
               {/* The prompt is English in the seed data and will often be
                   English in production too — people paste them from elsewhere —

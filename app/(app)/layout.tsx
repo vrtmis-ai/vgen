@@ -47,7 +47,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const session = sessionQuery.data ?? { status: "loading" as const, host: "web" as const };
   const authed = session.status === "authed";
   const walletQuery = useWallet(authed);
-  const catalogQuery = useCatalog(authed);
+  // Not gated on `authed`. GET /catalog needs no session, and the landing page
+  // names models — it was reading the compiled-in FAMILIES constant purely
+  // because the provider sat below the session gate, so a family retired in the
+  // database went on rendering to exactly the visitors who had not signed in.
+  const catalogQuery = useCatalog(true);
 
   // Neither of these is gated on `authed`: the landing page prices two plans
   // for a visitor who has no session yet, its feature bento renders effects,
@@ -121,26 +125,28 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   if (session.status === "loading") return <AppLoading label="در حال بررسی نشست کاربری…" />;
   // The ladder gates the landing page too, not just the app: it prices two plans
   // for a visitor who has no session yet, so there is nothing to paint until it lands.
-  if (!plansQuery.data || !contentQuery.data) return <AppLoading />;
+  if (!plansQuery.data || !contentQuery.data || !catalogQuery.data) return <AppLoading />;
   /* A social sign-in that fails lands back here, anonymous, with `?auth=<code>`
      in the URL and no other trace — so the notice belongs on the one branch that
      renders for a signed-out visitor, not inside the landing page's own markup. */
   if (session.status === "anonymous")
     return (
-      <ContentProvider content={contentQuery.data}>
-        <OAuthFailureNotice />
-        {/* `posts` is not gated above with plans and content: an empty showcase
-            strip is a much smaller failure than a landing page that refuses to
-            paint until other people's posts have loaded. */}
-        <Landing
-          plans={plansQuery.data}
-          posts={communityQuery.data?.posts ?? []}
-          onSignIn={authActions.signIn}
-          onSignUp={authActions.signUp}
-        />
-      </ContentProvider>
+      <CatalogProvider families={catalogQuery.data.families}>
+        <ContentProvider content={contentQuery.data}>
+          <OAuthFailureNotice />
+          {/* `posts` is not gated above with plans and content: an empty showcase
+              strip is a much smaller failure than a landing page that refuses to
+              paint until other people's posts have loaded. */}
+          <Landing
+            plans={plansQuery.data}
+            posts={communityQuery.data?.posts ?? []}
+            onSignIn={authActions.signIn}
+            onSignUp={authActions.signUp}
+          />
+        </ContentProvider>
+      </CatalogProvider>
     );
-  if (!walletQuery.data || !catalogQuery.data) return <AppLoading />;
+  if (!walletQuery.data) return <AppLoading />;
 
   /* Everything below is signed in, so it all sits inside AccessProvider.
      The tier gate is asked five levels down — a picker row, a dock chip, a

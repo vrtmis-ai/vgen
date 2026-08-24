@@ -6,21 +6,26 @@ import { FAMILIES } from "../data/models";
 import { effectiveUsd, toman } from "../data/plans";
 import { PLAN_LADDER } from "../data/planLadder";
 import Landing, { HERO_MODEL_IDS } from "./Landing";
+import { CatalogProvider } from "../features/catalog/CatalogProvider";
 import { ContentProvider } from "../features/content/ContentProvider";
+import { createDemoCatalogService } from "../adapters/demo/catalog";
 import { createDemoContentService } from "../adapters/demo/content";
 import { createDemoCommunityService } from "../adapters/demo/community";
 
-// The landing page's feature bento renders nine effects, three courses and a
-// voice count, all of which are served now rather than imported. The demo
-// service is the same committed snapshot the app uses with no backend, so
+// The landing page's feature bento renders nine effects, three courses, a voice
+// count and two family counts — all served now rather than imported. The demo
+// services are the same committed snapshots the app uses with no backend, so
 // these tests read what a visitor with no session actually gets.
 const content = await createDemoContentService(() => 0).list();
+const catalog = await createDemoCatalogService(() => 0).list();
 const { posts } = await createDemoCommunityService().list();
 
 function withProviders(ui: React.ReactNode) {
   return (
     <LanguageProvider initialLang="en">
-      <ContentProvider content={content}>{ui}</ContentProvider>
+      <CatalogProvider families={catalog.families}>
+        <ContentProvider content={content}>{ui}</ContentProvider>
+      </CatalogProvider>
     </LanguageProvider>
   );
 }
