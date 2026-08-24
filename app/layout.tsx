@@ -19,7 +19,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#0a0a0b",
+  themeColor: "#0e1012",
 };
 
 /**
@@ -45,7 +45,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         {/* Fonts are bundled (src/fonts.css). Nothing is fetched from Google at
             runtime: it is slow from Iran, and a blocked stylesheet dropped the
             whole UI to a system font part-way through loading. */}
-        <style>{"html,body{background:#0a0a0b}"}</style>
+        <style>{"html,body{background:#0e1012}"}</style>
         {/* Start the DNS+TCP+TLS chain for the runtime third-party origins during
             parse instead of serially after it. On a high-latency connection the
             handshakes, not the bytes, are the expensive part.

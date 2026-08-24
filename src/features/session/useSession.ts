@@ -8,6 +8,7 @@ export const appQueryKeys = {
   community: ["community"] as const,
   plans: ["plans"] as const,
   wallet: ["wallet"] as const,
+  campaign: ["campaign"] as const,
 };
 
 export function useSession() {
@@ -89,5 +90,25 @@ export function useWallet(enabled: boolean) {
     queryFn: ({ signal }) => services.wallet.getCurrent({ signal }),
     enabled,
     staleTime: 15_000,
+  });
+}
+
+/**
+ * A campaign changes when someone in the office decides it does, and it ends at
+ * a fixed instant. One fetch per screen visit is enough — the banner counts the
+ * remaining time down locally from `endsAt` and removes itself at zero, so a
+ * stale answer expires on its own rather than outstaying the campaign.
+ *
+ * `retry: false` because the route not existing yet is the expected state while
+ * the API side is unbuilt, and a retry storm on every plans visit is not worth
+ * paying for that.
+ */
+export function useActiveCampaign() {
+  const services = useAppServices();
+  return useQuery({
+    queryKey: appQueryKeys.campaign,
+    queryFn: ({ signal }) => services.campaign.getActive({ signal }),
+    staleTime: 5 * 60_000,
+    retry: false,
   });
 }

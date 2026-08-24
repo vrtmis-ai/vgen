@@ -7,6 +7,7 @@ import type {
   StartPhoneVerificationInput,
   VerifyPhoneInput,
 } from "./contracts/auth";
+import type { Campaign } from "./contracts/campaign";
 import type { CatalogSnapshot } from "./contracts/catalog";
 import type { ContentSnapshot } from "./contracts/content";
 import type { CommunityFeed } from "./contracts/community";
@@ -14,6 +15,7 @@ import type { GalleryPage, GalleryQuery } from "./contracts/gallery";
 import type { Plan } from "./contracts/plans";
 import type { CreateGenerationRequest, GenerationJob, GenerationQuote, QuoteGenerationRequest } from "./contracts/generation";
 import type { UploadedAsset } from "./contracts/assets";
+import type { CheckoutOrder, CreateCheckoutOrderInput } from "./contracts/payment";
 import type { Session } from "./contracts/session";
 import type { Wallet } from "./contracts/wallet";
 
@@ -73,6 +75,22 @@ export interface AppServices {
   };
   wallet: {
     getCurrent(options?: RequestOptions): Promise<Wallet>;
+  };
+  /**
+   * The running price campaign, or null when there is none. Null is not an
+   * error — it is most of the year, and it is what makes the plans banner
+   * disappear rather than advertise a festival that is over.
+   */
+  campaign: {
+    getActive(options?: RequestOptions): Promise<Campaign | null>;
+  };
+  /**
+   * Checkout. The browser names a plan; the server prices it, reserves that
+   * price, registers the payment with the gateway and answers with where to
+   * send the person next. Nothing here computes an amount.
+   */
+  payment: {
+    createOrder(input: CreateCheckoutOrderInput, options?: RequestOptions): Promise<CheckoutOrder>;
   };
   generation: {
     quote(request: QuoteGenerationRequest, options?: RequestOptions): Promise<GenerationQuote>;

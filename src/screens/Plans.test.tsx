@@ -1,6 +1,9 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { createDemoServices } from "../adapters/demo/demoServices";
 import { LanguageProvider } from "../lib/i18n";
+import { AppServicesProvider } from "../runtime/AppServices";
 import { PlansProvider } from "../features/plans/PlansProvider";
 import { toman } from "../data/plans";
 import { PLAN_LADDER } from "../data/planLadder";
@@ -10,13 +13,25 @@ import type { Wallet } from "../runtime/contracts/wallet";
 
 const WALLET: Wallet = { spendable: 12, grants: [] };
 
+/**
+ * The screen asks for the running campaign, so it needs the service port and a
+ * query client above it. Retries are off and the campaign query resolves after
+ * this synchronous render, so the strip is simply absent in these cases — which
+ * is the same thing a visitor sees when no campaign is running, and it keeps
+ * these assertions about the ladder rather than about a banner.
+ */
 function show(plans: readonly Plan[], currentPlanId: string | null = null) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <LanguageProvider initialLang="en">
-      <PlansProvider plans={plans}>
-        <Plans wallet={WALLET} currentPlanId={currentPlanId} onBack={vi.fn()} />
-      </PlansProvider>
-    </LanguageProvider>,
+    <QueryClientProvider client={queryClient}>
+      <AppServicesProvider services={createDemoServices()}>
+        <LanguageProvider initialLang="en">
+          <PlansProvider plans={plans}>
+            <Plans wallet={WALLET} currentPlanId={currentPlanId} onBack={vi.fn()} />
+          </PlansProvider>
+        </LanguageProvider>
+      </AppServicesProvider>
+    </QueryClientProvider>,
   );
 }
 

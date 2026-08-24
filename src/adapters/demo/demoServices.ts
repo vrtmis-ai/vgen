@@ -1,9 +1,11 @@
 import type { AppServices } from "../../runtime/AppServices";
 import { createDemoAuthService, createDemoAuthState } from "./auth";
+import { createDemoCampaignService } from "./campaign";
 import { createDemoCatalogService } from "./catalog";
 import { createDemoCommunityService } from "./community";
 import { createDemoContentService } from "./content";
 import { createDemoGenerationAdapters } from "./generation";
+import { createDemoPaymentService } from "./payment";
 import { createDemoPlansService } from "./plans";
 import { createDemoSessionService } from "./session";
 import { createDemoWalletService } from "./wallet";
@@ -32,6 +34,8 @@ export function createDemoServices(options: DemoServiceOptions = {}): AppService
     community: createDemoCommunityService(),
     plans: createDemoPlansService(),
     wallet: createDemoWalletService(now),
+    campaign: createDemoCampaignService(now),
+    payment: createDemoPaymentService(now),
     generation,
     gallery,
     assets,
