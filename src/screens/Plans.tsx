@@ -39,9 +39,7 @@ import {
   XCircle,
 } from "@phosphor-icons/react";
 import {
-  PLANS,
   toman,
-  monthlyCoins,
   annualDiscountPct,
   annualTotalUsd,
   effectiveUsd,
@@ -52,6 +50,7 @@ import {
   type Plan,
   type PricingAccount,
 } from "../data/plans";
+import { usePlanLadder } from "../features/plans/PlansProvider";
 import { CoinMark } from "../components/chrome";
 import { useActiveCampaign } from "../features/session/useSession";
 import { useAppServices } from "../runtime/AppServices";
@@ -136,7 +135,7 @@ function PlanFeatures({ plan, compact = false }: { plan: Plan; compact?: boolean
 function UnlimitedBenefit({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
   const { t, n } = useI18n();
   if (plan.tier < 2) return null;
-  const isProTrial = plan.id === "pro";
+  const isProTrial = plan.code === "pro";
   return (
     <div className={`rounded-xl border border-reward-line bg-reward-wash ${compact ? "p-2" : "p-3"}`}>
       <div className="flex items-center gap-2 text-[11px] font-bold text-reward">
@@ -159,7 +158,7 @@ function PlanAccessList({ plan, compact = false }: { plan: Plan; compact?: boole
     {
       key: "unlimited",
       active: plan.tier >= 2,
-      label: t(plan.id === "pro" ? "pl_access_unlimited_7d" : plan.tier >= 3 ? "pl_access_unlimited_daily" : "pl_access_unlimited"),
+      label: t(plan.code === "pro" ? "pl_access_unlimited_7d" : plan.tier >= 3 ? "pl_access_unlimited_daily" : "pl_access_unlimited"),
     },
     { key: "parallel", active: true, label: t("pl_parallel").replace("{n}", n(plan.maxConcurrentJobs)) },
     { key: "training", active: true, label: t("pl_benefit_training") },
@@ -231,9 +230,6 @@ function byFamily(rows: Benchmark[]): FamilyGroup[] {
 }
 
 type Cycle = "monthly" | "annual";
-
-/** Best annual saving across the catalogue — the number worth putting on the toggle. */
-const MAX_ANNUAL_SAVE = Math.max(...PLANS.map(annualDiscountPct));
 
 /** What the buy button actually commits the user to, spelled out. */
 function buyKey(plan: Plan, cycle: Cycle): "pl_buy_30" | "pl_buy_12m" {
@@ -320,6 +316,10 @@ function Estimates({ plan, compact }: { plan: Plan; compact?: boolean }) {
 
 /** Monthly ⇄ yearly switch. Yearly carries the saving so the choice is legible. */
 function CycleToggle({ cycle, onChange }: { cycle: Cycle; onChange: (c: Cycle) => void }) {
+  const plans = usePlanLadder();
+  // Read off the ladder that is actually on screen. This was a module constant
+  // computed at import time — a promise about prices made before they arrived.
+  const maxSave = Math.max(0, ...plans.map(annualDiscountPct));
   const { t, n, lang } = useI18n();
   const pct = lang === "fa" ? "٪" : "%";
   return (
@@ -334,13 +334,13 @@ function CycleToggle({ cycle, onChange }: { cycle: Cycle; onChange: (c: Cycle) =
             style={on ? { background: "var(--color-accent)", color: "var(--color-on-accent)" } : { color: "var(--color-ink2)" }}
           >
             {t(c === "monthly" ? "pl_monthly" : "pl_annual")}
-            {c === "annual" && MAX_ANNUAL_SAVE > 0 && (
+            {c === "annual" && maxSave > 0 && (
               <span
                 className="rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold"
                 style={on ? { background: "rgba(0,0,0,0.18)" } : { background: "var(--color-accent-soft)", color: "var(--color-accent)" }}
               >
                 {pct}
-                {n(MAX_ANNUAL_SAVE)} {t("pl_save")}
+                {n(maxSave)} {t("pl_save")}
               </span>
             )}
           </button>
@@ -487,8 +487,8 @@ function PlanFlipShell({
 }) {
   const { t, n } = useI18n();
   const [flipped, setFlipped] = useState(false);
-  const audienceKey = PLAN_AUDIENCE_KEY[plan.id as keyof typeof PLAN_AUDIENCE_KEY];
-  const PlanMark = PLAN_MARK[plan.id as keyof typeof PLAN_MARK] ?? Lightning;
+  const audienceKey = PLAN_AUDIENCE_KEY[plan.code as keyof typeof PLAN_AUDIENCE_KEY];
+  const PlanMark = PLAN_MARK[plan.code as keyof typeof PLAN_MARK] ?? Lightning;
   // Values live in tokens.css §4c, not here — a hex typed into a screen is a
   // colour nothing else in the system can find again.
   const accents: Record<string, string> = {
@@ -504,7 +504,7 @@ function PlanFlipShell({
   return (
     <article
       className={`plans-flip-card ${compact ? "plans-flip-card--compact" : ""}`}
-      style={{ "--plan-color": accents[plan.id] ?? "var(--color-accent)" } as CSSProperties}
+      style={{ "--plan-color": accents[plan.code] ?? "var(--color-accent)" } as CSSProperties}
       onMouseEnter={() => setFlipped(true)}
       onMouseLeave={() => setFlipped(false)}
     >
@@ -535,12 +535,16 @@ function PlanFlipShell({
               <div>
                 <p className="text-[10px] text-ink3">{t("pl_plan_credit")}</p>
                 <p className="mt-1 font-display text-[28px] font-bold tabular-nums">
-                  {n(monthlyCoins(plan))} <span className="text-[11px] font-normal text-ink2">{t("w_coins")}</span>
+                  {n(plan.coinsPerTerm)} <span className="text-[11px] font-normal text-ink2">{t("w_coins")}</span>
                 </p>
               </div>
-              {plan.bonus > 0 && (
+              {plan.bonusCoins > 0 && (
+                /* No leading "+". coinsPerTerm above is the total with the
+                   bonus already inside it, so a plus sign invites the reader to
+                   add the two together and arrive at a number nobody is
+                   selling. The chip names a part of that total, not an extra. */
                 <span className="rounded-full bg-reward-wash px-2.5 py-1 text-[10px] font-semibold text-reward">
-                  +{n(plan.bonus)} {t("w_gift")}
+                  {n(plan.bonusCoins)} {t("w_gift")}
                 </span>
               )}
             </div>
@@ -708,7 +712,7 @@ function CheckoutSheet({
   async function confirm() {
     setState({ status: "submitting" });
     try {
-      const order = await services.payment.createOrder({ planId: plan.id, cycle: annual ? "annual" : "monthly" });
+      const order = await services.payment.createOrder({ planId: plan.code, cycle: annual ? "annual" : "monthly" });
       if (order.gatewayUrl) {
         setState({ status: "redirecting" });
         window.location.assign(order.gatewayUrl);
@@ -764,7 +768,7 @@ function CheckoutSheet({
             <div className="text-end">
               <p className="text-[11px] text-ink3">{t("pl_checkout_allowance")}</p>
               <p className="mt-1 text-[20px] font-semibold tabular-nums">
-                {n(monthlyCoins(plan))} <span className="text-[11px] font-normal text-ink2">{t("w_coins")}</span>
+                {n(plan.coinsPerTerm)} <span className="text-[11px] font-normal text-ink2">{t("w_coins")}</span>
               </p>
             </div>
           </div>
@@ -849,11 +853,12 @@ function CheckoutSheet({
 function ComparisonTable({ currentPlanId }: { currentPlanId: string | null }) {
   const { t, n } = useI18n();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const plans = usePlanLadder();
 
   // Every tier, cheapest first — the table scrolls, so there is no reason to
   // hide half the ladder. A comparison that omits the plan you are on is not
   // one you can act from.
-  const cols = [...PLANS].sort((a, b) => monthlyCoins(a) - monthlyCoins(b));
+  const cols = [...plans].sort((a, b) => a.coinsPerTerm - b.coinsPerTerm);
   // Built at render, not at module load: some rates arrive from the live table
   // after mount, and a list frozen at import time would quote the fallbacks
   // forever.
@@ -894,9 +899,9 @@ function ComparisonTable({ currentPlanId }: { currentPlanId: string | null }) {
             <tr>
               <th className="sticky w-[34%] p-3 align-bottom sm:w-[26%]" style={{ insetInlineStart: 0, background: "var(--color-bg)" }} />
               {cols.map((p) => {
-                const lead = p.popular || p.id === currentPlanId;
+                const lead = p.popular || p.code === currentPlanId;
                 return (
-                  <th key={p.id} className="px-2 py-3 align-bottom text-center">
+                  <th key={p.code} className="px-2 py-3 align-bottom text-center">
                     <span className="flex items-center justify-center gap-1.5">
                       <bdi className="text-[17px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)" }}>
                         {p.name}
@@ -906,7 +911,7 @@ function ComparisonTable({ currentPlanId }: { currentPlanId: string | null }) {
                           className="rounded px-1 py-px text-[9px] font-bold"
                           style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}
                         >
-                          {p.id === currentPlanId ? t("pl_current") : "بهترین"}
+                          {p.code === currentPlanId ? t("pl_current") : "بهترین"}
                         </span>
                       )}
                     </span>
@@ -920,7 +925,7 @@ function ComparisonTable({ currentPlanId }: { currentPlanId: string | null }) {
                         table answers "how much can I make", which is a question
                         about the allowance, not the bill. */}
                     <span className="mt-1 block whitespace-nowrap text-[12px] font-normal text-ink2">
-                      <span className="vg-numeric">{n(monthlyCoins(p))}</span> سکه
+                      <span className="vg-numeric">{n(p.coinsPerTerm)}</span> سکه
                     </span>
                   </th>
                 );
@@ -985,7 +990,7 @@ function ComparisonTable({ currentPlanId }: { currentPlanId: string | null }) {
                           {cols.map((p) => {
                             const v = outputsPerMonth(p, b);
                             return (
-                              <td key={p.id} className="px-2 py-2 text-center align-bottom" style={{ borderTop: rule }}>
+                              <td key={p.code} className="px-2 py-2 text-center align-bottom" style={{ borderTop: rule }}>
                                 {v == null || v === 0 ? (
                                   // A plan whose month does not buy even one is
                                   // an ×, not a zero. Zero reads as a number you
@@ -1056,9 +1061,9 @@ function ComparisonTable({ currentPlanId }: { currentPlanId: string | null }) {
                               <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5">
                                 {cols.map((p) => {
                                   const v = outputsPerMonth(p, b);
-                                  const lead = p.popular || p.id === currentPlanId;
+                                  const lead = p.popular || p.code === currentPlanId;
                                   return (
-                                    <div key={p.id} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5">
+                                    <div key={p.code} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5">
                                       <bdi
                                         className="truncate text-[11.5px]"
                                         style={{ color: lead ? "var(--color-accent)" : "var(--color-ink2)" }}
@@ -1118,6 +1123,7 @@ export default function Plans({
   onBack: () => void;
 }) {
   const { t, n, lang } = useI18n();
+  const plans = usePlanLadder();
   const [cycle, setCycle] = useState<Cycle>("monthly");
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
@@ -1129,9 +1135,9 @@ export default function Plans({
     carRef.current?.scrollTo({ left: 0 });
   }, [cycle]);
 
-  const current = PLANS.find((p) => p.id === currentPlanId) ?? null;
-  const main = PLANS.filter((p) => p.group === "main");
-  const entry = PLANS.filter((p) => p.group === "entry");
+  const current = plans.find((p) => p.code === currentPlanId) ?? null;
+  const main = plans.filter((p) => p.group === "main");
+  const entry = plans.filter((p) => p.group === "entry");
 
   // The date that matters is the next grant to expire, not "when the plan ends".
   // A user can hold a plan bucket and a gift bucket at once, and the gift almost
@@ -1238,14 +1244,14 @@ export default function Plans({
         className="no-scrollbar mb-7 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 md:grid md:grid-cols-3 md:overflow-visible"
       >
         {main.map((p) => (
-          <PlanCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} account={account} onSelect={setSelectedPlan} />
+          <PlanCard key={p.code} plan={p} cycle={cycle} current={p.code === currentPlanId} account={account} onSelect={setSelectedPlan} />
         ))}
       </div>
 
       <div className="mb-2.5 text-[12.5px] text-ink2">{t("pl_entry_group")}</div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
         {entry.map((p) => (
-          <EntryCard key={p.id} plan={p} cycle={cycle} current={p.id === currentPlanId} account={account} onSelect={setSelectedPlan} />
+          <EntryCard key={p.code} plan={p} cycle={cycle} current={p.code === currentPlanId} account={account} onSelect={setSelectedPlan} />
         ))}
       </div>
 
