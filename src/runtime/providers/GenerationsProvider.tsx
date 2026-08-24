@@ -11,6 +11,7 @@ import { useCreateGeneration, useGenerationJobs } from "../../features/generatio
 import { SystemState } from "../../components/SystemState";
 import { ApiError } from "../../adapters/http/client";
 import type { GenerationQuote } from "../contracts/generation";
+import { useAppServices } from "../AppServices";
 import { useNavigation } from "./NavigationProvider";
 
 interface StartedGeneration {
@@ -39,6 +40,7 @@ const GenerationsContext = createContext<Generations | null>(null);
  */
 export function GenerationsProvider({ children }: { children: ReactNode }) {
   const families = useCatalogFamilies();
+  const services = useAppServices();
   const navigation = useNavigation();
   const createGeneration = useCreateGeneration();
   const pendingRef = useRef(false);
@@ -101,19 +103,29 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
       const catalogVariant = family?.variants.find((candidate) => candidate.id === variant.id);
       if (!family || !catalogVariant) return null;
       if (!validateGenerationInput({ family, variant, prompt, input, refs }).valid) return null;
-      if (Object.values(refs).some((files) => files.length > 0)) return null;
       if (pendingRef.current) return null;
       const aspect = currentAspect(variantControls(family, variant), input);
-      // TODO(ui): `services.assets.upload(file)` exists now and returns an
-      // asset id, so each File in `refs` can be uploaded and its id sent as
-      // `referenceAssetIds`, keyed by slot (image_url, first_frame_url, …).
-      // Until that is wired the guard above refuses a generation with
-      // references rather than silently dropping them — Files are not
-      // serialisable, so they cannot go into the persisted Generation either.
       pendingRef.current = true;
       try {
+        /* References go up before the quote, because the quote names them by id
+           and the server prices some models off what was actually uploaded.
+           A slot holds an ordered list and the order is meaningful — first and
+           last frame are two entries in one slot on several video models — so
+           each slot's uploads are awaited together and kept in place.
+
+           A failed upload aborts the whole generation rather than quoting
+           without that reference: a first-frame model handed no first frame
+           does not fail, it silently makes something else and charges for it. */
+        const slots = Object.entries(refs).filter(([, files]) => files.length > 0);
+        const uploaded = await Promise.all(
+          slots.map(
+            async ([slot, files]) => [slot, await Promise.all(files.map(async (f) => (await services.assets.upload(f.file)).id))] as const,
+          ),
+        );
+        const referenceAssetIds = Object.fromEntries(uploaded);
+
         const { job, quote } = await createGeneration.mutateAsync({
-          quote: { familyId, variantId: variant.id, prompt, input, referenceAssetIds: {} },
+          quote: { familyId, variantId: variant.id, prompt, input, referenceAssetIds },
           idempotencyKey: `vgen-${uid()}-${uid()}`,
         });
         const generation: Generation = {
