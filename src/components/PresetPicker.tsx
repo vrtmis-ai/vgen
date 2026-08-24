@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from "react";
+import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import { createPortal } from "react-dom";
 import { X, MagnifyingGlass } from "@phosphor-icons/react";
 import { CATEGORY_LABEL } from "../features/content/labels";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import type { Preset } from "../runtime/contracts/content";
-import { getFamily, type ModelKind } from "../data/models";
+import type { ModelKind } from "../data/models";
 import { useModalSurface } from "./FloatingSurface";
 
 /* ---------------------------------------------------------------------------
@@ -43,6 +44,7 @@ export function PresetPicker({
   onClear: () => void;
   onClose: () => void;
 }) {
+  const familyOf = useFamilyLookup();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<Preset["category"] | "all">("all");
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -190,7 +192,7 @@ export function PresetPicker({
                     {p.title}
                   </span>
                   <span className="mt-0.5 block truncate text-[10.5px]" style={{ color: "var(--vg-text-secondary)" }}>
-                    {getFamily(p.familyId)?.name}
+                    {familyOf(p.familyId)?.name}
                   </span>
                 </span>
               </button>

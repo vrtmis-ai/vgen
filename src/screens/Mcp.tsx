@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import { motion } from "framer-motion";
 import { Terminal, Copy, Check, PuzzlePiece, ArrowLeft, Lightning } from "@phosphor-icons/react";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import type { ContentSkill } from "../runtime/contracts/content";
-import { getFamily } from "../data/models";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
 import { BRAND } from "../data/brand";
@@ -108,6 +108,7 @@ function SkillCard({ skill, onOpen }: { skill: ContentSkill; onOpen: () => void 
 
 export default function Mcp({ onOpenModel }: { onOpenModel: (familyId: string, prompt?: string) => void }) {
   const { n } = useI18n();
+  const familyOf = useFamilyLookup();
   const skills = usePublishedContent().skills;
   const [open, setOpen] = useState<ContentSkill | null>(null);
 
@@ -237,7 +238,7 @@ export default function Mcp({ onOpenModel }: { onOpenModel: (familyId: string, p
                       className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px]"
                       style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
                     >
-                      <bdi>{getFamily(st.familyId)?.name}</bdi>
+                      <bdi>{familyOf(st.familyId)?.name}</bdi>
                       <ArrowLeft size={10} />
                     </button>
                   )}

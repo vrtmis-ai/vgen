@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { useFamily } from "../features/catalog/CatalogProvider";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkle, Copy, Check } from "@phosphor-icons/react";
 import { CATEGORY_LABEL } from "../features/content/labels";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import type { Preset } from "../runtime/contracts/content";
-import { getFamily } from "../data/models";
+
 import { VendorMark } from "../components/VendorMark";
 import { riseItem, riseParent } from "../lib/motion";
 
@@ -38,7 +39,7 @@ const art = (seed: string, n = 0) => `https://picsum.photos/seed/${seed}${n ? `-
  *  reason a preset is worth trusting, and it is also how someone learns to
  *  write their own. */
 function EffectDetail({ preset, onGenerate, onBack }: { preset: Preset; onGenerate: () => void; onBack: () => void }) {
-  const family = getFamily(preset.familyId);
+  const family = useFamily(preset.familyId);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -159,7 +160,7 @@ function EffectDetail({ preset, onGenerate, onBack }: { preset: Preset; onGenera
 }
 
 function EffectCard({ preset, onOpen, onGenerate }: { preset: Preset; onOpen: () => void; onGenerate: () => void }) {
-  const family = getFamily(preset.familyId);
+  const family = useFamily(preset.familyId);
   return (
     <motion.div variants={riseItem} className="group relative aspect-[3/4] overflow-hidden rounded-xl">
       <img

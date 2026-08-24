@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useFamily } from "../features/catalog/CatalogProvider";
 import {
   X,
   Info,
@@ -21,7 +22,6 @@ import {
   Sun,
   FrameCorners,
 } from "@phosphor-icons/react";
-import { getFamily } from "../data/models";
 import { useI18n } from "../lib/i18n";
 import { useModalSurface } from "./FloatingSurface";
 
@@ -135,7 +135,7 @@ export function AssetViewer({
   const [tab, setTab] = useState<Tab>("info");
   const [full, setFull] = useState(false);
   const [copied, setCopied] = useState(false);
-  const family = getFamily(asset.familyId);
+  const family = useFamily(asset.familyId);
 
   // Escape closes. Without it the only way out is the ×, and a full-screen
   // overlay that traps the keyboard is the classic lightbox complaint.

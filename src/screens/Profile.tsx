@@ -9,7 +9,8 @@ import {
   ArrowRight,
   SignOut,
 } from "@phosphor-icons/react";
-import { getFamily, type Family } from "../data/models";
+import type { Family } from "../data/models";
+import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import type { Generation } from "../lib/gallery";
 import { useFavorites } from "../lib/favorites";
 import { VendorMark } from "../components/VendorMark";
@@ -52,10 +53,11 @@ export default function Profile({
   onSignOut: () => void;
 }) {
   const { t, n, lang, setLang } = useI18n();
+  const familyOf = useFamilyLookup();
   const user = account;
   const name = user?.displayName || t("p_guest");
   const { favs } = useFavorites();
-  const favFamilies = favs.map(getFamily).filter((f): f is Family => Boolean(f));
+  const favFamilies = favs.map(familyOf).filter((f): f is Family => Boolean(f));
   const done = gens.filter((g) => g.status === "done").length;
 
   return (

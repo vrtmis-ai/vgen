@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 
 import { ModelMark } from "@/components/ModelMark";
 import { usePublishedContent } from "@/features/content/ContentProvider";
-import { FAMILIES, getFamily, type Family } from "@/data/models";
+import type { Family } from "@/data/models";
+import { useCatalogFamilies, useFamilyLookup } from "@/features/catalog/CatalogProvider";
 
 import { isVideoUrl } from "@/lib/format";
 import { useI18n, type TKey } from "@/lib/i18n";
@@ -14,13 +15,11 @@ import { cn } from "@/lib/utils";
 /* One compact, asymmetric product mosaic. Visuals fill every tile and the copy
    sits on top of them, keeping the whole ecosystem within one desktop viewport. */
 
-const VIDEO_FAMILIES = FAMILIES.filter((family) => family.kind === "video");
-const IMAGE_FAMILIES = FAMILIES.filter((family) => family.kind === "image");
-
 const mmss = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 
 function FamilyMedia({ familyId, className }: { familyId: string; className?: string }) {
-  const family = getFamily(familyId);
+  const familyOf = useFamilyLookup();
+  const family = familyOf(familyId);
   const [failed, setFailed] = useState(false);
   const cover = family?.cover;
 
@@ -80,7 +79,8 @@ function ModelPill({ family }: { family: Family }) {
 }
 
 function VideoGraphic() {
-  const families = ["veo", "kling", "seedance"].map(getFamily).filter((family): family is Family => family != null);
+  const familyOf = useFamilyLookup();
+  const families = ["veo", "kling", "seedance"].map(familyOf).filter((family): family is Family => family != null);
   return (
     <div className="absolute inset-0">
       <FamilyMedia familyId="veo" className="absolute inset-0" />
@@ -109,8 +109,9 @@ function VideoGraphic() {
 }
 
 function ImageGraphic() {
-  const nano = getFamily("nano-banana");
-  const gpt = getFamily("gpt-image");
+  const familyOf = useFamilyLookup();
+  const nano = familyOf("nano-banana");
+  const gpt = familyOf("gpt-image");
   return (
     <div className="absolute inset-0 grid grid-cols-2 gap-2 p-2.5">
       <FamilyMedia familyId="nano-banana" className="rounded-card" />
@@ -177,11 +178,12 @@ function VoiceGraphic() {
 }
 
 function EffectsGraphic() {
+  const familyOf = useFamilyLookup();
   const effects = usePublishedContent().presets.slice(0, 9);
   return (
     <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-1.5 p-2.5 pb-28">
       {effects.map((effect) => {
-        const family = getFamily(effect.familyId);
+        const family = familyOf(effect.familyId);
         return (
           <div
             key={effect.id}
@@ -233,10 +235,11 @@ function AcademyGraphic() {
 }
 
 function StudioGraphic() {
+  const familyOf = useFamilyLookup();
   const tabs = [
-    { label: "ویدیو", family: getFamily("kling") },
-    { label: "تصویر", family: getFamily("nano-banana") },
-    { label: "صدا", family: getFamily("elevenlabs") },
+    { label: "ویدیو", family: familyOf("kling") },
+    { label: "تصویر", family: familyOf("nano-banana") },
+    { label: "صدا", family: familyOf("elevenlabs") },
   ];
   return (
     <div className="absolute inset-0 flex items-center justify-center p-3">
@@ -328,19 +331,21 @@ const FEATURE_LOOK: Record<string, { rgb: string; hex: string }> = {
 };
 
 /**
- * A function rather than a constant, because one of the six counts is no longer
- * knowable at module scope: the voice list is served, not imported, so it
- * arrives through a hook inside the component below. The other five still come
- * from FAMILIES, which is the catalogue and a separate move.
+ * A function rather than a constant, because none of these counts is knowable at
+ * module scope any more. The voices are served; so is the catalogue, now that
+ * this block renders above the session gate where CatalogProvider reaches it.
+ * The two family counts used to come from a FAMILIES constant frozen at build
+ * time, which meant a family retired in the database went on being counted to
+ * exactly the visitors who had not signed in.
  */
-const cards = (voiceCount: number): Card[] => [
+const cards = (voiceCount: number, videoCount: number, imageCount: number): Card[] => [
   {
     key: "video",
     layout: "sm:min-h-[360px] lg:col-start-2 lg:row-start-1 lg:row-span-4 lg:min-h-0",
     eyebrow: "lp_bento_video",
     title: "lp_bento_video_t",
     description: "lp_bento_video_d",
-    counts: { n: VIDEO_FAMILIES.length },
+    counts: { n: videoCount },
     graphic: <PlaceholderGraphic src="/features/placeholders/ai-video.png" fallback={<VideoGraphic />} position="center 42%" />,
   },
   {
@@ -349,7 +354,7 @@ const cards = (voiceCount: number): Card[] => [
     eyebrow: "lp_bento_image",
     title: "lp_bento_image_t",
     description: "lp_bento_image_d",
-    counts: { n: IMAGE_FAMILIES.length },
+    counts: { n: imageCount },
     graphic: <PlaceholderGraphic src="/features/placeholders/ai-image.png" fallback={<ImageGraphic />} position="center 38%" />,
   },
   {
@@ -403,6 +408,9 @@ export function FeaturesBento() {
   // The full list, not the three the voice panel shows — this is the count the
   // card advertises.
   const voiceCount = usePublishedContent().voices.length;
+  const families = useCatalogFamilies();
+  const videoCount = families.filter((family) => family.kind === "video").length;
+  const imageCount = families.filter((family) => family.kind === "image").length;
   const description = (card: Card) =>
     card.counts
       ? t(card.description)
@@ -412,7 +420,7 @@ export function FeaturesBento() {
 
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:h-[610px] lg:grid-cols-4 lg:grid-rows-6">
-      {cards(voiceCount).map((card, index) => (
+      {cards(voiceCount, videoCount, imageCount).map((card, index) => (
         <BentoCard
           key={card.key}
           dataFeature={card.key}
