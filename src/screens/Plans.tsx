@@ -485,7 +485,7 @@ function PlanFlipShell({
   compact?: boolean;
   children: ReactNode;
 }) {
-  const { t, n } = useI18n();
+  const { t, c } = useI18n();
   const [flipped, setFlipped] = useState(false);
   const audienceKey = PLAN_AUDIENCE_KEY[plan.code as keyof typeof PLAN_AUDIENCE_KEY];
   const PlanMark = PLAN_MARK[plan.code as keyof typeof PLAN_MARK] ?? Lightning;
@@ -535,7 +535,7 @@ function PlanFlipShell({
               <div>
                 <p className="text-[10px] text-ink3">{t("pl_plan_credit")}</p>
                 <p className="mt-1 font-display text-[28px] font-bold tabular-nums">
-                  {n(plan.coinsPerTerm)} <span className="text-[11px] font-normal text-ink2">{t("w_coins")}</span>
+                  {c(plan.coinsPerTerm)} <span className="text-[11px] font-normal text-ink2">{t("w_coins")}</span>
                 </p>
               </div>
               {plan.bonusCoins > 0 && (
@@ -544,7 +544,7 @@ function PlanFlipShell({
                    add the two together and arrive at a number nobody is
                    selling. The chip names a part of that total, not an extra. */
                 <span className="rounded-full bg-reward-wash px-2.5 py-1 text-[10px] font-semibold text-reward">
-                  {n(plan.bonusCoins)} {t("w_gift")}
+                  {c(plan.bonusCoins)} {t("w_gift")}
                 </span>
               )}
             </div>
@@ -689,7 +689,7 @@ function CheckoutSheet({
   account?: PricingAccount | undefined;
   onClose: () => void;
 }) {
-  const { t, n } = useI18n();
+  const { t, n, c } = useI18n();
   const services = useAppServices();
   const annual = cycle === "annual" && plan.annualUsdPerMonth != null;
   const monthlyPrice = effectiveUsd(plan, annual, account);
@@ -768,7 +768,7 @@ function CheckoutSheet({
             <div className="text-end">
               <p className="text-[11px] text-ink3">{t("pl_checkout_allowance")}</p>
               <p className="mt-1 text-[20px] font-semibold tabular-nums">
-                {n(plan.coinsPerTerm)} <span className="text-[11px] font-normal text-ink2">{t("w_coins")}</span>
+                {c(plan.coinsPerTerm)} <span className="text-[11px] font-normal text-ink2">{t("w_coins")}</span>
               </p>
             </div>
           </div>
@@ -851,7 +851,7 @@ function CheckoutSheet({
  * A model whose rate has gone missing shows a dash, never an invented count.
  */
 function ComparisonTable({ currentPlanId }: { currentPlanId: string | null }) {
-  const { t, n } = useI18n();
+  const { t, n, c } = useI18n();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const plans = usePlanLadder();
 
@@ -925,7 +925,7 @@ function ComparisonTable({ currentPlanId }: { currentPlanId: string | null }) {
                         table answers "how much can I make", which is a question
                         about the allowance, not the bill. */}
                     <span className="mt-1 block whitespace-nowrap text-[12px] font-normal text-ink2">
-                      <span className="vg-numeric">{n(p.coinsPerTerm)}</span> سکه
+                      <span className="vg-numeric">{c(p.coinsPerTerm)}</span> سکه
                     </span>
                   </th>
                 );
@@ -1122,7 +1122,7 @@ export default function Plans({
   currentPlanId?: string | null;
   onBack: () => void;
 }) {
-  const { t, n, lang } = useI18n();
+  const { t, c, lang } = useI18n();
   const plans = usePlanLadder();
   const [cycle, setCycle] = useState<Cycle>("monthly");
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -1192,7 +1192,7 @@ export default function Plans({
             <span className="text-[12px] text-ink3">{current ? t("pl_this_month") : t("w_balance")}</span>
             <span className="flex items-center gap-2">
               <CoinMark size={17} className="text-ink2" />
-              <span className="text-[24px] font-semibold tabular-nums">{n(wallet.spendable)}</span>
+              <span className="text-[24px] font-semibold tabular-nums">{c(wallet.spendable)}</span>
               <span className="text-[13px] text-ink2">{t("w_coins")}</span>
             </span>
           </div>

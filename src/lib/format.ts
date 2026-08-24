@@ -14,6 +14,23 @@ export function faNum(value: number | string): string {
 }
 
 /**
+ * A coin amount, formatted for display.
+ *
+ * Coins stopped being whole numbers when billing moved to hundredths: the
+ * cheapest models cost 0.10 or 0.16 of a coin, and rounding those up to 1 was
+ * charging ten times the price. A wallet can therefore hold 0.9 of a coin, and
+ * a screen that prints it as an integer either says "0" — pushing someone to
+ * top up when they need not — or "1", which is money the account does not have.
+ *
+ * Two decimals, never three: a hundredth is the billing step, so a third digit
+ * could only ever be float noise from a division. Trailing zeros are dropped
+ * because whole coins are still the common case and "1,250.00" is noise.
+ */
+export function coinDigits(value: number): string {
+  return value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+/**
  * The inverse of `faNum`, for a value that has to go back to the server.
  *
  * A Persian keyboard produces ۰-۹ and an Arabic one ٠-٩, but `OtpCodeSchema` is

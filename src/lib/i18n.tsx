@@ -8,7 +8,7 @@
    corrected it, and Next flags the mismatch. A cookie is the only client
    preference the server can see while rendering. See app/layout.tsx. */
 import { createContext, useContext, useEffect, useState } from "react";
-import { faNum } from "./format";
+import { coinDigits, faNum } from "./format";
 import { dirFor, LANG_COOKIE, LANG_COOKIE_MAX_AGE_SECONDS, type Lang } from "./lang";
 
 export type { Lang };
@@ -850,6 +850,8 @@ interface I18n {
   t: (k: TKey) => string;
   /** locale-aware integer formatting (fa digits in Persian) */
   n: (v: number) => string;
+  /** a coin amount — like `n`, but keeps up to two decimals. See coinDigits. */
+  c: (v: number) => string;
 }
 
 const Ctx = createContext<I18n>({
@@ -857,6 +859,7 @@ const Ctx = createContext<I18n>({
   setLang: () => undefined,
   t: (k) => dict.fa[k],
   n: (v) => faNum(v.toLocaleString("en-US")),
+  c: (v) => faNum(coinDigits(v)),
 });
 
 export function LanguageProvider({ initialLang = "fa", children }: { initialLang?: Lang; children: React.ReactNode }) {
@@ -878,8 +881,9 @@ export function LanguageProvider({ initialLang = "fa", children }: { initialLang
 
   const t = (k: TKey) => dict[lang][k] ?? dict.fa[k];
   const n = (v: number) => (lang === "fa" ? faNum(v.toLocaleString("en-US")) : v.toLocaleString("en-US"));
+  const c = (v: number) => (lang === "fa" ? faNum(coinDigits(v)) : coinDigits(v));
 
-  return <Ctx.Provider value={{ lang, setLang, t, n }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ lang, setLang, t, n, c }}>{children}</Ctx.Provider>;
 }
 
 export function useI18n(): I18n {
