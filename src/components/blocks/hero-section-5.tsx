@@ -9,8 +9,9 @@ import { InfiniteSlider } from "@/components/ui/infinite-slider";
 import { ProgressiveBlur } from "@/components/ui/progressive-blur";
 import { ModelMark, hasModelMark } from "@/components/ModelMark";
 import { BRAND } from "@/data/brand";
-import { FAMILIES } from "@/data/models";
+import { useCatalogFamilies } from "@/features/catalog/CatalogProvider";
 import { effectiveUsd, toman } from "@/data/plans";
+import type { Family } from "@/data/models";
 import type { Plan } from "@/runtime/contracts/plans";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -64,17 +65,31 @@ const entryPlan = (plans: readonly Plan[]) => [...plans].sort((a, b) => effectiv
  * marks reads as a failed image rather than as a choice. Filtered by predicate
  * rather than by an exclusion list, so a model that gains a logo joins on its
  * own and one added without a logo stays out without anyone remembering to.
+ *
+ * **A function of the served catalogue, not a module constant.** It read
+ * `FAMILIES` — the list compiled into the bundle — which #55 removed from every
+ * other reader on this page and missed here. The consequence is the one that PR
+ * describes: a family retired in the database kept its logo in the hero band
+ * until somebody deployed, and this is the most prominent row on the page a
+ * visitor sees before deciding whether to pay. Same reason `entryPlan` above is
+ * a function: the document arrives at runtime and is not there at import.
  */
-const SLIDER_MODELS = [
-  ...FAMILIES.filter((f) => f.kind === "video"),
-  ...FAMILIES.filter((f) => f.kind === "image"),
-  ...FAMILIES.filter((f) => f.kind === "audio"),
-].filter((f) => hasModelMark(f.id, f.vendor));
+const sliderModels = (families: readonly Family[]) =>
+  [
+    ...families.filter((f) => f.kind === "video"),
+    ...families.filter((f) => f.kind === "image"),
+    ...families.filter((f) => f.kind === "audio"),
+  ].filter((f) => hasModelMark(f.id, f.vendor));
 
 export function HeroSection({ plans, onSignIn, onSignUp }: { plans: readonly Plan[]; onSignIn: () => void; onSignUp: () => void }) {
   const ENTRY_PLAN = entryPlan(plans);
   const { t, n, lang } = useI18n();
   const rtl = lang === "fa";
+  // The anonymous `/` branch in app/(app)/layout.tsx wraps this in
+  // CatalogProvider, so the same document every other reader on the page uses is
+  // in reach here too.
+  const families = useCatalogFamilies();
+  const sliderFamilies = React.useMemo(() => sliderModels(families), [families]);
 
   return (
     <>
@@ -195,7 +210,7 @@ export function HeroSection({ plans, onSignIn, onSignUp }: { plans: readonly Pla
                     animates from `-contentSize/2` up to `0`, which walks the
                     track rightward through the copy that is already there. */}
                 <InfiniteSlider duration={40} gap={112} reverse={rtl}>
-                  {SLIDER_MODELS.map((f) => (
+                  {sliderFamilies.map((f) => (
                     <div key={f.id} className="flex items-center gap-2.5">
                       <ModelMark familyId={f.id} vendor={f.vendor} size={22} />
                       <span className="whitespace-nowrap text-[15px] font-medium" style={{ color: "var(--vg-text-secondary)" }} lang="en">
