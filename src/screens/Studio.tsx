@@ -11,6 +11,7 @@ import { type Generation } from "../lib/gallery";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { riseItem, riseParent } from "../lib/motion";
+import { useI18n } from "../lib/i18n";
 
 /* ---------------------------------------------------------------------------
    The canvas.
@@ -38,6 +39,8 @@ const STEPS = [
 ];
 
 function OutputCard({ gen }: { gen: Generation }) {
+  const { t, n } = useI18n();
+  const percent = Math.round(gen.progress ?? 0);
   const [failed, onError] = useImageFallback();
   const url = gen.outputUrl;
   const running = gen.status === "running";
@@ -65,14 +68,30 @@ function OutputCard({ gen }: { gen: Generation }) {
            A generation is money already spent, so it gets a number. */
         <div className="absolute inset-0 grid place-items-center" style={{ background: "rgba(0,0,0,0.45)" }}>
           <div className="w-2/3">
-            <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
+            {/* A progressbar, not a div that happens to be N% wide.
+                The percentage was in the caption and nowhere else, so a screen
+                reader got a stray number with no role, no range and no update as
+                the job advanced — on the one screen where the whole point is
+                telling somebody how far along the thing they paid for is. */}
+            <div
+              role="progressbar"
+              aria-label={t("r_making")}
+              aria-valuenow={percent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuetext={`${n(percent)}٪`}
+              className="h-1 w-full overflow-hidden rounded-full"
+              style={{ background: "rgba(255,255,255,0.12)" }}
+            >
               <div
                 className="h-full transition-[width] duration-200 ease-out"
-                style={{ width: `${Math.round(gen.progress ?? 0)}%`, background: "var(--vg-primary)" }}
+                style={{ width: `${percent}%`, background: "var(--vg-primary)" }}
               />
             </div>
-            <p className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-              در حال ساخت… <span className="vg-numeric">{Math.round(gen.progress ?? 0)}%</span>
+            {/* aria-hidden: the bar above already carries the figure, and a
+                screen reader announcing both says it twice every tick. */}
+            <p aria-hidden className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
+              {t("r_making")}… <span className="vg-numeric">{n(percent)}٪</span>
             </p>
           </div>
         </div>
