@@ -45,15 +45,20 @@ gallery had no route at all.
 | `generation.getJob()`  | `GET /generation/jobs/:id` | `routes/jobs.ts`      | **Live** |
 | `gallery.list()`       | `GET /gallery`             | `routes/gallery.ts`   | **Live** |
 | `assets.upload()`      | `POST /assets`             | `routes/assets.ts`    | **Live** |
-| `campaign.getActive()` | `GET /campaigns/active`    | —                     | **404**  |
-| `payment.createOrder()`| `POST /payments/orders`    | —                     | **404**  |
+| `campaign.getActive()` | `GET /campaigns/active`    | `routes/campaigns.ts` | **Live** |
+| `payment.createOrder()`| `POST /payments/orders`    | `routes/payments.ts`  | **Live** |
 
-So `production` mode is complete end to end for everything that existed before
-this branch: sign in, browse the catalogue, see a price, submit a generation,
-watch it run, and see the file it produced. The two routes above are what this
-branch adds a caller for and the server does not answer yet — the campaign strip
-renders nothing without one, and checkout stops on a notice rather than sending
-anyone to a gateway that was never registered.
+So `production` mode is complete end to end: sign in, browse the catalogue, see
+a price, submit a generation, watch it run, and see the file it produced. The
+last two rows were 404s until 0026; both answer now.
+
+One qualification on the second, and it is a real one: `gatewayUrl` is still
+`null` on every reply, because no gateway has been chosen. The order is priced
+and recorded, and the sheet stops on a neutral notice rather than navigating —
+which is exactly what the contract has always said `null` means, and not a
+half-built route. Choosing between ZarinPal, IDPay, NextPay and Zibal is the
+remaining decision; the registration call then goes between the insert and the
+reply and nothing else changes.
 **In `demo` mode everything still works**, and demo mode now speaks the same
 vocabulary — a finished job is `succeeded`, not `done`, because that is the word
 the database uses and therefore the word that comes over the wire.
@@ -841,6 +846,97 @@ draws a padlock and curl has never seen a padlock. Keep drawing the padlock —
 it is much better UX than a 403 — but the padlock is now a mirror of the rule
 rather than the rule.
 
+### `GET /campaigns/active`
+
+The running promotional window, or `null`. Public, like the plans it advertises.
+
+```jsonc
+{ "id": "nowruz-1405", "endsAt": 1755648000000, "maxDiscountPct": 22, "maxBonusCoins": 350 }
+```
+
+`null` is the ordinary answer and the ordinary state of the year. The strip
+draws nothing for it — an absent banner is the designed appearance of the page,
+not a failed fetch.
+
+**`endsAt` is an absolute epoch-milliseconds instant and never a remaining
+duration.** The strip counts down to it, prints "limited time" beside the clock,
+and removes itself at zero. A duration restarts on every page load, so the
+countdown never ends and the urgency next to it is false. That is the bug this
+route exists to remove, and `CampaignSchema` refuses anything that is not a
+plain non-negative integer.
+
+**The two headline numbers are derived, not stored.** `maxDiscountPct` is the
+largest annual saving in the plan ladder and `maxBonusCoins` the largest bonus
+grant on any plan — folded from the same rows `POST /payments/orders` prices
+from. On the campaign row they would be numbers somebody typed, and the first
+plan repricing would make the advertisement wrong while leaving it perfectly
+valid. Derived, the strip cannot promise a rate the till will refuse. If a
+campaign ever needs a discount **of its own**, it becomes a column on
+`campaigns` *and* a term in the checkout pricing — never a number nothing
+enforces.
+
+**Starting one is a row**, and there is deliberately no seed:
+
+```sql
+INSERT INTO campaigns (code, name, starts_at, ends_at)
+VALUES ('nowruz-1405', 'Nowruz 1405', now(), '2026-03-28 20:30+03:30');
+```
+
+`code` is what the browser receives as `id`. Two overlapping windows are refused
+by an exclusion constraint rather than resolved by a tie-break, because the
+strip has room for one offer and picking silently would show a customer
+whichever one the planner happened to return first. Ending a campaign early is
+`UPDATE campaigns SET ends_at = now()` — the same code path the countdown
+already takes to zero.
+
+### `POST /payments/orders`
+
+Prices a plan, records the order, and says where to send the person next.
+Requires a session.
+
+```jsonc
+// request
+{ "planId": "pro", "cycle": "monthly" }   // cycle: "monthly" | "annual"
+```
+
+```jsonc
+// 201
+{ "orderId": "01a0…", "amountToman": 8330000, "gatewayUrl": null }
+```
+
+**The body carries no amount, and that is the point.** If the browser sent the
+figure it displayed, the sum shown and the sum charged would be two calculations
+that have to agree — and the editable one would win. Extra fields are stripped
+by the schema, so naming an `amountToman` in the request changes nothing.
+
+**`gatewayUrl` is `null` today.** No gateway has been chosen, so the order is
+priced and recorded and there is nowhere to hand off to; the sheet stops on a
+neutral notice rather than navigating, and deliberately does not congratulate
+anyone. That is what `null` has always meant in this contract. When a gateway is
+picked, the registration call goes between the insert and the reply.
+
+**What gets written.** `orders` gets the Rial amount, `amount_usd`, and the
+`fx_rate_id` that converted between them — without that last one every margin
+figure silently rewrites itself the next time the rate moves. `micro_credits` is
+**one term's** grant even on an annual order, because annual buys twelve
+payments made at once and not a year of coins on day one; a year in one lot
+would expire in thirty days.
+
+**The rate comes from `fx_rates`** (`USD`→`IRR`, the row with `valid_to IS
+NULL`), and with none published the route answers 503 rather than falling back
+to a constant compiled into the server. Note the coupling: the browser still
+holds `TOMAN_PER_USD` in `src/data/plans.ts` to render the figure on the sheet.
+They agree today. If they ever drift, the sheet's own cross-check fires and
+refuses to send anyone to a gateway — safe, and completely broken until the two
+are reconciled. Move both together.
+
+| Outcome | Status | Meaning |
+| --- | --- | --- |
+| `unknown_plan` | 404 | Retired, private or misspelled — one answer for all three, so this cannot be used to discover private plan codes. |
+| `no_annual_option` | 409 | A year was asked for on a plan sold only monthly. Refused rather than quietly billed monthly. |
+| `no_exchange_rate` | 503 | No published USD→IRR rate. Ours to fix. |
+| `no_account` | 503 | A signed-in user whose row carries no personal account — a broken signup, not a bad request. |
+
 ### `POST /generation/quotes`
 
 What a generation costs **this** account. Authenticated, unlike `GET /plans`:
@@ -1259,39 +1355,6 @@ moved. CI runs that check over all 738 of them.
 
 So you can tell a gap from a bug:
 
-- **`GET /campaigns/active` — the plans strip is waiting on it.** The frontend
-  half is done and shipped: `campaign.getActive()` in `AppServices`, the HTTP
-  adapter at `src/adapters/http/campaign.ts`, and the shape it parses in
-  `src/runtime/contracts/campaign.ts`. Until the route exists, production mode
-  gets a rejected query and the strip simply does not render — which is the
-  intended fallback, not a bug to route around.
-
-  Answer either `null` (no campaign running — the ordinary case) or:
-
-  ```json
-  { "id": "nowruz-1405", "endsAt": 1755648000000, "maxDiscountPct": 22, "maxBonusCoins": 350 }
-  ```
-
-  `endsAt` **must be an absolute epoch-milliseconds instant, never a remaining
-  duration.** The strip counts down to it, prints "limited time" beside the
-  clock, and removes itself at zero. A duration restarts on every page load, so
-  the countdown never ends and the urgency next to it is a lie — which is
-  exactly the bug this route replaces. `maxDiscountPct` and `maxBonusCoins` are
-  what the strip prints, so they have to be the numbers checkout will honour.
-- **`POST /payments/orders` — the buy button reaches for it.** Body is
-  `{ planId, cycle }` and nothing else: the browser never sends an amount, so
-  the figure it showed and the figure charged cannot be two calculations that
-  disagree. Price the plan server-side, reserve that price, register the payment
-  with the gateway, and answer:
-
-  ```json
-  { "orderId": "…", "amountToman": 8330000, "gatewayUrl": "https://gateway.zibal.ir/start/…" }
-  ```
-
-  `gatewayUrl` may be `null`, which means the order is recorded but there is
-  nowhere to send the person; the sheet stops on a neutral notice rather than
-  navigating. `amountToman` is cross-checked against what the sheet displayed and
-  a mismatch is surfaced before anyone pays.
 - **useapi, so unlimited generation cannot actually generate.** A tier-3
   customer is quoted free, the submission succeeds, and the job then fails with
   `provider_unavailable` and a full refund of the day's allowance. Nothing is

@@ -11,6 +11,8 @@ export * from "./contentRepository";
 export * from "./communityRepository";
 export * from "./pricingRepository";
 export * from "./plansRepository";
+export * from "./campaignsRepository";
+export * from "./checkoutRepository";
 export * from "./entitlementsRepository";
 export * from "./quotesRepository";
 export * from "./frontendTelemetryRepository";

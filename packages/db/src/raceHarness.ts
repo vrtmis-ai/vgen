@@ -71,6 +71,12 @@ export async function sharedAccount(sql: Sql, slot: string): Promise<RaceAccount
  * must never touch a row belonging to whoever else is using this database.
  * `credit_ledger` is deliberately not in the list — it cannot be deleted and
  * should not be.
+ *
+ * Nothing here may leave a committed row behind that another test can see.
+ * These fixtures are committed by design — that is the whole point of this
+ * harness — so anything it writes is visible to every other suite running
+ * against the same database, and a fixture that looks like real data will be
+ * found by a test looking for real data.
  */
 export async function resetAccount(sql: Sql, account: RaceAccount, options: { concurrency?: number; coins?: number } = {}) {
   const { accountId } = account;
@@ -88,10 +94,34 @@ export async function resetAccount(sql: Sql, account: RaceAccount, options: { co
   await sql`delete from subscriptions where account_id = ${accountId}`;
 
   const concurrency = options.concurrency ?? 8;
-  const suffix = Math.random().toString(36).slice(2, 10);
+
+  // Sweeps what an earlier version of this function left behind. It inserted a
+  // plan with a random suffix on every reset and deleted none of them, so a
+  // database that had run this suite for a while held hundreds — 266 in mine.
+  // Only the unreferenced ones, because a live slot still needs its own.
+  await sql`
+    delete from plans
+    where code like 'race-plan-%'
+      and not exists (select 1 from subscriptions sub where sub.plan_id = plans.id)
+  `;
+
+  // One fixture plan, reused, for the same reason the accounts above are
+  // reused: this database is shared and a per-run row is a per-run leak.
+  //
+  // **`is_public` false is the load-bearing half.** `plans.is_public` means
+  // "sell this on the pricing page", and a test fixture is not for sale — but
+  // it was being written as public, tier 3, active, which put it in the middle
+  // of `cheapestForTier`. That test asks for the cheapest plan reaching tier 3
+  // having just deleted every plan inside its own transaction, and READ
+  // COMMITTED means a row this harness commits from another worker in between
+  // is visible to its very next statement. Running the two files together
+  // failed three times out of three; the plans file alone passed three out of
+  // three. Nothing that reads a subscription's concurrency limit looks at
+  // `is_public`, so the harness does not care either way.
   const [plan] = await sql<{ id: string }[]>`
-    insert into plans (code, name, tier, micro_credits_per_term, price_amount, max_concurrent_jobs)
-    values (${`race-plan-${suffix}`}, 'Race Test Plan', 3, 1000000, 10, ${concurrency})
+    insert into plans (code, name, tier, micro_credits_per_term, price_amount, max_concurrent_jobs, is_public)
+    values ('race-harness', 'Race Test Plan', 3, 1000000, 10, ${concurrency}, false)
+    on conflict (code) do update set max_concurrent_jobs = excluded.max_concurrent_jobs
     returning id
   `;
   await sql`

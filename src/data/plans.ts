@@ -35,12 +35,12 @@
 // with this" estimates. Those are derivations, not facts about a plan, and the
 // API has no opinion on them.
 
-import { COIN_USD, MARGIN, coinsForVariantId, priceCoins } from "./pricing";
+import { ANNUAL_MONTHS, COIN_USD, MARGIN, coinsForVariantId, priceCoins } from "./pricing";
 import { FAMILIES, defaultInput, variantControls } from "./models";
 import type { Plan, Tier } from "../runtime/contracts/plans";
 import type { InputMap } from "../components/controls";
 
-export { COIN_USD };
+export { ANNUAL_MONTHS, COIN_USD };
 export type { Plan, Tier };
 export const TOMAN_PER_USD = 170_000; // set 2026-07 by owner ($50 ≈ 8.5M Toman)
 
@@ -48,8 +48,9 @@ export const TOMAN_PER_USD = 170_000; // set 2026-07 by owner ($50 ≈ 8.5M Toma
 export const MONTHLY_EXPIRY_DAYS = 30;
 /** Company plans (later) get a one-year bucket instead. */
 export const COMPANY_EXPIRY_DAYS = 365;
-/** Months paid upfront on the annual option. */
-export const ANNUAL_MONTHS = 12;
+/* ANNUAL_MONTHS moved to @vgen/core and is re-exported below. The sheet
+   multiplies by it to show a total and the API multiplies by it to charge one;
+   two copies of that number is two ways to quote one price. */
 
 /**
  * Simultaneous generations for an account with no plan.

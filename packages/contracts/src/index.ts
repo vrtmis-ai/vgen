@@ -10,6 +10,8 @@ export * from "./plans";
 export * from "./admin";
 export * from "./content";
 export * from "./community";
+export * from "./campaign";
+export * from "./payment";
 
 export const DependencyHealthSchema = z.object({
   database: z.enum(["up", "down"]),
