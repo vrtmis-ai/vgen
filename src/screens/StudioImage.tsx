@@ -13,6 +13,7 @@ import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
 import { ModelChip } from "../components/ModelPicker";
 import { useI18n } from "../lib/i18n";
+import { useSession } from "../runtime/providers/SessionProvider";
 import { useAccess } from "../lib/access";
 
 /* ---------------------------------------------------------------------------
@@ -149,11 +150,17 @@ export default function StudioImage({
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
   onOpenModel: (familyId: string, prompt?: string) => void;
 }) {
-  const { n } = useI18n();
+  const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
   const families = catalogFamilies.filter((f) => f.kind === "image");
   const s = useCreateState(families);
   const access = useAccess();
+  // A visitor sees the whole studio — models, controls, the price — and only
+  // the button that would spend turns into the way to get an account. The
+  // upgrade lock is skipped for them: they have no plan to upgrade from, and
+  // access.onUpgrade opens a wallet drawer nobody owns yet.
+  const { user, signIn } = useSession();
+  const visitor = user === null;
   const locked = !access.can(s.family.id);
   const need = locked ? access.needs(s.family.id) : null;
   const [count, setCount] = useState(1);
@@ -406,7 +413,7 @@ export default function StudioImage({
 
               {/* See FormPanel: a locked model buys an upgrade button, not a
                   greyed-out price. */}
-              {locked ? (
+              {locked && !visitor ? (
                 <button
                   onClick={access.onUpgrade}
                   className="flex h-[52px] w-[132px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[12.5px] font-bold"
@@ -417,14 +424,14 @@ export default function StudioImage({
                 </button>
               ) : (
                 <button
-                  disabled={!s.ready}
-                  onClick={() => onGenerate(s.family, s.variant, s.prompt.trim(), s.input)}
+                  disabled={!visitor && !s.ready}
+                  onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input))}
                   className="flex h-[52px] w-[132px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[13.5px] font-bold transition-opacity disabled:opacity-35"
                   style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
                 >
                   <span className="flex items-center gap-1.5">
                     <Sparkle size={14} weight="fill" />
-                    بساز
+                    {visitor ? t("visitor_cta") : "بساز"}
                   </span>
                   <span className="flex items-center gap-1 text-[11.5px] font-semibold opacity-90">
                     <CoinMark size={11} />

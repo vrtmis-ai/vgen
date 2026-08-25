@@ -1115,7 +1115,9 @@ export default function Plans({
   currentPlanId = null,
   onBack,
 }: {
-  wallet: Wallet;
+  /** Null for a visitor. The ladder is the sales pitch, so it renders for
+      somebody who has not signed in — they simply have no balance to state. */
+  wallet: Wallet | null;
   /** Drives cost-price display for flagged team accounts. */
   account?: PricingAccount | undefined;
   /** null until the backend can tell us — do NOT fake an active plan here. */
@@ -1142,7 +1144,7 @@ export default function Plans({
   // The date that matters is the next grant to expire, not "when the plan ends".
   // A user can hold a plan bucket and a gift bucket at once, and the gift almost
   // always burns first — which is the thing worth telling them about.
-  const nextExpiry = wallet.nextExpiry;
+  const nextExpiry = wallet?.nextExpiry;
   const expiryLabel =
     nextExpiry != null
       ? new Date(nextExpiry.at).toLocaleDateString(lang === "fa" ? "fa-IR" : "en-US", { day: "numeric", month: "long" })
@@ -1192,7 +1194,7 @@ export default function Plans({
             <span className="text-[12px] text-ink3">{current ? t("pl_this_month") : t("w_balance")}</span>
             <span className="flex items-center gap-2">
               <CoinMark size={17} className="text-ink2" />
-              <span className="text-[24px] font-semibold tabular-nums">{c(wallet.spendable)}</span>
+              <span className="text-[24px] font-semibold tabular-nums">{c(wallet?.spendable ?? 0)}</span>
               <span className="text-[13px] text-ink2">{t("w_coins")}</span>
             </span>
           </div>

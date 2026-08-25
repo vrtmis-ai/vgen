@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useSession } from "../runtime/providers/SessionProvider";
 import { CaretLeft, Image as ImageIcon, Lock, MusicNote, VideoCamera, Sparkle, PencilSimple } from "@phosphor-icons/react";
 import { type Family, type Variant } from "../data/models";
 import type { InputMap } from "./controls";
@@ -164,7 +165,11 @@ export function FormPanel({
   families: Family[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
 }) {
-  const { n } = useI18n();
+  const { t, n } = useI18n();
+  // A visitor sees the whole dock — models, controls, the price — and the one
+  // button that would spend turns into the way to get an account.
+  const { user, signIn } = useSession();
+  const visitor = user === null;
   const [pickModel, setPickModel] = useState(false);
   const [pickPreset, setPickPreset] = useState(false);
   const [preset, setPreset] = useState<Preset | null>(null);
@@ -399,7 +404,7 @@ export function FormPanel({
             Greying out the price would tell the user the job is unavailable
             without saying it is their plan or what fixes it — and the moment
             they are most likely to buy is the moment they wanted something. */}
-        {locked ? (
+        {locked && !visitor ? (
           <button
             onClick={access.onUpgrade}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold"
@@ -416,13 +421,13 @@ export function FormPanel({
           </button>
         ) : (
           <button
-            disabled={!ready}
-            onClick={() => onGenerate(family, variant, prompt.trim(), input)}
+            disabled={!visitor && !ready}
+            onClick={() => (visitor ? signIn() : onGenerate(family, variant, prompt.trim(), input))}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold transition-opacity disabled:opacity-35"
             style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
           >
             <Sparkle size={15} weight="fill" />
-            {isSubmitting ? "در حال ثبت…" : "بساز"}
+            {visitor ? t("visitor_cta") : isSubmitting ? "در حال ثبت…" : "بساز"}
             <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
               <CoinMark size={12} />
               <span className="vg-numeric">{price === null ? "—" : n(price)}</span>

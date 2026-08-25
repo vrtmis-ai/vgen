@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useScroll, motion } from "framer-motion";
 import { Menu, X, ChevronLeft } from "lucide-react";
 
@@ -8,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { InfiniteSlider } from "@/components/ui/infinite-slider";
 import { ProgressiveBlur } from "@/components/ui/progressive-blur";
 import { ModelMark, hasModelMark } from "@/components/ModelMark";
+import { MegaMenu } from "@/components/MegaMenu";
+import { useNavMenus } from "@/components/navMenu";
+import type { NavKey } from "@/components/TopBar";
 import { BRAND } from "@/data/brand";
 import { useCatalogFamilies } from "@/features/catalog/CatalogProvider";
 import { effectiveUsd, toman } from "@/data/plans";
@@ -44,11 +48,24 @@ import { cn } from "@/lib/utils";
    a third-party CDN is the part of this page most likely to hang for an
    Iranian visitor, and it sits behind everything else on the first screen. */
 
-const NAV_ITEMS: { label: TKey; href: string }[] = [
+/**
+ * Anchors into this page, then real routes into the product.
+ *
+ * The routed half only became honest once a visitor could open those screens —
+ * before that they all bounced back here through the session gate. Somebody
+ * deciding whether to pay should be able to look at the thing first.
+ */
+const NAV_ITEMS: { label: TKey; href: string; menu?: NavKey }[] = [
   { label: "lp_nav_models", href: "#models" },
   { label: "lp_nav_features", href: "#features" },
   { label: "lp_nav_plans", href: "#plans" },
   { label: "lp_nav_faq", href: "#faq" },
+  { label: "nav_image", href: "/studio/image", menu: "image" },
+  { label: "nav_video", href: "/studio/video", menu: "video" },
+  { label: "nav_audio", href: "/studio/audio", menu: "audio" },
+  { label: "nav_effects", href: "/effects" },
+  { label: "nav_academy", href: "/academy" },
+  { label: "nav_mcp", href: "/mcp" },
 ];
 
 /** Cheapest plan by effective monthly price, so the hero's figure follows the ladder. */
@@ -256,6 +273,11 @@ export function HeroSection({ plans, onSignIn, onSignUp }: { plans: readonly Pla
 
 const HeroHeader = ({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) => {
   const { t } = useI18n();
+  // The landing page renders inside CatalogProvider — #55 moved it there so an
+  // anonymous visitor could read the catalogue — so the same menus the app's bar
+  // opens are available here, from the same served document.
+  const menus = useNavMenus();
+  const router = useRouter();
   const [menuState, setMenuState] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
   const { scrollYProgress } = useScroll();
@@ -269,7 +291,21 @@ const HeroHeader = ({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: ()
 
   return (
     <header>
-      <nav data-state={menuState && "active"} className="group fixed z-20 w-full pt-2">
+      {/* z-40, not the original's z-20.
+          Landing's root is `relative z-10`, which makes it a stacking context,
+          and this fixed bar and the page's content are both inside it — so the
+          bar does not automatically win by being fixed. The feature bento paints
+          its card chrome at z-30, and at z-20 that chrome scrolled straight over
+          the nav: card headings on top of MCP and ورود. 40 is the same step the
+          app's TopBar sits at, and the menu panel's z-50 is nested inside this
+          bar rather than competing with it. */}
+      <nav
+        data-state={menuState && "active"}
+        className="group fixed z-40 w-full pt-2"
+        // Fixed elements ignore flow, so a banner above cannot push this down —
+        // it has to be told. 0px on every page that has no banner.
+        style={{ top: "var(--vg-banner-height, 0px)" }}
+      >
         <div
           className={cn("mx-auto max-w-7xl rounded-3xl px-6 transition-all duration-300 lg:px-12")}
           style={scrolled ? { background: "var(--vg-glass)", backdropFilter: "blur(var(--vg-blur))" } : undefined}
@@ -302,18 +338,37 @@ const HeroHeader = ({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: ()
               </button>
 
               <div className="hidden lg:block">
-                <ul className="flex gap-8 text-sm">
-                  {NAV_ITEMS.map((item) => (
-                    <li key={item.href}>
-                      <a
-                        href={item.href}
-                        className="block duration-150 hover:text-[color:var(--vg-text)]"
-                        style={{ color: "var(--vg-text-muted)" }}
-                      >
-                        <span>{t(item.label)}</span>
-                      </a>
-                    </li>
-                  ))}
+                <ul className="flex items-center gap-8 text-sm">
+                  {NAV_ITEMS.map((item) => {
+                    const menu = item.menu ? menus[item.menu] : undefined;
+
+                    // Nothing on the landing page is the current page, so no
+                    // item is ever `active` here — `/` is not one of them.
+                    if (menu)
+                      return (
+                        <MegaMenu
+                          key={item.href}
+                          label={t(item.label)}
+                          menu={menu}
+                          active={false}
+                          variant="plain"
+                          onOpenModel={(familyId) => router.push(`/generate/${encodeURIComponent(familyId)}`)}
+                          onNav={() => router.push(item.href)}
+                        />
+                      );
+
+                    return (
+                      <li key={item.href}>
+                        <a
+                          href={item.href}
+                          className="block duration-150 hover:text-[color:var(--vg-text)]"
+                          style={{ color: "var(--vg-text-muted)" }}
+                        >
+                          <span>{t(item.label)}</span>
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </div>

@@ -1,10 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ApiError } from "../../src/adapters/http/client";
 import { AppLoading } from "../../src/components/AppLoading";
 import { OAuthFailureNotice } from "../../src/components/OAuthFailureNotice";
+import { SiteBanner } from "../../src/components/SiteBanner";
 import { SystemState } from "../../src/components/SystemState";
 import { CatalogProvider } from "../../src/features/catalog/CatalogProvider";
 import { ContentProvider } from "../../src/features/content/ContentProvider";
@@ -40,6 +41,7 @@ import type { Plan } from "../../src/runtime/contracts/plans";
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
   const online = useOnlineStatus();
+  const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
   const authActions = createAuthActions(auth, (path) => router.push(path));
@@ -126,14 +128,23 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   // The ladder gates the landing page too, not just the app: it prices two plans
   // for a visitor who has no session yet, so there is nothing to paint until it lands.
   if (!plansQuery.data || !contentQuery.data || !catalogQuery.data) return <AppLoading />;
-  /* A social sign-in that fails lands back here, anonymous, with `?auth=<code>`
-     in the URL and no other trace — so the notice belongs on the one branch that
-     renders for a signed-out visitor, not inside the landing page's own markup. */
-  if (session.status === "anonymous")
+  /* The landing page is what `/` shows a visitor, and only `/`. Every other
+     route renders the product itself, signed in or not: somebody deciding
+     whether to pay for this should be able to open the studios, read the
+     academy and browse the catalogue first. What they cannot do is spend, and
+     that is enforced at the buttons rather than at the door — see
+     `useIsVisitor`.
+
+     A social sign-in that fails lands back here, anonymous, with `?auth=<code>`
+     in the URL and no other trace — so the notice belongs on this branch, not
+     inside the landing page's own markup. */
+  const visiting = session.status === "anonymous";
+  if (visiting && pathname === "/")
     return (
       <CatalogProvider families={catalogQuery.data.families}>
         <ContentProvider content={contentQuery.data}>
           <OAuthFailureNotice />
+          <SiteBanner plans={plansQuery.data} onSeePlans={() => router.push("/plans")} />
           {/* `posts` is not gated above with plans and content: an empty showcase
               strip is a much smaller failure than a landing page that refuses to
               paint until other people's posts have loaded. */}
@@ -146,7 +157,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </ContentProvider>
       </CatalogProvider>
     );
-  if (!walletQuery.data) return <AppLoading />;
+  /* A visitor has no wallet to wait for. Only an account does. */
+  if (!visiting && !walletQuery.data) return <AppLoading />;
 
   /* Everything below is signed in, so it all sits inside AccessProvider.
      The tier gate is asked five levels down — a picker row, a dock chip, a
@@ -159,9 +171,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
      plan, this one line is the only thing that changes. */
   return (
     <NavigationProvider>
+      {/* Above AuthedTree, so it lands above the TopBar the nav layout renders
+          inside it. Both bars read --vg-banner-height to make room. */}
+      <SiteBanner plans={plansQuery.data} onSeePlans={() => router.push("/plans")} />
       <AuthedTree
-        user={session.user}
-        wallet={walletQuery.data}
+        user={session.status === "authed" ? session.user : null}
+        wallet={walletQuery.data ?? null}
         families={catalogQuery.data.families}
         content={contentQuery.data}
         plans={plansQuery.data}
@@ -173,7 +188,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   );
 }
 
-/** Split out so it can call useNavigation(), which needs NavigationProvider above it. */
+/**
+ * The product's provider stack. Named for the tree, not for the visitor: it
+ * renders for both, and `user`/`wallet` are null for the one who has not signed
+ * in. Split out so it can call useNavigation(), which needs NavigationProvider
+ * above it.
+ */
 function AuthedTree({
   user,
   wallet,
@@ -183,8 +203,8 @@ function AuthedTree({
   authActions,
   children,
 }: {
-  user: AccountUser;
-  wallet: Wallet;
+  user: AccountUser | null;
+  wallet: Wallet | null;
   families: CatalogSnapshot["families"];
   content: ContentSnapshot;
   plans: readonly Plan[];

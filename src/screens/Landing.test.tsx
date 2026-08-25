@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../lib/i18n";
@@ -12,6 +12,10 @@ import { createDemoCatalogService } from "../adapters/demo/catalog";
 import { createDemoContentService } from "../adapters/demo/content";
 import { createDemoCommunityService } from "../adapters/demo/community";
 import type { CatalogSnapshot } from "../runtime/contracts/catalog";
+
+/** The header's model menus route with the App Router, which no test mounts. */
+const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => nav }));
 
 // The landing page's feature bento renders nine effects, three courses, a voice
 // count and two family counts — all served now rather than imported. The demo
@@ -39,6 +43,68 @@ describe("Landing authentication actions", () => {
     render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     expect(within(screen.getByRole("banner")).getByText("DEEV")).toBeInTheDocument();
+  });
+
+  it("opens the same model menus the app's bar opens", async () => {
+    // The landing page does not render TopBar — it is its own header, outside
+    // `(nav)/layout.tsx` — so the menus have to be wired here separately, and
+    // this is the test that says so. They were missing here once already.
+    const user = userEvent.setup();
+    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+
+    const header = within(screen.getByRole("banner"));
+    await user.hover(header.getByRole("button", { name: "Video" }));
+
+    expect(header.getByText("Text to video")).toBeInTheDocument();
+
+    // The rows are the served catalogue's video families, not a list written
+    // here. `getAllBy`, because a family that carries several feature codes gets
+    // a row in each column it answers to — Kling appears under both text-to-video
+    // and image-to-video, and that repetition is the point rather than a fault.
+    const served = catalog.families.filter((family) => family.kind === "video");
+    expect(served.length).toBeGreaterThan(0);
+    for (const family of served) expect(header.getAllByText(family.name).length).toBeGreaterThan(0);
+  });
+
+  it("gives the panel a control that opens it without a pointer", async () => {
+    // `fireEvent`, not `userEvent`: userEvent moves a pointer onto the element
+    // before pressing it, which opens the panel by hover and makes the press a
+    // close. What is under test here is the keyboard path, where no hover
+    // happens and the button is the only way in.
+    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+
+    const header = within(screen.getByRole("banner"));
+    const disclosure = header.getByRole("button", { name: "Video models" });
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(disclosure);
+    expect(disclosure).toHaveAttribute("aria-expanded", "true");
+    expect(header.getByText("Text to video")).toBeInTheDocument();
+
+    fireEvent.click(disclosure);
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("keeps the item itself a destination rather than only a menu", async () => {
+    const user = userEvent.setup();
+    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+
+    await user.click(within(screen.getByRole("banner")).getByRole("button", { name: "Video" }));
+
+    expect(nav.push).toHaveBeenCalledWith("/studio/video");
+  });
+
+  it("sends a model picked from the header menu to its generate route", async () => {
+    const user = userEvent.setup();
+    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+
+    const header = within(screen.getByRole("banner"));
+    await user.hover(header.getByRole("button", { name: "Video" }));
+
+    const first = catalog.families.find((family) => family.kind === "video");
+    await user.click(header.getAllByText(first!.name)[0]!);
+
+    expect(nav.push).toHaveBeenCalledWith(`/generate/${first!.id}`);
   });
 
   it("keeps sign in and sign up as distinct actions", async () => {

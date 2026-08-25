@@ -23,6 +23,15 @@ import Auth, { type AuthMode } from "./Auth";
 const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => nav }));
 
+beforeEach(() => {
+  // Cleared, or every landing assertion passes on the *previous* test's call.
+  // `waitFor(toHaveBeenCalledWith("/"))` then returns before this screen's own
+  // 900ms redirect has fired, and a test meant to prove where it lands proves
+  // nothing — which is how the `next=` guard first went green while removed.
+  nav.push.mockClear();
+  nav.replace.mockClear();
+});
+
 // The screen holds the collapse animation for 900ms before navigating, so the
 // default 1s waitFor window would be a coin flip on a loaded machine.
 const LANDED = { timeout: 3000 };
