@@ -11,13 +11,15 @@ written down here, treat a red check as real.
 
 ---
 
-## `packages/db` · `analyticsRepository.integration.test.ts`
+## `packages/db` · `analyticsRepository.integration.test.ts` — fixed in #54
 
 > `the overview > counts what happened in the window and ignores what did not`
 > — `AssertionError: expected 2 to be 1` at line 79
 
-**Owner: backend.** Reported by the frontend side; not fixed here because
-`packages/db/` is not ours to change.
+Diagnosed from the frontend side against a backend-owned file and handed over as
+a report. The fix landed in #54, which was open at the time and already carried
+both halves of it. The mechanism stays on this page because it is the general
+one for this suite, not a property of that one test.
 
 ### Reproduced
 
@@ -39,29 +41,39 @@ Two files that are each correct on their own, sharing one database:
   real, through `pool` rather than a rolled-back `tx`. It has to — its own
   header says the bugs it hunts are "a decision made from a count that another
   uncommitted transaction is about to invalidate", and you cannot race inside a
-  single transaction that rolls back. Its `afterAll` closes the pool without
-  deleting those rows.
+  single transaction that rolls back.
 
 Run in parallel, a job committed by the second between the first's two reads
 makes the delta 2.
 
-### It is not only a test problem
+### It was not only a test problem
 
-The committed rows stay in the database. On 2026-08-24 a local database had
-**203 of its 210 `plans` rows** left behind by that test — seven of them
-`is_active and is_public`, so `GET /plans` was serving `Race Test Plan` to the
-web tier alongside the seven real ones. `pnpm plans:publish` retires them,
-because the publisher deactivates any plan absent from the source file, but
-nothing runs it automatically after a test run.
+The committed rows stayed. On 2026-08-24 a local database held **203 of its 210
+`plans` rows** left behind by that harness — seven of them `is_active and
+is_public`, so `GET /plans` was serving `Race Test Plan` to the web tier
+alongside the seven real ones.
 
-### Options, for whoever picks it up
+### What #54 changed
 
-|                                                                        | cost                                                                        |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `fileParallelism: false` in `packages/db/vitest.integration.config.ts` | proven (8/8 clean); suite goes 2s → 5s                                      |
-| run the concurrency file in its own project, sequenced after the rest  | cleanest; needs a two-project config                                        |
-| scope `overview()` to an account                                       | most correct; changes an API                                                |
-| delete the committed rows in `afterAll`                                | narrows the window, does not close it — the commits happen _during_ the run |
+Both halves, because the second alone still failed about one run in four:
+
+- **The harness stopped manufacturing plans.** `raceHarness.ts` inserted a
+  `race-plan-${random}` on every reset and deleted none, and `is_public`
+  defaults to true. It now reuses a single `race-harness` row that is neither
+  public nor active, and sweeps what earlier versions left behind.
+- **`fileParallelism: false`** in `packages/db/vitest.integration.config.ts`.
+  Several files `delete from` a whole shared table inside their rollback
+  transaction, so under READ COMMITTED a committed row from another file can
+  appear between two statements of a test that has just emptied that table. The
+  suite stops being two seconds and becomes ten to twenty, depending on the
+  machine.
+
+Verified 2026-08-25: four consecutive runs, 23 files and 285 tests, clean every
+time. The `plans` table afterwards holds 8 rows — the seven real ones
+`is_active and is_public`, plus the one `race-harness` row, which is neither.
+
+Scoping `overview()` to an account was the more correct of the options and is
+still available if a sequential suite ever costs more than it saves.
 
 ---
 
