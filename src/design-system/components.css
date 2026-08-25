@@ -323,7 +323,7 @@
 .vg-glass--tag {
   padding: 2px var(--vg-space-2);
   border-radius: var(--vg-radius-sm);
-  background: rgb(0 0 0 / 0.6);
+  background: var(--vg-scrim);
   backdrop-filter: blur(var(--vg-blur-sm));
   -webkit-backdrop-filter: blur(var(--vg-blur-sm));
   border: none;
@@ -347,7 +347,7 @@
     background: var(--vg-surface);
   }
   .vg-glass--tag {
-    background: rgb(0 0 0 / 0.85);
+    background: var(--vg-scrim-opaque);
   }
 }
 
@@ -656,6 +656,10 @@
   z-index: var(--vg-z-sheet);
   max-block-size: 88vh;
   overflow-y: auto;
+  /* Scrolling past the end of a sheet must not scroll the page behind it.
+     Without this the page moves under an open sheet on touch, and closing it
+     leaves the reader somewhere they never navigated to. */
+  overscroll-behavior: contain;
   padding: var(--vg-space-4) var(--vg-page-margin) calc(var(--vg-space-6) + env(safe-area-inset-bottom));
   background: var(--vg-surface-raised);
   border-start-start-radius: var(--vg-radius-xl);
@@ -862,6 +866,11 @@
    Edges are masked rather than cut. A hard crop says the row ends at the
    viewport; a fade says it continues past it, which is the truth.
    --------------------------------------------------------------------------- */
+/* The `#000` below is a mask alpha, not a colour: in a mask image black means
+   "keep this pixel" and transparent means "drop it". Routing it through a
+   palette token would be a category error — it would still have to be opaque
+   black, and naming it after a surface would imply the row is painted that
+   colour. Left literal on purpose. */
 .vg-marquee {
   overflow: hidden;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
