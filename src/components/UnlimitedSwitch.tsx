@@ -27,7 +27,7 @@ export function UnlimitedSwitch({
   on: boolean;
   onChange: (next: boolean) => void;
 }) {
-  const { t, n } = useI18n();
+  const { t } = useI18n();
   const fit = unlimitedFit(variant, input);
 
   // No pipe on this variant — the row is not a thing that could be here.
@@ -70,15 +70,24 @@ export function UnlimitedSwitch({
         />
       </span>
 
-      <span className="min-w-0 flex-1">
-        <span className="block text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
-          {t("unl_title")}
-        </span>
-        <span className="block text-[10.5px] leading-relaxed" style={{ color: "var(--vg-text-faint)" }}>
-          {/* Blocked says why, because the alternative is a switch that looks
-              available and quietly charges. */}
-          {blocked ? t("unl_blocked") : t("unl_note").replace("{n}", n(fit.dailyCap))}
-        </span>
+      {/* One word, and the reason only when there is one.
+          It said "free but slower — up to 50 images a day", which told the
+          customer three things that are ours and not theirs: that our own
+          fulfilment is the slow one, that we ration it, and by how much. None of
+          that helps somebody decide; it just apologises for the offer while
+          making it. The daily cap stays in the contract because the server
+          enforces it — it simply is not copy.
+
+          "Not at this quality" survives because it is the one thing the customer
+          needs: without it the switch sits there looking available and the coins
+          come off anyway. */}
+      <span className="min-w-0 flex-1 text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
+        {t("unl_title")}
+        {blocked && (
+          <span className="ms-1.5 text-[10.5px] font-normal" style={{ color: "var(--vg-text-faint)" }}>
+            {t("unl_blocked")}
+          </span>
+        )}
       </span>
     </label>
   );
