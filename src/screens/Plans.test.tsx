@@ -5,6 +5,8 @@ import { createDemoServices } from "../adapters/demo/demoServices";
 import { LanguageProvider } from "../lib/i18n";
 import { AppServicesProvider } from "../runtime/AppServices";
 import { PlansProvider } from "../features/plans/PlansProvider";
+import { CatalogProvider } from "../features/catalog/CatalogProvider";
+import { createDemoCatalogService } from "../adapters/demo/catalog";
 import { toman } from "../data/plans";
 import { PLAN_LADDER } from "../data/planLadder";
 import Plans from "./Plans";
@@ -12,6 +14,11 @@ import type { Plan } from "../runtime/contracts/plans";
 import type { Wallet } from "../runtime/contracts/wallet";
 
 const WALLET: Wallet = { spendable: 12, grants: [] };
+
+/* The unlimited benefit names the models the pipe covers, and takes them from
+   the catalogue rather than from a sentence somebody has to remember to edit —
+   so this screen now needs the served document the way Landing does. */
+const catalog = await createDemoCatalogService(() => 0).list();
 
 /**
  * The screen asks for the running campaign, so it needs the service port and a
@@ -26,9 +33,11 @@ function show(plans: readonly Plan[], currentPlanId: string | null = null) {
     <QueryClientProvider client={queryClient}>
       <AppServicesProvider services={createDemoServices()}>
         <LanguageProvider initialLang="en">
-          <PlansProvider plans={plans}>
-            <Plans wallet={WALLET} currentPlanId={currentPlanId} onBack={vi.fn()} />
-          </PlansProvider>
+          <CatalogProvider families={catalog.families}>
+            <PlansProvider plans={plans}>
+              <Plans wallet={WALLET} currentPlanId={currentPlanId} onBack={vi.fn()} />
+            </PlansProvider>
+          </CatalogProvider>
         </LanguageProvider>
       </AppServicesProvider>
     </QueryClientProvider>,

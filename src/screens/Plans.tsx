@@ -57,6 +57,8 @@ import { useAppServices } from "../runtime/AppServices";
 import type { CheckoutOrder } from "../runtime/contracts/payment";
 import { useI18n } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
+import { unlimitedModelNames } from "../lib/unlimitedModels";
+import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 
 const TAG_KEY = { test: "w_tag_test", gift: "w_tag_gift", popular: "w_tag_popular", best: "w_tag_best" } as const;
 const PLAN_AUDIENCE_KEY = {
@@ -133,9 +135,20 @@ function PlanFeatures({ plan, compact = false }: { plan: Plan; compact?: boolean
  * Amber sits next to the lime without being it. See 4b in tokens.css.
  */
 function UnlimitedBenefit({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
-  const { t, n } = useI18n();
+  const { t, lang } = useI18n();
+  const families = useCatalogFamilies();
   if (plan.tier < 2) return null;
   const isProTrial = plan.code === "pro";
+  /* The models come from the catalogue. This sentence used to name two of them
+     as a literal string, and once a third gained the pipe it was quietly wrong
+     — on the page whose whole job is saying what somebody is buying.
+
+     `Intl.ListFormat` rather than joining on "،": Persian and English put the
+     last separator in different places, and a hand-rolled join gets one of them
+     wrong. */
+  const models = new Intl.ListFormat(lang === "fa" ? "fa-IR" : "en-US", { style: "long", type: "conjunction" }).format(
+    unlimitedModelNames(families),
+  );
   return (
     <div className={`rounded-xl border border-reward-line bg-reward-wash ${compact ? "p-2" : "p-3"}`}>
       <div className="flex items-center gap-2 text-[11px] font-bold text-reward">
@@ -143,7 +156,7 @@ function UnlimitedBenefit({ plan, compact = false }: { plan: Plan; compact?: boo
         {t(isProTrial ? "pl_unlimited_7d_title" : "pl_unlimited_title")}
       </div>
       <p className={`${compact ? "mt-1" : "mt-1.5"} text-[10px] leading-relaxed text-ink2`}>
-        {isProTrial ? t("pl_unlimited_7d_sub") : t("pl_unlimited_sub").replace("{n}", n(50))}
+        {(isProTrial ? t("pl_unlimited_7d_sub") : t("pl_unlimited_sub")).replace("{models}", models)}
       </p>
     </div>
   );

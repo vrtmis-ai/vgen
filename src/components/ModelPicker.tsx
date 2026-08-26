@@ -63,7 +63,7 @@ function Row({
   locked: boolean;
   onPick: () => void;
 }) {
-  const { n } = useI18n();
+  const { t, n } = useI18n();
   const v = variant ?? family.variants[0]!;
   const meta = useMemo(() => variantMeta(family, v), [family, v]);
   // Quoted at the variant's own defaults, which is what the panel will load.
@@ -97,6 +97,30 @@ function Row({
               style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
             >
               {v.badge}
+            </span>
+          )}
+          {/* Which models can be run unlimited, said where the choice is made.
+              The switch in the dock only appears once a model is already
+              picked, so without this the customer has to select each one to
+              find out — and the two that have it are the reason somebody buys
+              the plan.
+
+              Blue, not the primary: the catalogue's own badges are lime, and a
+              third lime chip on the same row would make "popular" and "you can
+              run this all day" the same signal. Blue is what this system uses
+              for "know this".
+
+              A family row asks whether *any* of its variants has the pipe; a
+              variant row asks about itself. Reading `variants[0]` for both — the
+              way the badge above does — happened to be right for Nano Banana and
+              would have been wrong for the next family whose second variant is
+              the covered one. */}
+          {(variant ? v.unlimited : family.variants.some((each) => each.unlimited)) && (
+            <span
+              className="shrink-0 rounded px-1 py-px text-[9.5px] font-bold"
+              style={{ background: "var(--vg-accent-a20)", color: "var(--vg-accent)" }}
+            >
+              {t("unl_title")}
             </span>
           )}
         </span>
