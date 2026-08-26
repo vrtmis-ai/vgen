@@ -1790,11 +1790,13 @@
           "label": "۲٫۵ Turbo",
           "refs": [
             {
+              "group": "frame",
               "key": "image_url",
               "label": "فریم شروع (اختیاری)",
               "max": 1
             },
             {
+              "group": "frame",
               "key": "tail_image_url",
               "label": "فریم پایان",
               "max": 1,
@@ -2140,18 +2142,21 @@
           "label": "۲٫۷",
           "refs": [
             {
+              "group": "frame",
               "key": "first_frame_url",
               "label": "فریم شروع (اختیاری)",
               "max": 1,
               "maxMb": 30
             },
             {
+              "group": "frame",
               "key": "last_frame_url",
               "label": "فریم پایان (اختیاری)",
               "max": 1,
               "maxMb": 30
             },
             {
+              "group": "frame",
               "key": "first_clip_url",
               "label": "کلیپ شروع (اختیاری)",
               "max": 1,
@@ -2413,6 +2418,7 @@
               "required": true
             },
             {
+              "group": "frame",
               "key": "first_frame",
               "label": "فریم شروع (اختیاری)",
               "max": 1

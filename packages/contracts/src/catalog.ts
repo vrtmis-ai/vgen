@@ -43,6 +43,18 @@ export const CatalogControlSchema = z.discriminatedUnion("kind", [
 ]);
 
 export const CatalogRefSlotSchema = z.object({
+  /**
+   * Which upload the slot belongs to, so a panel can offer them as the separate
+   * choices they are rather than one "add a file".
+   *
+   * `frame` is a position in the clip — a start or an end the model interpolates
+   * between. `reference` is material it draws from. They are different questions
+   * and the reference asks them on separate tabs; merging them produced a single
+   * generic dropzone that told a customer nothing about what the model wanted.
+   *
+   * Absent means `reference`, which is the ordinary case.
+   */
+  group: z.enum(["reference", "frame"]).optional(),
   key: z.string().min(1),
   label: z.string(),
   max: z.number().int().positive(),

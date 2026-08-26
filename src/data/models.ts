@@ -47,6 +47,9 @@ export type Control =
 export type SlotMedia = "image" | "video" | "audio";
 
 export interface RefSlot {
+  /** `frame` is a position in the clip; `reference` is material to draw from.
+   *  Absent means reference. See the contract for why they are separate. */
+  group?: "reference" | "frame";
   key: string;
   label: string;
   max: number;
@@ -819,8 +822,8 @@ export const FAMILIES: Family[] = [
         // tail_image_url — instead of one image_urls array, and drops
         // aspect_ratio, which follows the start frame.
         refs: [
-          { key: "image_url", label: "فریم شروع (اختیاری)", max: 1 },
-          { key: "tail_image_url", label: "فریم پایان", max: 1, requires: "image_url" },
+          { key: "image_url", group: "frame" as const, label: "فریم شروع (اختیاری)", max: 1 },
+          { key: "tail_image_url", group: "frame" as const, label: "فریم پایان", max: 1, requires: "image_url" },
         ],
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
@@ -985,9 +988,9 @@ export const FAMILIES: Family[] = [
         // and the image-to-video model drops it entirely — the frame follows the
         // first image.
         refs: [
-          { key: "first_frame_url", label: "فریم شروع (اختیاری)", max: 1, maxMb: 30 },
-          { key: "last_frame_url", label: "فریم پایان (اختیاری)", max: 1, maxMb: 30 },
-          { key: "first_clip_url", label: "کلیپ شروع (اختیاری)", max: 1, media: "video", maxMb: 30 },
+          { key: "first_frame_url", group: "frame" as const, label: "فریم شروع (اختیاری)", max: 1, maxMb: 30 },
+          { key: "last_frame_url", group: "frame" as const, label: "فریم پایان (اختیاری)", max: 1, maxMb: 30 },
+          { key: "first_clip_url", group: "frame" as const, label: "کلیپ شروع (اختیاری)", max: 1, media: "video", maxMb: 30 },
           { key: "driving_audio_url", label: "صدای هدایت‌گر (اختیاری)", max: 1, media: "audio", maxMb: 50 },
         ],
         controls: [
@@ -1092,7 +1095,7 @@ export const FAMILIES: Family[] = [
         label: "۲٫۷ مرجع",
         refs: [
           { key: "reference_image", label: "تصاویر مرجع (الزامی)", max: 5, required: true },
-          { key: "first_frame", label: "فریم شروع (اختیاری)", max: 1 },
+          { key: "first_frame", group: "frame" as const, label: "فریم شروع (اختیاری)", max: 1 },
         ],
         controls: [
           {
