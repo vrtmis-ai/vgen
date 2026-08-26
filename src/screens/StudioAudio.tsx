@@ -25,6 +25,7 @@ import { CoinMark } from "../components/chrome";
 import { Card, PanelShell, PanelTabs } from "../components/FormPanel";
 import { ModelPicker } from "../components/ModelPicker";
 import { useI18n } from "../lib/i18n";
+import { useSession } from "../runtime/providers/SessionProvider";
 import { useAccess } from "../lib/access";
 
 /* ---------------------------------------------------------------------------
@@ -205,11 +206,15 @@ export default function StudioAudio({
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
 }) {
-  const { n } = useI18n();
+  const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
   const families = catalogFamilies.filter((f) => f.kind === "audio");
   const s = useCreateState(families);
   const access = useAccess();
+  // See StudioImage: a visitor gets the studio and a sign-in button in place
+  // of the one control that spends. The upgrade lock does not apply to them.
+  const { user, signIn } = useSession();
+  const visitor = user === null;
   const locked = !access.can(s.family.id);
   const need = locked ? access.needs(s.family.id) : null;
   const [tab, setTab] = useState<"all" | "liked">("all");
@@ -436,7 +441,7 @@ export default function StudioAudio({
 
         <div className="sticky bottom-0 mt-auto p-3" style={{ background: "var(--vg-deep)" }}>
           {/* See FormPanel. */}
-          {locked ? (
+          {locked && !visitor ? (
             <button
               onClick={access.onUpgrade}
               className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold"
@@ -453,13 +458,13 @@ export default function StudioAudio({
             </button>
           ) : (
             <button
-              disabled={!s.ready}
-              onClick={() => onGenerate(s.family, s.variant, s.prompt.trim(), s.input)}
+              disabled={!visitor && !s.ready}
+              onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input))}
               className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold transition-opacity disabled:opacity-35"
               style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
             >
               <Sparkle size={15} weight="fill" />
-              بساز
+              {visitor ? t("visitor_cta") : "بساز"}
               <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
                 <CoinMark size={12} />
                 <span className="vg-numeric">{s.price === null ? "—" : n(s.price * batch)}</span>

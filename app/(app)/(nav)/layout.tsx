@@ -4,9 +4,10 @@ import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { Shell } from "../../../src/components/Shell";
 import { TopBar } from "../../../src/components/TopBar";
+import { useNavMenus } from "../../../src/components/navMenu";
 import { pageFade } from "../../../src/lib/motion";
 import { useNavigation } from "../../../src/runtime/providers/NavigationProvider";
-import { useAuthedSession } from "../../../src/runtime/providers/SessionProvider";
+import { useSession } from "../../../src/runtime/providers/SessionProvider";
 
 /**
  * The nav'd area.
@@ -22,12 +23,24 @@ import { useAuthedSession } from "../../../src/runtime/providers/SessionProvider
  * the same read with nothing to wait on.
  */
 export default function NavLayout({ children }: { children: ReactNode }) {
-  const { tab, setTab, openWallet, openProfile } = useNavigation();
-  const { wallet } = useAuthedSession();
+  const { tab, setTab, openWallet, openProfile, openModel } = useNavigation();
+  const { wallet, signIn } = useSession();
+  // Built here rather than inside TopBar: the bar stays a pure component that a
+  // test can render without standing up a catalogue.
+  const menus = useNavMenus();
 
   return (
     <Shell>
-      <TopBar active={tab} onNav={setTab} coins={wallet.spendable} onWallet={openWallet} onProfile={openProfile} />
+      <TopBar
+        active={tab}
+        onNav={setTab}
+        menus={menus}
+        onOpenModel={openModel}
+        coins={wallet?.spendable ?? null}
+        onWallet={openWallet}
+        onProfile={openProfile}
+        onSignIn={signIn}
+      />
       <div key={tab}>
         <motion.div initial={pageFade.initial} animate={pageFade.animate} transition={pageFade.transition}>
           {children}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "../runtime/providers/SessionProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, CaretDown, Lock, Sparkle, Stack } from "@phosphor-icons/react";
 import { defaultInput, variantControls, variantRefs, variantMaxPrompt, type Family, type Variant } from "../data/models";
@@ -78,6 +79,8 @@ export default function Generate({
   const orphan = refs.find((s) => s.requires && filled(s.key) && !filled(s.requires));
   const orphanNeeds = orphan && refs.find((s) => s.key === orphan.requires);
   const { t, n } = useI18n();
+  const { user, signIn } = useSession();
+  const visitor = user === null;
   const [coverFailed, onCoverError] = useImageFallback();
   // Two model families price off something other than their settings: speech
   // bills per 1000 characters of prompt, Motion Control per second of the
@@ -310,12 +313,12 @@ export default function Generate({
           </button>
         ) : (
           <button
-            onClick={() => void submit()}
-            disabled={!canGenerate || submitting}
+            onClick={() => (visitor ? signIn() : void submit())}
+            disabled={!visitor && (!canGenerate || submitting)}
             className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
           >
             <Sparkle size={18} weight="fill" />
-            <span>{submitting ? "در حال ثبت…" : t("g_create")}</span>
+            <span>{visitor ? t("visitor_cta") : submitting ? "در حال ثبت…" : t("g_create")}</span>
             {price != null && !clipUnreadable && (
               <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
                 <CoinMark size={12} />
