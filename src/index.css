@@ -1011,6 +1011,11 @@ input.vg-density {
 @media (pointer: coarse) {
   .vg-tap {
     position: relative;
+    /* The 44px target below answers "can I hit it". This answers "does it
+       respond": without it a tap waits ~300ms for a possible double-tap to
+       zoom, which reads as the app being slow rather than as a browser
+       default. `-webkit-tap-highlight-color` is already handled globally. */
+    touch-action: manipulation;
   }
   .vg-tap::after {
     content: "";

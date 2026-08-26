@@ -8,7 +8,10 @@
    corrected it, and Next flags the mismatch. A cookie is the only client
    preference the server can see while rendering. See app/layout.tsx. */
 import { createContext, useContext, useEffect, useState } from "react";
-import { coinDigits, faNum } from "./format";
+import { coinDigits, type NumberLocale } from "./format";
+
+const FA: NumberLocale = "fa-IR";
+const EN: NumberLocale = "en-US";
 import { dirFor, LANG_COOKIE, LANG_COOKIE_MAX_AGE_SECONDS, type Lang } from "./lang";
 
 export type { Lang };
@@ -858,8 +861,8 @@ const Ctx = createContext<I18n>({
   lang: "fa",
   setLang: () => undefined,
   t: (k) => dict.fa[k],
-  n: (v) => faNum(v.toLocaleString("en-US")),
-  c: (v) => faNum(coinDigits(v)),
+  n: (v) => v.toLocaleString(FA),
+  c: (v) => coinDigits(v, FA),
 });
 
 export function LanguageProvider({ initialLang = "fa", children }: { initialLang?: Lang; children: React.ReactNode }) {
@@ -880,8 +883,12 @@ export function LanguageProvider({ initialLang = "fa", children }: { initialLang
   }, [lang]);
 
   const t = (k: TKey) => dict[lang][k] ?? dict.fa[k];
-  const n = (v: number) => (lang === "fa" ? faNum(v.toLocaleString("en-US")) : v.toLocaleString("en-US"));
-  const c = (v: number) => (lang === "fa" ? faNum(coinDigits(v)) : coinDigits(v));
+  // One locale decides digits, grouping and decimal together. Splitting them —
+  // English grouping, Persian digits — is what put an ASCII comma inside a
+  // Persian figure everywhere a number is printed.
+  const locale: NumberLocale = lang === "fa" ? FA : EN;
+  const n = (v: number) => v.toLocaleString(locale);
+  const c = (v: number) => coinDigits(v, locale);
 
   return <Ctx.Provider value={{ lang, setLang, t, n, c }}>{children}</Ctx.Provider>;
 }

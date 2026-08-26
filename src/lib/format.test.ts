@@ -31,8 +31,32 @@ describe("coinDigits", () => {
     expect(coinDigits(3.1)).toBe("3.1");
   });
 
-  it("groups thousands, and survives the Persian digit pass", () => {
+  it("groups thousands", () => {
     expect(coinDigits(1234567.89)).toBe("1,234,567.89");
-    expect(faNum(coinDigits(1250.5))).toBe("۱,۲۵۰.۵");
+  });
+
+  /**
+   * The Persian figure, in the spelling a Persian reader writes.
+   *
+   * This used to assert `faNum(coinDigits(x))` — English grouping with the
+   * digits swapped afterwards — and it passed while the app printed `۱,۲۵۰`: a
+   * Persian numeral holding an ASCII comma. The test was true of the two
+   * functions and false of the product. One locale now decides digits, grouping
+   * and decimal together, and this asserts all three.
+   */
+  it("gives Persian its own separator and decimal, not English ones in Persian digits", () => {
+    expect(coinDigits(1250.5, "fa-IR")).toBe("۱٬۲۵۰٫۵");
+    expect(coinDigits(0.16, "fa-IR")).toBe("۰٫۱۶");
+    expect(coinDigits(1250, "fa-IR")).toBe("۱٬۲۵۰");
+
+    // U+066C and U+066B, not the ASCII pair.
+    expect(coinDigits(1250.5, "fa-IR")).not.toContain(",");
+    expect(coinDigits(1250.5, "fa-IR")).not.toContain(".");
+  });
+
+  it("still transliterates a string ICU cannot format as a number", () => {
+    // A phone number is digits with structure, not a quantity — grouping it
+    // would be wrong, so this path stays.
+    expect(faNum("0912 345 6789")).toBe("۰۹۱۲ ۳۴۵ ۶۷۸۹");
   });
 });

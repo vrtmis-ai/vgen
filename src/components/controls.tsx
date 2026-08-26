@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Plus, X, Play, Pause, SpeakerHigh } from "@phosphor-icons/react";
 import type { Control, RefSlot, SlotMedia } from "../data/models";
@@ -110,6 +111,12 @@ function SliderControl({
   return (
     <FieldShell label={control.label}>
       <div className="flex items-center gap-3">
+        {/* `.vg-slider`, not a bare range with an inline gradient.
+            The hand-rolled version inherited the global `input[type="range"]`
+            rule, whose `outline: none` has no replacement — so keyboard focus
+            on every slider in the dock was invisible. The system's class
+            already answers that (its thumb takes the focus glow), and it also
+            mirrors its own fill under RTL, which `to right` did not. */}
         <input
           type="range"
           min={control.min}
@@ -117,8 +124,8 @@ function SliderControl({
           step={control.step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="flex-1"
-          style={{ background: `linear-gradient(to right, var(--color-accent) ${pct}%, var(--color-line2) ${pct}%)` }}
+          className="vg-slider flex-1"
+          style={{ "--vg-slider-fill": `${pct}%` } as CSSProperties}
         />
         <span className="min-w-[58px] rounded-lg bg-card2 px-2.5 py-1 text-center text-[12.5px] tabular-nums">
           {faNum(value)}
@@ -167,7 +174,11 @@ function NegText({
         onChange={(e) => onChange(e.target.value)}
         placeholder={control.placeholder}
         rows={2}
-        className="ltr w-full resize-none rounded-2xl border border-line bg-card2 p-3 text-[13px] text-ink placeholder:text-ink3 focus:border-line2 focus:outline-none"
+        /* No `focus:outline-none`. The app-wide ring is
+           `:where(…):focus-visible`, which has zero specificity, so a Tailwind
+           `focus:outline-none` beat it and left a border tint as the only
+           focus signal — and on `:focus`, so it also fired on a plain click. */
+        className="ltr w-full resize-none rounded-2xl border border-line bg-card2 p-3 text-[13px] text-ink placeholder:text-ink3 focus-visible:border-line2"
       />
     </FieldShell>
   );

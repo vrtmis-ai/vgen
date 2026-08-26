@@ -36,6 +36,10 @@
   --vg-glass-light: rgb(255 255 255 / 0.05);
   --vg-glass-faint: rgb(255 255 255 / 0.02);
   --vg-scrim: rgb(0 0 0 / 0.6);
+  /* The same scrim for a browser with no backdrop-filter. Blur is what carries
+     the separation in the normal case; without it the fill has to do the whole
+     job alone, so it is denser rather than the same value looking thinner. */
+  --vg-scrim-opaque: rgb(0 0 0 / 0.85);
 
   /* ---------------------------------------------------------------------
      2. CONTENT — text and icons

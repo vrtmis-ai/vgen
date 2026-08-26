@@ -5,7 +5,25 @@ export function isVideoUrl(u?: string): boolean {
   return !!u && /\.(mp4|webm)$/i.test(u);
 }
 
-/** Convert latin digits in a value to Persian digits. */
+/**
+ * The locale a figure is formatted in.
+ *
+ * Persian is `fa-IR` and not "English grouping with the digits swapped
+ * afterwards", which is what this file used to do. That produced `۱,۲۵۰` —
+ * Persian numerals holding an ASCII comma — a spelling no Persian reader
+ * writes. ICU knows the separator is `٬` and the decimal `٫`, and gives both in
+ * the same step that gives the digits.
+ */
+export type NumberLocale = "fa-IR" | "en-US";
+
+/**
+ * Convert latin digits in a value to Persian digits.
+ *
+ * Still needed for strings that are not numbers ICU can format — a phone number
+ * typed into a field, a code, an id. For an actual quantity prefer passing the
+ * locale to `coinDigits` or `toLocaleString`, which also gets the separators
+ * right.
+ */
 export function faNum(value: number | string): string {
   // The pattern only ever matches 0-9, so the lookup always hits; `?? d` is how
   // that is stated to the compiler without an assertion that would also hide a
@@ -26,8 +44,8 @@ export function faNum(value: number | string): string {
  * could only ever be float noise from a division. Trailing zeros are dropped
  * because whole coins are still the common case and "1,250.00" is noise.
  */
-export function coinDigits(value: number): string {
-  return value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+export function coinDigits(value: number, locale: NumberLocale = "en-US"): string {
+  return value.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 /**
