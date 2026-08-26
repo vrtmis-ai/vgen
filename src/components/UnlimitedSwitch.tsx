@@ -36,12 +36,17 @@ export function UnlimitedSwitch({
   const blocked = !fit.available;
 
   return (
+    /* A chip, the same object as everything else in the dock.
+       It was a bordered box with its own height and padding, standing outside
+       the control row — which made the row read as "four chips and a widget".
+       It is a control like the others and now looks like one. */
     <label
-      className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors"
+      title={blocked ? t("unl_blocked") : undefined}
+      className="flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl px-3 text-[13px] font-semibold transition-colors"
       style={{
-        background: on && !blocked ? "var(--vg-accent-a10)" : "var(--vg-surface)",
-        border: `1px solid ${on && !blocked ? "var(--vg-accent-a20)" : "var(--vg-border-subtle)"}`,
-        opacity: blocked ? 0.6 : 1,
+        background: on && !blocked ? "var(--vg-accent-a20)" : "var(--vg-surface-overlay)",
+        color: on && !blocked ? "var(--vg-accent)" : "var(--vg-text-muted)",
+        opacity: blocked ? 0.55 : 1,
       }}
     >
       {/* A real checkbox under the paint: it is what a keyboard reaches, what a
@@ -81,14 +86,11 @@ export function UnlimitedSwitch({
           "Not at this quality" survives because it is the one thing the customer
           needs: without it the switch sits there looking available and the coins
           come off anyway. */}
-      <span className="min-w-0 flex-1 text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
-        {t("unl_title")}
-        {blocked && (
-          <span className="ms-1.5 text-[10.5px] font-normal" style={{ color: "var(--vg-text-faint)" }}>
-            {t("unl_blocked")}
-          </span>
-        )}
-      </span>
+      <span className="whitespace-nowrap">{t("unl_title")}</span>
+      {/* The reason rides on the chip's own title rather than a second line:
+          the row is one height now, and a blocked chip that grows is the one
+          that breaks it. */}
+      {blocked && <span className="sr-only">{t("unl_blocked")}</span>}
     </label>
   );
 }
