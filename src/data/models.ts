@@ -100,6 +100,19 @@ export interface Variant {
   featureCode: string;
   /** Prompt character limit, when it differs from the family's. */
   maxPrompt?: number;
+  /**
+   * The flat-fee pipe, for the variants that have one.
+   *
+   * Same model, served two ways: metered bills per image and is quick, this one
+   * bills nothing per image and drops into a slower queue past a daily cap.
+   * `scripts/publish-unlimited.ts` seeds the plumbing; this is the half a
+   * browser is told, so it can offer the choice before asking for a price.
+   *
+   * `limits` names the settings it covers. Nano Banana runs unlimited to 2K and
+   * not at 4K, and the screen has to be able to say so before the switch is
+   * flipped rather than after a quote comes back metered.
+   */
+  unlimited?: { dailyCap: number; limits?: Record<string, string[]> };
   label: string; // short version label for the switcher
   badge?: string;
   refs?: RefSlot[] | null; // null = no input slots; undefined = inherit family.refs
@@ -313,12 +326,14 @@ export const FAMILIES: Family[] = [
         featureCode: "image_generate",
         label: "Pro",
         badge: "پرچم‌دار",
+        unlimited: { dailyCap: 50, limits: { resolution: ["1K", "2K"] } },
       },
       {
         id: "nano-banana-2",
         featureCode: "image_generate",
         label: "نسخه ۲",
         badge: "جدید",
+        unlimited: { dailyCap: 50, limits: { resolution: ["1K", "2K"] } },
         refs: [{ key: "image_input", label: "تصاویر ورودی (اختیاری)", max: 14 }],
         controls: [
           {
@@ -374,7 +389,8 @@ export const FAMILIES: Family[] = [
       },
     ],
     variants: [
-      { id: "seedream-4-5", featureCode: "image_generate", label: "۴٫۵" },
+      // No `limits`: Seedream 4.5 has no resolution control to cap.
+      { id: "seedream-4-5", featureCode: "image_generate", label: "۴٫۵", unlimited: { dailyCap: 50 } },
       { id: "seedream-5-lite", featureCode: "image_generate", label: "۵ Lite", badge: "ارزان" },
     ],
   },

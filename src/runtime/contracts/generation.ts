@@ -18,6 +18,9 @@ export const QuoteGenerationRequestSchema = z.object({
   prompt: z.string(),
   input: InputMapSchema,
   referenceAssetIds: z.record(z.string(), z.array(z.string().min(1))).default({}),
+  /** "I would rather wait than spend." See the wire contract for why this is a
+   *  preference the server may decline rather than a billing instruction. */
+  preferUnlimited: z.boolean().optional(),
 });
 
 /**

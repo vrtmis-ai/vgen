@@ -62,6 +62,40 @@ export const RefSlotSchema = z.object({
  * `id`, and the price and the job both key off that. The mapping now lives in
  * `src/data/upstream.json`, which only the seeders may import.
  */
+/**
+ * The unlimited pipe, when a variant has one.
+ *
+ * Some models are reachable two ways: metered, which bills per image and is
+ * quick, and a flat-fee subscription reached through a gateway, which bills
+ * nothing per image and throttles into a slower queue past a daily per-account
+ * threshold. `scripts/publish-unlimited.ts` seeds the second; this is the only
+ * thing about it a browser is told.
+ *
+ * **On the variant, not the family.** Nano Banana has the pipe for Pro and for
+ * 2, and Seedream has it for 4.5 and not for 5 Lite — a family-level flag would
+ * promise it on a variant that cannot deliver it.
+ *
+ * Deliberately not a second catalogue entry either. The customer picks one Nano
+ * Banana Pro and then chooses how it is served; two entries would make them
+ * choose between models they cannot tell apart, and would double every price
+ * table.
+ *
+ * `limits` names the settings the pipe covers, as `control key -> allowed
+ * values`. Nano Banana runs unlimited up to 2K and not at 4K, and a screen has
+ * to be able to say so *before* the choice is made rather than after a quote
+ * comes back metered. Absent means the pipe covers every setting the variant
+ * offers.
+ *
+ * `dailyCap` is what the plan allows per day, so a screen can say what the
+ * choice costs in waiting. What is *left* of today comes back on the quote,
+ * because only the server knows what has been spent.
+ */
+const UnlimitedPipeSchema = z.object({
+  dailyCap: z.number().int().positive(),
+  /** `control key -> the values the pipe covers`. Absent means all of them. */
+  limits: z.record(z.string(), z.array(z.string().min(1))).optional(),
+});
+
 export const VariantSchema = z.object({
   id: z.string().min(1),
   /** `features.code` — the product section a job from this variant is filed under. */
@@ -69,6 +103,8 @@ export const VariantSchema = z.object({
   maxPrompt: z.number().int().positive().optional(),
   label: z.string(),
   badge: z.string().optional(),
+  /** Absent for the variants served only by the metered pipe. */
+  unlimited: UnlimitedPipeSchema.optional(),
   refs: z.array(RefSlotSchema).nullable().optional(),
   controls: z.array(ControlSchema).optional(),
 });

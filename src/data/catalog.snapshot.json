@@ -135,7 +135,16 @@
           "id": "nano-banana-pro",
           "featureCode": "image_generate",
           "label": "Pro",
-          "badge": "پرچم‌دار"
+          "badge": "پرچم‌دار",
+          "unlimited": {
+            "dailyCap": 50,
+            "limits": {
+              "resolution": [
+                "1K",
+                "2K"
+              ]
+            }
+          }
         },
         {
           "id": "nano-banana-2",
@@ -249,7 +258,16 @@
               ],
               "def": "jpg"
             }
-          ]
+          ],
+          "unlimited": {
+            "dailyCap": 50,
+            "limits": {
+              "resolution": [
+                "1K",
+                "2K"
+              ]
+            }
+          }
         }
       ]
     },
@@ -341,7 +359,10 @@
         {
           "id": "seedream-4-5",
           "featureCode": "image_generate",
-          "label": "۴٫۵"
+          "label": "۴٫۵",
+          "unlimited": {
+            "dailyCap": 50
+          }
         },
         {
           "id": "seedream-5-lite",

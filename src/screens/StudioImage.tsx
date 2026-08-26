@@ -12,6 +12,8 @@ import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
 import { ModelChip } from "../components/ModelPicker";
+import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
+import { unlimitedFit } from "../lib/unlimited";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { useAccess } from "../lib/access";
@@ -161,6 +163,8 @@ export default function StudioImage({
   // access.onUpgrade opens a wallet drawer nobody owns yet.
   const { user, signIn } = useSession();
   const visitor = user === null;
+  // Reachable *and* chosen. Either alone leaves the button lying about cost.
+  const freeNow = s.preferUnlimited && unlimitedFit(s.variant, s.input)?.available === true;
   const locked = !access.can(s.family.id);
   const need = locked ? access.needs(s.family.id) : null;
   const [count, setCount] = useState(1);
@@ -411,6 +415,10 @@ export default function StudioImage({
                 </button>
               </div>
 
+              {/* Above the button, not beside it: it changes what the button
+                  costs, so it has to be read before the button is pressed. */}
+              <UnlimitedSwitch variant={s.variant} input={s.input} on={s.preferUnlimited} onChange={s.setPreferUnlimited} />
+
               {/* See FormPanel: a locked model buys an upgrade button, not a
                   greyed-out price. */}
               {locked && !visitor ? (
@@ -435,7 +443,10 @@ export default function StudioImage({
                   </span>
                   <span className="flex items-center gap-1 text-[11.5px] font-semibold opacity-90">
                     <CoinMark size={11} />
-                    <span className="vg-numeric">{s.price === null ? "—" : n(s.price * count)}</span>
+                    {/* The local table prices the metered pipe. When the other
+                        one is chosen and reachable, the figure is not a smaller
+                        price — there is no price. The quote still decides. */}
+                    <span className="vg-numeric">{freeNow ? t("unl_free") : s.price === null ? "—" : n(s.price * count)}</span>
                   </span>
                 </button>
               )}

@@ -24,6 +24,23 @@ export const QuoteGenerationRequestSchema = z
      * and this field goes.
      */
     clipSeconds: z.number().positive().max(3600).optional(),
+    /**
+     * A preference, not an instruction — which is why it is a mood and not a
+     * price.
+     *
+     * The note above is right that a request able to name a feature is a
+     * request able to ask to be billed as something cheaper. This one names no
+     * feature, no model and no price: it says the customer would rather wait
+     * than spend, and the server decides whether that is available to them by
+     * looking up the same three things it already looks up — does this family
+     * have the pipe, does this account hold the entitlement, and is today's cap
+     * already reached. A `true` here can only ever make a generation slower.
+     *
+     * The answer comes back on the quote's `unlimited` field, so the browser
+     * learns what actually happened rather than assuming it got what it asked
+     * for.
+     */
+    preferUnlimited: z.boolean().optional(),
   })
   .strict();
 
