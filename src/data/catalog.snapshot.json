@@ -151,6 +151,15 @@
           "featureCode": "image_generate",
           "label": "نسخه ۲",
           "badge": "جدید",
+          "unlimited": {
+            "dailyCap": 50,
+            "limits": {
+              "resolution": [
+                "1K",
+                "2K"
+              ]
+            }
+          },
           "refs": [
             {
               "key": "image_input",
@@ -258,16 +267,7 @@
               ],
               "def": "jpg"
             }
-          ],
-          "unlimited": {
-            "dailyCap": 50,
-            "limits": {
-              "resolution": [
-                "1K",
-                "2K"
-              ]
-            }
-          }
+          ]
         }
       ]
     },
