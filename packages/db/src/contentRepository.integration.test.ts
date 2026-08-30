@@ -1,7 +1,8 @@
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { PostgresAccessRepository } from "./accessRepository";
 import { PostgresContentRepository } from "./contentRepository";
-import { connect, expectDbError, inRollback } from "./integrationHarness";
+import { connect, expectDbError, inRollback, makeUser } from "./integrationHarness";
 
 let sql: Sql;
 
@@ -205,6 +206,74 @@ describe("PostgresContentRepository", () => {
         const error = await expectDbError(tx, () => insert(tx, { kind: "tutorial", code: "t1", title: "t" }));
         expect(error.message).toContain("content_items_kind_check");
       });
+    });
+  });
+});
+
+describe("the site banner switch", () => {
+  /**
+   * Absent means on, which is the opposite of how `early_access` reads a
+   * missing row.
+   *
+   * That asymmetry is deliberate and worth pinning: the invite gate decides who
+   * may sign up, so a deleted row has to fail closed. This one decides whether
+   * a strip is painted, and failing closed would silently stop advertising a
+   * live campaign — which nobody would notice until the campaign ended.
+   */
+  it("is on when nobody has turned it off", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`delete from feature_flags where code = 'site_banner'`;
+
+      expect(await new PostgresAccessRepository(tx).isSiteBanner()).toBe(true);
+      const served = await new PostgresContentRepository(tx).list();
+      expect(served.flags.siteBanner).toBe(true);
+    });
+  });
+
+  it("reaches the served document when it is turned off", async () => {
+    await inRollback(sql, async (tx) => {
+      await new PostgresAccessRepository(tx).setSiteBanner(false, null);
+
+      const served = await new PostgresContentRepository(tx).list();
+      expect(served.flags.siteBanner).toBe(false);
+    });
+  });
+
+  /**
+   * The toggle has to survive the memoisation, and this is the test that says
+   * so.
+   *
+   * `PostgresContentRepository` caches its document behind a fingerprint built
+   * from the content rows. Toggling a flag touches no content row, so without
+   * the flag's own `updated_at` in that fingerprint the cached answer would be
+   * served until somebody happened to publish an item — the failure mode that
+   * gets reported as "the switch does nothing" and diagnosed as a UI bug.
+   *
+   * One repository instance across both reads on purpose: a fresh one would
+   * have an empty cache and pass regardless.
+   */
+  it("is not hidden behind the cached content document", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      const content = new PostgresContentRepository(tx);
+      await access.setSiteBanner(true, null);
+      expect((await content.list()).flags.siteBanner).toBe(true);
+
+      await access.setSiteBanner(false, null);
+
+      expect((await content.list()).flags.siteBanner).toBe(false);
+    });
+  });
+
+  it("records who turned it off", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      await new PostgresAccessRepository(tx).setSiteBanner(false, userId);
+
+      const [row] = await tx<{ updated_by: string | null; is_enabled: boolean }[]>`
+        select updated_by, is_enabled from feature_flags where code = 'site_banner'
+      `;
+      expect(row).toMatchObject({ updated_by: userId, is_enabled: false });
     });
   });
 });

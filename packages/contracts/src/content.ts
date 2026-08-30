@@ -143,6 +143,32 @@ export const ContentSnapshotSchema = z.object({
   /** Derived from the newest row's updated_at — a client holding an older one knows it is stale. */
   version: z.string().min(1),
   publishedAt: z.number().int().nonnegative(),
+  /**
+   * Switches the browser can read before it has a session.
+   *
+   * This rides on the content document rather than getting a route of its own,
+   * and the reason is first paint. The layout already blocks on `GET /content`
+   * for every visitor including anonymous ones, so a flag here costs no extra
+   * request and no flash of something that should have been off. A dedicated
+   * endpoint would arrive after the first render and the banner would appear
+   * and then vanish, which is worse than either state on its own.
+   *
+   * Not in `content.snapshot.json`. The snapshot is the seven collections, and
+   * a flag is not content — it is a runtime switch whose value at export time
+   * says nothing about its value now. `version` and `publishedAt` are left out
+   * of that file for the same reason, and the CI check that counts the served
+   * rows sums `.length` over every key it finds, so a non-array top-level entry
+   * would quietly make that arithmetic `NaN`.
+   */
+  flags: z.object({
+    /**
+     * Whether the announcement strip renders at all. Defaults to on: an absent
+     * or deleted row means nobody has turned it off, and a campaign that
+     * silently stops being advertised costs a sale, where a strip that outstays
+     * its welcome costs a click on the dismiss button.
+     */
+    siteBanner: z.boolean(),
+  }),
   presets: z.array(PresetSchema),
   fragments: z.array(PromptFragmentSchema),
   skills: z.array(SkillSchema),
