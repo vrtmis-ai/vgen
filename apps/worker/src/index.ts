@@ -107,6 +107,10 @@ const worker = new Worker(
       createProvider: createGenerationProvider,
       mirror,
       secrets: process.env,
+      // Signed here, per attempt. The default expiry is the store's, which is
+      // measured against how long a provider takes to fetch what it was handed
+      // rather than against how long the job sat in the queue.
+      signReference: (key) => objectStore.signedUrl(key),
       // attemptsMade is the count *before* this one, so this is the last try
       // when there are no further deliveries left after it.
       isFinalAttempt: job.attemptsMade + 1 >= attempts,

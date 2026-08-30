@@ -975,6 +975,7 @@ is left, and neither question has an answer for a stranger.
   "prompt": "a city at night", // priced only by the per-1k-character models
   "clipSeconds": 8, // only for models billed by an attached clip's length
   "preferUnlimited": false, // optional; absent means true — see below
+  "referenceAssetIds": { "image_urls": ["0199…"] }, // slot -> ordered asset ids
 }
 ```
 
@@ -1009,6 +1010,30 @@ could name them is a request that could ask to be billed as something cheaper.
   generation might not start. Quoting is deliberately **not** refused when the
   account is full — the price is still the price, and a client that knows it is
   at 4 of 4 can say so instead of finding out by being rejected.
+- **`referenceAssetIds` names uploads by id, never by URL.** Upload through
+  `POST /assets` first; the ids go here as `slot key -> ordered asset ids`,
+  where the slot key is the catalogue's (`image_urls`, `first_frame_url`) and
+  the order matters — first and last frame are two entries in one slot on
+  several video models.
+- **An asset id is not an authorisation.** Every id is checked against the
+  caller's own uploads before anything is priced: it must be their account's,
+  `origin = 'upload'`, and not deleted. A caller naming somebody else's private
+  upload would never see the bytes, but would see the picture made from them,
+  which is the same leak wearing a hat. A failure is `unknown_reference`, 404,
+  with one message for missing, deleted and somebody else's — telling those
+  apart would make this route an oracle for whether an asset id exists.
+- **All or nothing.** One unusable id refuses the whole quote rather than
+  pricing what is left. Partial acceptance is the silent-drop bug in a new hat:
+  two faces attached, one refused, and the picture comes back made from one face
+  at the price of two.
+- **The job takes them from the quote, never from the submission.** `params` is
+  hash-bound; the references sit outside that hash, so reading them from the
+  `POST /jobs` body would let a quote with no attachments be spent on a job that
+  drew from a face. The job keeps its own copy because 0023 purges expired
+  quotes and "what went into this picture" outlives them.
+- **A reference that has gone fails the job and refunds**, rather than
+  generating without it — `reference_unavailable`. A first-frame model handed no
+  first frame does not error; it makes something else and charges for it.
 - **Quotes expire in five minutes** and are bound to a hash of `params`, so a
   cheap quote cannot be spent on an expensive job.
 - **Asking the price consumes nothing.** The free allowance is spent at job
@@ -1424,20 +1449,8 @@ So you can tell a gap from a bug:
 - **Payments.** Plans render and price correctly; nothing charges. Blocked on
   which Iranian gateway to use — ZarinPal, IDPay, NextPay and Zibal all work
   differently enough that the choice comes first.
-- **Reference images are accepted but not yet attached to a generation.**
-  `POST /assets` stores one and hands back an id; nothing sends those ids with
-  a quote. `GenerationsProvider` refuses a generation carrying references
-  rather than silently dropping them, and the TODO there names the two lines it
-  needs. That is UI work now, not backend work.
 - **Nothing measures a file.** `assets.width`, `height` and `duration_ms` are
   written null. The gallery reads them and a screen can lay out without them.
-- **Some screens still read `FAMILIES` directly.** `getFamily()` in Community,
-  Effects, Profile, Mcp and AssetViewer, and the whole list in Landing, import
-  `src/data/models.ts` rather than going through `useCatalogFamilies()`. Nothing
-  is broken by it today — the committed snapshot and the API are the same
-  document — but those screens read a compiled-in constant instead of the served
-  catalog, so a family retired in the database would keep rendering. Porting
-  them is UI work and the port is already there.
 
 ## Asking for a change
 
