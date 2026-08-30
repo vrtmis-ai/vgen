@@ -93,10 +93,36 @@ const ACCOUNTS = [
  * "unlimited" survivable rather than what walks it back: the upstream
  * allowance is a pool shared by every customer, so one scripted account
  * without a ceiling drains the day for everybody else.
+ * `covers` narrows the grant to the settings the subscription actually serves,
+ * as `control key -> allowed values`. A setting outside it is quoted and billed
+ * the metered way, which is the honest outcome but a surprising one if the
+ * screen offered a free switch and then charged — so the ceiling is published
+ * on the catalogue and the switch can say what it does not cover.
+ *
+ * UNVERIFIED, like the external ids above and for the same reason: there is no
+ * token here to ask PixVerse what its subscription actually serves. The 2K
+ * ceiling is what we were told. It restricts rather than permits, which is the
+ * side to be wrong on — a wrongly-denied grant costs a sale, a wrongly-granted
+ * one costs the margin, and this file already resolves that the same way the
+ * tier gate does. The useapi spike is what replaces this with a measured fact.
  */
 const GRANTS = [
-  { variantId: "nano-banana-pro", externalModelId: "nano-banana-pro", featureCode: "image_generate", minTier: 3, dailyCap: 50 },
-  { variantId: "nano-banana-2", externalModelId: "nano-banana-2", featureCode: "image_generate", minTier: 3, dailyCap: 50 },
+  {
+    variantId: "nano-banana-pro",
+    externalModelId: "nano-banana-pro",
+    featureCode: "image_generate",
+    minTier: 3,
+    dailyCap: 50,
+    covers: { resolution: ["1K", "2K"] },
+  },
+  {
+    variantId: "nano-banana-2",
+    externalModelId: "nano-banana-2",
+    featureCode: "image_generate",
+    minTier: 3,
+    dailyCap: 50,
+    covers: { resolution: ["1K", "2K"] },
+  },
 ] as const;
 
 const sql = postgres(databaseUrl, { max: 1 });
@@ -188,19 +214,21 @@ try {
       if (!servingModelId) throw new Error(`serving model upsert returned no row for "${grant.externalModelId}"`);
 
       const [changed] = await tx<{ id: string }[]>`
-        insert into unlimited_entitlements (catalog_model_id, serving_model_id, feature_id, min_tier, daily_cap, is_active)
-        values (${catalogModel.id}, ${servingModelId}, ${featureId}, ${grant.minTier}, ${grant.dailyCap}, true)
+        insert into unlimited_entitlements (catalog_model_id, serving_model_id, feature_id, min_tier, daily_cap, covers, is_active)
+        values (${catalogModel.id}, ${servingModelId}, ${featureId}, ${grant.minTier}, ${grant.dailyCap}, ${tx.json(grant.covers)}, true)
         on conflict (catalog_model_id) do update set
           serving_model_id = excluded.serving_model_id,
           feature_id = excluded.feature_id,
           min_tier = excluded.min_tier,
           daily_cap = excluded.daily_cap,
+          covers = excluded.covers,
           is_active = true
         where
           unlimited_entitlements.serving_model_id is distinct from excluded.serving_model_id
           or unlimited_entitlements.feature_id is distinct from excluded.feature_id
           or unlimited_entitlements.min_tier is distinct from excluded.min_tier
           or unlimited_entitlements.daily_cap is distinct from excluded.daily_cap
+          or unlimited_entitlements.covers is distinct from excluded.covers
           or unlimited_entitlements.is_active is distinct from true
         returning id
       `;

@@ -32,6 +32,7 @@ export function registerGenerationQuotesRoute(
       params: body.params as GenerationParams,
       prompt: body.prompt,
       clipSeconds: body.clipSeconds,
+      preferUnlimited: body.preferUnlimited,
     });
 
     if (result.outcome === "quoted") return reply.code(200).send(GenerationQuoteSchema.parse(result.quote));

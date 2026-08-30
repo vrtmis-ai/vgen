@@ -162,23 +162,52 @@ describe("quoting a model covered by an unlimited grant", () => {
     minTier: number;
     modelMinTier: number;
     dailyCap: number | null;
+    /** A priced setting the grant *does* cover. */
     params: Record<string, string>;
+    covers: Record<string, string[]> | null;
   }
 
-  /** The catalogue variant the seeded grants actually point at. */
+  /**
+   * The catalogue variant the seeded grants actually point at, with a setting
+   * the grant covers.
+   *
+   * The `covers` filter is not decoration. Nano Banana prices 1K, 2K and 4K,
+   * and the seeded grant covers only the first two — so an unfiltered `limit 1`
+   * picks a free-looking row or a paid one depending on what Postgres feels
+   * like returning, and the zero-price test below passes or fails at random.
+   * It genuinely did pick a covered row on the first run; that is luck, not a
+   * result. Ordering makes it repeatable and the filter makes it correct.
+   */
   async function grantedVariant(tx: Sql): Promise<Granted | null> {
     const [row] = await tx<
-      { variant_id: string; min_tier: number; model_min_tier: number; daily_cap: number | null; selector: Record<string, string> }[]
+      {
+        variant_id: string;
+        min_tier: number;
+        model_min_tier: number;
+        daily_cap: number | null;
+        selector: Record<string, string>;
+        covers: Record<string, string[]> | null;
+      }[]
     >`
       select model.capabilities -> 'variant' ->> 'id' as variant_id,
              ent.min_tier,
              (model.capabilities -> 'family' ->> 'minTier')::int as model_min_tier,
              ent.daily_cap,
-             price.selector
+             price.selector,
+             ent.covers
       from unlimited_entitlements ent
       join provider_models model on model.id = ent.catalog_model_id
       join model_prices price on price.provider_model_id = model.id
       where ent.is_active and price.is_offered and price.valid_to is null
+        -- every key the grant narrows must be satisfied by this price's selector
+        and (
+          ent.covers is null
+          or not exists (
+            select 1 from jsonb_each(ent.covers) as cover(key, allowed)
+            where not (cover.allowed ? coalesce(price.selector ->> cover.key, ''))
+          )
+        )
+      order by variant_id, price.selector::text
       limit 1
     `;
     return row
@@ -188,8 +217,28 @@ describe("quoting a model covered by an unlimited grant", () => {
           modelMinTier: row.model_min_tier,
           dailyCap: row.daily_cap,
           params: row.selector,
+          covers: row.covers,
         }
       : null;
+  }
+
+  /** A priced setting for a granted variant that the grant does *not* cover. */
+  async function uncoveredSetting(tx: Sql): Promise<{ variantId: string; minTier: number; params: Record<string, string> } | null> {
+    const [row] = await tx<{ variant_id: string; min_tier: number; selector: Record<string, string> }[]>`
+      select model.capabilities -> 'variant' ->> 'id' as variant_id, ent.min_tier, price.selector
+      from unlimited_entitlements ent
+      join provider_models model on model.id = ent.catalog_model_id
+      join model_prices price on price.provider_model_id = model.id
+      where ent.is_active and price.is_offered and price.valid_to is null
+        and ent.covers is not null
+        and exists (
+          select 1 from jsonb_each(ent.covers) as cover(key, allowed)
+          where not (cover.allowed ? coalesce(price.selector ->> cover.key, ''))
+        )
+      order by variant_id, price.selector::text
+      limit 1
+    `;
+    return row ? { variantId: row.variant_id, minTier: row.min_tier, params: row.selector } : null;
   }
 
   it("quotes it at zero for an account whose plan reaches the grant", async () => {
@@ -316,6 +365,107 @@ describe("quoting a model covered by an unlimited grant", () => {
         select coalesce(sum(used), 0)::int as used from unlimited_usage where account_id = ${accountId}
       `;
       expect(row!.used).toBe(0);
+    });
+  });
+
+  /**
+   * The grant applies without being asked for, and that has to stay true.
+   *
+   * `preferUnlimited` is new; every client that predates it sends nothing. If
+   * an absent field read as false, this quote would come back priced and the
+   * customers being newly charged would be exactly the ones on the plans that
+   * were sold the perk. So the default is asserted rather than assumed, in the
+   * same shape a pre-switch client produces.
+   */
+  it("stays free when the request says nothing about the pipe", async () => {
+    await inRollback(sql, async (tx) => {
+      const granted = await grantedVariant(tx);
+      if (!granted) return;
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, granted.minTier);
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId,
+        variantId: granted.variantId,
+        params: granted.params,
+        // preferUnlimited deliberately absent
+      });
+
+      expect(result.outcome).toBe("quoted");
+      if (result.outcome !== "quoted") return;
+      expect(result.quote.coins).toBe(0);
+      expect(result.quote.unlimited).toBeDefined();
+    });
+  });
+
+  /**
+   * Declining the grant buys the quick queue.
+   *
+   * The customer holds the entitlement and is choosing to pay anyway, so this
+   * must produce a real price and a real `price_id` — not a zero with the
+   * grant quietly still attached, which would bill nothing while the row
+   * claimed a sale.
+   */
+  it("charges an entitled account that asks to be billed", async () => {
+    await inRollback(sql, async (tx) => {
+      const granted = await grantedVariant(tx);
+      if (!granted) return;
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, granted.minTier);
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId,
+        variantId: granted.variantId,
+        params: granted.params,
+        preferUnlimited: false,
+      });
+
+      expect(result.outcome).toBe("quoted");
+      if (result.outcome !== "quoted") return;
+      expect(result.quote.coins).toBeGreaterThan(0);
+      expect(result.quote.unlimited).toBeUndefined();
+
+      const [row] = await tx<{ price_id: string | null; entitlement_id: string | null }[]>`
+        select price_id, entitlement_id from quotes where id = ${result.quote.id}
+      `;
+      expect(row!.price_id).not.toBeNull();
+      expect(row!.entitlement_id).toBeNull();
+    });
+  });
+
+  /**
+   * A grant is not a blank cheque over every setting.
+   *
+   * The subscription serves Nano Banana to 2K; 4K goes back through the metered
+   * provider at the metered price. Without this the customer flips a switch
+   * labelled free, picks 4K, and is charged — the failure `covers` exists to
+   * prevent, and a money failure rather than a cosmetic one.
+   *
+   * Skips rather than lies if no grant narrows anything, so closing the gap by
+   * removing the ceiling does not leave a test asserting a fiction.
+   */
+  it("charges for a setting the grant does not cover, even when entitled", async () => {
+    await inRollback(sql, async (tx) => {
+      const uncovered = await uncoveredSetting(tx);
+      if (!uncovered) return;
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, uncovered.minTier);
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId,
+        variantId: uncovered.variantId,
+        params: uncovered.params,
+      });
+
+      expect(result.outcome).toBe("quoted");
+      if (result.outcome !== "quoted") return;
+      expect(result.quote.coins).toBeGreaterThan(0);
+      expect(result.quote.unlimited).toBeUndefined();
+
+      const [row] = await tx<{ entitlement_id: string | null }[]>`
+        select entitlement_id from quotes where id = ${result.quote.id}
+      `;
+      expect(row!.entitlement_id).toBeNull();
     });
   });
 });

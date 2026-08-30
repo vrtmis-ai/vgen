@@ -24,6 +24,16 @@ export interface UnlimitedGrant {
   servingModelId: string;
   /** Free generations per account per day. Null means genuinely uncapped. */
   dailyCap: number | null;
+  /**
+   * `control key -> the values this grant covers`. Null means every setting.
+   *
+   * The subscription does not necessarily serve everything the metered provider
+   * does — it runs Nano Banana to 2K and not at 4K — so a grant can exist and
+   * still not apply to the generation being asked for. A key absent from the
+   * object is unconstrained, so adding a control to a variant never silently
+   * withdraws an existing grant.
+   */
+  covers: Record<string, string[]> | null;
 }
 
 export interface Concurrency {
@@ -141,8 +151,10 @@ export class PostgresEntitlementsRepository {
    * granted for image_generate does not quietly also make image_edit free.
    */
   async findGrant(catalogModelId: string, featureId: string, tier: Tier): Promise<UnlimitedGrant | null> {
-    const [row] = await this.sql<{ id: string; serving_model_id: string; daily_cap: number | null }[]>`
-      select ent.id, ent.serving_model_id, ent.daily_cap
+    const [row] = await this.sql<
+      { id: string; serving_model_id: string; daily_cap: number | null; covers: Record<string, string[]> | null }[]
+    >`
+      select ent.id, ent.serving_model_id, ent.daily_cap, ent.covers
       from unlimited_entitlements ent
       join provider_models serving on serving.id = ent.serving_model_id
       join providers provider on provider.id = serving.provider_id
@@ -157,7 +169,7 @@ export class PostgresEntitlementsRepository {
         and provider.is_active
       limit 1
     `;
-    return row ? { id: row.id, servingModelId: row.serving_model_id, dailyCap: row.daily_cap } : null;
+    return row ? { id: row.id, servingModelId: row.serving_model_id, dailyCap: row.daily_cap, covers: row.covers } : null;
   }
 
   /**

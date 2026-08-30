@@ -30,23 +30,23 @@ That was not true until this change: three generation calls were pointing at
 paths the API does not serve, in a job shape no server ever sent, and the
 gallery had no route at all.
 
-| `AppServices` call     | Frontend requests          | Server route          | Status   |
-| ---------------------- | -------------------------- | --------------------- | -------- |
-| `session.getCurrent()` | `GET /session`             | `routes/session.ts`   | **Live** |
-| `auth.*` (5 methods)   | `POST /auth/*`             | `routes/auth.ts`      | **Live** |
-| `catalog.list()`       | `GET /catalog`             | `routes/catalog.ts`   | **Live** |
-| `content.list()`       | `GET /content`             | `routes/content.ts`   | **Live** |
-| `community.list()`     | `GET /community`           | `routes/community.ts` | **Live** |
-| `community.share()`    | `POST /community`          | `routes/community.ts` | **Live** |
-| `plans.list()`         | `GET /plans`               | `routes/plans.ts`     | **Live** |
-| `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`    | **Live** |
-| `generation.quote()`   | `POST /generation/quotes`  | `routes/quotes.ts`    | **Live** |
-| `generation.create()`  | `POST /jobs`               | `routes/jobs.ts`      | **Live** |
-| `generation.getJob()`  | `GET /generation/jobs/:id` | `routes/jobs.ts`      | **Live** |
-| `gallery.list()`       | `GET /gallery`             | `routes/gallery.ts`   | **Live** |
-| `assets.upload()`      | `POST /assets`             | `routes/assets.ts`    | **Live** |
-| `campaign.getActive()` | `GET /campaigns/active`    | `routes/campaigns.ts` | **Live** |
-| `payment.createOrder()`| `POST /payments/orders`    | `routes/payments.ts`  | **Live** |
+| `AppServices` call      | Frontend requests          | Server route          | Status   |
+| ----------------------- | -------------------------- | --------------------- | -------- |
+| `session.getCurrent()`  | `GET /session`             | `routes/session.ts`   | **Live** |
+| `auth.*` (5 methods)    | `POST /auth/*`             | `routes/auth.ts`      | **Live** |
+| `catalog.list()`        | `GET /catalog`             | `routes/catalog.ts`   | **Live** |
+| `content.list()`        | `GET /content`             | `routes/content.ts`   | **Live** |
+| `community.list()`      | `GET /community`           | `routes/community.ts` | **Live** |
+| `community.share()`     | `POST /community`          | `routes/community.ts` | **Live** |
+| `plans.list()`          | `GET /plans`               | `routes/plans.ts`     | **Live** |
+| `wallet.getCurrent()`   | `GET /wallet`              | `routes/wallet.ts`    | **Live** |
+| `generation.quote()`    | `POST /generation/quotes`  | `routes/quotes.ts`    | **Live** |
+| `generation.create()`   | `POST /jobs`               | `routes/jobs.ts`      | **Live** |
+| `generation.getJob()`   | `GET /generation/jobs/:id` | `routes/jobs.ts`      | **Live** |
+| `gallery.list()`        | `GET /gallery`             | `routes/gallery.ts`   | **Live** |
+| `assets.upload()`       | `POST /assets`             | `routes/assets.ts`    | **Live** |
+| `campaign.getActive()`  | `GET /campaigns/active`    | `routes/campaigns.ts` | **Live** |
+| `payment.createOrder()` | `POST /payments/orders`    | `routes/payments.ts`  | **Live** |
 
 So `production` mode is complete end to end: sign in, browse the catalogue, see
 a price, submit a generation, watch it run, and see the file it produced. The
@@ -872,7 +872,7 @@ from. On the campaign row they would be numbers somebody typed, and the first
 plan repricing would make the advertisement wrong while leaving it perfectly
 valid. Derived, the strip cannot promise a rate the till will refuse. If a
 campaign ever needs a discount **of its own**, it becomes a column on
-`campaigns` *and* a term in the checkout pricing — never a number nothing
+`campaigns` _and_ a term in the checkout pricing — never a number nothing
 enforces.
 
 **Starting one is a row**, and there is deliberately no seed:
@@ -896,7 +896,7 @@ Requires a session.
 
 ```jsonc
 // request
-{ "planId": "pro", "cycle": "monthly" }   // cycle: "monthly" | "annual"
+{ "planId": "pro", "cycle": "monthly" } // cycle: "monthly" | "annual"
 ```
 
 ```jsonc
@@ -930,12 +930,12 @@ They agree today. If they ever drift, the sheet's own cross-check fires and
 refuses to send anyone to a gateway — safe, and completely broken until the two
 are reconciled. Move both together.
 
-| Outcome | Status | Meaning |
-| --- | --- | --- |
-| `unknown_plan` | 404 | Retired, private or misspelled — one answer for all three, so this cannot be used to discover private plan codes. |
-| `no_annual_option` | 409 | A year was asked for on a plan sold only monthly. Refused rather than quietly billed monthly. |
-| `no_exchange_rate` | 503 | No published USD→IRR rate. Ours to fix. |
-| `no_account` | 503 | A signed-in user whose row carries no personal account — a broken signup, not a bad request. |
+| Outcome            | Status | Meaning                                                                                                           |
+| ------------------ | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| `unknown_plan`     | 404    | Retired, private or misspelled — one answer for all three, so this cannot be used to discover private plan codes. |
+| `no_annual_option` | 409    | A year was asked for on a plan sold only monthly. Refused rather than quietly billed monthly.                     |
+| `no_exchange_rate` | 503    | No published USD→IRR rate. Ours to fix.                                                                           |
+| `no_account`       | 503    | A signed-in user whose row carries no personal account — a broken signup, not a bad request.                      |
 
 ### `POST /generation/quotes`
 
@@ -950,6 +950,7 @@ is left, and neither question has an answer for a stranger.
   "params": { "resolution": "1K" },
   "prompt": "a city at night", // priced only by the per-1k-character models
   "clipSeconds": 8, // only for models billed by an attached clip's length
+  "preferUnlimited": false, // optional; absent means true — see below
 }
 ```
 
@@ -971,6 +972,15 @@ could name them is a request that could ask to be billed as something cheaper.
 - **`coins` is authoritative, and `0` is a real answer** — see Unlimited below.
 - **`unlimited` is present only when the zero came from a grant** rather than
   from a zero price, so you can say _why_ it is free and what is left.
+- **`preferUnlimited` is a mood, not a price.** It names no feature, model or
+  price — it says the customer would rather wait than spend, and a `true` can
+  only ever make a generation slower and cheaper. **Absent means `true`**: the
+  grant has always applied automatically to anyone holding it, so reading a
+  missing field as `false` would start charging every client that has not been
+  taught to send it, and only the customers on the plans that were sold the
+  perk. So `false` is the interesting value — _bill me, I want the quick
+  queue_. Read the response's `unlimited` block to learn what actually
+  happened rather than assuming you got what you asked for.
 - **`concurrency` is always present.** Price is not the only reason a
   generation might not start. Quoting is deliberately **not** refused when the
   account is full — the price is still the price, and a client that knows it is
@@ -1309,6 +1319,24 @@ What a UI needs to know:
   provider's row exists in `provider_models` but carries no `variant` in its
   capabilities, and the catalogue query excludes rows without one — otherwise
   the model would render twice and half the picks would be wrong.
+- **`GET /catalog` says which variants have the pipe.** A variant that has one
+  carries `unlimited: { dailyCap, minTier, limits? }`; the rest carry nothing.
+  It is **derived from `unlimited_entitlements` when the document is built**,
+  never seeded into `capabilities` — one row answers both the shop and the
+  quote, so the two cannot come to disagree and advertise a pipe that has been
+  withdrawn. A grant whose serving model or provider is switched off is not
+  published, for the same reason `findGrant` refuses it.
+- **`minTier` is on the marker so a screen can offer the upgrade** instead of a
+  switch that fails. Without it the pipe looks available to everyone, and a
+  customer on the wrong plan flips something labelled free and is charged.
+- **`limits` names the settings the pipe covers**, as `control key -> allowed
+values`, and a key it does not mention is unconstrained. The subscription
+  serves Nano Banana to 2K; 4K is quoted and billed the metered way even for an
+  entitled account. Say so before the choice is made — after it, the customer
+  has already been charged. _(The 2K ceiling is currently unverified: there is
+  no useapi token in this environment to ask. It restricts rather than permits,
+  which is the safe side, and the useapi spike replaces it with a measured
+  fact.)_
 - **Past the daily allowance the customer is charged, not refused.** The quote
   simply comes back with the normal price and no `unlimited` block. "You have
   had your fifty free, this one costs four coins" needs no new UI to say.

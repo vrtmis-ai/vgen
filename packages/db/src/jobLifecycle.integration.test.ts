@@ -62,16 +62,31 @@ async function paidVariant(tx: Sql): Promise<{ variantId: string; params: Record
  * and the granted path is the one thing here that nothing else covers — CI
  * seeds the grants before this suite for exactly that reason.
  */
-async function grantedVariant(tx: Sql): Promise<{ variantId: string; minTier: number }> {
-  const [row] = await tx<{ variant_id: string; min_tier: number }[]>`
-    select model.capabilities -> 'variant' ->> 'id' as variant_id, ent.min_tier
+async function grantedVariant(tx: Sql): Promise<{ variantId: string; minTier: number; params: Record<string, string> }> {
+  const [row] = await tx<{ variant_id: string; min_tier: number; selector: Record<string, string> }[]>`
+    select model.capabilities -> 'variant' ->> 'id' as variant_id, ent.min_tier, price.selector
     from unlimited_entitlements ent
     join provider_models model on model.id = ent.catalog_model_id
-    where ent.is_active
+    join model_prices price on price.provider_model_id = model.id
+    where ent.is_active and price.is_offered and price.valid_to is null
+      -- The settings have to be ones the grant covers, or the quote comes back
+      -- metered and these tests stop being about a granted job. An empty params
+      -- bag used to do here, back when a grant applied to every setting of its
+      -- variant. It does not any more -- and it was always a little false: the
+      -- metered path cannot price an empty selector, so an empty bag was only
+      -- ever quotable because it was free.
+      and (
+        ent.covers is null
+        or not exists (
+          select 1 from jsonb_each(ent.covers) as cover(key, allowed)
+          where not (cover.allowed ? coalesce(price.selector ->> cover.key, ''))
+        )
+      )
+    order by variant_id, price.selector::text
     limit 1
   `;
   if (!row?.variant_id) throw new Error("no unlimited grant is seeded — run pnpm unlimited:publish first");
-  return { variantId: row.variant_id, minTier: row.min_tier };
+  return { variantId: row.variant_id, minTier: row.min_tier, params: row.selector };
 }
 
 let keyCounter = 0;
@@ -184,14 +199,14 @@ describe("claiming a job", () => {
       const granted = await grantedVariant(tx);
       const { userId, accountId } = await makeUser(tx);
       await subscribe(tx, accountId, granted.minTier);
-      const quote = await new PostgresQuotesRepository(tx).create({ userId, variantId: granted.variantId, params: {} });
+      const quote = await new PostgresQuotesRepository(tx).create({ userId, variantId: granted.variantId, params: granted.params });
       if (quote.outcome !== "quoted") throw new Error(`expected a quote, got ${quote.outcome}`);
       expect(quote.quote.coins).toBe(0);
 
       const created = await new PostgresGenerationRepository(tx).createQueued({
         userId,
         quoteId: quote.quote.id,
-        params: {},
+        params: granted.params,
         idempotencyKey: nextKey(),
       });
       if (created.outcome !== "created") throw new Error(`expected a job, got ${created.outcome}`);
@@ -308,14 +323,14 @@ describe("settling a job that failed", () => {
       await subscribe(tx, accountId, granted.minTier);
       const quotes = new PostgresQuotesRepository(tx);
 
-      const quote = await quotes.create({ userId, variantId: granted.variantId, params: {} });
+      const quote = await quotes.create({ userId, variantId: granted.variantId, params: granted.params });
       if (quote.outcome !== "quoted") throw new Error(`expected a quote, got ${quote.outcome}`);
       const before = quote.quote.unlimited?.remainingToday ?? null;
 
       const created = await new PostgresGenerationRepository(tx).createQueued({
         userId,
         quoteId: quote.quote.id,
-        params: {},
+        params: granted.params,
         idempotencyKey: nextKey(),
       });
       if (created.outcome !== "created") throw new Error(`expected a job, got ${created.outcome}`);
@@ -324,7 +339,7 @@ describe("settling a job that failed", () => {
       await runner.claim(created.job.id);
       await runner.fail(created.job.id, "provider_unavailable", "No adapter.");
 
-      const after = await quotes.create({ userId, variantId: granted.variantId, params: {} });
+      const after = await quotes.create({ userId, variantId: granted.variantId, params: granted.params });
       if (after.outcome !== "quoted") throw new Error(`expected a quote, got ${after.outcome}`);
 
       // A provider failure is not a use. Without the release the customer
