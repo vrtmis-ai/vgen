@@ -46,7 +46,12 @@ export async function mockApi(page: Page, scenario: ApiScenario = {}): Promise<v
   // Both served to anonymous visitors: the landing page's feature bento renders
   // effects, courses and a voice count, and its showcase strip renders posts.
   // Without these the shell waits on content forever and never paints.
-  await page.route("**/api/v1/content", (route) => json(route, { version: "e2e-v1", publishedAt: 1, ...contentPayload }));
+  // `flags` is required on the content document and the shell blocks on it, so
+  // a fixture that forgets it paints the "content failed to load" screen and
+  // every landing assertion fails at once — which is exactly what it did.
+  await page.route("**/api/v1/content", (route) =>
+    json(route, { version: "e2e-v1", publishedAt: 1, flags: { siteBanner: true }, ...contentPayload }),
+  );
   await page.route("**/api/v1/community", (route) => json(route, communityPayload));
   await page.route("**/api/v1/wallet", (route) => json(route, { spendable: 1000, grants: [] }));
   await page.route("**/api/v1/gallery**", (route) => json(route, { items: [] }));
