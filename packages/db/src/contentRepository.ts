@@ -34,7 +34,20 @@ export class PostgresContentRepository implements CustomerContentRepository {
         select count(*)::text as n, max(updated_at) as newest
         from content_items where status = 'published'
       `;
-      return fingerprintOf(row?.n ?? "0", row?.newest);
+      // The banner switch rides on this document, so it belongs in the
+      // fingerprint too. Without it an admin turning the strip off would be
+      // ignored until somebody happened to publish a content item, which is
+      // the kind of delay that gets diagnosed as "the toggle does nothing".
+      //
+      // The *value*, not its `updated_at`. A timestamp was the obvious reach
+      // and it is wrong twice: `now()` is fixed for the length of a
+      // transaction, so two writes inside one share a stamp, and a value is
+      // what this document actually depends on. Fingerprinting the thing
+      // itself needs no argument about when it changed.
+      const [flag] = await this.sql<{ is_enabled: boolean }[]>`
+        select is_enabled from feature_flags where code = 'site_banner'
+      `;
+      return fingerprintOf(`${row?.n ?? "0"}:${flag?.is_enabled ?? true}`, row?.newest);
     },
     () => this.build(),
   );
@@ -44,6 +57,13 @@ export class PostgresContentRepository implements CustomerContentRepository {
   }
 
   private async build(): Promise<ContentSnapshot> {
+    // Read alongside the rows rather than through `PostgresAccessRepository`,
+    // which owns the write. One statement, no import, and this file is already
+    // the only reader of the served shape.
+    const [flag] = await this.sql<{ is_enabled: boolean }[]>`
+      select is_enabled from feature_flags where code = 'site_banner'
+    `;
+
     const rows = await this.sql<
       {
         kind: string;
@@ -64,7 +84,7 @@ export class PostgresContentRepository implements CustomerContentRepository {
       order by kind asc, sort_order asc
     `;
 
-    const snapshot: Omit<ContentSnapshot, "version" | "publishedAt"> = {
+    const snapshot: Omit<ContentSnapshot, "version" | "publishedAt" | "flags"> = {
       presets: [],
       fragments: [],
       skills: [],
@@ -94,6 +114,13 @@ export class PostgresContentRepository implements CustomerContentRepository {
     // Derived from the rows, exactly as the catalog version is: `content_items`
     // has an updated_at trigger, so the newest row IS the moment the content
     // last changed. A second version table could disagree with the rows.
-    return ContentSnapshotSchema.parse({ version: `content-${newest}`, publishedAt: newest, ...snapshot });
+    return ContentSnapshotSchema.parse({
+      version: `content-${newest}`,
+      publishedAt: newest,
+      // Absent means nobody has turned it off. See the contract for why that
+      // reads as on rather than off.
+      ...snapshot,
+      flags: { siteBanner: flag?.is_enabled ?? true },
+    });
   }
 }

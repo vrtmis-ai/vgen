@@ -19,11 +19,40 @@ interface StartedGeneration {
   quote: GenerationQuote;
 }
 
+/**
+ * The parts of a generation request that are optional at the call site.
+ *
+ * A bag rather than two more positional parameters. `startGeneration` already
+ * took four before this, and a dock that wants to send references *and* decline
+ * the free pipe would make it six — at which point the two booleans-shaped
+ * arguments next to each other are a bug waiting for somebody in a hurry.
+ *
+ * Both fields are genuinely optional and mean different things when absent:
+ * no `refs` is a generation with no attachments, while no `preferUnlimited` is
+ * "decide for me", which the server reads as the grant applying if it is held.
+ */
+export interface GenerationRequestOptions {
+  /** Files picked per reference slot. Uploaded before the quote — see below. */
+  refs?: RefMap;
+  /**
+   * `false` declines a free grant this account holds and pays for the quicker
+   * queue. Absent leaves the choice to the server, which is what every caller
+   * wanted before there was a switch to say otherwise.
+   */
+  preferUnlimited?: boolean;
+}
+
 interface Generations {
   gens: Generation[];
-  startGeneration: (familyId: string, prompt: string, input: InputMap, variant: Variant, refs: RefMap) => Promise<StartedGeneration | null>;
+  startGeneration: (
+    familyId: string,
+    prompt: string,
+    input: InputMap,
+    variant: Variant,
+    options?: GenerationRequestOptions,
+  ) => Promise<StartedGeneration | null>;
   /** Fire-and-forget start used by the studio docks, which have no result to await. */
-  requestGeneration: (familyId: string, prompt: string, input: InputMap, variant: Variant) => void;
+  requestGeneration: (familyId: string, prompt: string, input: InputMap, variant: Variant, options?: GenerationRequestOptions) => void;
   regenerate: (previous: Generation) => Promise<void>;
   markDone: (id: string) => void;
 }
@@ -98,7 +127,8 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   }, [jobQueries.jobs, jobStateKey]);
 
   const startGeneration = useCallback(
-    async (familyId: string, prompt: string, input: InputMap, variant: Variant, refs: RefMap) => {
+    async (familyId: string, prompt: string, input: InputMap, variant: Variant, options: GenerationRequestOptions = {}) => {
+      const refs = options.refs ?? {};
       const family = families.find((candidate) => candidate.id === familyId);
       const catalogVariant = family?.variants.find((candidate) => candidate.id === variant.id);
       if (!family || !catalogVariant) return null;
@@ -125,7 +155,18 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
         const referenceAssetIds = Object.fromEntries(uploaded);
 
         const { job, quote } = await createGeneration.mutateAsync({
-          quote: { familyId, variantId: variant.id, prompt, input, referenceAssetIds },
+          quote: {
+            familyId,
+            variantId: variant.id,
+            prompt,
+            input,
+            referenceAssetIds,
+            // Spread rather than passed as `undefined`, so a caller with no
+            // opinion sends no field at all and the server's own default
+            // decides. Sending an explicit `undefined` would be the same on
+            // the wire, but this way the intent is readable here.
+            ...(options.preferUnlimited === undefined ? {} : { preferUnlimited: options.preferUnlimited }),
+          },
           idempotencyKey: `vgen-${uid()}-${uid()}`,
         });
         const generation: Generation = {
@@ -153,8 +194,8 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   );
 
   const requestGeneration = useCallback(
-    (familyId: string, prompt: string, input: InputMap, variant: Variant) => {
-      void startGeneration(familyId, prompt, input, variant, {}).catch((error: unknown) =>
+    (familyId: string, prompt: string, input: InputMap, variant: Variant, options?: GenerationRequestOptions) => {
+      void startGeneration(familyId, prompt, input, variant, options).catch((error: unknown) =>
         setOperationError(error instanceof Error ? error : new Error(String(error))),
       );
     },
@@ -166,7 +207,10 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
       const family = families.find((candidate) => candidate.id === previous.familyId);
       const variant = family?.variants.find((candidate) => candidate.id === previous.variantId);
       if (!family || !variant) return;
-      const started = await startGeneration(family.id, previous.prompt, defaultInput(variantControls(family, variant)), variant, {});
+      // No options: a regeneration repeats the prompt and the controls, not the
+      // attachments, and it leaves the free-pipe decision to the server exactly
+      // as the original did.
+      const started = await startGeneration(family.id, previous.prompt, defaultInput(variantControls(family, variant)), variant);
       if (!started) return;
       // replace-in-place: back from the new result returns to where the user
       // was before the previous result, not to a chain of stale results

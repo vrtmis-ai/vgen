@@ -49,4 +49,13 @@ export { KieGenerationProvider } from "./kie";
 export { WaveSpeedGenerationProvider } from "./wavespeed";
 export { describeOutput } from "./output";
 export { ProviderTransportError } from "./types";
-export type { GenerationOutcome, GenerationOutput, GenerationProvider, GenerationRequest, GenerationSubmission, Modality } from "./types";
+export type {
+  GenerationOutcome,
+  GenerationOutput,
+  GenerationProvider,
+  GenerationRequest,
+  GenerationSubmission,
+  JsonObject,
+  JsonValue,
+  Modality,
+} from "./types";

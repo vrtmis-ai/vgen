@@ -23,6 +23,8 @@ export type {
   GenerationProvider,
   GenerationRequest,
   GenerationSubmission,
+  JsonObject,
+  JsonValue,
   Modality,
   ProviderOptions,
 } from "./providers";

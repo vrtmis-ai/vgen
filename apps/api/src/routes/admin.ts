@@ -97,6 +97,7 @@ const CreatePromoSchema = z
   .strict();
 
 const EarlyAccessSchema = z.object({ enabled: z.boolean() }).strict();
+const SiteBannerSchema = z.object({ enabled: z.boolean() }).strict();
 
 /**
  * Staff routes.
@@ -404,6 +405,39 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
     const enabled = await access.setEarlyAccess(body.enabled, session.userId);
     await audit(request, session, {
       action: "early_access.changed",
+      targetType: "feature_flag",
+      before: { enabled: before },
+      after: { enabled },
+    });
+    return reply.send({ enabled });
+  });
+
+  /**
+   * The announcement strip above every page.
+   *
+   * Read under `flags.write` rather than a read permission of its own, because
+   * there is not one and inventing a `flags.read` for a value that is already
+   * public on `GET /content` would be ceremony. Anyone who can turn the strip
+   * off can obviously see whether it is on.
+   */
+  app.get("/api/v1/admin/site-banner", async (request, reply) => {
+    const session = await require(request, reply, "flags.write");
+    if (!session) return reply;
+    return reply.send({ enabled: await access.isSiteBanner() });
+  });
+
+  app.patch("/api/v1/admin/site-banner", { bodyLimit: 1024 }, async (request, reply) => {
+    const session = await require(request, reply, "flags.write");
+    if (!session) return reply;
+    const body = SiteBannerSchema.parse(request.body);
+
+    // Audited like the gate beside it. Turning off the only thing advertising
+    // a live campaign is the sort of change somebody will later want to know
+    // the author and the hour of.
+    const before = await access.isSiteBanner();
+    const enabled = await access.setSiteBanner(body.enabled, session.userId);
+    await audit(request, session, {
+      action: "site_banner.changed",
       targetType: "feature_flag",
       before: { enabled: before },
       after: { enabled },

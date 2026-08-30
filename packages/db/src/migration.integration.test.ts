@@ -39,6 +39,7 @@ const EXPECTED_MIGRATIONS = [
   "0025_usage_and_events.sql",
   "0026_campaigns.sql",
   "0027_unlimited_coverage.sql",
+  "0028_reference_assets.sql",
 ];
 
 describe("database migration chain", () => {

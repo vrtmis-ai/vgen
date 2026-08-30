@@ -146,6 +146,7 @@ interface QuoteRow {
   price_id: string | null;
   entitlement_id: string | null;
   sell_price_micro_credits: string;
+  reference_asset_ids: Record<string, string[]> | null;
   expired: boolean;
   spent: boolean;
 }
@@ -233,7 +234,7 @@ export class PostgresGenerationRepository {
         // `spent` subquery is what the second one loses on.
         const [quote] = await tx<QuoteRow[]>`
           select q.id, q.account_id, q.params_hash, q.provider_model_id, q.feature_id,
-                 q.price_id, q.entitlement_id, q.sell_price_micro_credits,
+                 q.price_id, q.entitlement_id, q.sell_price_micro_credits, q.reference_asset_ids,
                  q.expires_at <= now() as expired,
                  exists(select 1 from jobs j where j.quote_id = q.id) as spent
           from quotes q
@@ -260,11 +261,18 @@ export class PostgresGenerationRepository {
           insert into jobs (
             account_id, created_by, feature_id, provider_model_id, quote_id,
             price_id, entitlement_id, params, status, origin,
-            idempotency_key, micro_credits_held
+            idempotency_key, micro_credits_held, reference_asset_ids
           ) values (
             ${accountId}, ${input.userId}, ${quote.feature_id}, ${quote.provider_model_id}, ${quote.id},
             ${quote.price_id}, ${quote.entitlement_id}, ${tx.json(input.params)}, 'queued', 'web',
-            ${input.idempotencyKey}, ${microCredits}
+            ${input.idempotencyKey}, ${microCredits},
+            -- Copied from the quote rather than resent by the caller. The
+            -- params hash guards what was priced; the references are outside
+            -- it, so taking them from the request here would let a cheap quote
+            -- be spent on a job that drew from different files. 0023 purges
+            -- expired quotes, so the job keeps its own copy for the same
+            -- reason it keeps entitlement_id.
+            ${quote.reference_asset_ids === null ? null : tx.json(quote.reference_asset_ids)}
           )
           returning id
         `;

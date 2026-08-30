@@ -378,6 +378,34 @@ export class PostgresAccessRepository {
     return row?.is_enabled ?? true;
   }
 
+  /**
+   * Is the announcement strip on? Read on every `GET /content`.
+   *
+   * Absent means on, which is the opposite of how `early_access` reads a
+   * missing row and deliberately so. That flag guards who may sign up, so a
+   * deleted row must fail closed. This one decides whether a strip is painted:
+   * failing closed would silently stop advertising a live campaign, and the
+   * cost of the other direction is a strip somebody dismisses.
+   */
+  async isSiteBanner(): Promise<boolean> {
+    const [row] = await this.sql<{ is_enabled: boolean }[]>`
+      select is_enabled from feature_flags where code = 'site_banner'
+    `;
+    return row?.is_enabled ?? true;
+  }
+
+  async setSiteBanner(enabled: boolean, updatedBy: string | null): Promise<boolean> {
+    const [row] = await this.sql<{ is_enabled: boolean }[]>`
+      insert into feature_flags (code, description, is_enabled, updated_by)
+      values ('site_banner', 'The announcement strip above every page renders while this is enabled.', ${enabled}, ${updatedBy})
+      on conflict (code) do update
+        set is_enabled = excluded.is_enabled, description = excluded.description,
+            updated_by = excluded.updated_by, updated_at = now()
+      returning is_enabled
+    `;
+    return row!.is_enabled;
+  }
+
   async setEarlyAccess(enabled: boolean, updatedBy: string | null): Promise<boolean> {
     const [row] = await this.sql<{ is_enabled: boolean }[]>`
       insert into feature_flags (code, description, is_enabled, rules, updated_by)
