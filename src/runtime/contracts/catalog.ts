@@ -62,6 +62,67 @@ export const RefSlotSchema = z.object({
  * `id`, and the price and the job both key off that. The mapping now lives in
  * `src/data/upstream.json`, which only the seeders may import.
  */
+/**
+ * The unlimited pipe, when a variant has one.
+ *
+ * Some models are reachable two ways: metered, which bills per image and is
+ * quick, and a flat-fee subscription reached through a gateway, which bills
+ * nothing per image and throttles into a slower queue past a daily per-account
+ * threshold. `scripts/publish-unlimited.ts` seeds the second; this is the only
+ * thing about it a browser is told.
+ *
+ * **On the variant, not the family.** A grant is per catalogue row, so Nano
+ * Banana can have the pipe for Pro and for 2 while a sibling variant does not.
+ * A family-level flag would promise it on a variant that cannot deliver.
+ *
+ * Deliberately not a second catalogue entry either. The customer picks one Nano
+ * Banana Pro and then chooses how it is served; two entries would make them
+ * choose between models they cannot tell apart, and would double every price
+ * table.
+ *
+ * **Derived, never seeded.** Every field here is read from
+ * `unlimited_entitlements` when the catalogue document is built — the same row
+ * the quote path checks and the same row that authorises a free job. Publishing
+ * a copy of it into `capabilities` would create a second place for the answer
+ * to live, and the two would disagree the first time a grant was retired: the
+ * shop would go on advertising a free pipe that the quote had stopped granting.
+ *
+ * All three fields are public in the sense a price is public. What none of them
+ * says is whether *you* get it — that depends on your plan and on what you have
+ * spent today, and only the quote can answer it.
+ */
+const UnlimitedPipeSchema = z.object({
+  /**
+   * Free generations per account per day.
+   *
+   * What is *left* of today comes back on the quote instead, because only the
+   * server knows what has been spent. This is the number a screen uses to say
+   * what the choice is worth before it is made.
+   */
+  dailyCap: z.number().int().positive().nullable(),
+  /**
+   * Lowest `plans.tier` the grant is open to.
+   *
+   * Present so a screen can offer the upgrade rather than a switch that fails.
+   * Without it the pipe looks available to everybody, and a customer on the
+   * wrong plan flips something labelled free and is charged the metered price —
+   * a money surprise, and the quote declining politely does not undo it.
+   */
+  minTier: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  /**
+   * `control key -> the values the pipe covers`. Absent means all of them.
+   *
+   * The subscription does not necessarily serve every setting the metered
+   * provider does. A setting outside this is priced the ordinary way, so the
+   * screen has to be able to say so *before* the choice rather than after a
+   * quote comes back with a number on it.
+   *
+   * A key absent from the object is unconstrained, so adding a control to a
+   * variant never silently narrows an existing grant.
+   */
+  limits: z.record(z.string(), z.array(z.string().min(1))).optional(),
+});
+
 export const VariantSchema = z.object({
   id: z.string().min(1),
   /** `features.code` — the product section a job from this variant is filed under. */
@@ -69,6 +130,8 @@ export const VariantSchema = z.object({
   maxPrompt: z.number().int().positive().optional(),
   label: z.string(),
   badge: z.string().optional(),
+  /** Absent for the variants served only by the metered pipe. */
+  unlimited: UnlimitedPipeSchema.optional(),
   refs: z.array(RefSlotSchema).nullable().optional(),
   controls: z.array(ControlSchema).optional(),
 });

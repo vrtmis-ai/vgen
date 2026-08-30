@@ -65,6 +65,45 @@ async function seedModel(
   `;
 }
 
+/** The provider_models row id for a seeded variant. */
+async function modelIdOf(tx: Sql, variantId: string): Promise<string> {
+  const [row] = await tx<{ id: string }[]>`
+    select id from provider_models where capabilities -> 'variant' ->> 'id' = ${variantId} limit 1
+  `;
+  if (!row) throw new Error(`no seeded model for variant ${variantId}`);
+  return row.id;
+}
+
+/**
+ * A grant on a seeded variant, served by a second provider.
+ *
+ * The serving row is a real row on a real second provider rather than a stub,
+ * because that is what the derivation joins through — and the check that a dead
+ * provider withdraws the offer needs a provider it can switch off. Returns that
+ * provider's id so a test can do exactly that.
+ */
+async function grant(
+  tx: Sql,
+  variantId: string,
+  options: { dailyCap: number | null; minTier: number; covers: Record<string, string[]> | null },
+): Promise<string> {
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const servingProviderId = await seedProvider(tx, `serving-${suffix}`);
+  const [serving] = await tx<{ id: string }[]>`
+    insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
+    values (${servingProviderId}, ${`serving/${suffix}`}, 'serving row', 'image', 'serving',
+            ${tx.json({ serves: variantId, billing: "subscription" })}, true)
+    returning id
+  `;
+  const [feature] = await tx<{ id: string }[]>`select id from features where code = 'image_generate' limit 1`;
+  await tx`
+    insert into unlimited_entitlements (catalog_model_id, serving_model_id, feature_id, min_tier, daily_cap, covers, is_active)
+    values (${await modelIdOf(tx, variantId)}, ${serving!.id}, ${feature?.id ?? null},
+            ${options.minTier}, ${options.dailyCap}, ${options.covers === null ? null : tx.json(options.covers)}, true)
+  `;
+  return servingProviderId;
+}
+
 describe("Postgres catalog repository", () => {
   it("returns the bootstrap snapshot when no model is on sale", async () => {
     await inRollback(sql, async (tx) => {
@@ -221,6 +260,149 @@ describe("Postgres catalog repository", () => {
       expect(variant).not.toHaveProperty("model");
       expect(variant).not.toHaveProperty("modelWithRefs");
       expect(JSON.stringify(snapshot)).not.toMatch(/acme-labs/i);
+    });
+  });
+
+  /**
+   * The pipe is published, and it is published from the row that authorises it.
+   *
+   * `unlimited` is derived at build time from `unlimited_entitlements` rather
+   * than seeded into `capabilities`. That is the whole design: a copy in the
+   * blob would be a second place for the answer to live, and the two would
+   * disagree the first time a grant was retired — the shop would go on
+   * advertising a free pipe the quote path had already stopped granting.
+   */
+  it("publishes the unlimited pipe from the grant, and only on the granted variant", async () => {
+    await inRollback(sql, async (tx) => {
+      const providerId = await seedProvider(tx, `cat-grant-${Math.random().toString(36).slice(2, 8)}`);
+      await seedModel(tx, providerId, "granted", 1, 1, "pro");
+      await seedModel(tx, providerId, "granted", 1, 2, "lite");
+      await grant(tx, "granted-pro", { dailyCap: 50, minTier: 3, covers: { resolution: ["1K", "2K"] } });
+
+      const snapshot = await new PostgresCatalogRepository(tx).list();
+      const family = snapshot.families.find((candidate) => candidate.id === "granted");
+      const pro = family?.variants.find((variant) => variant.id === "granted-pro");
+      const lite = family?.variants.find((variant) => variant.id === "granted-lite");
+
+      expect(pro?.unlimited).toEqual({ dailyCap: 50, minTier: 3, limits: { resolution: ["1K", "2K"] } });
+      // The sibling has no grant, so it carries no marker at all. This is what
+      // "on the variant, not the family" has to mean in practice — a family
+      // flag would have put the promise on both.
+      expect(lite?.unlimited).toBeUndefined();
+    });
+  });
+
+  /**
+   * Retiring a grant has to reach the document.
+   *
+   * This is the case the `PublicDocument` docblock warns about, and the reason
+   * the fingerprint counts as well as maximises: a grant leaving the active set
+   * changes what the catalogue says while the newest `provider_models`
+   * timestamp sits exactly where it was. Without the grant count in the
+   * fingerprint the cached document would go on advertising a withdrawn pipe
+   * until something unrelated happened to republish.
+   */
+  it("stops advertising the pipe as soon as the grant is retired", async () => {
+    await inRollback(sql, async (tx) => {
+      const providerId = await seedProvider(tx, `cat-retire-${Math.random().toString(36).slice(2, 8)}`);
+      await seedModel(tx, providerId, "retiring", 1, 1, "pro");
+      await grant(tx, "retiring-pro", { dailyCap: 50, minTier: 3, covers: null });
+
+      const repository = new PostgresCatalogRepository(tx);
+      const before = await repository.list();
+      expect(before.families.find((family) => family.id === "retiring")?.variants[0]?.unlimited).toBeDefined();
+
+      const modelId = await modelIdOf(tx, "retiring-pro");
+      await tx`update unlimited_entitlements set is_active = false where catalog_model_id = ${modelId}`;
+
+      const after = await repository.list();
+      expect(after.families.find((family) => family.id === "retiring")?.variants[0]?.unlimited).toBeUndefined();
+    });
+  });
+
+  /**
+   * A grant pointing at a switched-off provider is not a grant.
+   *
+   * `findGrant` refuses it at quote time, because the job would have nowhere to
+   * run. So the shop has to refuse it too. Advertising it anyway is exactly the
+   * disagreement this derivation exists to make impossible, and it is the
+   * expensive direction to be wrong in: the customer picks the model *because*
+   * it was free.
+   */
+  it("does not advertise a pipe whose serving provider is switched off", async () => {
+    await inRollback(sql, async (tx) => {
+      const providerId = await seedProvider(tx, `cat-dead-${Math.random().toString(36).slice(2, 8)}`);
+      await seedModel(tx, providerId, "orphan", 1, 1, "pro");
+      const servingProviderId = await grant(tx, "orphan-pro", { dailyCap: 50, minTier: 3, covers: null });
+
+      const repository = new PostgresCatalogRepository(tx);
+      const before = await repository.list();
+      expect(before.families.find((family) => family.id === "orphan")?.variants[0]?.unlimited).toBeDefined();
+
+      await tx`update providers set is_active = false where id = ${servingProviderId}`;
+
+      const after = await repository.list();
+      expect(after.families.find((family) => family.id === "orphan")?.variants[0]?.unlimited).toBeUndefined();
+    });
+  });
+
+  /**
+   * A marker written into the blob by hand is not an offer.
+   *
+   * `capabilitiesFor` in the catalogue seeder stores the whole variant object,
+   * so the moment an `unlimited` key appears on a variant in
+   * `src/data/models.ts` it starts arriving here — and #63 proposes exactly
+   * that. A marker with no grant row behind it would be published as something
+   * the quote path will never honour: the customer picks the model *because* it
+   * is free and is then charged.
+   *
+   * So the blob's copy is dropped unconditionally and the grant table decides.
+   * This is the case that makes the derivation worth the extra query.
+   */
+  it("ignores an unlimited marker seeded into capabilities with no grant behind it", async () => {
+    await inRollback(sql, async (tx) => {
+      const providerId = await seedProvider(tx, `cat-seeded-${Math.random().toString(36).slice(2, 8)}`);
+      const base = capabilities("claimed", 1, 1, "pro");
+      // A marker written by a hand that should not be writing it. That is the
+      // whole test: the derivation has to ignore it.
+      const blob = { ...base, variant: { ...base.variant, unlimited: { dailyCap: 999, minTier: 1 } } };
+      await tx`
+        insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
+        values (${providerId}, 'claimed/pro', 'claimed pro', 'image', 'claimed', ${tx.json(blob)}, true)
+      `;
+
+      const snapshot = await new PostgresCatalogRepository(tx).list();
+      const variant = snapshot.families.find((family) => family.id === "claimed")?.variants[0];
+
+      expect(variant?.id).toBe("claimed-pro");
+      expect(variant?.unlimited).toBeUndefined();
+    });
+  });
+
+  /**
+   * And a real grant wins over a stale seeded one rather than merging with it.
+   *
+   * The dangerous version of this bug is not the absent grant but the
+   * disagreeing one: a blob saying 999 free a day beside a row saying 50. The
+   * customer would be shown the number nobody is going to honour.
+   */
+  it("publishes the grant's numbers, not the ones written into the blob", async () => {
+    await inRollback(sql, async (tx) => {
+      const providerId = await seedProvider(tx, `cat-stale-${Math.random().toString(36).slice(2, 8)}`);
+      const base = capabilities("stale", 1, 1, "pro");
+      // A marker written by a hand that should not be writing it. That is the
+      // whole test: the derivation has to ignore it.
+      const blob = { ...base, variant: { ...base.variant, unlimited: { dailyCap: 999, minTier: 1 } } };
+      await tx`
+        insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
+        values (${providerId}, 'stale/pro', 'stale pro', 'image', 'stale', ${tx.json(blob)}, true)
+      `;
+      await grant(tx, "stale-pro", { dailyCap: 50, minTier: 3, covers: null });
+
+      const snapshot = await new PostgresCatalogRepository(tx).list();
+      const variant = snapshot.families.find((family) => family.id === "stale")?.variants[0];
+
+      expect(variant?.unlimited).toEqual({ dailyCap: 50, minTier: 3 });
     });
   });
 });

@@ -30,6 +30,13 @@ export interface QuoteRequest {
   params: GenerationParams;
   prompt?: string | undefined;
   clipSeconds?: number | undefined;
+  /**
+   * "I would rather wait than spend." Absent means true — see the contract.
+   *
+   * Only ever narrows: a false here declines a grant the account already holds
+   * and pays the ordinary price. It can never open one it does not hold.
+   */
+  preferUnlimited?: boolean | undefined;
 }
 
 export interface QuotedGeneration {
@@ -71,6 +78,35 @@ function billableSeconds(params: GenerationParams, clipSeconds: number | undefin
   if (typeof duration === "number") return duration;
   if (typeof duration === "string" && duration.trim() !== "" && Number.isFinite(Number(duration))) return Number(duration);
   return clipSeconds;
+}
+
+/**
+ * Whether a grant reaches the settings actually being asked for.
+ *
+ * `covers` names the settings the subscription serves, as
+ * `control key -> allowed values`. Only the keys it names are narrowed —
+ * anything absent is unconstrained, so adding a control to a variant does not
+ * silently withdraw a grant that was written before it existed.
+ *
+ * Compared as strings on purpose. Control values arrive as `unknown` from a
+ * JSON body and the catalogue writes them as strings (`"1K"`, `"2K"`), but a
+ * number that round-trips through a client could arrive as `1024` or `"1024"`
+ * for the same setting. `String(value)` makes the two agree; a `===` against a
+ * raw `unknown` would silently fail to match and quietly bill someone.
+ *
+ * A missing param does not match a constrained key. If the pipe covers
+ * `resolution: ["1K","2K"]` and the request names no resolution, the model's
+ * own default decides what runs — and we do not know here what that is, so the
+ * safe answer is to price it. Missing configuration costs a sale, never the
+ * margin, which is how the tier gate above already resolves the same tension.
+ */
+export function coversSettings(covers: Record<string, string[]> | null, params: GenerationParams): boolean {
+  if (!covers) return true;
+  return Object.entries(covers).every(([key, allowed]) => {
+    const value = (params as Record<string, unknown>)[key];
+    if (value === undefined || value === null) return false;
+    return allowed.includes(String(value));
+  });
 }
 
 export class PostgresQuotesRepository {
@@ -136,8 +172,20 @@ export class PostgresQuotesRepository {
     if (currentTier < requiredTier) return { outcome: "tier_too_low", requiredTier, currentTier };
 
     // ---- free, or priced ------------------------------------------------
-    const available = await this.entitlements.availability(model.id, feature.id, accountId, currentTier);
-    const granted = available !== null && (available.remaining === null || available.remaining > 0);
+    // Four things have to hold before a generation is free, and the order is
+    // cheapest-question-first: did the customer ask for it, is there a grant
+    // this tier reaches, does the grant cover these settings, is there any of
+    // today's allowance left.
+    //
+    // `preferUnlimited` defaults to true because the grant has always applied
+    // automatically. Reading an absent field as false would start charging
+    // every client that has not been taught to send it — and only the
+    // customers on the plans that were sold the perk, which is the worst
+    // possible set of people to start billing by accident.
+    const wantsUnlimited = request.preferUnlimited ?? true;
+    const available = wantsUnlimited ? await this.entitlements.availability(model.id, feature.id, accountId, currentTier) : null;
+    const covered = available === null || coversSettings(available.grant.covers, request.params);
+    const granted = available !== null && covered && (available.remaining === null || available.remaining > 0);
 
     let priceId: string | null = null;
     let coins = 0;

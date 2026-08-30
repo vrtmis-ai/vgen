@@ -24,6 +24,33 @@ export const QuoteGenerationRequestSchema = z
      * and this field goes.
      */
     clipSeconds: z.number().positive().max(3600).optional(),
+    /**
+     * A preference, not an instruction — which is why it is a mood and not a
+     * price.
+     *
+     * The note above is right that a request able to name its own feature,
+     * model or price is a request able to ask to be billed as something cheaper
+     * than it is. This one names none of those. It says the customer would
+     * rather wait than spend, and the server answers it by looking up exactly
+     * what it already looks up: does this variant have a grant, does this
+     * account's tier reach it, does the setting fall inside what the grant
+     * covers, and is today's cap spent. A `true` can only ever make a
+     * generation slower and cheaper, never faster or dearer.
+     *
+     * **Absent means true, and that is not a style choice.** The grant has
+     * always applied automatically to anyone holding it, so a missing field has
+     * to keep meaning "free if I am entitled". Reading it as false would start
+     * charging every existing client that has not been taught to send it —
+     * silently, and only for the customers on the plans that were promised the
+     * perk. A flag that turns billing *on* by omission is the wrong default in
+     * the wrong direction.
+     *
+     * So `false` is the interesting value: it means "bill me, I want the quick
+     * queue". The answer comes back on the quote's `unlimited` field, which is
+     * absent when the generation is metered — so the browser learns what
+     * actually happened rather than assuming it got what it asked for.
+     */
+    preferUnlimited: z.boolean().optional(),
   })
   .strict();
 

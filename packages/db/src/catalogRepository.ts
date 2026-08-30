@@ -1,4 +1,10 @@
-import { CatalogCapabilitiesSchema, CatalogSnapshotSchema, type CatalogFamily, type CatalogSnapshot } from "@vgen/contracts";
+import {
+  CatalogCapabilitiesSchema,
+  CatalogSnapshotSchema,
+  type CatalogFamily,
+  type CatalogSnapshot,
+  type CatalogVariant,
+} from "@vgen/contracts";
 import type { Sql } from "postgres";
 import { PublicDocument, fingerprintOf } from "./publicDocument";
 
@@ -40,7 +46,31 @@ export class PostgresCatalogRepository implements CustomerCatalogRepository {
         join providers provider on provider.id = model.provider_id
         where model.is_active and provider.is_active and model.capabilities ? 'variant'
       `;
-      return fingerprintOf(row?.n ?? "0", row?.model, row?.provider);
+      // The grants are part of this document, so they are part of its
+      // fingerprint — and this query has to repeat `unlimitedByModel`'s joins
+      // rather than just count the entitlement rows.
+      //
+      // A test found that out. Switching off the *serving* provider withdraws
+      // every offer it backs, but it touches no `unlimited_entitlements` row
+      // and no provider in the query above, which only sees providers that have
+      // catalogue rows of their own — and a serving row deliberately has none.
+      // So the count stayed 1, the fingerprint held, and the cached document
+      // went on advertising a pipe that `findGrant` had already stopped
+      // opening. Counting through the joins is what makes the row leave the
+      // set, which is the class docblock's whole point about counting as well
+      // as maximising.
+      const [grants] = await this.sql<{ n: string; changed: Date | null }[]>`
+        select count(*)::text as n,
+               greatest(max(ent.updated_at), max(serving.updated_at), max(provider.updated_at)) as changed
+        from unlimited_entitlements ent
+        join provider_models serving on serving.id = ent.serving_model_id
+        join providers provider on provider.id = serving.provider_id
+        where ent.is_active and serving.is_active and provider.is_active
+      `;
+      // Two counts in the one slot the helper takes: the document changes if
+      // either set gains or loses a row, and joining them keeps that a single
+      // comparable string rather than a second fingerprint to reconcile.
+      return fingerprintOf(`${row?.n ?? "0"}+${grants?.n ?? "0"}`, row?.model, row?.provider, grants?.changed);
     },
     () => this.build(),
   );
@@ -49,9 +79,49 @@ export class PostgresCatalogRepository implements CustomerCatalogRepository {
     return this.document.get();
   }
 
+  /**
+   * The live grants, by the catalogue row each one makes free.
+   *
+   * The conditions are deliberately the same four `findGrant` applies at quote
+   * time — active grant, active serving model, active provider — because the
+   * two answers have to agree. A shop advertising a pipe the quote declines to
+   * open is worse than one that never mentioned it: the customer chooses the
+   * model *for* the free pipe and then pays for it.
+   *
+   * `min_tier` and `daily_cap` are published without knowing who is asking.
+   * That is deliberate and it is the same contract a price has: this is what
+   * the offer *is*, not what you personally get. What you get needs your plan
+   * and today's spend, and it comes back on the quote. The catalogue document
+   * is one shared object for every visitor including anonymous ones, so it
+   * could not be per-account even if that were wanted.
+   */
+  private async unlimitedByModel(): Promise<
+    Map<string, { dailyCap: number | null; minTier: 1 | 2 | 3; limits?: Record<string, string[]> }>
+  > {
+    const rows = await this.sql<
+      { catalog_model_id: string; daily_cap: number | null; min_tier: number; covers: Record<string, string[]> | null }[]
+    >`
+      select ent.catalog_model_id, ent.daily_cap, ent.min_tier, ent.covers
+      from unlimited_entitlements ent
+      join provider_models serving on serving.id = ent.serving_model_id
+      join providers provider on provider.id = serving.provider_id
+      where ent.is_active and serving.is_active and provider.is_active
+    `;
+    return new Map(
+      rows.map((row) => [
+        row.catalog_model_id,
+        {
+          dailyCap: row.daily_cap,
+          minTier: row.min_tier as 1 | 2 | 3,
+          ...(row.covers ? { limits: row.covers } : {}),
+        },
+      ]),
+    );
+  }
+
   private async build(): Promise<CatalogSnapshot> {
-    const rows = await this.sql<{ family: string; capabilities: unknown; updated_at: Date }[]>`
-      select model.family, model.capabilities, model.updated_at
+    const rows = await this.sql<{ id: string; family: string; capabilities: unknown; updated_at: Date }[]>`
+      select model.id, model.family, model.capabilities, model.updated_at
       from provider_models model
       join providers provider on provider.id = model.provider_id
       where model.is_active and provider.is_active
@@ -70,6 +140,8 @@ export class PostgresCatalogRepository implements CustomerCatalogRepository {
     `;
     if (rows.length === 0) return CatalogSnapshotSchema.parse({ version: "bootstrap-v1", publishedAt: 0, families: [] });
 
+    const grants = await this.unlimitedByModel();
+
     // Insertion order carries the sort out of the query above, so the families
     // and their variants come back in the order the screens present them.
     const families = new Map<string, CatalogFamily>();
@@ -79,9 +151,23 @@ export class PostgresCatalogRepository implements CustomerCatalogRepository {
       const { family, variant } = CatalogCapabilitiesSchema.parse(row.capabilities);
       newest = Math.max(newest, row.updated_at.getTime());
 
+      // Attached here rather than stored in `capabilities`, so the shop and the
+      // quote path read one row and cannot come to disagree.
+      //
+      // Any `unlimited` already in the blob is dropped first, and that is not
+      // defensive tidiness. `capabilitiesFor` in the catalogue seeder stores
+      // the whole variant object, so the moment somebody adds an `unlimited`
+      // marker to `src/data/models.ts` it starts arriving here — and a marker
+      // on a variant with no grant behind it would be published as an offer
+      // nothing can honour. The grant table is the only source; a hand-written
+      // one loses, silently and always.
+      const { unlimited: _seeded, ...rest } = variant;
+      const grant = grants.get(row.id);
+      const offered: CatalogVariant = grant ? { ...rest, unlimited: grant } : rest;
+
       const existing = families.get(row.family);
-      if (existing) existing.variants.push(variant);
-      else families.set(row.family, { ...family, variants: [variant] });
+      if (existing) existing.variants.push(offered);
+      else families.set(row.family, { ...family, variants: [offered] });
     }
 
     // Derived rather than stored: `provider_models` has an updated_at trigger,

@@ -114,9 +114,12 @@ jobs:
       - run: pnpm catalog:publish
       - name: Seeding twice writes nothing the second time
         run: pnpm catalog:publish | grep -q 'already current'
-      - run: pnpm catalog:snapshot
-      - name: The database must serve the committed snapshot
-        run: git diff --exit-code -- src/data/catalog.snapshot.json
+      # The catalogue snapshot is exported further down, after the grants.
+      # It used to be taken here, and cannot be any more: a variant's
+      # `unlimited` marker is derived from `unlimited_entitlements` when the
+      # document is built, so exporting before those rows exist produces a
+      # catalogue that is missing a field the database will serve a second
+      # later. See the unlimited step below.
 
       # Pricing, and the one check that makes moving it into Postgres safe.
       # pricing.expected.json holds every price the app charged before the rate
@@ -145,14 +148,23 @@ jobs:
       # variant id — a grant can only point at a model that already exists, and
       # the seeder refuses rather than inventing one.
       #
-      # There is no snapshot to diff here on purpose: nothing in the browser
-      # reads a grant. The customer learns a generation is free from the quote,
-      # which is the server telling them, and the integration tests are what
-      # hold that. What this step proves is that the seeder is idempotent and
-      # that the grants it writes point at rows the catalogue really has.
+      # The browser does now read a grant, indirectly. `GET /catalog` marks the
+      # variants that have the free pipe, derived from these rows rather than
+      # copied into `capabilities`, so that the shop and the quote can never
+      # disagree about which models are free. That makes the catalogue document
+      # depend on this step, which is why its snapshot is exported after it
+      # rather than up beside `catalog:publish`.
+      #
+      # What the customer is actually *owed* still comes from the quote — the
+      # marker says the pipe exists, not that it is yours today — and the
+      # integration tests are what hold that.
       - run: pnpm unlimited:publish
       - name: Seeding grants twice writes nothing the second time
         run: pnpm unlimited:publish | grep -q 'already current'
+
+      - run: pnpm catalog:snapshot
+      - name: The database must serve the committed snapshot
+        run: git diff --exit-code -- src/data/catalog.snapshot.json
 
       # Providers and routing. Like the grants above, this looks the catalogue
       # up by variant id and refuses rather than inventing a row, so it has to
