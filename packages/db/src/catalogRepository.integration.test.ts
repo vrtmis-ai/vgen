@@ -405,4 +405,48 @@ describe("Postgres catalog repository", () => {
       expect(variant?.unlimited).toEqual({ dailyCap: 50, minTier: 3 });
     });
   });
+
+  /**
+   * A reference slot's `group` has to reach the browser.
+   *
+   * `capabilitiesFor` stores the whole variant, so a `group` written in
+   * `src/data/models.ts` lands in `provider_models.capabilities` without any
+   * seeder change at all. What it does *not* survive on its own is this parse:
+   * zod strips keys a schema does not name, so before `CatalogRefSlotSchema`
+   * knew the field, the seeder wrote it, the database held it, and the panel
+   * still saw one undifferentiated list of slots.
+   *
+   * Which is why the fix was a contract line and not a seeder line, and why
+   * this test seeds the blob directly rather than going through `models.ts` —
+   * the strip is what is being tested, not the authoring.
+   */
+  it("carries a reference slot's group through to the served catalogue", async () => {
+    await inRollback(sql, async (tx) => {
+      const providerId = await seedProvider(tx, `cat-group-${Math.random().toString(36).slice(2, 8)}`);
+      const base = capabilities("grouped", 1, 1, "pro");
+      const blob = {
+        ...base,
+        variant: {
+          ...base.variant,
+          refs: [
+            { key: "start_frame", label: "start", max: 1, group: "frame" },
+            { key: "character", label: "character", max: 2 },
+          ],
+        },
+      };
+      await tx`
+        insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
+        values (${providerId}, 'grouped/pro', 'grouped pro', 'image', 'grouped', ${tx.json(blob)}, true)
+      `;
+
+      const snapshot = await new PostgresCatalogRepository(tx).list();
+      const refs = snapshot.families.find((family) => family.id === "grouped")?.variants[0]?.refs;
+
+      expect(refs?.[0]).toMatchObject({ key: "start_frame", group: "frame" });
+      // Absent stays absent rather than being defaulted to "reference" here.
+      // The default belongs to whoever renders it; writing it in would make
+      // every existing slot look like it had been edited.
+      expect(refs?.[1]).not.toHaveProperty("group");
+    });
+  });
 });
