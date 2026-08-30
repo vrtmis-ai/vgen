@@ -14,6 +14,12 @@
 // row timestamps, so including them would make the file differ on every run and
 // the diff would stop meaning anything. Demo mode supplies its own.
 //
+// `flags` is left out for a different reason: it is not content. It is a
+// runtime switch, and its value at export time says nothing about its value
+// now, so freezing one into a fixture would only ever be misleading. It would
+// also break the arithmetic below and the matching check in CI, both of which
+// sum `.length` over every key they find.
+//
 // Run: pnpm content:snapshot   (needs DATABASE_URL, and a seeded database)
 
 import { writeFile } from "node:fs/promises";
@@ -32,7 +38,7 @@ const target = new URL("../../../src/data/content.snapshot.json", import.meta.ur
 const sql = postgres(databaseUrl, { max: 1 });
 
 try {
-  const { version: _version, publishedAt: _publishedAt, ...collections } = await new PostgresContentRepository(sql).list();
+  const { version: _version, publishedAt: _publishedAt, flags: _flags, ...collections } = await new PostgresContentRepository(sql).list();
   const total = Object.values(collections).reduce((count, rows) => count + rows.length, 0);
   if (total === 0) throw new Error("the database has no published content — run `pnpm content:publish` first");
 
