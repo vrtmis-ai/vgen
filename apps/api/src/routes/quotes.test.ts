@@ -101,3 +101,45 @@ describe("asking for a price", () => {
     expect(create).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * The layer that dropped it.
+ *
+ * `referenceAssetIds` was built by the browser, handed to the mutation, and
+ * never put in the request body — so both halves were tested, both passed, and
+ * nothing crossed the gap for two PRs. These assert on what the repository is
+ * actually handed.
+ */
+describe("attaching reference uploads to a quote", () => {
+  const ASSET = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+  it("passes the slot map through to the repository", async () => {
+    const { app, create } = quotesApp(quoted(4));
+
+    const response = await post(app, { ...body, referenceAssetIds: { image_urls: [ASSET] } });
+
+    expect(response.statusCode).toBe(200);
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ referenceAssetIds: { image_urls: [ASSET] } }));
+  });
+
+  it("answers 404 for a reference the caller may not use", async () => {
+    const { app } = quotesApp({ outcome: "unknown_reference" });
+
+    const response = await post(app, { ...body, referenceAssetIds: { image_urls: [ASSET] } });
+
+    // 404 and one message for missing, deleted and somebody else's. Anything
+    // that told them apart would make this route an oracle for whether a given
+    // asset id exists.
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({ error: { code: "unknown_reference", message: "An attached file is not available." } });
+  });
+
+  it("refuses an id that is not a uuid before the repository sees it", async () => {
+    const { app, create } = quotesApp(quoted(4));
+
+    const response = await post(app, { ...body, referenceAssetIds: { image_urls: ["../../etc/passwd"] } });
+
+    expect(response.statusCode).toBe(400);
+    expect(create).not.toHaveBeenCalled();
+  });
+});

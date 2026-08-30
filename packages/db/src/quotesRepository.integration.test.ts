@@ -469,3 +469,177 @@ describe("quoting a model covered by an unlimited grant", () => {
     });
   });
 });
+
+/**
+ * Reference uploads, on the one path where getting authorisation wrong hands
+ * one customer's private file to another customer's generation.
+ *
+ * An asset id is a uuid in a JSON body. It is not a capability, and the reason
+ * these tests exist is that treating it as one would never show up as an error
+ * — the thief never sees the bytes, they see the picture made from them.
+ */
+describe("quoting with reference uploads", () => {
+  /** An upload belonging to an account, the way `POST /assets` records one. */
+  async function upload(tx: Sql, accountId: string, userId: string, suffix: string): Promise<string> {
+    const [row] = await tx<{ id: string }[]>`
+      insert into assets (
+        account_id, created_by, kind, origin, storage_provider, storage_bucket, storage_key,
+        mime_type, byte_size, sha256, moderation_state, visibility
+      ) values (
+        ${accountId}, ${userId}, 'image', 'upload', 's3', 'vgen', ${`uploads/${accountId}/${suffix}.png`},
+        'image/png', 2048, ${`sha-${suffix}`}, 'pending', 'private'
+      )
+      returning id
+    `;
+    return row!.id;
+  }
+
+  it("prices a generation that names the account's own upload", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, 3);
+      const { variantId, params } = await variantAtTier(tx, 1);
+      const assetId = await upload(tx, accountId, userId, "mine");
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId,
+        variantId,
+        params,
+        referenceAssetIds: { image_urls: [assetId] },
+      });
+
+      expect(result.outcome).toBe("quoted");
+      if (result.outcome !== "quoted") return;
+
+      // Recorded on the quote, because some models price by what arrived and
+      // the job is built from the quote rather than from the request.
+      const [row] = await tx<{ reference_asset_ids: Record<string, string[]> | null }[]>`
+        select reference_asset_ids from quotes where id = ${result.quote.id}
+      `;
+      expect(row!.reference_asset_ids).toEqual({ image_urls: [assetId] });
+    });
+  });
+
+  /**
+   * The one that matters.
+   */
+  it("refuses an upload belonging to somebody else", async () => {
+    await inRollback(sql, async (tx) => {
+      const mine = await makeUser(tx);
+      const theirs = await makeUser(tx);
+      await subscribe(tx, mine.accountId, 3);
+      const { variantId, params } = await variantAtTier(tx, 1);
+      const stolen = await upload(tx, theirs.accountId, theirs.userId, "theirs");
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId: mine.userId,
+        variantId,
+        params,
+        referenceAssetIds: { image_urls: [stolen] },
+      });
+
+      expect(result.outcome).toBe("unknown_reference");
+      // And no quote row exists to be spent on a job later.
+      const rows = await tx<{ id: string }[]>`select id from quotes where account_id = ${mine.accountId}`;
+      expect(rows).toHaveLength(0);
+    });
+  });
+
+  it("refuses an id that is not an asset at all", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, 3);
+      const { variantId, params } = await variantAtTier(tx, 1);
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId,
+        variantId,
+        params,
+        referenceAssetIds: { image_urls: ["11111111-1111-4111-8111-111111111111"] },
+      });
+
+      expect(result.outcome).toBe("unknown_reference");
+    });
+  });
+
+  it("refuses a deleted upload, because deleting one has to mean something", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, 3);
+      const { variantId, params } = await variantAtTier(tx, 1);
+      const assetId = await upload(tx, accountId, userId, "gone");
+      await tx`update assets set deleted_at = now() where id = ${assetId}`;
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId,
+        variantId,
+        params,
+        referenceAssetIds: { image_urls: [assetId] },
+      });
+
+      expect(result.outcome).toBe("unknown_reference");
+    });
+  });
+
+  /**
+   * A generated file cannot be fed back in by id.
+   *
+   * Not because it would leak — it is the caller's own output — but because
+   * "use my last result as a reference" is a feature with its own pricing and
+   * moderation questions, and it should arrive as a decision rather than as a
+   * side effect of the ownership check being loose.
+   */
+  it("refuses one of the account's own generated assets", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, 3);
+      const { variantId, params } = await variantAtTier(tx, 1);
+      const [generated] = await tx<{ id: string }[]>`
+        insert into assets (
+          account_id, created_by, kind, origin, storage_provider, storage_bucket, storage_key,
+          mime_type, byte_size, sha256, moderation_state, visibility
+        ) values (
+          ${accountId}, ${userId}, 'image', 'generated', 's3', 'vgen', ${`generated/${accountId}/out.png`},
+          'image/png', 2048, 'sha-generated', 'pending', 'private'
+        )
+        returning id
+      `;
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId,
+        variantId,
+        params,
+        referenceAssetIds: { image_urls: [generated!.id] },
+      });
+
+      expect(result.outcome).toBe("unknown_reference");
+    });
+  });
+
+  /**
+   * All or nothing, rather than quoting with the ids that happened to check out.
+   *
+   * Partial acceptance is the silent-drop bug in a new hat: the customer
+   * attached two faces, one was refused, and the picture comes back made from
+   * one face at the price of two.
+   */
+  it("refuses the whole quote when one id of several is not usable", async () => {
+    await inRollback(sql, async (tx) => {
+      const mine = await makeUser(tx);
+      const theirs = await makeUser(tx);
+      await subscribe(tx, mine.accountId, 3);
+      const { variantId, params } = await variantAtTier(tx, 1);
+      const ok = await upload(tx, mine.accountId, mine.userId, "ok");
+      const stolen = await upload(tx, theirs.accountId, theirs.userId, "not-ok");
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId: mine.userId,
+        variantId,
+        params,
+        referenceAssetIds: { image_urls: [ok, stolen] },
+      });
+
+      expect(result.outcome).toBe("unknown_reference");
+    });
+  });
+});

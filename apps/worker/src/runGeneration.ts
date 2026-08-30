@@ -1,5 +1,5 @@
 import { applyParamOverrides } from "@vgen/core";
-import { ProviderTransportError, type GenerationProvider, type ProviderOptions } from "@vgen/adapters";
+import { ProviderTransportError, type GenerationProvider, type JsonObject, type ProviderOptions } from "@vgen/adapters";
 import type { AttemptRecord, ClaimedJob, JobOutput, PooledCredential, SucceedInput } from "@vgen/db";
 import type { OutputMirrorPort } from "./outputMirror";
 
@@ -20,6 +20,8 @@ import type { OutputMirrorPort } from "./outputMirror";
 
 export interface JobRunnerPort {
   claim(jobId: string): Promise<ClaimedJob | null>;
+  /** Storage keys for this account's reference uploads, by asset id. */
+  referenceKeys(accountId: string, assetIds: string[]): Promise<Record<string, string>>;
   pickCredential(providerId: string): Promise<PooledCredential | null>;
   recordAttempt(record: AttemptRecord): Promise<string>;
   succeed(input: SucceedInput): Promise<void>;
@@ -38,6 +40,15 @@ export interface RunGenerationDeps {
   /** Where secret_ref names are resolved. process.env in production. */
   secrets: Record<string, string | undefined>;
   /**
+   * Turns a stored object key into something the provider can fetch.
+   *
+   * Signed here rather than when the job was submitted, because a signature
+   * expires and a job can sit in a queue for as long as the queue is deep. A
+   * URL minted at submission is a URL that may already be dead by the time
+   * anybody uses it.
+   */
+  signReference(key: string): Promise<string>;
+  /**
    * Whether BullMQ has any retries left. On the last one a retryable failure
    * has to be settled rather than re-thrown, or the hold outlives the queue.
    */
@@ -48,6 +59,60 @@ export interface RunGenerationDeps {
   pollTimeoutMs?: number;
   pollIntervalMs?: number;
   log?: (event: Record<string, unknown>) => void;
+}
+
+/**
+ * Puts the customer's uploaded references into the provider payload.
+ *
+ * The slot key is the upstream parameter name — `image_urls`,
+ * `first_frame_url` — so a resolved slot is written straight onto `params`
+ * under its own key and no per-provider mapping table has to be kept in step
+ * with the catalogue.
+ *
+ * **A reference that cannot be resolved fails the job rather than being
+ * dropped.** That is the whole point of this function existing. A first-frame
+ * model handed no first frame does not error, it cheerfully makes something
+ * else and charges for it, and the customer is left holding a picture they did
+ * not ask for and a receipt they cannot argue with. Failing gives the money
+ * back, which is the only honest outcome when we cannot do what was paid for.
+ *
+ * `max` decides string versus array, read from the catalogue's own slot
+ * declaration rather than guessed from whether the key ends in an "s".
+ */
+export function attachReferences(
+  params: JsonObject,
+  slots: Record<string, string[]>,
+  urlsById: Record<string, string>,
+  refSlots: { key: string; max: number }[] | null,
+): JsonObject {
+  const maxFor = new Map((refSlots ?? []).map((slot) => [slot.key, slot.max]));
+  const merged: JsonObject = { ...params };
+
+  for (const [slot, ids] of Object.entries(slots)) {
+    if (ids.length === 0) continue;
+    const urls = ids.map((id) => {
+      const url = urlsById[id];
+      if (!url) throw new MissingReferenceError(slot);
+      return url;
+    });
+    // An undeclared slot is treated as taking many. It should not happen — the
+    // quote checked the ids and the catalogue declared the slots — but sending
+    // an array where one was wanted is a provider error, while silently
+    // dropping the file is a wrong picture nobody notices.
+    //
+    // `urls[0]!` is safe because the empty case returned above; the assertion
+    // is there because the compiler cannot see that and `undefined` in a
+    // provider payload is exactly the silent drop this function exists to stop.
+    merged[slot] = (maxFor.get(slot) ?? 2) === 1 ? urls[0]! : urls;
+  }
+  return merged;
+}
+
+export class MissingReferenceError extends Error {
+  constructor(readonly slot: string) {
+    super(`a reference for "${slot}" is no longer available`);
+    this.name = "MissingReferenceError";
+  }
 }
 
 export type RunGenerationResult =
@@ -97,10 +162,14 @@ const PUBLIC_FAILURE: Record<string, string> = {
   content_policy: "This prompt was refused.",
   no_output: "This generation produced no files.",
   storage_failed: "The generation finished but could not be saved.",
+  // Actionable and it names nobody: the file can be attached again. This is
+  // reached when an upload was deleted between the quote and the queue, which
+  // is rare and entirely the customer's own doing.
+  reference_unavailable: "A file attached to this generation is no longer available.",
 };
 
 export async function runGeneration(jobId: string, deps: RunGenerationDeps): Promise<RunGenerationResult> {
-  const { runner, secrets, isFinalAttempt } = deps;
+  const { runner, secrets, isFinalAttempt, signReference } = deps;
   const sleep = deps.sleep ?? defaultSleep;
   const now = deps.now ?? Date.now;
   const pollTimeoutMs = deps.pollTimeoutMs ?? 10 * 60_000;
@@ -202,7 +271,35 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
   // "400 invalid parameter" with no record of what was sent is the one message
   // that cannot be acted on — especially here, where the route's overrides mean
   // what went out is not what the customer chose.
-  const params = applyParamOverrides(job.params, job.paramOverrides);
+  const overridden = applyParamOverrides(job.params, job.paramOverrides);
+
+  /* The customer's uploaded references, resolved and signed at the last
+     possible moment.
+
+     Ownership is re-checked inside `referenceKeys` even though these ids came
+     off the job row. It costs a predicate and can only ever be redundant,
+     which on the one path where being wrong hands one customer's private
+     upload to another customer's generation is the right kind of redundant.
+
+     A reference that has gone settles the job as a failure and refunds, rather
+     than submitting without it. A first-frame model handed no first frame does
+     not error — it makes something else and charges for it. */
+  let params: JsonObject = overridden;
+  const slots = job.referenceAssetIds ?? {};
+  const referenceIds = [...new Set(Object.values(slots).flat())];
+  if (referenceIds.length > 0) {
+    try {
+      const keys = await runner.referenceKeys(job.accountId, referenceIds);
+      const urls: Record<string, string> = {};
+      for (const [id, key] of Object.entries(keys)) urls[id] = await signReference(key);
+      params = attachReferences(overridden, slots, urls, job.refSlots);
+    } catch (error) {
+      const detail = error instanceof MissingReferenceError ? error.message : messageOf(error);
+      // Not retryable: a deleted upload does not come back, and neither does a
+      // storage layer that cannot sign for it in a way another attempt fixes.
+      return settle("reference_unavailable", detail, false);
+    }
+  }
 
   let submission;
   try {

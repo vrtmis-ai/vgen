@@ -369,3 +369,87 @@ describe("reading a job back", () => {
     });
   });
 });
+
+/**
+ * References travel quote -> job, never request -> job.
+ *
+ * The params hash is what stops a cheap quote being spent on an expensive job,
+ * and the references sit outside it. Taking them from the submission request
+ * would reopen exactly that hole one field to the left: quote with no
+ * attachments, submit with somebody's face.
+ */
+describe("submitting a job that carries reference uploads", () => {
+  async function uploadFor(tx: Sql, accountId: string, userId: string): Promise<string> {
+    const [row] = await tx<{ id: string }[]>`
+      insert into assets (
+        account_id, created_by, kind, origin, storage_provider, storage_bucket, storage_key,
+        mime_type, byte_size, sha256, moderation_state, visibility
+      ) values (
+        ${accountId}, ${userId}, 'image', 'upload', 's3', 'vgen', ${`uploads/${accountId}/ref.png`},
+        'image/png', 2048, ${`sha-${accountId}`}, 'pending', 'private'
+      )
+      returning id
+    `;
+    return row!.id;
+  }
+
+  it("copies the quote's references onto the job", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, 3);
+      await fund(tx, accountId, 500);
+      const { variantId, params } = await paidVariant(tx);
+      const assetId = await uploadFor(tx, accountId, userId);
+
+      const quote = await new PostgresQuotesRepository(tx).create({
+        userId,
+        variantId,
+        params,
+        referenceAssetIds: { image_urls: [assetId] },
+      });
+      if (quote.outcome !== "quoted") throw new Error(`expected a quote, got ${quote.outcome}`);
+
+      const created = await new PostgresGenerationRepository(tx).createQueued({
+        userId,
+        quoteId: quote.quote.id,
+        params,
+        idempotencyKey: nextKey(),
+      });
+      if (created.outcome !== "created") throw new Error(`expected a job, got ${created.outcome}`);
+
+      const [row] = await tx<{ reference_asset_ids: Record<string, string[]> | null }[]>`
+        select reference_asset_ids from jobs where id = ${created.job.id}
+      `;
+      // Its own copy, not a read through the quote: 0023 deletes expired
+      // quotes on a schedule and "which files went into this picture" outlives
+      // the five minutes a quote lives.
+      expect(row!.reference_asset_ids).toEqual({ image_urls: [assetId] });
+    });
+  });
+
+  it("leaves the column null for a job with no attachments", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, 3);
+      await fund(tx, accountId, 500);
+      const { variantId, params } = await paidVariant(tx);
+
+      const quote = await new PostgresQuotesRepository(tx).create({ userId, variantId, params });
+      if (quote.outcome !== "quoted") throw new Error(`expected a quote, got ${quote.outcome}`);
+      const created = await new PostgresGenerationRepository(tx).createQueued({
+        userId,
+        quoteId: quote.quote.id,
+        params,
+        idempotencyKey: nextKey(),
+      });
+      if (created.outcome !== "created") throw new Error(`expected a job, got ${created.outcome}`);
+
+      const [row] = await tx<{ reference_asset_ids: Record<string, string[]> | null }[]>`
+        select reference_asset_ids from jobs where id = ${created.job.id}
+      `;
+      // Null rather than `{}`: nothing was attached, which is a different fact
+      // from an empty attachment map and reads that way in the database.
+      expect(row!.reference_asset_ids).toBeNull();
+    });
+  });
+});

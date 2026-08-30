@@ -37,6 +37,14 @@ export interface QuoteRequest {
    * and pays the ordinary price. It can never open one it does not hold.
    */
   preferUnlimited?: boolean | undefined;
+  /**
+   * Uploaded files per reference slot, as `slot key -> ordered asset ids`.
+   *
+   * Ids, never URLs and never bytes. The browser uploads through
+   * `POST /assets` first and names what it stored; anything else would let a
+   * request point the provider at a URL of its choosing.
+   */
+  referenceAssetIds?: Record<string, string[]> | undefined;
 }
 
 export interface QuotedGeneration {
@@ -55,7 +63,16 @@ export type QuoteResult =
   | { outcome: "unknown_variant" }
   | { outcome: "tier_too_low"; requiredTier: Tier; currentTier: Tier }
   | { outcome: "not_offered" }
-  | { outcome: "no_price" };
+  | { outcome: "no_price" }
+  /**
+   * A reference id that is not this account's usable upload.
+   *
+   * One outcome for "does not exist", "belongs to somebody else" and "was
+   * deleted", on purpose: telling them apart would turn this route into an
+   * oracle for whether a given asset id exists, which is the whole reason a
+   * uuid is not an authorisation.
+   */
+  | { outcome: "unknown_reference" };
 
 interface CatalogRow {
   id: string;
@@ -107,6 +124,43 @@ export function coversSettings(covers: Record<string, string[]> | null, params: 
     if (value === undefined || value === null) return false;
     return allowed.includes(String(value));
   });
+}
+
+/**
+ * The reference ids this account may actually use, checked against the store.
+ *
+ * An asset id is a uuid in a URL-shaped hole, not a capability. Without this a
+ * caller could name somebody else's private upload and have it drawn from — the
+ * bytes never come back to them directly, but the picture made from them does,
+ * which is the same leak wearing a hat.
+ *
+ * Four conditions, and each excludes a real row that exists:
+ *
+ *   - `account_id` is the caller's, which is the actual authorisation
+ *   - `origin = 'upload'` so a *generated* asset cannot be fed back in by id;
+ *     that may become a feature one day and it should be a deliberate one
+ *   - `deleted_at is null`, because deleting an upload has to mean something
+ *   - the id parses as a uuid at all, which is checked by the contract before
+ *     this ever runs
+ *
+ * Returns the count of distinct ids that passed, so the caller can compare it
+ * against what was asked for rather than trusting a boolean.
+ */
+async function usableReferenceCount(sql: Sql, accountId: string, ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const [row] = await sql<{ n: string }[]>`
+    select count(distinct id)::text as n from assets
+    where id = any(${ids}::uuid[])
+      and account_id = ${accountId}
+      and origin = 'upload'
+      and deleted_at is null
+  `;
+  return Number(row?.n ?? 0);
+}
+
+/** Every id named across every slot, deduplicated. */
+function referenceIdsOf(map: Record<string, string[]> | undefined): string[] {
+  return [...new Set(Object.values(map ?? {}).flat())];
 }
 
 export class PostgresQuotesRepository {
@@ -170,6 +224,16 @@ export class PostgresQuotesRepository {
     const requiredTier = (model.capabilities.family?.minTier ?? 3) as Tier;
     const currentTier = await this.entitlements.tierForAccount(accountId);
     if (currentTier < requiredTier) return { outcome: "tier_too_low", requiredTier, currentTier };
+
+    // ---- the references -------------------------------------------------
+    // Before anything is priced, because a quote that names a file the caller
+    // may not use should not exist at all — not as a row, and not as a price
+    // they could then spend on a job.
+    const referenceIds = referenceIdsOf(request.referenceAssetIds);
+    if (referenceIds.length > 0) {
+      const usable = await usableReferenceCount(this.sql, accountId, referenceIds);
+      if (usable !== referenceIds.length) return { outcome: "unknown_reference" };
+    }
 
     // ---- free, or priced ------------------------------------------------
     // Four things have to hold before a generation is free, and the order is
@@ -240,12 +304,14 @@ export class PostgresQuotesRepository {
         account_id, created_by, params_hash,
         provider_model_id, feature_id, price_id, entitlement_id,
         provider_cost_usd_micros, sell_price_micro_credits,
-        exchange_rate_irr_per_usd, margin_usd_micros, expires_at
+        exchange_rate_irr_per_usd, margin_usd_micros, expires_at,
+        reference_asset_ids
       ) values (
         ${accountId}, ${request.userId}, ${Buffer.from(hashGenerationParams(request.params))},
         ${model.id}, ${feature.id}, ${priceId}, ${grant?.id ?? null},
         ${costUsdMicros}, ${microCredits},
-        ${Math.round(Number(fx.rate))}, ${sellUsdMicros - costUsdMicros}, ${expiresAt}
+        ${Math.round(Number(fx.rate))}, ${sellUsdMicros - costUsdMicros}, ${expiresAt},
+        ${referenceIds.length === 0 ? null : this.sql.json(request.referenceAssetIds ?? {})}
       )
       returning id, expires_at
     `;

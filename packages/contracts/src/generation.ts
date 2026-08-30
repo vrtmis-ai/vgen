@@ -25,6 +25,27 @@ export const QuoteGenerationRequestSchema = z
      */
     clipSeconds: z.number().positive().max(3600).optional(),
     /**
+     * Uploaded files per reference slot, as `slot key -> ordered asset ids`.
+     *
+     * Ids, never URLs and never bytes. The browser stores each file through
+     * `POST /assets` first and names what it stored; a request able to hand
+     * over a URL is a request able to point the provider anywhere it likes.
+     *
+     * **An id is not an authorisation.** These are uuids in a JSON body, so the
+     * server checks every one against the caller's own uploads before it prices
+     * anything — a caller naming somebody else's private upload would never see
+     * the bytes, but would see the picture made from them, which is the same
+     * leak wearing a hat.
+     *
+     * Order inside a slot is meaningful: first and last frame are two entries
+     * in one slot on several video models, and swapping them makes a different
+     * clip. Hence an array rather than a set.
+     *
+     * The slot keys are the catalogue's, already public on `GET /catalog`
+     * because a screen renders a control per slot.
+     */
+    referenceAssetIds: z.record(z.string().min(1), z.array(z.string().uuid()).max(8)).default({}),
+    /**
      * A preference, not an instruction — which is why it is a mood and not a
      * price.
      *
