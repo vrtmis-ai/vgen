@@ -93,12 +93,15 @@ const REF_SLOT = "image_input";
 /** Real controls, real defaults — an empty input map fails validation. */
 const INPUT = defaultInput(variantControls(FAMILY_WITH_REF, VARIANT_WITH_REF));
 
-function Uploader({ refs }: { refs: Record<string, { file: File; url: string }[]> }) {
+function Uploader({ refs, preferUnlimited }: { refs: Record<string, { file: File; url: string }[]>; preferUnlimited?: boolean }) {
   const { startGeneration } = useGenerations();
   return (
     <button
       onClick={() => {
-        void startGeneration("nano-banana", "یک گربه", INPUT, VARIANT_WITH_REF, refs as never);
+        void startGeneration("nano-banana", "یک گربه", INPUT, VARIANT_WITH_REF, {
+          refs,
+          ...(preferUnlimited === undefined ? {} : { preferUnlimited }),
+        });
       }}
     >
       go
@@ -106,14 +109,14 @@ function Uploader({ refs }: { refs: Record<string, { file: File; url: string }[]
   );
 }
 
-function renderWithServices(services: AppServices, refs: Record<string, { file: File; url: string }[]>) {
+function renderWithServices(services: AppServices, refs: Record<string, { file: File; url: string }[]>, preferUnlimited?: boolean) {
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
       <AppServicesProvider services={services}>
         <CatalogProvider families={catalog.families}>
           <NavigationProvider>
             <GenerationsProvider>
-              <Uploader refs={refs} />
+              <Uploader refs={refs} {...(preferUnlimited === undefined ? {} : { preferUnlimited })} />
             </GenerationsProvider>
           </NavigationProvider>
         </CatalogProvider>
@@ -162,5 +165,58 @@ describe("reference images reach the quote", () => {
     await waitFor(() => expect(quote).toHaveBeenCalled());
     const sent = quote.mock.calls[0]?.[0] as { referenceAssetIds: Record<string, string[]> } | undefined;
     expect(sent?.referenceAssetIds).toEqual({});
+  });
+});
+
+/**
+ * The dock's free-pipe switch has to survive the trip to the wire.
+ *
+ * The reason this is worth a test rather than a glance is that the same journey
+ * has already silently failed once: `referenceAssetIds` was built here, handed
+ * to the mutation, and dropped by the HTTP adapter, with every layer either
+ * side of the gap tested and green. Asserting on what `services.generation.quote`
+ * actually receives is the only place that gap is visible from.
+ */
+describe("the free-pipe preference reaches the quote", () => {
+  it("sends nothing when the caller has no opinion, leaving the server its default", async () => {
+    const services = createDemoServices();
+    const quote = vi.fn(services.generation.quote);
+    const spied: AppServices = { ...services, generation: { ...services.generation, quote } };
+
+    renderWithServices(spied, {});
+    await act(async () => screen.getByText("go").click());
+
+    await waitFor(() => expect(quote).toHaveBeenCalled());
+    const sent = quote.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+    // Absent, not `false`. The server reads a missing field as "the grant
+    // applies if you hold it", so a helpfully-filled-in false here would start
+    // charging people the switch was never shown to.
+    expect(sent).not.toHaveProperty("preferUnlimited");
+  });
+
+  it("carries a decline through to the request", async () => {
+    const services = createDemoServices();
+    const quote = vi.fn(services.generation.quote);
+    const spied: AppServices = { ...services, generation: { ...services.generation, quote } };
+
+    renderWithServices(spied, {}, false);
+    await act(async () => screen.getByText("go").click());
+
+    await waitFor(() => expect(quote).toHaveBeenCalled());
+    const sent = quote.mock.calls[0]?.[0] as { preferUnlimited?: boolean } | undefined;
+    expect(sent?.preferUnlimited).toBe(false);
+  });
+
+  it("carries an explicit request for the free pipe too", async () => {
+    const services = createDemoServices();
+    const quote = vi.fn(services.generation.quote);
+    const spied: AppServices = { ...services, generation: { ...services.generation, quote } };
+
+    renderWithServices(spied, {}, true);
+    await act(async () => screen.getByText("go").click());
+
+    await waitFor(() => expect(quote).toHaveBeenCalled());
+    const sent = quote.mock.calls[0]?.[0] as { preferUnlimited?: boolean } | undefined;
+    expect(sent?.preferUnlimited).toBe(true);
   });
 });

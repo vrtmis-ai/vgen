@@ -43,6 +43,26 @@ export const CatalogControlSchema = z.discriminatedUnion("kind", [
 ]);
 
 export const CatalogRefSlotSchema = z.object({
+  /**
+   * Which upload this slot belongs to, so a panel can offer them as the separate
+   * choices they are rather than one generic "add a file".
+   *
+   * `frame` is a position in the clip — a start or an end the model interpolates
+   * between. `reference` is material it draws from. Wan 2.7 takes both, and
+   * without the split its five slots render as one undifferentiated column that
+   * tells the customer nothing about what the model actually wants.
+   *
+   * Absent means `reference`, which is the ordinary case, so no existing slot
+   * has to be edited to keep meaning what it meant.
+   *
+   * **This field is why the marker survives.** `capabilitiesFor` in
+   * `scripts/publish-catalog.ts` stores the whole variant, so a `group` written
+   * in `src/data/models.ts` reaches `provider_models.capabilities` on its own —
+   * but `PostgresCatalogRepository` parses that blob through this schema, and
+   * zod strips what a schema does not name. Without this line the seeder would
+   * write it, the database would hold it, and the browser would never see it.
+   */
+  group: z.enum(["reference", "frame"]).optional(),
   key: z.string().min(1),
   label: z.string(),
   max: z.number().int().positive(),

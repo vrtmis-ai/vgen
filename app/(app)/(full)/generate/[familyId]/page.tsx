@@ -27,7 +27,7 @@ export default function GeneratePage() {
       initialPrompt={initialPrompt}
       onBack={goBack}
       onGenerate={async (prompt, input, variant, refs) => {
-        const started = await startGeneration(family.id, prompt, input, variant, refs);
+        const started = await startGeneration(family.id, prompt, input, variant, { refs });
         return started ? { coins: started.quote.coins, expiresAt: started.quote.expiresAt } : null;
       }}
     />
