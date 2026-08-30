@@ -362,8 +362,10 @@ describe("Postgres catalog repository", () => {
   it("ignores an unlimited marker seeded into capabilities with no grant behind it", async () => {
     await inRollback(sql, async (tx) => {
       const providerId = await seedProvider(tx, `cat-seeded-${Math.random().toString(36).slice(2, 8)}`);
-      const blob = capabilities("claimed", 1, 1, "pro") as Record<string, unknown>;
-      (blob.variant as Record<string, unknown>).unlimited = { dailyCap: 999, minTier: 1 };
+      const base = capabilities("claimed", 1, 1, "pro");
+      // A marker written by a hand that should not be writing it. That is the
+      // whole test: the derivation has to ignore it.
+      const blob = { ...base, variant: { ...base.variant, unlimited: { dailyCap: 999, minTier: 1 } } };
       await tx`
         insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
         values (${providerId}, 'claimed/pro', 'claimed pro', 'image', 'claimed', ${tx.json(blob)}, true)
@@ -387,8 +389,10 @@ describe("Postgres catalog repository", () => {
   it("publishes the grant's numbers, not the ones written into the blob", async () => {
     await inRollback(sql, async (tx) => {
       const providerId = await seedProvider(tx, `cat-stale-${Math.random().toString(36).slice(2, 8)}`);
-      const blob = capabilities("stale", 1, 1, "pro") as Record<string, unknown>;
-      (blob.variant as Record<string, unknown>).unlimited = { dailyCap: 999, minTier: 1 };
+      const base = capabilities("stale", 1, 1, "pro");
+      // A marker written by a hand that should not be writing it. That is the
+      // whole test: the derivation has to ignore it.
+      const blob = { ...base, variant: { ...base.variant, unlimited: { dailyCap: 999, minTier: 1 } } };
       await tx`
         insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
         values (${providerId}, 'stale/pro', 'stale pro', 'image', 'stale', ${tx.json(blob)}, true)

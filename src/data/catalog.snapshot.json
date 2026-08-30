@@ -135,13 +135,33 @@
           "id": "nano-banana-pro",
           "featureCode": "image_generate",
           "label": "Pro",
-          "badge": "پرچم‌دار"
+          "badge": "پرچم‌دار",
+          "unlimited": {
+            "dailyCap": 50,
+            "minTier": 3,
+            "limits": {
+              "resolution": [
+                "1K",
+                "2K"
+              ]
+            }
+          }
         },
         {
           "id": "nano-banana-2",
           "featureCode": "image_generate",
           "label": "نسخه ۲",
           "badge": "جدید",
+          "unlimited": {
+            "dailyCap": 50,
+            "minTier": 3,
+            "limits": {
+              "resolution": [
+                "1K",
+                "2K"
+              ]
+            }
+          },
           "refs": [
             {
               "key": "image_input",
