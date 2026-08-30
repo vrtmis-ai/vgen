@@ -345,4 +345,60 @@ describe("Postgres catalog repository", () => {
       expect(after.families.find((family) => family.id === "orphan")?.variants[0]?.unlimited).toBeUndefined();
     });
   });
+
+  /**
+   * A marker written into the blob by hand is not an offer.
+   *
+   * `capabilitiesFor` in the catalogue seeder stores the whole variant object,
+   * so the moment an `unlimited` key appears on a variant in
+   * `src/data/models.ts` it starts arriving here — and #63 proposes exactly
+   * that. A marker with no grant row behind it would be published as something
+   * the quote path will never honour: the customer picks the model *because* it
+   * is free and is then charged.
+   *
+   * So the blob's copy is dropped unconditionally and the grant table decides.
+   * This is the case that makes the derivation worth the extra query.
+   */
+  it("ignores an unlimited marker seeded into capabilities with no grant behind it", async () => {
+    await inRollback(sql, async (tx) => {
+      const providerId = await seedProvider(tx, `cat-seeded-${Math.random().toString(36).slice(2, 8)}`);
+      const blob = capabilities("claimed", 1, 1, "pro") as Record<string, unknown>;
+      (blob.variant as Record<string, unknown>).unlimited = { dailyCap: 999, minTier: 1 };
+      await tx`
+        insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
+        values (${providerId}, 'claimed/pro', 'claimed pro', 'image', 'claimed', ${tx.json(blob)}, true)
+      `;
+
+      const snapshot = await new PostgresCatalogRepository(tx).list();
+      const variant = snapshot.families.find((family) => family.id === "claimed")?.variants[0];
+
+      expect(variant?.id).toBe("claimed-pro");
+      expect(variant?.unlimited).toBeUndefined();
+    });
+  });
+
+  /**
+   * And a real grant wins over a stale seeded one rather than merging with it.
+   *
+   * The dangerous version of this bug is not the absent grant but the
+   * disagreeing one: a blob saying 999 free a day beside a row saying 50. The
+   * customer would be shown the number nobody is going to honour.
+   */
+  it("publishes the grant's numbers, not the ones written into the blob", async () => {
+    await inRollback(sql, async (tx) => {
+      const providerId = await seedProvider(tx, `cat-stale-${Math.random().toString(36).slice(2, 8)}`);
+      const blob = capabilities("stale", 1, 1, "pro") as Record<string, unknown>;
+      (blob.variant as Record<string, unknown>).unlimited = { dailyCap: 999, minTier: 1 };
+      await tx`
+        insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
+        values (${providerId}, 'stale/pro', 'stale pro', 'image', 'stale', ${tx.json(blob)}, true)
+      `;
+      await grant(tx, "stale-pro", { dailyCap: 50, minTier: 3, covers: null });
+
+      const snapshot = await new PostgresCatalogRepository(tx).list();
+      const variant = snapshot.families.find((family) => family.id === "stale")?.variants[0];
+
+      expect(variant?.unlimited).toEqual({ dailyCap: 50, minTier: 3 });
+    });
+  });
 });

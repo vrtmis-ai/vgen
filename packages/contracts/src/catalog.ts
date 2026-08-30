@@ -184,5 +184,6 @@ export const CatalogSnapshotSchema = z.object({
   families: z.array(CatalogFamilySchema),
 });
 
+export type CatalogVariant = z.infer<typeof CatalogVariantSchema>;
 export type CatalogFamily = z.infer<typeof CatalogFamilySchema>;
 export type CatalogSnapshot = z.infer<typeof CatalogSnapshotSchema>;

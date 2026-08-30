@@ -1,4 +1,10 @@
-import { CatalogCapabilitiesSchema, CatalogSnapshotSchema, type CatalogFamily, type CatalogSnapshot } from "@vgen/contracts";
+import {
+  CatalogCapabilitiesSchema,
+  CatalogSnapshotSchema,
+  type CatalogFamily,
+  type CatalogSnapshot,
+  type CatalogVariant,
+} from "@vgen/contracts";
 import type { Sql } from "postgres";
 import { PublicDocument, fingerprintOf } from "./publicDocument";
 
@@ -147,8 +153,17 @@ export class PostgresCatalogRepository implements CustomerCatalogRepository {
 
       // Attached here rather than stored in `capabilities`, so the shop and the
       // quote path read one row and cannot come to disagree.
+      //
+      // Any `unlimited` already in the blob is dropped first, and that is not
+      // defensive tidiness. `capabilitiesFor` in the catalogue seeder stores
+      // the whole variant object, so the moment somebody adds an `unlimited`
+      // marker to `src/data/models.ts` it starts arriving here — and a marker
+      // on a variant with no grant behind it would be published as an offer
+      // nothing can honour. The grant table is the only source; a hand-written
+      // one loses, silently and always.
+      const { unlimited: _seeded, ...rest } = variant;
       const grant = grants.get(row.id);
-      const offered = grant ? { ...variant, unlimited: grant } : variant;
+      const offered: CatalogVariant = grant ? { ...rest, unlimited: grant } : rest;
 
       const existing = families.get(row.family);
       if (existing) existing.variants.push(offered);
