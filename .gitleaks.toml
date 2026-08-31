@@ -1,0 +1,33 @@
+# ---------------------------------------------------------------------------
+#  Secret scanning, and the two things it is allowed to ignore.
+#
+#  This repository is public and holds an API whose provider credentials are
+#  worth money, so the whole history is scanned on every pull request. The
+#  default rule set does the work; this file only narrows it, and narrowly —
+#  an allowlist that covers "all test files" would hide a real key pasted into
+#  one, which is exactly how keys get pasted into tests.
+# ---------------------------------------------------------------------------
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Build output, and the one fake key a test needs to be able to name"
+
+paths = [
+  # Next's build output. `prerender-manifest.json` carries a generated
+  # preview-mode key and the compiled chunks trip the entropy rule; none of it
+  # is committed — it is here so a local `gitleaks dir` is readable rather than
+  # twenty findings of noise around the one that matters.
+  '''^\.next/''',
+]
+
+regexes = [
+  # apps/api/src/routes/adminCatalog.test.ts — the test named "reports the
+  # secret_ref name and whether it is set, never the value". It sets a fake
+  # WaveSpeed key and then asserts the response body does NOT contain it, so
+  # the string has to appear twice in the file for the test to mean anything.
+  # Allowlisted by its exact value: any other key-shaped string in that file is
+  # still a finding.
+  '''ws-live-abc123''',
+]
