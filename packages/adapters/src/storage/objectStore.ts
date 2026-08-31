@@ -45,6 +45,15 @@ export interface ObjectStore {
 export interface S3ObjectStoreOptions {
   bucket: string;
   client: S3Client;
+  /**
+   * Signs read URLs, when the store answers to a different name outside.
+   *
+   * Presigning is arithmetic, not a request: nothing is contacted, and the
+   * endpoint only decides what the resulting URL says. So a deployment whose
+   * store is private on the inside and published on the outside signs with
+   * this one and does everything else with `client`. Defaults to `client`.
+   */
+  signingClient?: S3Client;
   /** How long a read URL stays valid. Long enough to load a page, not to share. */
   defaultExpirySeconds?: number;
 }
@@ -52,11 +61,13 @@ export interface S3ObjectStoreOptions {
 export class S3ObjectStore implements ObjectStore {
   readonly bucket: string;
   private readonly client: S3Client;
+  private readonly signingClient: S3Client;
   private readonly defaultExpirySeconds: number;
 
   constructor(options: S3ObjectStoreOptions) {
     this.bucket = options.bucket;
     this.client = options.client;
+    this.signingClient = options.signingClient ?? options.client;
     this.defaultExpirySeconds = options.defaultExpirySeconds ?? 3600;
   }
 
@@ -93,7 +104,7 @@ export class S3ObjectStore implements ObjectStore {
   }
 
   async signedUrl(key: string, expiresInSeconds?: number): Promise<string> {
-    return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
+    return getSignedUrl(this.signingClient, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
       expiresIn: expiresInSeconds ?? this.defaultExpirySeconds,
     });
   }
@@ -105,15 +116,35 @@ export class S3ObjectStore implements ObjectStore {
 
 export interface CreateObjectStoreOptions extends S3ClientConfig {
   bucket: string;
+  /**
+   * The name the store answers to from outside this network.
+   *
+   * Two callers read from here and neither is on it. The browser is handed a
+   * signed URL for every gallery item; the generation PROVIDER is handed one
+   * for every reference image and fetches it from its own servers. Both need a
+   * public address, which is why a signed URL cannot simply say `minio:9000`.
+   *
+   * Setting `endpoint` to the public name instead would work and is what a
+   * single-variable deployment ends up doing, at two costs: every upload and
+   * every mirrored output leaves the host and comes back through the proxy,
+   * and the store's write API has to be publicly reachable to allow it. With
+   * this split the endpoint stays private, only reads are published, and the
+   * proxy in front of the public name can refuse anything but GET.
+   *
+   * Unset — the local default — means the store has one name and signs with it.
+   */
+  publicEndpoint?: string | undefined;
   defaultExpirySeconds?: number;
 }
 
-export function createS3ObjectStore({ bucket, defaultExpirySeconds, ...config }: CreateObjectStoreOptions): S3ObjectStore {
+export function createS3ObjectStore({ bucket, defaultExpirySeconds, publicEndpoint, ...config }: CreateObjectStoreOptions): S3ObjectStore {
+  // MinIO addresses buckets by path, not by subdomain. Without this every
+  // request goes to `http://<bucket>.127.0.0.1:9000`, which resolves nowhere.
+  const client = new S3Client({ forcePathStyle: true, ...config });
   return new S3ObjectStore({
     bucket,
-    // MinIO addresses buckets by path, not by subdomain. Without this every
-    // request goes to `http://<bucket>.127.0.0.1:9000`, which resolves nowhere.
-    client: new S3Client({ forcePathStyle: true, ...config }),
+    client,
+    ...(publicEndpoint ? { signingClient: new S3Client({ forcePathStyle: true, ...config, endpoint: publicEndpoint }) } : {}),
     ...(defaultExpirySeconds === undefined ? {} : { defaultExpirySeconds }),
   });
 }

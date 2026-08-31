@@ -187,14 +187,21 @@ const customerSession = new CustomerSessionService(new SessionCookiePrincipalRes
 /**
  * The one object store, shared by uploads coming in and generations going out.
  *
- * It is never reached from a browser: every file arrives as a multipart POST to
- * this API and leaves as a signed URL with an hour on it. That is what lets the
- * store sit on a private network with no CORS and no public port, and it is why
- * the bytes are worth passing through Node.
+ * Writes never come from a browser: every file arrives as a multipart POST to
+ * this API, which is why the bytes are worth passing through Node and why the
+ * store needs no CORS and no public write path.
+ *
+ * Reads are a different matter, and used to be described here as if they were
+ * not. Every gallery item leaves as a signed URL with an hour on it, and the
+ * browser fetches that URL itself — so whatever host it names has to be one a
+ * customer can reach. `OBJECT_STORAGE_PUBLIC_ENDPOINT` is that host, and the
+ * endpoint above stays private: the store is addressed internally and signed
+ * for publicly. Unset, both are the same, which is the local arrangement.
  */
 const objectStore = createS3ObjectStore({
   bucket: objectStorageBucket,
   endpoint: objectStorageEndpoint,
+  publicEndpoint: process.env.OBJECT_STORAGE_PUBLIC_ENDPOINT?.trim(),
   region: objectStorageRegion,
   credentials: { accessKeyId: objectStorageAccessKey, secretAccessKey: objectStorageSecretKey },
 });
