@@ -16,6 +16,7 @@ yarn.lock
 .env.*
 !.env.example
 !.env.e2e
+!.env.production.example
 *.tsbuildinfo
 
 # Next build output. next-env.d.ts is deliberately NOT ignored: tsconfig lists it

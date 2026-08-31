@@ -1,0 +1,230 @@
+# ---------------------------------------------------------------------------
+#  The whole site, on one VPS.
+#
+#  Run it with an explicit env file, always. It is named once for compose's own
+#  ${...} substitutions and again, inside, for what the containers receive:
+#
+#      docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+#
+#  docker-compose.yml (no suffix) is the LOCAL infrastructure only — Postgres,
+#  Redis and MinIO for `pnpm dev:stack`. It publishes ports and uses hardcoded
+#  local passwords. The two files are never combined, and the project name below
+#  differs from the one compose infers for that file so the two stacks cannot
+#  collide on container names if they ever meet on the same machine.
+#
+#  Only Caddy publishes a port here. Postgres, Redis and MinIO are reachable on
+#  the internal network and nowhere else, which is the point: the database that
+#  holds the credit ledger should not be a port on a public IP behind a
+#  password.
+# ---------------------------------------------------------------------------
+name: vgen-prod
+
+# ---------------------------------------------------------------------------
+#  Every container's logs are capped.
+#
+#  Docker's json-file driver is the default and it has no size limit, so a
+#  container in a restart loop writes its stack trace to disk forever. On this
+#  machine that filled a drive to zero bytes and took the daemon's own content
+#  store with it, which is a bad afternoon locally and an outage on a VPS —
+#  Postgres cannot write a credit ledger to a full disk either.
+#
+#  30 MB per service is enough history to read a crash and small enough that
+#  eight of them cannot matter.
+# ---------------------------------------------------------------------------
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-app: &app
+  logging: *logging
+  build:
+    context: .
+    dockerfile: docker/app.Dockerfile
+  image: vgen-app:latest
+  env_file: [.env.production]
+  # Docker's own init as PID 1, so the SIGTERM a deploy sends actually reaches
+  # the process that drains the queue and closes the pool.
+  init: true
+  networks: [vgen]
+
+services:
+  postgres:
+    logging: *logging
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+    image: vgen-postgres:latest
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vgen}
+      POSTGRES_USER: ${POSTGRES_USER:-vgen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
+      # Persian-tailored sorting, applied by initdb and ONLY by initdb. It
+      # cannot be changed later without a dump and restore, so it has to be
+      # right on the first boot of a fresh volume — before there is any real
+      # data to make that expensive.
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=fa-IR --encoding=UTF8"
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=${POSTGRES_DB:-vgen}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vgen} -d ${POSTGRES_DB:-vgen}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [vgen]
+
+  redis:
+    logging: *logging
+    image: redis:7-alpine
+    restart: unless-stopped
+    # The generation queue lives here as well as the rate-limit buckets. Losing
+    # the queue on a restart loses submitted jobs, so it is persisted rather
+    # than treated as a cache.
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - redis-data:/data
+    networks: [vgen]
+
+  minio:
+    logging: *logging
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${OBJECT_STORAGE_ACCESS_KEY:?set OBJECT_STORAGE_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${OBJECT_STORAGE_SECRET_KEY:?set OBJECT_STORAGE_SECRET_KEY}
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - minio-data:/data
+    networks: [vgen]
+
+  # -------------------------------------------------------------------------
+  #  One-shots. Neither starts with `up`; both are run deliberately:
+  #
+  #      docker compose --env-file .env.production -f docker-compose.prod.yml run --rm migrate
+  #      docker compose --env-file .env.production -f docker-compose.prod.yml run --rm seed
+  #
+  #  Migrate is safe to re-run and is required after any deploy that adds one.
+  #  Seed is idempotent by design — CI asserts running it twice writes nothing
+  #  the second time — so re-running it is the normal way to publish a
+  #  catalogue, pricing or content change.
+  # -------------------------------------------------------------------------
+  migrate:
+    <<: *app
+    profiles: [setup]
+    restart: "no"
+    command: ["node", "--import", "tsx/esm", "packages/db/src/migrate.ts"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  seed:
+    <<: *app
+    profiles: [setup]
+    restart: "no"
+    # Through pnpm rather than one entry point: `db:seed` is seven publishers in
+    # a fixed order, and the order is load-bearing — grants are published after
+    # the catalogue rows they attach to.
+    command: ["pnpm", "db:seed"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    <<: *app
+    restart: unless-stopped
+    command: ["node", "--import", "tsx/esm", "apps/api/src/server.ts"]
+    healthcheck:
+      # Node rather than curl or wget: the slim image has neither, and adding a
+      # package to run one HTTP GET is a bigger image and another thing to patch.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5181/health/live').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+
+  worker:
+    <<: *app
+    restart: unless-stopped
+    command: ["node", "--import", "tsx/esm", "apps/worker/src/index.ts"]
+    # A generation in flight is a customer's held coins. Let the attempt finish
+    # before a deploy takes the process away; the queue redelivers what it
+    # cannot, but a clean drain is the path that settles rather than retries.
+    stop_grace_period: 60s
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+
+  web:
+    logging: *logging
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        # Compiled into the browser bundle, not read at boot. Changing it means
+        # rebuilding this image; `up -d` alone will not pick it up.
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?set NEXT_PUBLIC_API_BASE_URL, e.g. https://deev.ir/api/v1}
+        NEXT_PUBLIC_APP_RELEASE: ${NEXT_PUBLIC_APP_RELEASE:-}
+    image: vgen-web:latest
+    restart: unless-stopped
+    init: true
+    networks: [vgen]
+
+  caddy:
+    logging: *logging
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      # QUIC. Harmless if the firewall drops it — browsers fall back to TCP.
+      - "443:443/udp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS, e.g. https://deev.ir}
+      FILES_ADDRESS: ${FILES_ADDRESS:?set FILES_ADDRESS, e.g. https://files.deev.ir}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates. Losing this volume means re-issuing on every restart, and
+      # Let's Encrypt rate-limits that to five per week per hostname.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [api, web, minio]
+    networks: [vgen]
+
+networks:
+  vgen:
+    ipam:
+      config:
+        # Pinned, and TRUST_PROXY in .env.production names this exact range.
+        # Fastify believes X-Forwarded-For only from an address it trusts, and
+        # the alternative to naming one is `true`, which lets any client forge
+        # the header and walk around the rate limiter. Left to itself compose
+        # picks a different subnet per host, which makes that value unwritable.
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  caddy-data:
+  caddy-config:
