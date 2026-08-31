@@ -155,21 +155,49 @@ look at the API.
 fine without it: people can sign up, browse, and be quoted a price. A submitted
 generation will fail `provider_unavailable` and refund in full.
 
-When a provider account has credit, three things switch it on:
+When a provider account has credit, two things switch it on:
 
-1. **Put the key in `.env.production`** — `KIE_API_KEY` — and `dc up -d api
-worker`. KIE first: its adapter is the only one proved by a spike that spent
-   real credits. WaveSpeed's submit path and all three of its failure modes are
-   known; its success path has never run.
-2. **Activate a model route** in `/admin` → routing. Every seeded route ships
-   inactive on purpose, so nothing can reach a provider by accident.
-3. **Grant yourself coins** in `/admin` → the user, or
-   `POST /api/v1/admin/users/:id/credits`. Payments are not wired to any
-   gateway, so this is how a balance exists at all today.
+1. **Put the key in `.env.production`** — `KIE_API_KEY` — then
+   `dc up -d api worker`. KIE first: its adapter is the only one a spike proved
+   by spending real credits. WaveSpeed's submit path and all three of its
+   failure modes are known; its success path has never run.
+2. **Grant coins** in `/admin`, or `POST /api/v1/admin/users/:id/credits`.
+   Payments are not wired to a gateway, so this is how a balance exists at all
+   today.
 
-Generate one image and watch `dc logs -f worker`. That first success is the only
-part of the pipeline that has never run — everything up to submit, and
-everything after a refusal, is covered by tests.
+**You do not need to activate a route.** `jobRunnerRepository.claim` picks the
+serving row from an unlimited grant first, then an active `model_routes` row,
+and otherwise the catalogue row runs itself — which is the common case and
+covers all 45 variants, video included. The four seeded routes are WaveSpeed
+_alternates_ and ship inactive so nothing silently moves off the default; you
+activate one only to move a model deliberately.
+
+Verified rather than assumed: a job submitted with every route inactive reached
+KIE and failed with `KIE_API_KEY is not set`.
+
+### What has never run
+
+Everything up to the provider call is exercised, including on this deployment —
+quote, tier gate, price refusal, hold, submit, outbox, queue, worker, provider
+lookup, clean failure, released hold, ledger entry. Past that point, three
+things will happen for the first time with real credit:
+
+- **The provider call from the worker.** `scripts/spike-kie.ts` proved the
+  adapter's request shape and error envelope by spending real credits, so this
+  is the least uncertain of the three.
+- **Output mirroring.** The worker downloads the finished file into our own
+  store before the job counts as done, because the provider's URL expires. It is
+  also the one step that cannot be retried by re-running the job — that would
+  generate a second picture and pay twice — so a failure here fails the job and
+  refunds, and we eat the provider's charge.
+- **Capture.** Every settlement so far has released a hold. Charging one is
+  covered by integration tests and has never happened against a real generation.
+
+Watch `dc logs -f worker` for the first one. Video is the case to watch: the
+poll budget is ten minutes at two-second intervals, which is comfortable for
+images and not obviously enough for a long clip at high resolution. A job that
+exceeds it fails `provider_timeout` and refunds, so the cost of finding out is
+time rather than money.
 
 ---
 
