@@ -1,0 +1,23 @@
+# Anything here is invisible to `docker build`, which means two things: the
+# build context stays small, and a secret that leaks into the repo cannot leak
+# into an image layer.
+node_modules
+**/node_modules
+.next
+.git
+.github
+test-results
+.playwright-mcp
+e2e
+scripts/spike-out
+public/_ref
+*.tsbuildinfo
+*.log
+
+# Every local env file. The images take their configuration from the
+# environment at run time; baking a developer's .env.local into a layer would
+# ship this machine's provider keys to the VPS.
+.env
+.env.*
+!.env.example
+!.env.production.example

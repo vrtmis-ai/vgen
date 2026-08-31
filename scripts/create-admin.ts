@@ -16,10 +16,17 @@
  * only moment it exists in a form you can read. Losing it means running this
  * again with a different address.
  *
- * LOCAL DEVELOPMENT ONLY, and the script refuses to run against anything that
- * does not look local. `MFA_SEALING_KEY` defaults to a known string here just
- * as it does in the API, so on a real deployment every TOTP secret this wrote
- * would be openable by anyone holding a database dump and this file.
+ * The database host must be local or the compose service name — anything else
+ * is refused, because staff credentials belong to the deployment that will use
+ * them. On a real deployment run it inside the stack, where the environment
+ * carries a real `MFA_SEALING_KEY`:
+ *
+ *   docker compose --env-file .env.production -f docker-compose.prod.yml  *     run --rm seed pnpm admin:create you@example.com 'a-long-password'
+ *
+ * `MFA_SEALING_KEY` defaults to a known string here just as it does in the API,
+ * so without a real one every TOTP secret this wrote would be openable by
+ * anyone holding a database dump and this file. In production that is refused
+ * rather than defaulted.
  */
 import { hashPassword, sealSecret, sealingKeyFrom, generateTotpSecret, totpEnrolmentUri, assertUsablePassword } from "@vgen/core";
 import { config } from "dotenv";
@@ -41,6 +48,18 @@ if (!databaseUrl) throw new Error("DATABASE_URL is required");
 const host = new URL(databaseUrl).hostname;
 if (!["127.0.0.1", "localhost", "::1", "postgres"].includes(host)) {
   throw new Error(`refusing to write staff credentials to ${host} — this script is for a local database only`);
+}
+
+// `postgres` is in that list because it is the compose service name, so this
+// script is also how a real deployment gets its first staff account — and there
+// the sealing key stops being a detail. Sealed with the local default below,
+// which is a constant published in this repository, a TOTP secret is not a
+// second factor at all: anyone holding a database dump can generate the codes.
+// The API refuses to boot in production without a real key; this refuses to
+// write credentials before one exists, which is the same rule half an hour
+// earlier.
+if (process.env.NODE_ENV === "production" && !process.env.MFA_SEALING_KEY?.trim()) {
+  throw new Error("MFA_SEALING_KEY must be set before writing staff credentials in production");
 }
 
 // Refused rather than accepted-and-warned. The whole point of the second factor

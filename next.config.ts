@@ -16,6 +16,23 @@ const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
   /**
+   * The standalone tracer under-copies one package, and it is fatal.
+   *
+   * `next/dist/server/require-hook.js` is the first thing the emitted server.js
+   * loads, and it resolves `@swc/helpers` through that package's `exports` map
+   * to the ESM build. The tracer copies only `cjs/` and `package.json`, so the
+   * bundle contains a real `@swc/helpers` directory that cannot answer the one
+   * request made of it. The image builds green and the container then
+   * restart-loops on MODULE_NOT_FOUND naming a file inside a package it has.
+   *
+   * The glob goes through `.pnpm` deliberately: this is a pnpm workspace, the
+   * package is a transitive dependency of `next`, and it is not hoisted to a
+   * top-level `node_modules/@swc` in either layout.
+   */
+  outputFileTracingIncludes: {
+    "/**": ["./node_modules/.pnpm/@swc+helpers@*/node_modules/@swc/helpers/**/*"],
+  },
+  /**
    * Dev-only. Next 16 answers 403 to any `/_next/*` request carrying an Origin
    * it does not recognise, and the default allowlist covers `localhost` but not
    * `127.0.0.1` — which is what Playwright's baseURL, `.env.e2e` and WEB_ORIGIN

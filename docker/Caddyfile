@@ -1,0 +1,72 @@
+# ---------------------------------------------------------------------------
+#  The only container with a published port.
+#
+#  Both addresses come from the environment so one file covers the two ways
+#  this gets deployed:
+#
+#    SITE_ADDRESS=https://deev.ir    Caddy gets its own certificate over ACME
+#    SITE_ADDRESS=http://deev.ir     TLS already terminated upstream, by an
+#                                    Iranian CDN or a load balancer
+#
+#  Write the scheme explicitly either way. A bare `deev.ir` means "https, and
+#  manage the certificate", which behind a CDN is a redirect loop rather than
+#  an error.
+# ---------------------------------------------------------------------------
+# There is deliberately no global options block. An `email {$ACME_EMAIL}` line
+# here is the obvious way to get Let's Encrypt's expiry warnings, and it is also
+# a directive with an argument count: unset, the variable expands to nothing and
+# Caddy refuses to parse its own config on a deployment that has otherwise done
+# everything right. Certificates are issued without a contact address anyway. To
+# get the warnings, add a real one here rather than an environment reference:
+#
+#     {
+#     	email you@example.com
+#     }
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# The API and the app share one origin, which is not laziness — it is what
+	# makes the session cookie same-site and the CORS preflight moot. WEB_ORIGIN
+	# and API_PUBLIC_URL are both this address for the same reason.
+	handle /api/* {
+		reverse_proxy api:5181
+	}
+
+	# Deliberately public and unauthenticated: this is what a monitor polls, and
+	# /health/ready reports only which dependency is up, never why.
+	handle /health/* {
+		reverse_proxy api:5181
+	}
+
+	handle {
+		reverse_proxy web:5180
+	}
+}
+
+# ---------------------------------------------------------------------------
+#  The object store, on its own hostname.
+#
+#  It has to be publicly reachable, which the code did not always assume and
+#  the old comments still deny. Two callers need it and neither is on this
+#  network: the browser, which is handed a signed URL for every gallery item,
+#  and the PROVIDER, which is handed a signed URL for every reference image and
+#  fetches it from its own servers. Point OBJECT_STORAGE_ENDPOINT at a private
+#  address and reference-based generation cannot work from anywhere.
+#
+#  A hostname and not a path prefix. An S3 signature covers the full path, so
+#  serving this under `/files/*` and stripping the prefix invalidates every
+#  signature; leaving the prefix on means MinIO looks for a bucket named
+#  "files". A subdomain changes neither the path nor the signed Host.
+# ---------------------------------------------------------------------------
+{$FILES_ADDRESS} {
+	# Uploads never come this way — the API and the worker write to MinIO over
+	# the internal network, and the browser posts its files to the API instead
+	# of holding a presigned PUT. So nothing legitimate mutates through this
+	# hostname, and refusing here means a leaked storage credential still
+	# cannot write anything from outside the VPS.
+	@mutating not method GET HEAD OPTIONS
+	respond @mutating 405
+
+	reverse_proxy minio:9000
+}

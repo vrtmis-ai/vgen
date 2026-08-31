@@ -149,3 +149,38 @@ was added for the site banner.
 The contract has three copies now — `packages/contracts`, `src/runtime/contracts`
 and this fixture. The first two are a deliberate mirror; the fixture is the one
 that is easy to forget.
+
+---
+
+## `docker` · `web` restart-loops with `MODULE_NOT_FOUND … @swc/helpers`
+
+> The image builds, the container starts, and it exits immediately naming a
+> file inside a package that is present in the image
+
+Not a flake — a deterministic failure with a misleading shape. Recorded because
+it cost five image builds and because the two obvious diagnoses are both wrong.
+
+Next's `output: "standalone"` traces the files the server needs and copies them.
+For `@swc/helpers` it copies `cjs/` and `package.json` and stops. But
+`next/dist/server/require-hook.js` — the first thing the emitted `server.js`
+loads — resolves that package through its `exports` map to the **ESM** build, so
+the bundle holds a real `@swc/helpers` directory that cannot answer the one
+request ever made of it. `next.config.ts` therefore names it in
+`outputFileTracingIncludes`.
+
+**Two things it is not**, both tested rather than reasoned about:
+
+- **Not pnpm's linker.** The isolated `node_modules` layout looks like the
+  culprit — the error path runs through `.pnpm/next@…/node_modules/@swc/helpers`
+  — and installing that stage flat with `node-linker=hoisted` changes the shape
+  of the bundle without fixing anything. Removing the hoisting after the tracing
+  fix landed still boots and serves. If you are about to reach for
+  `node-linker`, this is the note saying it was already tried.
+- **Not a missing package.** `require('next/dist/server/require-hook.js')`
+  succeeds in the broken image. Every check short of starting the server agrees
+  the image is fine, which is why the Dockerfile now starts it.
+
+**The guard.** `docker/web.Dockerfile` boots the bundle and fetches `/` as its
+last build step, and fails the build on anything but a 200. That is deliberately
+heavier than a resolve check: a resolve check is exactly what passed while the
+image was broken.

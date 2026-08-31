@@ -7,6 +7,8 @@ workspace. Persian-first, RTL, Iranian market.
   onto `main`. Read it first if you are joining.
 - [`docs/API.md`](docs/API.md) — what the backend serves today, which routes the
   frontend calls that do not exist yet, and the error codes worth branching on.
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — putting the whole thing on a VPS: DNS,
+  secrets, the sequence, and the traps whose symptoms point somewhere else.
 
 ## Local development
 
@@ -151,6 +153,24 @@ rather than a usable second factor sitting in a dump.
 
 ## Deployment
 
-A Node server, via `output: "standalone"`. This replaced a GitHub Pages static
-export that served the app from a `/vgen/` sub-path; it now serves from the
-domain root, and there is no `basePath`.
+One VPS, one `docker compose`. Postgres, Redis, MinIO, the API, the worker, the
+web tier and Caddy; Caddy is the only container with a published port. The full
+sequence is [`docs/DEPLOY.md`](docs/DEPLOY.md) — read it rather than improvising
+from the compose file, because three of the values can only be set once.
+
+```bash
+cp .env.production.example .env.production   # then fill it in
+docker compose --env-file .env.production -f docker-compose.prod.yml build
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm migrate
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm seed
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+```
+
+The web tier is a Node server, via `output: "standalone"`. This replaced a
+GitHub Pages static export that served the app from a `/vgen/` sub-path; it now
+serves from the domain root, and there is no `basePath`.
+
+`docker-compose.yml` without the suffix is the local infrastructure only —
+Postgres, Redis and MinIO for `pnpm dev:stack`. The two files are never
+combined, and they use different compose project names so the two stacks cannot
+collide.
