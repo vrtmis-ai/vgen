@@ -74,6 +74,28 @@ jobs:
       - run: pnpm backend:lint
       - run: pnpm backend:test
 
+  secrets:
+    name: Secrets — full history scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # gitleaks reads commits, not the working tree. The default shallow
+          # clone gives it one commit, which passes in about a second and
+          # proves nothing — a key added and later removed lives in the history
+          # and is exactly what this job is for.
+          fetch-depth: 0
+
+      # The container rather than the marketplace action, so this depends on
+      # nothing but a public image: no action licensing, no extra token
+      # permissions, and the same command that runs locally.
+      #
+      # --redact so a finding names the file, line and commit without printing
+      # the secret into a public build log, which would publish it a second time.
+      - name: gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest             git /repo -c /repo/.gitleaks.toml --redact --exit-code 1 --no-banner
+
   database:
     name: Database — migrations, integration, smoke
     runs-on: ubuntu-latest
