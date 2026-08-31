@@ -15,7 +15,7 @@
     "@vgen/contracts": "workspace:*",
     "@vgen/core": "workspace:*",
     "@vgen/db": "workspace:*",
-    "bullmq": "^5.60.0",
+    "bullmq": "^5.81.4",
     "dotenv": "^17.4.2",
     "postgres": "^3.4.9"
   }
