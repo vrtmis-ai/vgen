@@ -109,6 +109,13 @@ dc run --rm seed              # catalogue, pricing, plans, grants, providers, co
 dc up -d
 ```
 
+**The order matters, and not only on the first deploy.** `dc run --rm migrate`
+starts Postgres by itself, so nothing else is running yet. Reverse it — `up -d`
+first — and the worker polls a database without an `outbox` table twice a second
+until the migration lands, logging a failure each time; the API is equally happy
+to answer requests against a schema that is not there. Neither breaks anything
+permanently, and neither is a state worth being in.
+
 `migrate` and `seed` sit behind a compose profile, so they never start with
 `up`. Both are safe to re-run — CI asserts that seeding twice writes nothing the
 second time, which is also how you publish a catalogue or pricing change later.
