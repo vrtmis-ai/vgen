@@ -29,5 +29,5 @@ export type {
   ProviderOptions,
 } from "./providers";
 
-export { S3ObjectStore, assetKindFor, createS3ObjectStore, extensionFor, sniffImageMimeType } from "./storage";
-export type { CreateObjectStoreOptions, ObjectStore, S3ObjectStoreOptions, StoredObject } from "./storage";
+export { S3ObjectStore, assetKindFor, createS3ObjectStore, extensionFor, measure, sniffImageMimeType } from "./storage";
+export type { CreateObjectStoreOptions, Measurements, ObjectStore, S3ObjectStoreOptions, StoredObject } from "./storage";

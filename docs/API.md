@@ -1169,9 +1169,17 @@ the set collapse to `provider_failed`, so a provider inventing a new one cannot
 leak through the gap. Render by `code`; treat `message` as a fallback, not a
 diagnosis.
 
-`width`, `height` and `durationMs` are null today. The columns exist and the
-gallery reads them; nothing measures a file on the way in yet, and a screen
-should lay out from the variant's aspect ratio rather than wait for them.
+`width`, `height` and `durationMs` are measured from the file itself, by the
+worker, at the moment it mirrors the output — the one point the whole file is in
+memory. They describe what was delivered, which is not always what was asked
+for.
+
+Any of them can still be null, and a screen must handle that rather than assume
+a number. Null means the format carries no such property — an mp3 has no
+dimensions — or that it is one we do not parse: PNG, JPEG, GIF, WebP, MP4 and
+QuickTime are read for size, MP4, QuickTime and MP3 for duration, and anything
+else measures as null rather than as a guess. A pre-existing row is also null,
+because nothing backfilled what was never recorded.
 
 ### `GET /gallery`
 
@@ -1449,8 +1457,11 @@ So you can tell a gap from a bug:
 - **Payments.** Plans render and price correctly; nothing charges. Blocked on
   which Iranian gateway to use — ZarinPal, IDPay, NextPay and Zibal all work
   differently enough that the choice comes first.
-- **Nothing measures a file.** `assets.width`, `height` and `duration_ms` are
-  written null. The gallery reads them and a screen can lay out without them.
+- **Nothing measures a WebM, OGG or WAV file.** Every format our providers
+  actually return is measured; these three are parsed by nobody because nothing
+  produces them. `assets.width`, `height` and `duration_ms` stay null for them,
+  as they do for every row written before measurement existed — there is no
+  backfill.
 
 ## Asking for a change
 

@@ -314,7 +314,8 @@ for a broken deploy.
   and refunds. No token has ever exercised their API.
 - **Catalogue art still hotlinks the supplier's CDN** — family covers and voice
   previews. No JSON names the supplier; the network tab does.
-- **Nothing measures a file.** `assets.width`, `height` and `duration_ms` are
-  written null.
+- **No backfill of file measurements.** New generations record their own width,
+  height and duration; rows written before that landed stay null, because the
+  provider's copy they came from is long gone.
 - **No CI deploy.** The workflow runs checks and stops; deploying is the manual
   sequence above.

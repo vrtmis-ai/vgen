@@ -1,0 +1,186 @@
+import { describe, expect, it } from "vitest";
+import { measure } from "./measure";
+
+/**
+ * Real encoder output, not headers assembled here.
+ *
+ * A parser tested against bytes written by the same understanding that wrote
+ * the parser proves only that the understanding is self-consistent. Every
+ * fixture below came out of Pillow or ffmpeg, and each expectation is what
+ * `ffprobe`/PIL independently reports for that exact file — so a wrong
+ * assumption about an offset fails here rather than shipping.
+ *
+ * They are small because the images are one flat colour, and because the mp4
+ * has had its `mdat` removed: this reads headers only, so the frames were
+ * dead weight. `ffprobe` still reports 426x240 and 2.5s from the remains.
+ *
+ * The sizes are deliberately unequal and non-square — a transposed width and
+ * height is the easiest bug to write here and the hardest to see.
+ */
+const FIXTURES: Record<string, string> = {
+  png:
+    "iVBORw0KGgoAAAANSUhEUgAAAQMAAACFCAIAAADQLQrtAAABG0lEQVR42u3TQREAMAjAsDFdCEMisvjigURC7xqV/eC8LwE4AZwATgAngBPACeAE" +
+    "cAI4AZwATgAngBPACeAEcAI4AZwATgAngBPACeAEcAI4AZwATgAngBPACeAEcAI4AZwATgAngBPACeAEcAI4AZwATgAngBPACeAEcAI4AZwATgAn" +
+    "gBPACeAEcAI4AZwATgAngBPACeAEcALgBHACOAGcAE4AJ4ATwAngBHACOAGcAE4AJ4ATwAngBHACOAGcAE4AJ4ATwAngBHACOAGcAE4AJ4ATwAng" +
+    "BHACOAGcAE4AJ4ATwAngBHACOAGcAE4AJ4ATwAngBHACOAGcAE4AJ4ATwAngBHACOAGcAE4AJ4ATwAngBAnACeAEWAa4oQKGDf4CRwAAAABJRU5E" +
+    "rkJggg==",
+  jpegBaseline:
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqm" +
+    "x5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCACFAQMD" +
+    "ASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKB" +
+    "kaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZ" +
+    "mqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQF" +
+    "BgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5" +
+    "OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX" +
+    "2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwCrRRRXomoUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFF" +
+    "ABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFF" +
+    "ABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFF" +
+    "ABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFF" +
+    "ABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFF" +
+    "ABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFF" +
+    "ABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFF" +
+    "ABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAH//2Q==",
+  jpegProgressive:
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqm" +
+    "x5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wgARCACFAQMD" +
+    "ASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAP/xAAWAQEBAQAAAAAAAAAAAAAAAAAAAgT/2gAMAwEAAhADEAAAAZDRQAAAAAAAAAAAAAAA" +
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+    "AAAAAAAAAAAAAAAAAAAAAAAAH//EABQQAQAAAAAAAAAAAAAAAAAAAJD/2gAIAQEAAQUCDH//xAAUEQEAAAAAAAAAAAAAAAAAAABw/9oACAEDAQE/" +
+    "ARn/xAAUEQEAAAAAAAAAAAAAAAAAAABw/9oACAECAQE/ARn/xAAUEAEAAAAAAAAAAAAAAAAAAACQ/9oACAEBAAY/Agx//8QAFBABAAAAAAAAAAAA" +
+    "AAAAAAAAkP/aAAgBAQABPyEMf//aAAwDAQACAAMAAAAQDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD" +
+    "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD//EABQRAQAAAAAAAAAAAAAAAAAA" +
+    "AHD/2gAIAQMBAT8QGf/EABQRAQAAAAAAAAAAAAAAAAAAAHD/2gAIAQIBAT8QGf/EABQQAQAAAAAAAAAAAAAAAAAAAJD/2gAIAQEAAT8QDH//2Q==",
+  gif:
+    "R0lGODdhAwGFAIEAAHg8yAAAAAAAAAAAACwAAAAAAwGFAEAI/wABCBxIsKDBgwgTKlzIsKHDhxAjSpxIsaLFixgzatzIsaPHjyBDihxJsqTJkyhT" +
+    "qlzJsqXLlzBjypxJs6bNmzhz6tzJs6fPn0CDCh1KtKjRo0iTKl3KtKnTp1CjSp1KtarVq1izat3KtavXr2DDih1LtqzZs2jTql3Ltq3bt3Djyp1L" +
+    "t67du3jz6t3Lt6/fv4ADCx5MuLDhw4gTK17MuLHjx5AjS55MubLly5gza97MubPnz6BDix5NurTp06hTq17NurXr17Bjy55Nu7bt27hz697Nu7fv" +
+    "38CDCx9OvLjx48iTK1/OvLnz59CjS59Ovbr169iza9/Ovbv37+DDiysfT768+fPo06tfz769+/fw48ufT7++/fv48+vfz7+///8ABijggAQWCGBA" +
+    "ADs=",
+  webpLossy:
+    "UklGRqIAAABXRUJQVlA4IJYAAADQCwCdASoDAYUAPxGIwFosKSakIEgBgCIJaW7hdrENABPa9XgMesij4voFBD6nVUmu20XFYa9FXCDIIdpPFLaL" +
+    "isNfiOEGQQ14OKsHVUmu2/1WbUmu20XFYa9FXCDIIdpPFLaLhBegAP7+0Of/qJ7CO+8Jedj2yh/cwZIepcqXKlypcqXGf+81+q0cAdTgBAAAAAAA" +
+    "AAA=",
+  webpLossless: "UklGRiYAAABXRUJQVlA4TBkAAAAvAgEhAAdQnuIVuf8BIUHC//U2I/qf9j8SAA==",
+  webpExtended: "UklGRiAAAABXRUJQVlA4TBMAAAAvTIA0EAcQEREAUKT//yWi/ykPAA==",
+  mp4:
+    "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAR8bW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAACcQAAQAAAQAAAAAAAAAAAAAA" +
+    "AAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAA6Z0cmFrAAAAXHRraGQAAAAD" +
+    "AAAAAAAAAAAAAAABAAAAAAAACcQAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAaoAAADwAAAAAAAk" +
+    "ZWR0cwAAABxlbHN0AAAAAAAAAAEAAAnEAAAIAAABAAAAAAMebWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAwAAAAeABVxAAAAAAALWhkbHIAAAAA" +
+    "AAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAACyW1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAA" +
+    "AQAAAAx1cmwgAAAAAQAAAolzdGJsAAAAwXN0c2QAAAAAAAAAAQAAALFhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAaoA8ABIAAAASAAAAAAA" +
+    "AAABFUxhdmM2Mi4yOC4xMDEgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAN2F2Y0MBZAAV/+EAGmdkABWs2UGx/k8BEAAAAwAQAAADAYDxYtlgAQAG" +
+    "aOvjyyLA/fj4AAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAALRGAAAAAAAAABhzdHRzAAAAAAAAAAEAAAAeAAAEAAAAABRzdHNzAAAAAAAA" +
+    "AAEAAAABAAAA2GN0dHMAAAAAAAAAGQAAAAEAAAgAAAAAAQAAFAAAAAABAAAIAAAAAAEAAAAAAAAAAQAABAAAAAABAAAUAAAAAAEAAAgAAAAAAQAA" +
+    "AAAAAAABAAAEAAAAAAUAAAgAAAAAAQAAEAAAAAACAAAEAAAAAAEAABQAAAAAAQAACAAAAAABAAAAAAAAAAEAAAQAAAAAAQAAFAAAAAABAAAIAAAA" +
+    "AAEAAAAAAAAAAQAABAAAAAABAAAUAAAAAAEAAAgAAAAAAQAAAAAAAAABAAAEAAAAAAEAAAgAAAAAHHN0c2MAAAAAAAAAAQAAAAEAAAAeAAAAAQAA" +
+    "AIxzdHN6AAAAAAAAAAAAAAAeAAAR5AAAA+YAAADRAAAAZgAAAGEAAANAAAAAtAAAAF8AAABfAAABnQAAAaUAAAHAAAACNgAAAeYAAALgAAAAdgAA" +
+    "AFEAAANCAAAAlAAAAE0AAABbAAAD+QAAALIAAABpAAAAaAAAAtcAAADTAAAATgAAAGUAAAEmAAAAFHN0Y28AAAAAAAAAAQAAADAAAABidWR0YQAA" +
+    "AFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjYyLjEy" +
+    "LjEwMQ==",
+  mp3:
+    "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYyLjEyLjEwMQAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAACQAAA2AAVVVVVVVVVVVV" +
+    "VVVqampqampqampqaoCAgICAgICAgICAlZWVlZWVlZWVlZWqqqqqqqqqqqqqqsDAwMDAwMDAwMDA1dXV1dXV1dXV1dXq6urq6urq6urq6v//////" +
+    "////////AAAAAExhdmM2Mi4yOAAAAAAAAAAAAAAAACQCYAAAAAAAAANgRa/EHgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+    "AAAAAAAAAAAA/+MYxAAMSJKUeU8AAAQJKAL3ve973vSlKUpSlL3u/f337xKp8t4t4m4uZc1WGxACAYrB9//+U9/R/gQ5z/QqJoc4WcQ3/GVE/+MY" +
+    "xAkO8PKQAZRQACo5Qhb/Bt4P1A9yADKiJOAfEwHMjrA71MPfAlAKgKisIoRX/5CPR6RD4fAr/hIGhKEgav///k0HRA2C/+MYxAgMmKZEAdYAAIOm" +
+    "AiAADA2EIDC2EoDDCPYDGP/YDKkOgDFCD4DBSCoBQC4XzAUAKGRRwPX///fVSoGATChjLmDULzq6/+MYxBAK0KYwAAa8RAw3hfTfVtzNFwScwtwT" +
+    "jA+APKAFk2y6yQqw1hX///eBVdEBhaJBgPgGmCsCIYeYlJxKSOmmWHWYaAJB/+MYxB8LMKYwAAewSIKoEZgTANGhgBGiYtPF///5OxVA4DBJhA2Y" +
+    "ChAidAIRgYEshJGAig3RIBEgwA4MADAFQgALIgBBAmuG/+MYxC0LaKYwAAb+RPr///4xgBgAA30DACAcDAsBIBAMQMRoywMfZtQOrsWwN6Q/gMGw" +
+    "IAMAwCQAgXgJAKI+GYEKIf////9h/+MYxDoNOKZAAVYAAIyywuT////9rEiicheD3bOuVRoD6zw4+eRESsMCEDfrV3f3+Ab4BrGWJ+F7Hn//5PGH" +
+    "KZ0e5udL///+/+MYxEAXcaqEAZtoAG6JfN0S+bog//+Aw8D4DDwP//400TGmibv//zSXIXCm5AAP/2Zl/ZmZlLjBmDCigYCAm1AQJv6qgLDf/+MY" +
+    "xB0M0Lq1GcMYA4oKFP6Cgx34go3/xBgr+goUd+IMd/9VTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV",
+  mp4Version1:
+    "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAASUbW9vdgAAAHhtdmhkAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAPoAAAAAAAACcQAAQAA" +
+    "AQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAA7J0cmFr" +
+    "AAAAaHRraGQBAAADAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAACcQAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAA" +
+    "AAAAAAAAAABAAAAAAaoAAADwAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAnEAAAIAAABAAAAAAMebWRpYQAAACBtZGhkAAAAAAAAAAAAAAAA" +
+    "AAAwAAAAeABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAACyW1pbmYAAAAUdm1oZAAAAAEAAAAAAAAA" +
+    "AAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAolzdGJsAAAAwXN0c2QAAAAAAAAAAQAAALFhdmMxAAAAAAAAAAEAAAAAAAAA" +
+    "AAAAAAAAAAAAAaoA8ABIAAAASAAAAAAAAAABFUxhdmM2Mi4yOC4xMDEgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAN2F2Y0MBZAAV/+EAGmdkABWs" +
+    "2UGx/k8BEAAAAwAQAAADAYDxYtlgAQAGaOvjyyLA/fj4AAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAALRGAAAAAAAAABhzdHRzAAAAAAAA" +
+    "AAEAAAAeAAAEAAAAABRzdHNzAAAAAAAAAAEAAAABAAAA2GN0dHMAAAAAAAAAGQAAAAEAAAgAAAAAAQAAFAAAAAABAAAIAAAAAAEAAAAAAAAAAQAA" +
+    "BAAAAAABAAAUAAAAAAEAAAgAAAAAAQAAAAAAAAABAAAEAAAAAAUAAAgAAAAAAQAAEAAAAAACAAAEAAAAAAEAABQAAAAAAQAACAAAAAABAAAAAAAA" +
+    "AAEAAAQAAAAAAQAAFAAAAAABAAAIAAAAAAEAAAAAAAAAAQAABAAAAAABAAAUAAAAAAEAAAgAAAAAAQAAAAAAAAABAAAEAAAAAAEAAAgAAAAAHHN0" +
+    "c2MAAAAAAAAAAQAAAAEAAAAeAAAAAQAAAIxzdHN6AAAAAAAAAAAAAAAeAAAR5AAAA+YAAADRAAAAZgAAAGEAAANAAAAAtAAAAF8AAABfAAABnQAA" +
+    "AaUAAAHAAAACNgAAAeYAAALgAAAAdgAAAFEAAANCAAAAlAAAAE0AAABbAAAD+QAAALIAAABpAAAAaAAAAtcAAADTAAAATgAAAGUAAAEmAAAAFHN0" +
+    "Y28AAAAAAAAAAQAAADAAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28A" +
+    "AAAdZGF0YQAAAAEAAAAATGF2ZjYyLjEyLjEwMQ==",
+};
+
+const bytesOf = (key: string) => new Uint8Array(Buffer.from(FIXTURES[key]!, "base64"));
+
+describe("measure", () => {
+  it.each([
+    // [fixture, width, height, what it exercises]
+    ["png", 259, 133, "IHDR at a fixed offset"],
+    ["jpegBaseline", 259, 133, "the segment walk to SOF0"],
+    ["jpegProgressive", 259, 133, "a different frame marker (SOF2), which a fixed offset would miss"],
+    ["gif", 259, 133, "little-endian, unlike every other format here"],
+    ["webpLossy", 259, 133, "a VP8 frame tag"],
+    ["webpLossless", 259, 133, "VP8L's 14-bit packed pair, stored one less than the real size"],
+    ["webpExtended", 77, 211, "VP8X's 24-bit canvas size"],
+  ])("reads %s as %ix%i — %s", (key, width, height) => {
+    expect(measure(bytesOf(key))).toEqual({ width, height, durationMs: null });
+  });
+
+  it("reads an mp4's duration from mvhd and its display size from tkhd", () => {
+    // ffprobe: 426x240, 2.500000s.
+    expect(measure(bytesOf("mp4"))).toEqual({ width: 426, height: 240, durationMs: 2500 });
+  });
+
+  /**
+   * The 64-bit variants of both headers, which shift every field after the
+   * version byte. ffmpeg will not emit one — it writes version 0 until a
+   * duration overflows 32 bits — so this fixture is the one above with its
+   * `mvhd` and `tkhd` re-emitted in the version-1 layout. `ffprobe` reads
+   * 426x240 and 2.500000s from it, which is what makes it a fixture rather
+   * than a restatement of the parser's own assumptions.
+   */
+  it("reads the 64-bit form of both headers", () => {
+    expect(measure(bytesOf("mp4Version1"))).toEqual({ width: 426, height: 240, durationMs: 2500 });
+  });
+
+  it("reads an mp3's duration and offers no dimensions", () => {
+    // ffprobe: 0.500000s, to the millisecond — the frame count alone would say
+    // 648ms, so this also pins the encoder-delay trim.
+    expect(measure(bytesOf("mp3"))).toEqual({ width: null, height: null, durationMs: 500 });
+  });
+
+  /**
+   * The point of the whole design: this runs on bytes a third party sent us,
+   * inside the one step of a generation that cannot be retried without paying
+   * the provider twice. A throw here would fail a job the customer has already
+   * been charged for, over a header. Unknown is null.
+   */
+  it.each([
+    ["nothing", new Uint8Array(0)],
+    ["a single byte", new Uint8Array([0xff])],
+    ["a truncated png", bytesOf("png").subarray(0, 12)],
+    ["a truncated mp4", bytesOf("mp4").subarray(0, 40)],
+    ["a jpeg cut off before its frame header", bytesOf("jpegBaseline").subarray(0, 30)],
+    ["noise", Uint8Array.from({ length: 4096 }, (_, index) => (index * 2654435761) & 0xff)],
+    ["a run of sync bytes", new Uint8Array(2048).fill(0xff)],
+  ])("returns nulls rather than throwing on %s", (_label, bytes) => {
+    expect(measure(bytes)).toEqual({ width: null, height: null, durationMs: null });
+  });
+
+  it("returns nulls for a box whose declared size runs past the buffer", () => {
+    const bytes = bytesOf("mp4").slice();
+    new DataView(bytes.buffer).setUint32(0, 0xfffffff0);
+    expect(measure(bytes)).toEqual({ width: null, height: null, durationMs: null });
+  });
+
+  /**
+   * WebM, OGG and WAV are readable formats this deliberately does not read —
+   * no provider we have integrated returns them. If one starts to, this test is
+   * the reminder that the answer is a parser, not a guess from the request.
+   */
+  it("says nothing about a format it does not claim to read", () => {
+    // A WAV: RIFF like WebP, so it also guards the WEBP check at byte 8.
+    const wav = new Uint8Array(64);
+    wav.set([0x52, 0x49, 0x46, 0x46], 0);
+    wav.set([0x57, 0x41, 0x56, 0x45], 8);
+    expect(measure(wav)).toEqual({ width: null, height: null, durationMs: null });
+  });
+});
