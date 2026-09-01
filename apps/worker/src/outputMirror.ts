@@ -1,4 +1,4 @@
-import { extensionFor, type GenerationOutput, type ObjectStore } from "@vgen/adapters";
+import { extensionFor, measure, type GenerationOutput, type ObjectStore } from "@vgen/adapters";
 import type { JobOutput } from "@vgen/db";
 
 /**
@@ -75,6 +75,15 @@ export class HttpOutputMirror implements OutputMirrorPort {
           key: stored.key,
           byteSize: stored.byteSize,
           sha256: stored.sha256,
+          // Here rather than anywhere else because this is the only moment the
+          // whole file is in memory. Reading it back out of the store to size it
+          // would be a second download of something we were just holding.
+          //
+          // Never a reason to fail: a format this cannot read returns nulls,
+          // which is what these columns held before it existed. Losing a
+          // generation the customer paid for over an unreadable header would be
+          // an absurd trade.
+          ...measure(bytes),
         };
       } catch (error) {
         lastError = error;
