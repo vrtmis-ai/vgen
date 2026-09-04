@@ -8,6 +8,7 @@ import { useCreateState, valueLabel, rangeOf } from "../lib/useCreateState";
 import { ModelPicker } from "./ModelPicker";
 import { PresetPicker } from "./PresetPicker";
 import type { Preset } from "../runtime/contracts/content";
+import { promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
 import { CoinMark } from "./chrome";
@@ -305,6 +306,7 @@ export function FormPanel({
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={3}
+            dir={promptDir(prompt)}
             disabled={family.noPrompt}
             placeholder={family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط فایل بده" : "صحنه‌ات را با جزئیات توصیف کن."}
             className="hide-scrollbar w-full resize-none bg-transparent text-[13px] leading-6 outline-none disabled:opacity-40"

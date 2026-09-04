@@ -25,7 +25,16 @@ interface Navigation {
   tab: NavKey;
   setTab: (key: NavKey) => void;
   goBack: () => void;
-  openModel: (familyId: string, prompt?: string) => void;
+  /**
+   * `fromGenerationId` carries one of the account's own finished generations in
+   * as the new one's opening frame — this is "to video".
+   *
+   * The generation's id rather than its asset id and URL, because the Generate
+   * screen already reads the same list this came from: one short param is
+   * enough for it to find both, where a signed URL in the address bar would be
+   * several hundred characters that expire.
+   */
+  openModel: (familyId: string, prompt?: string, fromGenerationId?: string) => void;
   openWallet: () => void;
   openProfile: () => void;
   openResult: (generationId: string, options?: { instant?: boolean; replace?: boolean }) => void;
@@ -60,9 +69,10 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       tab: navKeyFromPath(pathname) ?? "video",
       setTab: (key) => router.push(navPath(key)),
       goBack,
-      openModel: (familyId, prompt) => {
+      openModel: (familyId, prompt, fromGenerationId) => {
         const query = new URLSearchParams();
         if (prompt) query.set("prompt", prompt);
+        if (fromGenerationId) query.set("from", fromGenerationId);
         router.push(`/generate/${encodeURIComponent(familyId)}${query.size ? `?${query.toString()}` : ""}`);
       },
       openWallet: () => router.push("/plans"),

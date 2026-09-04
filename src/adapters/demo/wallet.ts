@@ -42,6 +42,9 @@ export function demoWallet(now: number): Wallet {
   return {
     spendable: grants.reduce((sum, grant) => sum + grant.coinsRemaining, 0),
     grants,
+    // The demo account is on the top plan: this surface exists to show the
+    // product, and tier 1 would padlock most of the catalogue in a showcase.
+    tier: 3 as const,
     ...(soonest?.expiresAt != null ? { nextExpiry: { at: soonest.expiresAt, coins: soonest.coinsRemaining } } : {}),
   };
 }

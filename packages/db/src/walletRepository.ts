@@ -16,6 +16,20 @@ export interface CustomerWallet {
   spendable: number;
   grants: CustomerCreditGrant[];
   nextExpiry?: { at: number; coins: number };
+  /**
+   * What this account may run, decided here rather than in the browser.
+   *
+   * The tier gate exists on both sides and only one of them is authoritative:
+   * `entitlementsRepository.tierForAccount` is what `quote` enforces. The
+   * browser was deriving its own answer from the public price list — matching a
+   * plan *code* against `GET /plans` — so an account whose plan is not on sale,
+   * or is granted rather than bought, read as tier 1 and had every tier-2 model
+   * padlocked while the server would have run them.
+   *
+   * Sent with the wallet because the wallet is already fetched for every signed
+   * -in account and the app waits for it before rendering.
+   */
+  tier: 1 | 2 | 3;
 }
 
 export interface CustomerWalletRepository {
@@ -101,10 +115,24 @@ export class PostgresWalletRepository implements CustomerWalletRepository {
     }
     const spendable = microCreditsToCoins(remainingMicroCredits);
 
+    // The same statement `tierForAccount` runs, joined from the user rather
+    // than the account so this needs no second round trip. No live
+    // subscription is tier 1, matching that function exactly — a new account
+    // holds a signup gift and tier 1 is what makes the gift spendable.
+    const [access] = await this.sql<{ tier: number }[]>`
+      select coalesce(max(plan.tier), 1) as tier
+      from users u
+      left join subscriptions sub
+        on sub.account_id = u.personal_account_id and sub.status = 'active' and sub.ends_at > now()
+      left join plans plan on plan.id = sub.plan_id
+      where u.id = ${userId}
+    `;
+
     const nextExpiring = grants.find((grant) => grant.expiresAt != null);
     return {
       spendable,
       grants,
+      tier: (access?.tier as CustomerWallet["tier"] | undefined) ?? 1,
       ...(nextExpiring?.expiresAt != null ? { nextExpiry: { at: nextExpiring.expiresAt, coins: nextExpiring.coinsRemaining } } : {}),
     };
   }

@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo } from "react";
-import { cheapestPlanFor, familyUnlocked, minTierFor, tierForPlan } from "../data/plans";
+import { cheapestPlanFor, minTierFor, tierForPlan } from "../data/plans";
 import { usePlanLadder } from "../features/plans/PlansProvider";
 import type { Plan, Tier } from "../runtime/contracts/plans";
 
@@ -52,24 +52,36 @@ const Ctx = createContext<Access>({
  */
 export function AccessProvider({
   planId,
+  tier,
   onUpgrade,
   children,
 }: {
   planId: string | null;
+  /**
+   * The server's answer, from `GET /wallet`, and the one that decides.
+   *
+   * Without it this derived a tier by matching `planId` against the published
+   * ladder, which is a price list rather than a record of what an account
+   * holds: a plan that is granted, withdrawn, or simply not public read as tier
+   * 1 and padlocked models the server would happily have run. Optional so the
+   * ladder fallback still covers a caller that has no wallet — the plans tests
+   * use it — but a wallet always beats it.
+   */
+  tier?: Tier;
   onUpgrade: () => void;
   children: React.ReactNode;
 }) {
   const plans = usePlanLadder();
-  const value = useMemo<Access>(
-    () => ({
+  const value = useMemo<Access>(() => {
+    const effective = tier ?? tierForPlan(plans, planId);
+    return {
       planId,
-      tier: tierForPlan(plans, planId),
-      can: (familyId) => familyUnlocked(plans, familyId, planId),
+      tier: effective,
+      can: (familyId) => effective >= minTierFor(familyId),
       needs: (familyId) => cheapestPlanFor(plans, familyId),
       onUpgrade,
-    }),
-    [plans, planId, onUpgrade],
-  );
+    };
+  }, [plans, planId, tier, onUpgrade]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

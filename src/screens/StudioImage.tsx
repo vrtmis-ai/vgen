@@ -13,6 +13,7 @@ import { JustifiedRows } from "../components/JustifiedRows";
 import { ModelChip } from "../components/ModelPicker";
 import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
 import { unlimitedFit } from "../lib/unlimited";
+import { promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { useAccess } from "../lib/access";
@@ -197,17 +198,27 @@ export default function StudioImage({
   /* Mixed ratios on purpose: the wall is only worth a justified layout if the
      items actually differ, and the seeded stand-ins were all one shape. Real
      generations carry their own w/h. */
-  const shaped = Array.from({ length: wall.length === 0 ? 0 : 42 }, (_, i) => {
-    const base = wall[i % wall.length]!;
-    const ratio = base.w / base.h;
-    const [w, h] = ratio >= 1 ? [1200, Math.round(1200 / ratio)] : [Math.round(900 * ratio), 900];
-    return {
-      key: `${base.id}-${i}`,
-      ratio,
-      asset: { ...base, w, h, url: art(`${base.id}-${i}`, w, h) } as ViewerAsset,
-      pending: null as Generation | null,
-    };
-  });
+  /* Two things met here, and both survive.
+
+     From main: real work is rendered once each, at its own size, from its own
+     `outputUrl`. The old code repeated the wall up to 42 frames and gave every
+     frame a fresh `art()` placeholder — scaffolding for an empty library that,
+     run over real generations, showed one finished image as forty-two unrelated
+     stock pictures. That is what "the site does not work" looked like from
+     outside.
+
+     From this branch: when there is nothing finished, the wall is empty rather
+     than filled with seeded examples. A new account was seeing strangers'
+     photographs sitting exactly where its own work would later appear,
+     captioned as history. The empty branch below is the first state now — a
+     designed one, not a hole — so there is nothing left for a demo wall to
+     paper over. */
+  const shaped = wall.map((base) => ({
+    key: base.id,
+    ratio: base.w / base.h,
+    asset: base,
+    pending: null as Generation | null,
+  }));
   // Named as a set, not one at a time: whether a name needs an ordinal is a
   // fact about the whole wall, so it cannot be decided from inside one tile.
   const names = tileNames(
@@ -401,6 +412,7 @@ export default function StudioImage({
                 value={s.prompt}
                 onChange={(e) => s.setPrompt(e.target.value)}
                 rows={2}
+                dir={promptDir(s.prompt)}
                 placeholder="تصویری که در ذهن داری را توصیف کن."
                 className="hide-scrollbar min-h-[52px] w-full resize-none bg-transparent text-[13.5px] leading-6 outline-none"
                 style={{ color: "var(--vg-text)" }}

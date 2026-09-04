@@ -219,7 +219,11 @@ function AuthedTree({
           gate asks the ladder which plan unlocks a family, so the ladder has to
           be above it. */}
       <PlansProvider plans={plans}>
-        <AccessProvider planId={null} onUpgrade={openWallet}>
+        {/* `planId` stays null until something sells one; the tier beside it is
+            the server's, so a granted or withdrawn plan still unlocks what the
+            quote endpoint would actually run. This was hardcoded to tier 1 for
+            everybody, which padlocked every tier-2 model for a subscriber. */}
+        <AccessProvider planId={null} tier={wallet?.tier ?? 1} onUpgrade={openWallet}>
           <CatalogProvider families={families}>
             <ContentProvider content={content}>
               <GenerationsProvider>{children}</GenerationsProvider>

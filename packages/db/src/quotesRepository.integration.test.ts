@@ -479,20 +479,23 @@ describe("quoting a model covered by an unlimited grant", () => {
  * — the thief never sees the bytes, they see the picture made from them.
  */
 describe("quoting with reference uploads", () => {
-  /** An upload belonging to an account, the way `POST /assets` records one. */
-  async function upload(tx: Sql, accountId: string, userId: string, suffix: string): Promise<string> {
+  /** A stored file belonging to an account, at whichever origin the test needs. */
+  async function asset(tx: Sql, accountId: string, userId: string, origin: string, suffix: string): Promise<string> {
     const [row] = await tx<{ id: string }[]>`
       insert into assets (
         account_id, created_by, kind, origin, storage_provider, storage_bucket, storage_key,
         mime_type, byte_size, sha256, moderation_state, visibility
       ) values (
-        ${accountId}, ${userId}, 'image', 'upload', 's3', 'vgen', ${`uploads/${accountId}/${suffix}.png`},
+        ${accountId}, ${userId}, 'image', ${origin}, 's3', 'vgen', ${`${origin}/${accountId}/${suffix}.png`},
         'image/png', 2048, ${`sha-${suffix}`}, 'pending', 'private'
       )
       returning id
     `;
     return row!.id;
   }
+
+  /** The common case, kept as its own name because most tests only want this. */
+  const upload = (tx: Sql, accountId: string, userId: string, suffix: string) => asset(tx, accountId, userId, "upload", suffix);
 
   it("prices a generation that names the account's own upload", async () => {
     await inRollback(sql, async (tx) => {
@@ -582,34 +585,87 @@ describe("quoting with reference uploads", () => {
   });
 
   /**
-   * A generated file cannot be fed back in by id.
+   * A generated file CAN be fed back in by id, and that is the decision this
+   * comment used to hold the door open for.
    *
-   * Not because it would leak — it is the caller's own output — but because
-   * "use my last result as a reference" is a feature with its own pricing and
-   * moderation questions, and it should arrive as a decision rather than as a
-   * side effect of the ownership check being loose.
+   * It was refused before — not because it would leak, it is the caller's own
+   * output, but because "use my last result as an input" is a feature that
+   * should arrive deliberately rather than as a side effect of a loose
+   * ownership check. "To video" on a finished image is that feature: the bytes
+   * are already ours and already this account's, so making the browser download
+   * and re-upload them would store a second copy to reach the same row.
+   *
+   * The ownership predicate is untouched; only the origin list grew, and it
+   * grew by exactly one value. The test after this one pins that.
    */
-  it("refuses one of the account's own generated assets", async () => {
+  it("prices a generation that names one of the account's own generated outputs", async () => {
     await inRollback(sql, async (tx) => {
       const { userId, accountId } = await makeUser(tx);
       await subscribe(tx, accountId, 3);
       const { variantId, params } = await variantAtTier(tx, 1);
-      const [generated] = await tx<{ id: string }[]>`
-        insert into assets (
-          account_id, created_by, kind, origin, storage_provider, storage_bucket, storage_key,
-          mime_type, byte_size, sha256, moderation_state, visibility
-        ) values (
-          ${accountId}, ${userId}, 'image', 'generated', 's3', 'vgen', ${`generated/${accountId}/out.png`},
-          'image/png', 2048, 'sha-generated', 'pending', 'private'
-        )
-        returning id
-      `;
+      const generated = await asset(tx, accountId, userId, "generated", "out");
 
       const result = await new PostgresQuotesRepository(tx).create({
         userId,
         variantId,
         params,
-        referenceAssetIds: { image_urls: [generated!.id] },
+        referenceAssetIds: { image_urls: [generated] },
+      });
+
+      expect(result.outcome).toBe("quoted");
+      if (result.outcome !== "quoted") return;
+      const [row] = await tx<{ reference_asset_ids: Record<string, string[]> | null }[]>`
+        select reference_asset_ids from quotes where id = ${result.quote.id}
+      `;
+      expect(row!.reference_asset_ids).toEqual({ image_urls: [generated] });
+    });
+  });
+
+  /**
+   * Two origins, not "any origin the account happens to own".
+   *
+   * `system` and `derived` are ours rather than the customer's — seeded
+   * catalogue art, thumbnails — and nobody picked them in a slot. Widening the
+   * check to admit a generated output must not have widened it to everything,
+   * and only a test that names the other origins can say so.
+   */
+  it.each(["system", "derived"])("still refuses an asset with origin %s", async (origin) => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, 3);
+      const { variantId, params } = await variantAtTier(tx, 1);
+      const other = await asset(tx, accountId, userId, origin, `other-${origin}`);
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId,
+        variantId,
+        params,
+        referenceAssetIds: { image_urls: [other] },
+      });
+
+      expect(result.outcome).toBe("unknown_reference");
+    });
+  });
+
+  /**
+   * Ownership still decides, whatever the origin says.
+   *
+   * The interesting case now that a generated file is usable: somebody else's
+   * generated file has to stay as refused as their upload always was.
+   */
+  it("refuses a generated output belonging to somebody else", async () => {
+    await inRollback(sql, async (tx) => {
+      const mine = await makeUser(tx);
+      const theirs = await makeUser(tx);
+      await subscribe(tx, mine.accountId, 3);
+      const { variantId, params } = await variantAtTier(tx, 1);
+      const stolen = await asset(tx, theirs.accountId, theirs.userId, "generated", "theirs");
+
+      const result = await new PostgresQuotesRepository(tx).create({
+        userId: mine.userId,
+        variantId,
+        params,
+        referenceAssetIds: { image_urls: [stolen] },
       });
 
       expect(result.outcome).toBe("unknown_reference");

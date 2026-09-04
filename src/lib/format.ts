@@ -1,8 +1,17 @@
 const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 
-/** True when a cover URL points to a video (render as <video>, not <img>). */
+/**
+ * True when a cover URL points to a video (render as <video>, not <img>).
+ *
+ * The extension may be followed by a query or a fragment. Anchoring this at the
+ * end of the string worked for catalogue covers, which are plain URLs, and
+ * silently failed for anything signed — an S3 URL ends in its signature, so a
+ * real generated clip read as "not a video" and went to an `<img>`. Callers
+ * that hold a catalogue `kind` should prefer it; this is for the ones that only
+ * ever have a URL.
+ */
 export function isVideoUrl(u?: string): boolean {
-  return !!u && /\.(mp4|webm)$/i.test(u);
+  return !!u && /\.(mp4|webm)(?:[?#]|$)/i.test(u);
 }
 
 /**
@@ -63,4 +72,24 @@ export function coinDigits(value: number, locale: NumberLocale = "en-US"): strin
  */
 export function latinDigits(value: string): string {
   return value.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0)).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+}
+
+/**
+ * Paragraph direction for a prompt field that takes either language.
+ *
+ * These fields hold both: the UI is Persian, the models answer best in English,
+ * and the hint on the create screen says so. A fixed direction is wrong for one
+ * of them — forced `ltr` laid a Persian prompt against the far edge of the box
+ * from where its writer reads, and plain inherited `rtl` throws an English
+ * sentence's full stop to the front.
+ *
+ * `dir="auto"` solves the typed case by reading the first strong character —
+ * but only of the *value*. An empty field has no strong character, so `auto`
+ * falls back to LTR and lays the Persian *placeholder* out left-to-right, which
+ * moves its full stop to the wrong end. Undefined while empty lets the field
+ * inherit the page's RTL and the placeholder reads correctly; the moment there
+ * is content, `auto` follows the content.
+ */
+export function promptDir(value: string): "auto" | undefined {
+  return value.trim() ? "auto" : undefined;
 }

@@ -13,7 +13,7 @@ import Plans from "./Plans";
 import type { Plan } from "../runtime/contracts/plans";
 import type { Wallet } from "../runtime/contracts/wallet";
 
-const WALLET: Wallet = { spendable: 12, grants: [] };
+const WALLET: Wallet = { spendable: 12, grants: [], tier: 1 };
 
 /* The unlimited benefit names the models the pipe covers, and takes them from
    the catalogue rather than from a sentence somebody has to remember to edit —
