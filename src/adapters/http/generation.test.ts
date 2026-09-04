@@ -12,10 +12,23 @@ const QUOTE = {
   concurrency: { running: 0, limit: 4 },
 };
 
-function harness() {
+const JOB = {
+  id: "44444444-4444-4444-8444-444444444444",
+  status: "queued",
+  familyId: "nano-banana",
+  variantId: "nano-banana-pro",
+  coins: 4,
+  prompt: "a small red boat",
+  createdAt: 1_755_353_400_000,
+  updatedAt: 1_755_353_400_000,
+  outputs: [],
+  urlsExpireAt: null,
+};
+
+function harness(payload: unknown = QUOTE) {
   const fetchImpl = vi
     .fn()
-    .mockResolvedValue(new Response(JSON.stringify(QUOTE), { status: 200, headers: { "content-type": "application/json" } }));
+    .mockResolvedValue(new Response(JSON.stringify(payload), { status: 200, headers: { "content-type": "application/json" } }));
   const client = createHttpClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
   return { generation: createHttpGenerationService(client), fetchImpl };
 }
@@ -74,6 +87,41 @@ describe("http generation adapter", () => {
     await generation.quote(request);
 
     expect(Object.keys(bodyOf(fetchImpl)).sort()).toEqual(["params", "prompt", "referenceAssetIds", "variantId"]);
+  });
+
+  /**
+   * The third field to go to die here, and the most expensive of them.
+   *
+   * `params` is not only what the server hashes: the worker hands it to the
+   * provider as the request body verbatim, and the gallery reads the prompt
+   * back out of it with `params ->> 'prompt'`. Sent only as its sibling field,
+   * the prompt was priced, charged, and then reached nobody — every generation
+   * from the site asked the provider for a size and no subject, and the
+   * customer paid for whatever came back.
+   */
+  it("puts the prompt inside the settings, where the provider will look", async () => {
+    const { generation, fetchImpl } = harness();
+
+    await generation.quote(request);
+
+    expect(bodyOf(fetchImpl).params).toEqual({ resolution: "1K", prompt: "a small red boat" });
+  });
+
+  it("sends the same settings again on create, or the quote cannot be redeemed", async () => {
+    const quoted = harness();
+    await quoted.generation.quote(request);
+
+    const created = harness(JOB);
+    await created.generation.create({
+      quoteId: QUOTE.id,
+      idempotencyKey: "demo-idempotency-key-0001",
+      input: request.input,
+      prompt: request.prompt,
+    });
+
+    // Byte-for-byte the same object, because the server hashes both and refuses
+    // the job with `params_mismatch` when they differ.
+    expect(bodyOf(created.fetchImpl).params).toEqual(bodyOf(quoted.fetchImpl).params);
   });
 
   it("sends the free-pipe preference only when the caller has one", async () => {

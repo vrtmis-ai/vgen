@@ -12,8 +12,14 @@ export function useCreateGeneration() {
       const generationQuote = await services.generation.quote(quote);
       // The settings go up a second time, with the quote id. They have to hash
       // to exactly what was priced, which is what stops a cheap quote being
-      // redeemed for an expensive generation.
-      const createRequest: CreateGenerationRequest = { quoteId: generationQuote.id, idempotencyKey, input: quote.input };
+      // redeemed for an expensive generation — so the prompt travels with them
+      // here too, and the adapter folds both into `params` the same way twice.
+      const createRequest: CreateGenerationRequest = {
+        quoteId: generationQuote.id,
+        idempotencyKey,
+        input: quote.input,
+        prompt: quote.prompt,
+      };
       const job = await services.generation.create(createRequest);
       return { quote: generationQuote, job };
     },

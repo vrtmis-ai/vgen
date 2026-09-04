@@ -23,7 +23,23 @@ export function createHttpGenerationService(client: HttpClient): AppServices["ge
         method: "POST",
         body: {
           variantId: request.variantId,
-          params: request.input,
+          /* The prompt goes *inside* the settings, and that is the whole point
+             rather than a detail.
+
+             `params` is not only what gets hashed. The worker hands it to the
+             provider as the request body verbatim (`input: request.params`),
+             and the gallery reads the prompt back out of it with
+             `params ->> 'prompt'`. A prompt sent only as the sibling field
+             below is priced correctly, charged correctly, and then reaches
+             nobody — the provider is asked for a 1:1 image with no subject and
+             the customer pays for whatever it invents. Verified against a real
+             KIE generation: with the prompt in `params` the result matches it.
+
+             Folded here in both calls rather than by either caller, so the two
+             bodies cannot drift into a `params_mismatch`. */
+          params: { ...request.input, prompt: request.prompt },
+          // Still its own field: this is the billable character count for the
+          // models that charge per 1k characters, which is a different job.
           prompt: request.prompt,
           // The field #55 built and this adapter used to drop on the floor.
           // Sent always, including empty: the server schema defaults it, but an
@@ -45,7 +61,9 @@ export function createHttpGenerationService(client: HttpClient): AppServices["ge
         // The params have to hash to exactly what was quoted, so they are sent
         // again rather than remembered server-side against the quote id. That
         // is what stops a cheap quote being redeemed for an expensive job.
-        body: { quoteId: request.quoteId, params: request.input },
+        // Folded exactly as in `quote` above — same inputs, same object, so the
+        // hash matches.
+        body: { quoteId: request.quoteId, params: { ...request.input, prompt: request.prompt } },
         // A header, not a body field: it identifies the attempt rather than the
         // request, and the server reads it before parsing anything.
         headers: { "Idempotency-Key": request.idempotencyKey },

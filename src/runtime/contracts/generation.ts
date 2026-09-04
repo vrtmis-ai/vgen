@@ -64,6 +64,11 @@ export const CreateGenerationRequestSchema = z.object({
   idempotencyKey: z.string().min(16).max(128),
   /** Must hash to exactly what was quoted, or the server refuses it. */
   input: InputMapSchema,
+  /**
+   * Sent again for the same reason `input` is: it is folded into the hashed
+   * `params`, so the create call cannot reconstruct it from the quote id.
+   */
+  prompt: z.string(),
 });
 
 /**

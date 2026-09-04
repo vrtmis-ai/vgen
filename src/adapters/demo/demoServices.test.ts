@@ -20,6 +20,7 @@ describe("demo generation adapter", () => {
       quoteId: quote.id,
       idempotencyKey: "demo-idempotency-key-0001",
       input: defaultInput(variantControls(family, variant)),
+      prompt: "A cinematic sunrise",
     };
     const queued = await services.generation.create(request);
     const duplicate = await services.generation.create(request);
