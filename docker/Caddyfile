@@ -26,6 +26,37 @@
 {$SITE_ADDRESS} {
 	encode zstd gzip
 
+	# Response headers, on everything this address serves.
+	#
+	# HSTS: without it the first visit of the day is a plaintext request that a
+	# network between the customer and us can answer instead. Caddy already
+	# redirects http to https, but the redirect is itself the interceptable
+	# part. Note the deployment note at the top: with TLS terminated by a CDN
+	# the browser is still speaking https to that CDN, so this remains correct.
+	# `preload` is deliberately absent — that is a submission to a browser list
+	# and hard to walk back, so it should be a decision rather than a default.
+	#
+	# frame-ancestors: /admin can grant credits, ban accounts and re-route
+	# traffic. The staff cookie is SameSite=Strict and so is not sent in a
+	# cross-site frame at all, which already defeats clickjacking here; this
+	# says the same thing a second way, in the header browsers enforce before
+	# any cookie decision. X-Frame-Options repeats it for anything old.
+	#
+	# Deliberately NOT a full Content-Security-Policy. Next inlines its
+	# hydration bootstrap, so a script-src worth having needs per-response
+	# nonces threaded through the app, and a policy written blind here would
+	# either break the site or be broad enough to be decoration. frame-ancestors
+	# is the half that is exact and costs nothing.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Content-Security-Policy "frame-ancestors 'none'"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# The version number is free reconnaissance and buys the visitor nothing.
+		-Server
+	}
+
 	# The API and the app share one origin, which is not laziness — it is what
 	# makes the session cookie same-site and the CORS preflight moot. WEB_ORIGIN
 	# and API_PUBLIC_URL are both this address for the same reason.
@@ -67,6 +98,24 @@
 	# cannot write anything from outside the VPS.
 	@mutating not method GET HEAD OPTIONS
 	respond @mutating 405
+
+	# `nosniff` matters more here than on the site: this hostname serves bytes
+	# that customers and providers supplied. Uploads are already restricted to
+	# four image types by their magic bytes rather than their declared header,
+	# so this is the second lock — it stops a browser deciding for itself that a
+	# stored file is really HTML and running it. Being a separate hostname, an
+	# error here still could not reach a session cookie on the main domain.
+	#
+	# `sandbox` and `default-src 'none'` would be the stronger policy here and
+	# are deliberately not set: this host serves video, and range requests and
+	# media playback are exactly the things a blind CSP breaks. Worth adding
+	# once it can be tested against a real clip rather than reasoned about.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Content-Security-Policy "frame-ancestors 'none'"
+		-Server
+	}
 
 	reverse_proxy minio:9000
 }
