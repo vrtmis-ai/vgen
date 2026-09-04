@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { Plus, Minus, Sparkle, PencilSimple, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock } from "@phosphor-icons/react";
+import { Plus, Minus, Sparkle, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock } from "@phosphor-icons/react";
 import { type Family, type Variant } from "../data/models";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import type { InputMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
-import { usePublishedContent } from "../features/content/ContentProvider";
 import { CoinMark } from "../components/chrome";
 import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
 import { ModelChip } from "../components/ModelPicker";
+import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
+import { unlimitedFit } from "../lib/unlimited";
 import { promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
@@ -148,7 +149,7 @@ export default function StudioImage({
   onOpenModel,
 }: {
   gens: Generation[];
-  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
+  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean) => void;
   onOpenModel: (familyId: string, prompt?: string) => void;
 }) {
   const { t, n } = useI18n();
@@ -162,6 +163,8 @@ export default function StudioImage({
   // access.onUpgrade opens a wallet drawer nobody owns yet.
   const { user, signIn } = useSession();
   const visitor = user === null;
+  // Reachable *and* chosen. Either alone leaves the button lying about cost.
+  const freeNow = s.preferUnlimited && unlimitedFit(s.variant, s.input, access.tier)?.available === true;
   const locked = !access.can(s.family.id);
   const need = locked ? access.needs(s.family.id) : null;
   const [count, setCount] = useState(1);
@@ -176,60 +179,46 @@ export default function StudioImage({
      job is arranging pictures. */
   const running = mine.filter((g) => g.status === "running");
   const finished = mine.filter((g) => g.status !== "running");
-  // Until the user has a library, the seeded examples stand in for one — an
-  // empty wall would leave the dock floating over nothing.
-  const examples = usePublishedContent().examples;
-  const wall: ViewerAsset[] =
-    finished.length > 0
-      ? finished.map((g) => ({
-          id: g.id,
-          url: g.outputUrl ?? art(g.id),
-          prompt: g.prompt,
-          familyId: g.familyId,
-          w: g.w,
-          h: g.h,
-          createdAt: g.createdAt,
-        }))
-      : examples.map((e) => ({ id: e.id, url: art(e.seed), prompt: e.prompt, familyId: e.familyId, w: 1152, h: 1536 }));
+  /* No stand-in library.
+     This used to fall back to the seeded examples so the dock would not float
+     over nothing. It filled the create surface with forty-two pictures the
+     account did not make — a promise on arrival, and a gallery over the one
+     screen that is supposed to be a workbench. An empty canvas is the correct
+     first state, not a hole to be papered over; see the empty branch below. */
+  const wall: ViewerAsset[] = finished.map((g) => ({
+    id: g.id,
+    url: g.outputUrl ?? art(g.id),
+    prompt: g.prompt,
+    familyId: g.familyId,
+    w: g.w,
+    h: g.h,
+    createdAt: g.createdAt,
+  }));
 
   /* Mixed ratios on purpose: the wall is only worth a justified layout if the
      items actually differ, and the seeded stand-ins were all one shape. Real
      generations carry their own w/h. */
-  const RATIOS = [9 / 16, 3 / 4, 16 / 9, 1, 4 / 5];
-  /* Two walls, and they are not the same wall with a different source.
+  /* Two things met here, and both survive.
 
-     The demo wall exists so a brand-new account does not look at a hole: ten
-     seeded examples repeated up to 42 frames, each given its own placeholder so
-     the repetition is not obvious. Every part of that — the repeat, the 42, the
-     per-tile `art()` — is scaffolding for an empty library.
+     From main: real work is rendered once each, at its own size, from its own
+     `outputUrl`. The old code repeated the wall up to 42 frames and gave every
+     frame a fresh `art()` placeholder — scaffolding for an empty library that,
+     run over real generations, showed one finished image as forty-two unrelated
+     stock pictures. That is what "the site does not work" looked like from
+     outside.
 
-     Run it over real work and it destroys the thing it is displaying. `base`
-     already carries `outputUrl`, the file the customer paid for; the spread
-     that follows overwrote it with a random photo from picsum.photos, and the
-     repeat then showed one generation as forty-two different stock pictures.
-     Generating something and watching unrelated images appear is what "the site
-     does not work" looked like from outside.
-
-     So real work is rendered once each, at its own size, from its own URL. */
-  const shaped =
-    finished.length > 0
-      ? wall.map((base) => ({
-          key: base.id,
-          ratio: base.w / base.h,
-          asset: base,
-          pending: null as Generation | null,
-        }))
-      : Array.from({ length: 42 }, (_, i) => {
-          const base = wall[i % wall.length]!;
-          const ratio = RATIOS[i % RATIOS.length]!;
-          const [w, h] = ratio >= 1 ? [1200, Math.round(1200 / ratio)] : [Math.round(900 * ratio), 900];
-          return {
-            key: `${base.id}-${i}`,
-            ratio,
-            asset: { ...base, w, h, url: art(`${base.id}-${i}`, w, h) } as ViewerAsset,
-            pending: null as Generation | null,
-          };
-        });
+     From this branch: when there is nothing finished, the wall is empty rather
+     than filled with seeded examples. A new account was seeing strangers'
+     photographs sitting exactly where its own work would later appear,
+     captioned as history. The empty branch below is the first state now — a
+     designed one, not a hole — so there is nothing left for a demo wall to
+     paper over. */
+  const shaped = wall.map((base) => ({
+    key: base.id,
+    ratio: base.w / base.h,
+    asset: base,
+    pending: null as Generation | null,
+  }));
   // Named as a set, not one at a time: whether a name needs an ordinal is a
   // fact about the whole wall, so it cannot be decided from inside one tile.
   const names = tileNames(
@@ -269,9 +258,12 @@ export default function StudioImage({
       {/* Size only, no list. This surface is a wall of frames — it exists so you
           can scan pictures, and a list of them is the same wall with the
           pictures made small. The reference does not offer one here either. */}
-      <div className="sticky top-11 z-20 flex justify-start px-3 py-2">
-        <ViewControls mode="grid" density={view.density} onMode={() => {}} onDensity={view.setDensity} modes={false} />
-      </div>
+      {/* Nothing to size when there is nothing on the wall. */}
+      {tiles.length > 0 && (
+        <div className="sticky top-11 z-20 flex justify-start px-3 py-2">
+          <ViewControls mode="grid" density={view.density} onMode={() => {}} onDensity={view.setDensity} modes={false} />
+        </div>
+      )}
 
       {/* A tool surface with no visible title still needs one. The wall and the
           dock carry no page heading, so the document started at h2 — or, here,
@@ -288,45 +280,109 @@ export default function StudioImage({
           the row's height is whatever makes its widths fill the container — so
           nothing is cropped. A uniform cell would crop every 16:9 and 9:16 on
           the one page whose job is letting you judge what you just paid for. */}
-      <div className="pb-[280px]">
-        <JustifiedRows
-          items={tiles}
-          targetHeight={view.rowHeight}
-          gap={2}
-          render={(t) =>
-            /* A job with no picture yet: the tile holds its place in the wall
+      {/* The canvas before anything exists.
+          Centred and quiet, the way the reference opens: a fanned trio, a line
+          saying what this surface is for, and the dock below as the only thing
+          to press. It is not blank — a blank surface tells somebody nothing —
+          but it is empty, which is the truth.
+
+          THE TRIO IS A SLOT. The reference fans three of its own outputs here,
+          which works because they are outputs. Ours would have been
+          `picsum.photos` stock — the same stand-ins that used to fill this whole
+          wall — and three of those under a heading claims they are what this
+          product makes. So they carry each model's own `grad` until we have real
+          seeded examples to put in them, which is the `cover ?? grad` fallback
+          this codebase already uses for every model card.
+
+          The heading does not name the selected model: it is one click from
+          being a different one, and a heading that commits to it reads as a
+          decision already made.
+
+          `.t-ghost` above it rather than a second heading line. The reference
+          buys presence with uppercase Space Grotesk and Persian has no
+          uppercase — this is the device the design system added as its answer to
+          exactly that, and it is Latin by contract, hence lang="en". */}
+      {tiles.length === 0 ? (
+        <div
+          className="grid place-items-center px-6 text-center"
+          /* Centred between the bar and the dock, not in the viewport.
+             `min-h-[52dvh] pb-[280px]` centred the block inside the 52dvh box
+             and then hung 280px of padding under it, which put the text a third
+             of the way down the screen with a void beneath. The height is now
+             exactly the space that is free — viewport less the banner, the bar
+             and the dock — so `place-items-center` lands where the eye expects.
+             11rem is the dock's own height plus the gap it floats on. */
+          style={{ minHeight: "calc(100dvh - var(--vg-banner-height, 0px) - 2.75rem - 11rem)" }}
+        >
+          <div>
+            <div aria-hidden className="mb-7 flex items-end justify-center">
+              {families.slice(0, 3).map((f, i) => (
+                <span
+                  key={f.id}
+                  className="block h-[104px] w-[82px] rounded-2xl border shadow-2xl"
+                  style={{
+                    background: f.grad,
+                    borderColor: "var(--vg-border-subtle)",
+                    // Fanned from the middle out. `rotate` and the overlap are
+                    // physical on purpose: a fan reads the same in both scripts,
+                    // and mirroring it would only move which card is on top.
+                    rotate: `${(i - 1) * 7}deg`,
+                    marginInline: i === 1 ? "-10px" : "0",
+                    zIndex: i === 1 ? 1 : 0,
+                  }}
+                />
+              ))}
+            </div>
+            <span className="t-ghost block" lang="en">
+              {t("st_empty_label")}
+            </span>
+            <h2 className="t-h1 mt-2 text-balance">{t("st_empty_title")}</h2>
+            <p className="t-caption mx-auto mt-2 max-w-[42ch] text-pretty" style={{ color: "var(--vg-text-muted)" }}>
+              {t("st_empty_sub")}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="pb-[280px]">
+          <JustifiedRows
+            items={tiles}
+            targetHeight={view.rowHeight}
+            gap={2}
+            render={(t) =>
+              /* A job with no picture yet: the tile holds its place in the wall
                and shows the bar. Not clickable and no action stack — there is
                nothing to open, download or recreate until it lands. */
-            t.pending ? (
-              <div className="relative grid size-full place-items-center overflow-hidden" style={{ background: t.pending.grad }}>
-                <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
-                <div className="relative w-2/3 max-w-[180px]">
-                  <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
-                    <div
-                      className="h-full transition-[width] duration-200 ease-out"
-                      style={{ width: `${Math.round(t.pending.progress ?? 0)}%`, background: "var(--vg-primary)" }}
-                    />
+              t.pending ? (
+                <div className="relative grid size-full place-items-center overflow-hidden" style={{ background: t.pending.grad }}>
+                  <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
+                  <div className="relative w-2/3 max-w-[180px]">
+                    <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
+                      <div
+                        className="h-full transition-[width] duration-200 ease-out"
+                        style={{ width: `${Math.round(t.pending.progress ?? 0)}%`, background: "var(--vg-primary)" }}
+                      />
+                    </div>
+                    <p className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
+                      در حال ساخت… <span className="vg-numeric">{Math.round(t.pending.progress ?? 0)}%</span>
+                    </p>
                   </div>
-                  <p className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-                    در حال ساخت… <span className="vg-numeric">{Math.round(t.pending.progress ?? 0)}%</span>
-                  </p>
                 </div>
-              </div>
-            ) : (
-              <div className="group relative size-full overflow-hidden" style={{ background: "var(--vg-surface)" }}>
-                <button onClick={() => setViewing(t.asset)} className="absolute inset-0" aria-label={`باز کردن — ${t.name}`}>
-                  <img src={t.asset.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-                  <span
-                    className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100"
-                    style={{ background: "rgba(0,0,0,0.25)" }}
-                  />
-                </button>
-                <TileActions onOpen={() => setViewing(t.asset)} onDownload={() => download(t.asset)} of={t.name} />
-              </div>
-            )
-          }
-        />
-      </div>
+              ) : (
+                <div className="group relative size-full overflow-hidden" style={{ background: "var(--vg-surface)" }}>
+                  <button onClick={() => setViewing(t.asset)} className="absolute inset-0" aria-label={`باز کردن — ${t.name}`}>
+                    <img src={t.asset.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+                    <span
+                      className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100"
+                      style={{ background: "rgba(0,0,0,0.25)" }}
+                    />
+                  </button>
+                  <TileActions onOpen={() => setViewing(t.asset)} onDownload={() => download(t.asset)} of={t.name} />
+                </div>
+              )
+            }
+          />
+        </div>
+      )}
 
       {viewing && (
         <AssetViewer
@@ -383,10 +439,10 @@ export default function StudioImage({
                     <button
                       key={c.key}
                       onClick={() => s.set(c.key, !s.input[c.key])}
-                      className="h-10 shrink-0 rounded-xl px-3 text-[13px] font-semibold"
+                      className={CHIP_CLASS}
                       style={{
-                        background: s.input[c.key] ? "var(--vg-primary-a18)" : "var(--vg-surface-overlay)",
-                        color: s.input[c.key] ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                        ...CHIP_STYLE,
+                        ...(s.input[c.key] ? { background: "var(--vg-primary-a18)", color: "var(--vg-primary-soft)" } : {}),
                       }}
                     >
                       {c.label}
@@ -406,8 +462,12 @@ export default function StudioImage({
                 )}
 
                 {/* The count stepper. Images are cheap enough to want four at a
-                    time; video never is, which is why only this studio has it. */}
-                <div className="flex h-10 shrink-0 items-center gap-1 rounded-xl px-1" style={{ background: "var(--vg-surface-overlay)" }}>
+                    time; video never is, which is why only this studio has it.
+
+                    Built from CHIP_CLASS so it is the same object as every other
+                    control — it was the one chip with its own padding, and at a
+                    glance the row read as "four chips and a widget". */}
+                <div className={`${CHIP_CLASS} gap-1 px-1`} style={CHIP_STYLE}>
                   <button
                     onClick={() => setCount((c) => Math.max(1, c - 1))}
                     className="grid size-7 place-items-center rounded-lg"
@@ -427,13 +487,11 @@ export default function StudioImage({
                   </button>
                 </div>
 
-                <button
-                  className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 text-[13px]"
-                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
-                >
-                  <PencilSimple size={14} />
-                  رسم
-                </button>
+                {/* The switch belongs in the row, not beside it.
+                    It is a control like the others — it changes what the button
+                    costs — and standing it outside the scroller gave it a shape
+                    and a height nothing else had. */}
+                <UnlimitedSwitch variant={s.variant} input={s.input} on={s.preferUnlimited} onChange={s.setPreferUnlimited} />
               </div>
 
               {/* See FormPanel: a locked model buys an upgrade button, not a
@@ -441,26 +499,34 @@ export default function StudioImage({
               {locked && !visitor ? (
                 <button
                   onClick={access.onUpgrade}
-                  className="flex h-[52px] w-[132px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[12.5px] font-bold"
+                  className={`${CHIP_CLASS} justify-center px-4`}
                   style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
                 >
                   <Lock size={14} weight="fill" />
                   {need ? <bdi>ارتقا به {need.name}</bdi> : "ارتقای پلن"}
                 </button>
               ) : (
+                /* One line and one height, like every control beside it.
+                   It was 52px and two-line to fit the price underneath, which
+                   made the primary action the one object in the row with its own
+                   geometry — and a row where the important thing is a different
+                   size is a row you read twice. The reference puts the cost
+                   inline for the same reason. Colour is what marks it now, and
+                   colour is enough: it is the only lime in the dock. */
                 <button
                   disabled={!visitor && !s.ready}
-                  onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input))}
-                  className="flex h-[52px] w-[132px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[13.5px] font-bold transition-opacity disabled:opacity-35"
+                  onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited))}
+                  className={`${CHIP_CLASS} justify-center px-4 transition-opacity disabled:opacity-35`}
                   style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <Sparkle size={14} weight="fill" />
-                    {visitor ? t("visitor_cta") : "بساز"}
-                  </span>
-                  <span className="flex items-center gap-1 text-[11.5px] font-semibold opacity-90">
+                  <Sparkle size={14} weight="fill" />
+                  {visitor ? t("visitor_cta") : "بساز"}
+                  <span className="flex items-center gap-1 opacity-90">
                     <CoinMark size={11} />
-                    <span className="vg-numeric">{s.price === null ? "—" : n(s.price * count)}</span>
+                    {/* The local table prices the metered pipe. When the other
+                        one is chosen and reachable, the figure is not a smaller
+                        price — there is no price. The quote still decides. */}
+                    <span className="vg-numeric">{freeNow ? t("unl_free") : s.price === null ? "—" : n(s.price * count)}</span>
                   </span>
                 </button>
               )}

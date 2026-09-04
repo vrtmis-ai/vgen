@@ -37,9 +37,12 @@ test("signing out through the port returns the app to the landing page", async (
   );
 
   await page.goto("/studio/image");
-  await expect(page.getByRole("button", { name: "پروفایل" })).toBeVisible();
+  // Profile is a row inside the account menu now, not a button on the bar. The
+  // avatar opens the menu; the balance and the way to top it up live there too.
+  await expect(page.getByRole("button", { name: /حساب کاربری/ })).toBeVisible();
 
-  await page.getByRole("button", { name: "پروفایل" }).click();
+  await page.getByRole("button", { name: /حساب کاربری/ }).click();
+  await page.getByRole("menuitem", { name: "پروفایل" }).click();
   await expect(page).toHaveURL(/\/profile$/);
 
   await page.getByRole("button", { name: "خروج از حساب" }).click();

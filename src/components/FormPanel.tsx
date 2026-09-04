@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "../runtime/providers/SessionProvider";
-import { CaretLeft, Image as ImageIcon, Lock, MusicNote, VideoCamera, Sparkle, PencilSimple } from "@phosphor-icons/react";
-import { type Family, type Variant } from "../data/models";
-import type { InputMap } from "./controls";
+import { CaretLeft, Lock, Sparkle, PencilSimple } from "@phosphor-icons/react";
+import { type Family, type Variant, variantRefs } from "../data/models";
+import { isImageSlot, pairsImages, refGroups, slotsInGroup } from "../lib/refSlots";
+import { RefUpload, type InputMap, type RefMap } from "./controls";
 import { useCreateState, valueLabel, rangeOf } from "../lib/useCreateState";
 import { ModelPicker } from "./ModelPicker";
 import { PresetPicker } from "./PresetPicker";
@@ -164,7 +165,7 @@ export function FormPanel({
   onGenerate,
 }: {
   families: Family[];
-  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
+  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, refs: RefMap) => void;
 }) {
   const { t, n } = useI18n();
   // A visitor sees the whole dock — models, controls, the price — and the one
@@ -187,6 +188,30 @@ export function FormPanel({
   const set = s.set;
   const setPrompt = s.setPrompt;
   const onFamily = s.setFamily;
+
+  /* The slots this model actually offers, and which group is on screen.
+     `variantRefs` resolves the variant's own list against the family's, which is
+     how "this variant has no slots" (`refs: null`) stays different from "inherit
+     the family's". */
+  const slots = variantRefs(family, variant);
+  const groups = refGroups(slots);
+  const [refTab, setRefTab] = useState<"reference" | "frame">("reference");
+  const activeTab = groups.includes(refTab) ? refTab : (groups[0] ?? "reference");
+  const shownSlots = slotsInGroup(slots, activeTab);
+  const pairs = pairsImages(shownSlots);
+
+  /* Files live here rather than in `useCreateState`, because they are object
+     URLs with a lifetime: switching model has to revoke them or the tab leaks a
+     blob per upload. */
+  const [refImages, setRefImages] = useState<RefMap>({});
+  useEffect(() => {
+    return () => {
+      for (const files of Object.values(refImages)) for (const file of files) URL.revokeObjectURL(file.url);
+    };
+    // Only on unmount — revoking on every change would kill the preview the
+    // user is still looking at.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     // The height cap is `md:` only. Applied at every width it clips the panel on
@@ -217,27 +242,61 @@ export function FormPanel({
           />
         )}
 
-        {/* Upload sits above the prompt, as its own card. A reference file is a
-            first-class input on most of this catalog, not an afterthought. */}
-        <Card className="px-3 py-4 text-center">
-          <div className="mb-2 flex justify-center gap-1.5">
-            {[ImageIcon, VideoCamera, MusicNote].map((Icon, i) => (
-              <span
-                key={i}
-                className="grid size-7 place-items-center rounded-lg"
-                style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+        {/* The model's actual slots, not a picture of an upload area.
+            This card used to be three static icons over "افزودن فایل / تصویر،
+            ویدیو یا صدا" — decoration. It accepted nothing, and the catalogue's
+            own slots never reached the screen, so a customer on a model that
+            *requires* a character image had no way to give it one.
+
+            Grouped the way the reference groups them: a frame is a position in
+            the clip and a reference is material to draw from, they are different
+            questions, and the tabs ask them separately. One group means no tabs
+            — a tab strip with a single tab is a label pretending to be a
+            choice. */}
+        {slots.length > 0 && (
+          <Card className="p-3">
+            {/* A segmented control, and a radiogroup rather than a tablist.
+                The reference marks these as radios and its canvas tabs as a
+                tablist, which is the right split: this picks a *value* — which
+                kind of input you are giving — while History / How-it-works moves
+                between panels. Two loose text buttons said neither. */}
+            {groups.length > 1 && (
+              <div
+                role="radiogroup"
+                aria-label={t("ref_kind")}
+                className="mb-3 flex gap-1 rounded-lg p-1"
+                style={{ background: "var(--vg-deep)" }}
               >
-                <Icon size={14} />
-              </span>
-            ))}
-          </div>
-          <p className="text-[12.5px]" style={{ color: "var(--vg-text)" }}>
-            افزودن فایل
-          </p>
-          <p className="text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
-            تصویر، ویدیو یا صدا
-          </p>
-        </Card>
+                {groups.map((g) => (
+                  <button
+                    key={g}
+                    role="radio"
+                    aria-checked={activeTab === g}
+                    onClick={() => setRefTab(g)}
+                    className="h-7 flex-1 rounded-md text-[12px] font-semibold transition-colors"
+                    style={{
+                      background: activeTab === g ? "var(--vg-surface-overlay)" : "transparent",
+                      color: activeTab === g ? "var(--vg-text)" : "var(--vg-text-muted)",
+                    }}
+                  >
+                    {t(g === "frame" ? "ref_frames" : "ref_references")}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              {shownSlots.map((slot) => (
+                <div key={slot.key} className={pairs && isImageSlot(slot) ? undefined : "col-span-2"}>
+                  <RefUpload
+                    slot={slot}
+                    images={refImages[slot.key] ?? []}
+                    onChange={(files) => setRefImages((prev) => ({ ...prev, [slot.key]: files }))}
+                  />
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         <Card className="p-3">
           <p className="mb-1 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
@@ -292,38 +351,13 @@ export function FormPanel({
           />
         )}
 
-        {/* Kling carries six variants and Wan five — separate models at
-            separate prices, not labels. A family with one gets no row. */}
-        {s.hasVariants && (
-          <Card className="p-1">
-            <div className="flex flex-wrap gap-1">
-              {family.variants.map((v) => {
-                const on = v.id === variant.id;
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => s.setVariant(v.id)}
-                    className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold transition-colors"
-                    style={{
-                      background: on ? "var(--vg-primary-a14)" : "transparent",
-                      color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
-                    }}
-                  >
-                    {v.label}
-                    {v.badge && (
-                      <span
-                        className="rounded px-1 py-0.5 text-[9.5px]"
-                        style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-faint)" }}
-                      >
-                        {v.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
-        )}
+        {/* No variant strip.
+            The row above opens `ModelPicker`, which lists this family's variants
+            and every other family in one panel — its own docstring says so, and
+            the image dock has worked that way since. Keeping a second row of
+            variant pills under it asked the customer to learn our data model
+            (family, then variant) before they could choose a model, and gave two
+            controls for one decision. The reference has one row here too. */}
 
         {/* A fixed set gets a select; a continuous range gets a real slider.
             Seedance takes any duration from 4 to 15 and Kling 2.5 takes 5 or 10
@@ -424,7 +458,7 @@ export function FormPanel({
         ) : (
           <button
             disabled={!visitor && !ready}
-            onClick={() => (visitor ? signIn() : onGenerate(family, variant, prompt.trim(), input))}
+            onClick={() => (visitor ? signIn() : onGenerate(family, variant, prompt.trim(), input, refImages))}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold transition-opacity disabled:opacity-35"
             style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
           >

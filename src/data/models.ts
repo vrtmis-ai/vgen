@@ -47,6 +47,9 @@ export type Control =
 export type SlotMedia = "image" | "video" | "audio";
 
 export interface RefSlot {
+  /** `frame` is a position in the clip; `reference` is material to draw from.
+   *  Absent means reference. See the contract for why they are separate. */
+  group?: "reference" | "frame";
   key: string;
   label: string;
   max: number;
@@ -100,6 +103,31 @@ export interface Variant {
   featureCode: string;
   /** Prompt character limit, when it differs from the family's. */
   maxPrompt?: number;
+  /**
+   * The flat-fee pipe, for the variants that have one.
+   *
+   * Same model, served two ways: metered bills per image and is quick, this one
+   * bills nothing per image and drops into a slower queue past a daily cap.
+   * `scripts/publish-unlimited.ts` seeds the plumbing; this is the half a
+   * browser is told, so it can offer the choice before asking for a price.
+   *
+   * `limits` names the settings it covers. Nano Banana runs unlimited to 2K and
+   * not at 4K, and the screen has to be able to say so before the switch is
+   * flipped rather than after a quote comes back metered.
+   *
+   * `minTier` is the lowest plan tier the grant is open to, and it is not the
+   * same number as the family's own `minTier`: Nano Banana opens at tier 2 and
+   * its grant at tier 3, so a Pro customer can reach the model and not the free
+   * pipe. Without it a switch labelled free renders for somebody who will be
+   * charged the metered price, which is the one failure a price control must
+   * not have. `dailyCap` is nullable because a grant may be genuinely uncapped.
+   *
+   * The shape mirrors `UnlimitedPipeSchema`, and the values come from
+   * `unlimited_entitlements` — never from a hand-written guess here. This
+   * literal exists so demo mode and the committed snapshot have something to
+   * agree with; `catalogSnapshot.test.ts` is what holds them together.
+   */
+  unlimited?: { dailyCap: number | null; minTier: 1 | 2 | 3; limits?: Record<string, string[]> };
   label: string; // short version label for the switcher
   badge?: string;
   refs?: RefSlot[] | null; // null = no input slots; undefined = inherit family.refs
@@ -313,12 +341,14 @@ export const FAMILIES: Family[] = [
         featureCode: "image_generate",
         label: "Pro",
         badge: "پرچم‌دار",
+        unlimited: { dailyCap: 50, minTier: 3, limits: { resolution: ["1K", "2K"] } },
       },
       {
         id: "nano-banana-2",
         featureCode: "image_generate",
         label: "نسخه ۲",
         badge: "جدید",
+        unlimited: { dailyCap: 50, minTier: 3, limits: { resolution: ["1K", "2K"] } },
         refs: [{ key: "image_input", label: "تصاویر ورودی (اختیاری)", max: 14 }],
         controls: [
           {
@@ -374,6 +404,7 @@ export const FAMILIES: Family[] = [
       },
     ],
     variants: [
+      // No `limits`: Seedream 4.5 has no resolution control to cap.
       { id: "seedream-4-5", featureCode: "image_generate", label: "۴٫۵" },
       { id: "seedream-5-lite", featureCode: "image_generate", label: "۵ Lite", badge: "ارزان" },
     ],
@@ -803,8 +834,8 @@ export const FAMILIES: Family[] = [
         // tail_image_url — instead of one image_urls array, and drops
         // aspect_ratio, which follows the start frame.
         refs: [
-          { key: "image_url", label: "فریم شروع (اختیاری)", max: 1 },
-          { key: "tail_image_url", label: "فریم پایان", max: 1, requires: "image_url" },
+          { key: "image_url", group: "frame" as const, label: "فریم شروع (اختیاری)", max: 1 },
+          { key: "tail_image_url", group: "frame" as const, label: "فریم پایان", max: 1, requires: "image_url" },
         ],
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
@@ -969,9 +1000,9 @@ export const FAMILIES: Family[] = [
         // and the image-to-video model drops it entirely — the frame follows the
         // first image.
         refs: [
-          { key: "first_frame_url", label: "فریم شروع (اختیاری)", max: 1, maxMb: 30 },
-          { key: "last_frame_url", label: "فریم پایان (اختیاری)", max: 1, maxMb: 30 },
-          { key: "first_clip_url", label: "کلیپ شروع (اختیاری)", max: 1, media: "video", maxMb: 30 },
+          { key: "first_frame_url", group: "frame" as const, label: "فریم شروع (اختیاری)", max: 1, maxMb: 30 },
+          { key: "last_frame_url", group: "frame" as const, label: "فریم پایان (اختیاری)", max: 1, maxMb: 30 },
+          { key: "first_clip_url", group: "frame" as const, label: "کلیپ شروع (اختیاری)", max: 1, media: "video", maxMb: 30 },
           { key: "driving_audio_url", label: "صدای هدایت‌گر (اختیاری)", max: 1, media: "audio", maxMb: 50 },
         ],
         controls: [
@@ -1076,7 +1107,7 @@ export const FAMILIES: Family[] = [
         label: "۲٫۷ مرجع",
         refs: [
           { key: "reference_image", label: "تصاویر مرجع (الزامی)", max: 5, required: true },
-          { key: "first_frame", label: "فریم شروع (اختیاری)", max: 1 },
+          { key: "first_frame", group: "frame" as const, label: "فریم شروع (اختیاری)", max: 1 },
         ],
         controls: [
           {

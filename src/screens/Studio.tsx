@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { FolderSimple, BookOpen } from "@phosphor-icons/react";
+import { FolderSimple, BookOpen, SlidersHorizontal, TextAa, Sparkle } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
 import { type Family, type ModelKind, type Variant } from "../data/models";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { VendorMark } from "../components/VendorMark";
-import type { InputMap } from "../components/controls";
+import type { InputMap, RefMap } from "../components/controls";
 import { FormPanel } from "../components/FormPanel";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { type Generation } from "../lib/gallery";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { riseItem, riseParent } from "../lib/motion";
-import { useI18n } from "../lib/i18n";
+import { useI18n, type TKey } from "../lib/i18n";
 
 /* ---------------------------------------------------------------------------
    The canvas.
@@ -26,16 +26,27 @@ import { useI18n } from "../lib/i18n";
    below `md`, where the bar spans the column.
    --------------------------------------------------------------------------- */
 
-const KIND_EMPTY: Record<ModelKind, string> = {
-  image: "مدل را انتخاب کن، صحنه‌ات را بنویس، و دکمه را بزن. هزینه‌ی هر تصویر روی دکمه نوشته شده — قبل از اینکه بزنی.",
-  video: "مدل را انتخاب کن، صحنه‌ات را بنویس، و دکمه را بزن. هزینه‌ی هر ویدیو روی دکمه نوشته شده — قبل از اینکه بزنی.",
-  audio: "صدا را انتخاب کن، متنت را بنویس، و دکمه را بزن. هزینه روی دکمه نوشته شده — قبل از اینکه بزنی.",
+/* Through `useI18n` rather than inlined here. These were Persian string
+   literals, so the whole explainer stayed Persian in English mode — on the one
+   surface whose job is explaining the product to somebody who has not used it. */
+const KIND_EMPTY: Record<ModelKind, TKey> = {
+  image: "st_how_image",
+  video: "st_how_video",
+  audio: "st_how_audio",
 };
 
-const STEPS = [
-  { title: "مدل را انتخاب کن", body: "هر مدل نقطه‌ی قوت خودش را دارد. کارت بالای پنل نشان می‌دهد الان کدام فعال است." },
-  { title: "توصیف کن", body: "هرچه دقیق‌تر بنویسی خروجی نزدیک‌تر است. نور، لنز، حرکت دوربین." },
-  { title: "بساز", body: "قیمت روی دکمه است. سکه فقط وقتی کم می‌شود که خروجی ساخته شود." },
+/**
+ * The three steps, and the slot each one's picture will land in.
+ *
+ * `art` is deliberately absent for now: the reference illustrates every step
+ * with a shot of its own product, and borrowing stock photography to stand in
+ * would claim it is ours. Until real screenshots exist the icon carries it, and
+ * filling `art` is the whole change.
+ */
+const STEPS: { title: TKey; body: TKey; Icon: typeof SlidersHorizontal; art?: string }[] = [
+  { title: "st_step1_title", body: "st_step1_body", Icon: SlidersHorizontal },
+  { title: "st_step2_title", body: "st_step2_body", Icon: TextAa },
+  { title: "st_step3_title", body: "st_step3_body", Icon: Sparkle },
 ];
 
 function OutputCard({ gen }: { gen: Generation }) {
@@ -120,9 +131,10 @@ export default function Studio({
 }: {
   kind: ModelKind;
   gens: Generation[];
-  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
+  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, refs: RefMap) => void;
   onOpen: (g: Generation) => void;
 }) {
+  const { t } = useI18n();
   const catalogFamilies = useCatalogFamilies();
   const families = useMemo(() => catalogFamilies.filter((f) => f.kind === kind), [catalogFamilies, kind]);
   const [family, setFamily] = useState<Family>(() => families[0]!);
@@ -155,37 +167,40 @@ export default function Studio({
         {/* Their canvas heads with two pill tabs on the leading side and the
             view controls on the trailing side — 120x32 at radius 8. The row is
             always present; it does not appear only once there is history. */}
-        {mine.length > 0 && (
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1">
-              {[
-                { k: "history" as const, Icon: FolderSimple, label: "تاریخچه" },
-                { k: "how" as const, Icon: BookOpen, label: "چطور کار می‌کند" },
-              ].map(({ k, Icon, label }) => (
-                <button
-                  key={k}
-                  onClick={() => setCanvasTab(k)}
-                  aria-pressed={canvasTab === k}
-                  className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
-                  style={{
-                    background: canvasTab === k ? "var(--vg-surface-overlay)" : "transparent",
-                    color: canvasTab === k ? "var(--vg-text)" : "var(--vg-text-muted)",
-                  }}
-                >
-                  <Icon size={13} />
-                  {label}
-                </button>
-              ))}
-            </div>
-            {/* Video gets the list as well as the size control. There are few
+        {/* Always, not once there is history.
+            The tabs were gated on `mine.length > 0`, so a first-time visitor —
+            the one person who needs "how it works" — had no way to reach it, and
+            the canvas opened with no chrome at all. The reference keeps this row
+            up permanently for the same reason. */}
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1">
+            {[
+              { k: "history" as const, Icon: FolderSimple, label: "تاریخچه" },
+              { k: "how" as const, Icon: BookOpen, label: "چطور کار می‌کند" },
+            ].map(({ k, Icon, label }) => (
+              <button
+                key={k}
+                onClick={() => setCanvasTab(k)}
+                aria-pressed={canvasTab === k}
+                className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
+                style={{
+                  background: canvasTab === k ? "var(--vg-surface-overlay)" : "transparent",
+                  color: canvasTab === k ? "var(--vg-text)" : "var(--vg-text-muted)",
+                }}
+              >
+                <Icon size={13} />
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* Video gets the list as well as the size control. There are few
                 enough clips that reading which prompt produced which is a real
                 way to look at them — unlike the image wall, forty frames you
                 scan. Hidden on the explainer, which has nothing to lay out. */}
-            {canvasTab === "history" && (
-              <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
-            )}
-          </div>
-        )}
+          {canvasTab === "history" && mine.length > 0 && (
+            <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
+          )}
+        </div>
 
         {/* "How it works" stays reachable once there is history, because the
             person who needs it most is the one whose first two came out wrong. */}
@@ -196,32 +211,49 @@ export default function Studio({
                 is the only useful thing the space can hold. */}
             {/* h2, not h1: the sr-only page title above owns level one, and two
                 h1s on a page is the same orientation problem as none. */}
-            <h2
-              className="text-[34px] font-extrabold leading-[1.15]"
-              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-            >
-              با یک جمله بساز
-            </h2>
-            <p className="mt-2 max-w-[52ch] text-[13.5px] leading-7" style={{ color: "var(--vg-text-muted)" }}>
-              {KIND_EMPTY[kind]}
+            {/* Latin ghost label over the heading, the same device the image
+                studio uses. The reference buys presence with uppercase; Persian
+                has none, and this is what the design system added as its answer.
+                Latin by contract, hence lang="en". */}
+            <span className="t-ghost block" lang="en">
+              {t("st_video_label")}
+            </span>
+            <h2 className="t-display mt-2 text-balance">{t("st_empty_title")}</h2>
+            <p className="t-caption mt-2 max-w-[52ch] text-pretty" style={{ color: "var(--vg-text-muted)" }}>
+              {t(KIND_EMPTY[kind])}
             </p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              {STEPS.map((s, i) => (
-                <div key={s.title}>
+              {STEPS.map((step) => (
+                <div key={step.title}>
+                  {/* An illustration slot, not a number.
+                      The reference puts a picture of the step here; ours held a
+                      big grey numeral, which was the heaviest thing on the canvas
+                      and said nothing the reading order does not already say.
+
+                      `art` is the field a real screenshot lands in. Until one
+                      exists the slot carries a brand wash and the step's own
+                      icon — the same `cover ?? grad` fallback every model card in
+                      this codebase already uses, rather than stock photography
+                      standing in for our product. */}
                   <div
-                    className="mb-3 grid aspect-[4/3] place-items-center rounded-xl"
-                    style={{ background: "var(--vg-surface)", border: "1px dashed var(--vg-border)" }}
+                    className="mb-3 grid aspect-[4/3] place-items-center overflow-hidden rounded-xl"
+                    style={{
+                      background: step.art ? undefined : "linear-gradient(135deg, var(--vg-accent-a20), var(--vg-surface-overlay) 70%)",
+                      border: "1px solid var(--vg-border-subtle)",
+                    }}
                   >
-                    <span className="vg-numeric text-[26px] font-extrabold" style={{ color: "var(--vg-border-strong)" }}>
-                      {i + 1}
-                    </span>
+                    {step.art ? (
+                      <img src={step.art} alt="" className="size-full object-cover" />
+                    ) : (
+                      <step.Icon size={26} weight="light" style={{ color: "var(--vg-text-muted)" }} />
+                    )}
                   </div>
-                  <p className="text-[13.5px] font-bold" style={{ color: "var(--vg-text)" }}>
-                    {s.title}
+                  <p className="t-title" style={{ color: "var(--vg-text)" }}>
+                    {t(step.title)}
                   </p>
-                  <p className="mt-1 text-[12px] leading-5" style={{ color: "var(--vg-text-muted)" }}>
-                    {s.body}
+                  <p className="t-caption mt-1" style={{ color: "var(--vg-text-muted)" }}>
+                    {t(step.body)}
                   </p>
                 </div>
               ))}
