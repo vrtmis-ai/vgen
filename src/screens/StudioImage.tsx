@@ -258,9 +258,13 @@ export default function StudioImage({
       {/* Size only, no list. This surface is a wall of frames — it exists so you
           can scan pictures, and a list of them is the same wall with the
           pictures made small. The reference does not offer one here either. */}
-      {/* Nothing to size when there is nothing on the wall. */}
+      {/* Nothing to size when there is nothing on the wall.
+
+          The offset reads the banner: 2.75rem is the top bar, and the strip
+          above it publishes its own height. Without the second term this row
+          slid under the bar whenever the banner was open. */}
       {tiles.length > 0 && (
-        <div className="sticky top-11 z-20 flex justify-start px-3 py-2">
+        <div className="sticky top-[calc(2.75rem+var(--vg-banner-height,0px))] z-20 flex justify-start px-3 py-2">
           <ViewControls mode="grid" density={view.density} onMode={() => {}} onDensity={view.setDensity} modes={false} />
         </div>
       )}
