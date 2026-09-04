@@ -31,7 +31,7 @@ function healthyDependencies(): ApiDependencies {
     customerCampaigns: { getActive: vi.fn(async () => null) },
     checkout: { createOrder: vi.fn(async () => ({ outcome: "unknown_plan" }) as CreateOrderOutcome) },
     customerWallet: {
-      getCurrent: vi.fn(async () => ({ spendable: 0, grants: [] })),
+      getCurrent: vi.fn(async () => ({ spendable: 0, grants: [], tier: 1 as const })),
     },
     customerCatalog: {
       list: vi.fn(async () => ({ version: "bootstrap-v1", publishedAt: 0, families: [] })),
@@ -719,6 +719,7 @@ describe("customer wallet", () => {
     }));
     dependencies.customerWallet.getCurrent = vi.fn(async () => ({
       spendable: 12,
+      tier: 1 as const,
       grants: [
         {
           id: "00000000-0000-4000-8000-000000000010",

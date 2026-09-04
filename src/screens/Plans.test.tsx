@@ -11,7 +11,7 @@ import Plans from "./Plans";
 import type { Plan } from "../runtime/contracts/plans";
 import type { Wallet } from "../runtime/contracts/wallet";
 
-const WALLET: Wallet = { spendable: 12, grants: [] };
+const WALLET: Wallet = { spendable: 12, grants: [], tier: 1 };
 
 /**
  * The screen asks for the running campaign, so it needs the service port and a
