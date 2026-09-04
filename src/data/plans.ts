@@ -189,8 +189,8 @@ export function auditPlans(plans: readonly Plan[]): string[] {
   }
   // The anchors below feed every plan card's "≈N images / ≈N videos". They no
   // longer throw when a rate disappears, so this is the only thing that notices.
-  if (COST_PER_IMAGE == null) problems.push(`pricing anchor "gpt-image-2" lost its rate — plan cards drop the image estimate`);
-  if (COST_PER_VIDEO5S == null) problems.push(`pricing anchor "kling-3" lost its rate — plan cards drop the video estimate`);
+  if (COST_PER_IMAGE == null) problems.push(`pricing anchor "${IMAGE_ANCHOR_ID}" lost its rate — plan cards drop the image estimate`);
+  if (COST_PER_VIDEO == null) problems.push(`pricing anchor "${VIDEO_ANCHOR_ID}" lost its rate — plan cards drop the video estimate`);
   return problems;
 }
 
@@ -265,8 +265,20 @@ export function tierUnlockNames(tier: Tier): string[] {
 }
 
 /* ---- "what can I make with this?" — derived from the real rate table ------
-   anchors: a popular image (GPT Image 1K) and a popular video (Kling pro 5s).
-   Derived, not hardcoded: repricing models updates every plan card. */
+   anchors: the cheapest ordinary image and video every plan can actually run.
+   Derived, not hardcoded: repricing models updates every plan card.
+
+   The anchor has to clear `minTier`, or the card quotes a model the buyer
+   cannot reach. Kling 3.0 was the video anchor and is tier 2, so Starter,
+   Basic, Flow and Plus all carried a count for a model locked to them —
+   the number was not merely pessimistic, it was untrue for four of seven plans.
+
+   Cheapest that is still an honest answer to "what can I make": a utility is
+   not a generation, so Recraft's upscale (0.1) and background removal (0.2)
+   are out even though they are cheaper. Qwen Image is a general text-to-image
+   model at the same provider cost ($0.02) a competitor quotes its own headline
+   from, and Hailuo 2.3 Standard is the least expensive video any tier can
+   reach. */
 /**
  * Rates can be null (combination not offered), and an anchor going null means
  * the catalog moved under us.
@@ -281,11 +293,11 @@ function anchor(id: string, input: InputMap): number | null {
   return coinsForVariantId(id, input, { chars: 0, clipSeconds: 0 });
 }
 
-const IMAGE_ANCHOR_ID = "gpt-image-2";
-const VIDEO_ANCHOR_ID = "kling-3";
+const IMAGE_ANCHOR_ID = "qwen-image";
+const VIDEO_ANCHOR_ID = "hailuo-2-3-standard";
 
-export const COST_PER_IMAGE = anchor(IMAGE_ANCHOR_ID, { resolution: "1K" });
-export const COST_PER_VIDEO5S = anchor(VIDEO_ANCHOR_ID, { mode: "pro", duration: 5, sound: false });
+export const COST_PER_IMAGE = anchor(IMAGE_ANCHOR_ID, {});
+export const COST_PER_VIDEO = anchor(VIDEO_ANCHOR_ID, { resolution: "768P", duration: "6" });
 
 /**
  * What the two headline estimates were priced against, by name.
@@ -316,9 +328,9 @@ export const VIDEO_ANCHOR_NAME = anchorName(VIDEO_ANCHOR_ID);
 export function estImages(plan: Plan): number | null {
   return COST_PER_IMAGE == null ? null : Math.floor(plan.coinsPerTerm / COST_PER_IMAGE);
 }
-/** 5-second videos per month on this plan, or null if the anchor lost its rate. */
+/** 6-second videos per month on this plan, or null if the anchor lost its rate. */
 export function estVideos(plan: Plan): number | null {
-  return COST_PER_VIDEO5S == null ? null : Math.floor(plan.coinsPerTerm / COST_PER_VIDEO5S);
+  return COST_PER_VIDEO == null ? null : Math.floor(plan.coinsPerTerm / COST_PER_VIDEO);
 }
 
 /* ---------------------------------------------------------------------------
