@@ -19,6 +19,23 @@ export interface Generation {
   durationMs?: number | undefined;
   /** URL in Vgen-owned storage, not an expiring provider URL. */
   outputUrl?: string | undefined;
+  /**
+   * The stored asset behind `outputUrl`, so this generation can be an *input*
+   * to the next one. "To video" hands a finished image to a video model as its
+   * opening frame, and the quote names references by asset id — the URL is
+   * signed and expiring, so it is the wrong handle to keep for that.
+   */
+  outputAssetId?: string | undefined;
+  /**
+   * When `outputUrl` stops working, from the job's `urlsExpireAt`.
+   *
+   * The URL is signed for an hour. This list lives in localStorage forever, so
+   * without an expiry to check against, every gallery older than that hour was
+   * a wall of broken images — the file was fine, the signature was not, and
+   * nothing ever asked for a new one. The API has always sent this; nothing
+   * read it.
+   */
+  outputUrlExpiresAt?: number | undefined;
   /** Server-computed perceptual hash, opaque to the client. */
   phash?: string | undefined;
   status: GenStatus;
@@ -42,6 +59,8 @@ const GenerationSchema: z.ZodType<Generation> = z.object({
   h: z.number().int().positive(),
   durationMs: z.number().int().nonnegative().optional(),
   outputUrl: z.string().min(1).optional(),
+  outputAssetId: z.string().min(1).optional(),
+  outputUrlExpiresAt: z.number().int().nonnegative().optional(),
   phash: z.string().min(1).optional(),
   status: z.enum(["running", "done"]),
   progress: z.number().min(0).max(100).optional(),

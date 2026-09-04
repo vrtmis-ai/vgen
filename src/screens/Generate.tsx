@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, CaretDown, Lock, Sparkle, Stack } from "@phosphor-icons/react";
-import { defaultInput, variantControls, variantRefs, variantMaxPrompt, type Family, type Variant } from "../data/models";
+import { ArrowRight, CaretDown, Lock, Sparkle, Stack, X } from "@phosphor-icons/react";
+import { defaultInput, variantControls, variantRefs, variantMaxPrompt, type Family, type ModelKind, type Variant } from "../data/models";
 import { priceCoins, priceRefusal } from "../data/pricing";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
 import { ControlField, RefUpload, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
-import { isVideoUrl } from "../lib/format";
+import { isVideoUrl, promptDir } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { generationErrorMessage, validateGenerationInput } from "../features/generation/validation";
 
@@ -17,23 +17,62 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return <div className="text-[12px] font-medium text-ink2">{children}</div>;
 }
 
+/**
+ * What to ask for, in the words the studio for that kind already uses.
+ *
+ * This screen is reached from an effect tile or a model link and covers all
+ * three kinds, so it cannot ask for "a scene" when the model makes speech. The
+ * strings are the studios' own — StudioImage, FormPanel and StudioAudio — so a
+ * customer who arrives here instead of there is asked the same question.
+ */
+const PROMPT_PLACEHOLDER: Record<ModelKind, string> = {
+  image: "تصویری که در ذهن داری را توصیف کن.",
+  video: "صحنه‌ات را با جزئیات توصیف کن.",
+  audio: "دقیقاً همان چیزی که می‌خواهی خوانده شود.",
+};
+
 export interface GenerationReceipt {
   coins: number;
   expiresAt: number;
+}
+
+/** One of the account's own finished generations, carried in as an input. */
+export interface StartFrame {
+  /** What the quote names it by. The URL is signed and cannot be stored. */
+  assetId: string;
+  /** For the preview only, so the user can see which frame came with them. */
+  url: string;
+  kind: "image" | "video" | "audio";
 }
 
 export default function Generate({
   family,
   initialVariantId,
   initialPrompt,
+  startFrom,
   onBack,
   onGenerate,
 }: {
   family: Family;
   initialVariantId?: string | undefined;
   initialPrompt?: string | undefined;
+  /**
+   * "To video": the image the user pressed the button on, already in our store.
+   *
+   * It fills the first slot of this variant that accepts its kind, rather than
+   * a named one, because the slot differs per model — `input_urls` on Seedance
+   * 1.5 Pro, `reference_image_urls` on 2.5, `image_url` on Hailuo — and the
+   * variant can be changed after arriving here.
+   */
+  startFrom?: StartFrame | undefined;
   onBack: () => void;
-  onGenerate: (prompt: string, input: InputMap, variant: Variant, refs: RefMap) => Promise<GenerationReceipt | null>;
+  onGenerate: (
+    prompt: string,
+    input: InputMap,
+    variant: Variant,
+    refs: RefMap,
+    assetRefs: Record<string, string[]>,
+  ) => Promise<GenerationReceipt | null>;
 }) {
   const firstVariant = family.variants.find((v) => v.id === initialVariantId) ?? family.variants[0]!;
   const [variant, setVariant] = useState<Variant>(firstVariant);
@@ -69,9 +108,31 @@ export default function Generate({
   }
 
   const setValue = (key: string, val: InputValue) => setInput((p) => ({ ...p, [key]: val }));
+
+  /* The carried frame and its slot, both derived on every render. Dismissal is
+     the only part held in state.
+
+     Holding the frame itself in `useState(startFrom)` looked equivalent and was
+     not: the generations list hydrates from localStorage in an effect, so a
+     cold load of this URL renders once with no list, `startFrom` undefined, and
+     a state initialiser latches that undefined forever — the frame arrives a
+     tick later and is never seen again.
+
+     Resolving the slot per render pays a second way: the slot lists differ per
+     variant, so switching model re-answers "which field does this go in" for
+     free, where a copy would keep naming the old variant's key.
+
+     Dismissable, because arriving with an attachment you did not ask for and
+     cannot remove is worse than arriving with none. */
+  const [dismissed, setDismissed] = useState(false);
+  const carried = dismissed ? null : (startFrom ?? null);
+  const carriedSlot = carried ? refs.find((slot) => (slot.media ?? "image") === carried.kind) : undefined;
+  const assetRefs: Record<string, string[]> = carried && carriedSlot ? { [carriedSlot.key]: [carried.assetId] } : {};
+
   // Some models (image-to-video) are rejected outright without their input image.
   // Blocking here is cheaper than letting the provider 422 a paid job.
-  const filled = (key: string) => (refImages[key]?.length ?? 0) > 0;
+  // Either source fills a slot: a carried frame is as present as a picked file.
+  const filled = (key: string) => (refImages[key]?.length ?? 0) + (assetRefs[key]?.length ?? 0) > 0;
   // Name the slot that's actually missing — "needs an input image" is wrong and
   // confusing when the empty one is a video.
   const missingRequired = refs.find((s) => s.required && !filled(s.key));
@@ -121,16 +182,15 @@ export default function Generate({
   const access = useAccess();
   const locked = !access.can(family.id);
   const need = locked ? access.needs(family.id) : null;
-  const validation = validateGenerationInput({ family, variant, prompt, input, refs: refImages });
-  const hasReferenceFiles = Object.values(refImages).some((files) => files.length > 0);
-  const canGenerate = validation.valid && !clipUnreadable && !hasReferenceFiles && price != null;
+  const validation = validateGenerationInput({ family, variant, prompt, input, refs: refImages, assetRefs });
+  const canGenerate = validation.valid && !clipUnreadable && price != null;
 
   async function submit() {
     if (!canGenerate || submitting) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const nextReceipt = await onGenerate(prompt.trim(), input, variant, refImages);
+      const nextReceipt = await onGenerate(prompt.trim(), input, variant, refImages, assetRefs);
       if (nextReceipt) setReceipt(nextReceipt);
       else setSubmitError("درخواست ساخته نشد؛ ورودی‌ها را دوباره بررسی کنید.");
     } catch (error: unknown) {
@@ -221,6 +281,34 @@ export default function Generate({
                 slot={slot}
                 images={refImages[slot.key] ?? []}
                 onChange={(imgs) => setRefImages((p) => ({ ...p, [slot.key]: imgs }))}
+                leading={
+                  /* The carried frame is one of this slot's inputs, so it is a
+                     tile in the same row — first, because it arrived first.
+                     There are no bytes behind it to hand RefUpload: the file is
+                     already ours and travels as an id. */
+                  carriedSlot?.key === slot.key && carried ? (
+                    <div
+                      className="relative size-[84px] overflow-hidden rounded-2xl border border-line bg-card2"
+                      title="از کارهای خودت — فریم شروع"
+                    >
+                      {carried.kind === "video" ? (
+                        <video src={carried.url} muted playsInline preload="metadata" className="size-full object-cover" />
+                      ) : (
+                        <img src={carried.url} alt="" className="size-full object-cover" />
+                      )}
+                      <button
+                        onClick={() => setDismissed(true)}
+                        aria-label="حذف فریم شروع"
+                        className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-bg/70 backdrop-blur-sm"
+                      >
+                        <X size={13} weight="bold" />
+                      </button>
+                      <span className="absolute inset-x-0 bottom-0 bg-bg/70 py-0.5 text-center text-[9.5px] text-ink2 backdrop-blur-sm">
+                        فریم شروع
+                      </span>
+                    </div>
+                  ) : null
+                }
               />
             ))}
           </div>
@@ -241,13 +329,23 @@ export default function Generate({
                 <span className="text-[11px] text-ink3">{t("g_prompt_hint")}</span>
               )}
             </div>
+            {/* `dir="auto"` rather than a forced `ltr`.
+                The field was pinned left-to-right, so a Persian prompt — the
+                first language of this product — was laid out against the wrong
+                edge, starting at the far side of the box from where the writer
+                is reading and leaving the whole reading edge empty. `auto` lets
+                the first strong character decide, so English sits left and
+                Persian sits right, each one starting where its reader starts.
+                The placeholder matches the studios' wording for the same
+                reason: this screen was the only one asking in English. */}
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe what you want to create…"
+              dir={promptDir(prompt)}
+              placeholder={PROMPT_PLACEHOLDER[family.kind]}
               rows={4}
               maxLength={maxPrompt ?? undefined}
-              className="ltr w-full resize-none rounded-bezel border border-line bg-card p-4 text-[14px] leading-relaxed text-ink placeholder:text-ink3 focus:border-accent focus:outline-none"
+              className="w-full resize-none rounded-bezel border border-line bg-card p-4 text-[14px] leading-relaxed text-ink transition-colors duration-[--vg-dur-fast] placeholder:text-ink3 focus:border-accent focus:outline-none"
             />
           </div>
         )}
@@ -286,65 +384,70 @@ export default function Generate({
             </>
           )}
         </div>
-      </div>
+        {/* The CTA. Fixed to the viewport floor on a phone, where the thumb is.
 
-      {/* The CTA. Fixed to the viewport floor on a phone, where the thumb is;
-          in flow at the end of the column on desktop, where a bar pinned to a
-          480px strip in the middle of the screen was just wrong. */}
-      <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-[480px] -translate-x-1/2 border-t border-line bg-surface/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-xl md:static md:mx-auto md:mt-8 md:max-w-[520px] md:translate-x-0 md:rounded-2xl md:border md:pb-4 md:backdrop-blur-none">
-        {/* This screen is reached from an effect tile, so the model is chosen
+            On desktop it is a cell of the same two-column grid as everything
+            above it, pinned to column 1 — the prompt's column, which in RTL is
+            the right one. It used to be a 520px block centred on the page,
+            which put its edges at 258 and 778 while the columns sat at 32–506
+            and 530–1004: aligned to neither, and reading as a stray card
+            floating between them. Now its edges are the prompt's edges.
+
+            Fixed positioning takes it out of flow on mobile, so sitting inside
+            the grid costs the phone layout nothing. */}
+        <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-[480px] -translate-x-1/2 border-t border-line bg-surface/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-xl md:static md:col-start-1 md:mt-1 md:max-w-none md:translate-x-0 md:rounded-2xl md:border md:px-4 md:pb-4 md:backdrop-blur-none">
+          {/* This screen is reached from an effect tile, so the model is chosen
             for the user by the preset rather than picked in a menu. It has to
             carry the same gate as the studios — otherwise the one route where
             the user never saw the picker is the one that skips the lock. */}
-        {locked ? (
-          <button
-            onClick={access.onUpgrade}
-            className="flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold"
-            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-          >
-            <Lock size={16} weight="fill" />
-            {need ? (
-              <>
-                ارتقا به <bdi>{need.name}</bdi>
-              </>
-            ) : (
-              "ارتقای پلن"
-            )}
-          </button>
-        ) : (
-          <button
-            onClick={() => (visitor ? signIn() : void submit())}
-            disabled={!visitor && (!canGenerate || submitting)}
-            className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
-          >
-            <Sparkle size={18} weight="fill" />
-            <span>{visitor ? t("visitor_cta") : submitting ? "در حال ثبت…" : t("g_create")}</span>
-            {price != null && !clipUnreadable && (
-              <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
-                <CoinMark size={12} />
-                {n(price)}
-              </span>
-            )}
-          </button>
-        )}
-        <div className="pt-1.5 text-center text-[10.5px] text-ink3">
-          {submitError
-            ? submitError
-            : receipt
-              ? `هزینهٔ نهایی سرور: ${n(receipt.coins)} · اعتبار قیمت تا ${new Date(receipt.expiresAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}`
-              : missingRequired
-                ? `${t("g_need_also")} ${missingRequired.label}`
-                : orphanNeeds
-                  ? `${t("g_need_also")} ${orphanNeeds.label}`
-                  : clipUnreadable
-                    ? t("g_clip_unreadable")
-                    : hasReferenceFiles
-                      ? "آپلود فایل مرجع پس از اتصال سرویس آپلود فعال می‌شود؛ فعلاً هزینه‌ای کسر نمی‌شود."
+          {locked ? (
+            <button
+              onClick={access.onUpgrade}
+              className="flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold"
+              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
+            >
+              <Lock size={16} weight="fill" />
+              {need ? (
+                <>
+                  ارتقا به <bdi>{need.name}</bdi>
+                </>
+              ) : (
+                "ارتقای پلن"
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={() => (visitor ? signIn() : void submit())}
+              disabled={!visitor && (!canGenerate || submitting)}
+              className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
+            >
+              <Sparkle size={18} weight="fill" />
+              <span>{visitor ? t("visitor_cta") : submitting ? "در حال ثبت…" : t("g_create")}</span>
+              {price != null && !clipUnreadable && (
+                <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
+                  <CoinMark size={12} />
+                  {n(price)}
+                </span>
+              )}
+            </button>
+          )}
+          <div className="pt-1.5 text-center text-[10.5px] text-ink3">
+            {submitError
+              ? submitError
+              : receipt
+                ? `هزینهٔ نهایی سرور: ${n(receipt.coins)} · اعتبار قیمت تا ${new Date(receipt.expiresAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}`
+                : missingRequired
+                  ? `${t("g_need_also")} ${missingRequired.label}`
+                  : orphanNeeds
+                    ? `${t("g_need_also")} ${orphanNeeds.label}`
+                    : clipUnreadable
+                      ? t("g_clip_unreadable")
                       : validation.issues[0]
                         ? validation.issues[0].message
                         : price != null
                           ? `≈ ${n(price)} ${t("g_est_for")}`
                           : t(refusal === "not_offered" ? "g_no_rate" : "g_no_price")}
+          </div>
         </div>
       </div>
     </div>

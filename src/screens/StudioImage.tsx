@@ -12,6 +12,7 @@ import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
 import { ModelChip } from "../components/ModelPicker";
+import { promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { useAccess } from "../lib/access";
@@ -355,6 +356,7 @@ export default function StudioImage({
                 value={s.prompt}
                 onChange={(e) => s.setPrompt(e.target.value)}
                 rows={2}
+                dir={promptDir(s.prompt)}
                 placeholder="تصویری که در ذهن داری را توصیف کن."
                 className="hide-scrollbar min-h-[52px] w-full resize-none bg-transparent text-[13.5px] leading-6 outline-none"
                 style={{ color: "var(--vg-text)" }}

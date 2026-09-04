@@ -1010,18 +1010,24 @@ could name them is a request that could ask to be billed as something cheaper.
   generation might not start. Quoting is deliberately **not** refused when the
   account is full — the price is still the price, and a client that knows it is
   at 4 of 4 can say so instead of finding out by being rejected.
-- **`referenceAssetIds` names uploads by id, never by URL.** Upload through
+- **`referenceAssetIds` names stored files by id, never by URL.** Upload through
   `POST /assets` first; the ids go here as `slot key -> ordered asset ids`,
   where the slot key is the catalogue's (`image_urls`, `first_frame_url`) and
   the order matters — first and last frame are two entries in one slot on
   several video models.
-- **An asset id is not an authorisation.** Every id is checked against the
-  caller's own uploads before anything is priced: it must be their account's,
-  `origin = 'upload'`, and not deleted. A caller naming somebody else's private
-  upload would never see the bytes, but would see the picture made from them,
-  which is the same leak wearing a hat. A failure is `unknown_reference`, 404,
-  with one message for missing, deleted and somebody else's — telling those
-  apart would make this route an oracle for whether an asset id exists.
+- **A finished generation is also a legal input.** The `assetId` on a job's
+  output can be named here directly, which is what "to video" on an image does:
+  the file is already ours, already the caller's, and already checked, so making
+  the client download and re-upload it would store a second copy of the same
+  bytes to arrive at the same row. Both origins are accepted — `upload` and
+  `generated` — and nothing else.
+- **An asset id is not an authorisation.** Every id is checked before anything
+  is priced: it must be the caller's account's, one of those two origins, and
+  not deleted. A caller naming somebody else's private file would never see the
+  bytes, but would see the picture made from them, which is the same leak
+  wearing a hat. A failure is `unknown_reference`, 404, with one message for
+  missing, deleted, wrong-origin and somebody else's — telling those apart would
+  make this route an oracle for whether an asset id exists.
 - **All or nothing.** One unusable id refuses the whole quote rather than
   pricing what is left. Partial acceptance is the silent-drop bug in a new hat:
   two faces attached, one refused, and the picture comes back made from one face

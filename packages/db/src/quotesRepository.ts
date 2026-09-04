@@ -137,8 +137,13 @@ export function coversSettings(covers: Record<string, string[]> | null, params: 
  * Four conditions, and each excludes a real row that exists:
  *
  *   - `account_id` is the caller's, which is the actual authorisation
- *   - `origin = 'upload'` so a *generated* asset cannot be fed back in by id;
- *     that may become a feature one day and it should be a deliberate one
+ *   - `origin in ('upload','generated')` — the deliberate feature this comment
+ *     used to hold the door open for. "To video" on a finished image hands that
+ *     image to a video model, and the file is already here, already this
+ *     account's, and already checked; making the browser download and re-upload
+ *     it would store a second copy of the same bytes to arrive at the same row.
+ *     `system` and `derived` stay out: nobody picked those, and a system asset
+ *     has a null `account_id` so it could never have passed the line above
  *   - `deleted_at is null`, because deleting an upload has to mean something
  *   - the id parses as a uuid at all, which is checked by the contract before
  *     this ever runs
@@ -152,7 +157,7 @@ async function usableReferenceCount(sql: Sql, accountId: string, ids: string[]):
     select count(distinct id)::text as n from assets
     where id = any(${ids}::uuid[])
       and account_id = ${accountId}
-      and origin = 'upload'
+      and origin in ('upload', 'generated')
       and deleted_at is null
   `;
   return Number(row?.n ?? 0);

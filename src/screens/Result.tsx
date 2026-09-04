@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, DownloadSimple, ArrowsClockwise, FilmSlate, ShareNetwork } from "@phosphor-icons/react";
 import type { Generation } from "../lib/gallery";
 import { Logo } from "../components/chrome";
+import { GenerationMedia } from "../components/GenerationMedia";
 import { useI18n, type TKey } from "../lib/i18n";
 
 const STAGE_KEYS: TKey[] = ["r_stage1", "r_stage2", "r_stage3", "r_stage4"];
@@ -45,6 +46,21 @@ export default function Result({
 
   const stage = t(STAGE_KEYS[Math.min(STAGE_KEYS.length - 1, Math.floor((pct / 100) * STAGE_KEYS.length))]!);
   const ratio = gen.w / gen.h;
+
+  /* The same anchor StudioImage's viewer uses. This button was `() => {}` — a
+     control that looks live, is not disabled, and does nothing when pressed,
+     next to the file it claims to save.
+
+     The extension comes from `kind` rather than from the URL: these links are
+     signed and end in a signature, so there is no extension in them to read. */
+  const download = () => {
+    if (!gen.outputUrl) return;
+    const el = document.createElement("a");
+    el.href = gen.outputUrl;
+    el.download = `vgen-${gen.id}.${gen.kind === "video" ? "mp4" : gen.kind === "audio" ? "mp3" : "png"}`;
+    el.rel = "noopener";
+    el.click();
+  };
 
   return (
     /* The media leads and the controls sit beside it from `md`. In a 480px
@@ -100,10 +116,18 @@ export default function Result({
                 transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                 className="absolute inset-0"
               >
+                {/* Behind the file, not instead of it. This screen exists to show
+                    the thing that was just paid for and it drew the gradient and
+                    stopped — a coloured rectangle captioned "sample", on the one
+                    page where the output is the entire point. `contain`, because
+                    the stored w/h is the aspect that was *asked* for and the
+                    provider is entitled to answer at its own: cropping a 864×496
+                    clip into a 16:9 box loses a strip of what was bought. */}
                 <div className="absolute inset-0" style={{ background: gen.grad }} />
-                {gen.kind === "audio" && (
-                  // Placeholder bars until a real file exists to play — the mock has
-                  // no audio to feed an <audio> element.
+                <GenerationMedia gen={gen} fit="contain" controls />
+                {gen.kind === "audio" && !gen.outputUrl && (
+                  // Bars only where there is no file to play — a demo generation.
+                  // A real clip gets an <audio> element from GenerationMedia.
                   <div className="absolute inset-0 flex items-center justify-center gap-[3px] px-8">
                     {Array.from({ length: 32 }, (_, k) => (
                       <span
@@ -114,9 +138,13 @@ export default function Result({
                     ))}
                   </div>
                 )}
-                <div className="absolute start-2 top-2 rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
-                  {t("r_sample")}
-                </div>
+                {/* "Sample" is a claim about a placeholder. Saying it over a real
+                    generation tells the customer their own file is a mock-up. */}
+                {!gen.outputUrl && (
+                  <div className="absolute start-2 top-2 rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
+                    {t("r_sample")}
+                  </div>
+                )}
               </motion.div>
             )}
           </div>
@@ -133,10 +161,19 @@ export default function Result({
           {gen.prompt && <p className="ltr mt-2 line-clamp-2 text-[12.5px] text-ink2">{gen.prompt}</p>}
 
           <div className="mt-5 grid grid-cols-3 gap-2.5">
-            <ActionBtn icon={<DownloadSimple size={20} />} label={t("r_download")} onClick={() => {}} disabled={!done} />
+            <ActionBtn icon={<DownloadSimple size={20} />} label={t("r_download")} onClick={download} disabled={!done || !gen.outputUrl} />
             <ActionBtn icon={<ArrowsClockwise size={20} />} label={t("r_regen")} onClick={onRegenerate} disabled={!done} />
             {gen.kind === "image" ? (
-              <ActionBtn icon={<FilmSlate size={20} />} label={t("r_to_video")} onClick={onToVideo} disabled={!done} highlight />
+              // Disabled without a file: "to video" carries this image into the
+              // video model as its opening frame, and there is nothing to carry
+              // until one exists.
+              <ActionBtn
+                icon={<FilmSlate size={20} />}
+                label={t("r_to_video")}
+                onClick={onToVideo}
+                disabled={!done || !gen.outputUrl}
+                highlight
+              />
             ) : (
               <ActionBtn icon={<ShareNetwork size={20} />} label={t("r_share")} onClick={() => {}} disabled={!done} />
             )}
