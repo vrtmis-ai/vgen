@@ -60,7 +60,19 @@ export function Card({ children, className = "" }: { children: React.ReactNode; 
 export function PanelShell({ children }: { children: React.ReactNode }) {
   return (
     <aside
-      className="flex w-full shrink-0 flex-col md:sticky md:top-11 md:max-h-[calc(100dvh-2.75rem)] md:w-[var(--vg-form-panel)] md:self-start md:overflow-y-auto"
+      /* The offsets read the banner rather than assuming it away.
+
+         `top-11` and `100dvh-2.75rem` counted the top bar and nothing else,
+         so with the site banner open the column stuck 44px too low AND
+         stayed 44px too tall — and the 44px that fell off the bottom was
+         Generate. Measured on 1440x900 in the video studio: the button ran
+         y=863..907 against a 900px viewport. The one control the page
+         exists for, off-screen on the commonest laptop size.
+
+         `--vg-banner-height` already existed for this; `Banner` publishes it
+         and clears it on dismissal, and `TopBar` has always read it. This
+         column and the wall's view controls were the two that never did. */
+      className="flex w-full shrink-0 flex-col md:sticky md:top-[calc(2.75rem+var(--vg-banner-height,0px))] md:max-h-[calc(100dvh-2.75rem-var(--vg-banner-height,0px))] md:w-[var(--vg-form-panel)] md:self-start md:overflow-y-auto"
       style={{ background: "var(--vg-deep)" }}
     >
       {children}
