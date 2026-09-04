@@ -17,7 +17,7 @@ export default function StudioVideoPage() {
     <Studio
       kind="video"
       gens={gens}
-      onGenerate={(family, variant, prompt, input) => requestGeneration(family.id, prompt, input, variant)}
+      onGenerate={(family, variant, prompt, input, refs) => requestGeneration(family.id, prompt, input, variant, { refs })}
       onOpen={(generation) => openResult(generation.id, { instant: true })}
     />
   );

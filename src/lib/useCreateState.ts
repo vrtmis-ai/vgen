@@ -147,6 +147,17 @@ export function useCreateState(families: Family[]) {
   // may override controls too, so this has to key off the resolved list.
   useEffect(() => setInput(defaultInput(controls)), [controls]);
 
+  /**
+   * Which pipe the customer would rather be served through.
+   *
+   * Held per dock rather than per variant: switching model keeps the intent —
+   * somebody who said "I would rather wait than spend" still means it after
+   * trying a different engine — and `unlimitedFit` decides on every render
+   * whether that intent is reachable, so a variant without the pipe simply
+   * shows no switch rather than silently carrying a stale true.
+   */
+  const [preferUnlimited, setPreferUnlimited] = useState(false);
+
   const price = priceCoins(variant, input, { chars: prompt.length, clipSeconds: 0 });
   const validation = validateGenerationInput({ family, variant, prompt, input, refs: {} });
   const ready = validation.valid && price !== null && !isSubmitting;
@@ -165,6 +176,8 @@ export function useCreateState(families: Family[]) {
     prompt,
     setPrompt,
     price,
+    preferUnlimited,
+    setPreferUnlimited,
     ready,
     validation,
     isSubmitting,
