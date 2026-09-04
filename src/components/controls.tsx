@@ -346,7 +346,26 @@ function readDuration(url: string, media: SlotMedia): Promise<number | undefined
  * Reference / input file slot. Fully controlled — the owner holds the files so
  * they can actually reach the generation request (they used to die in local state).
  */
-export function RefUpload({ slot, images, onChange }: { slot: RefSlot; images: RefFile[]; onChange: (i: RefFile[]) => void }) {
+export function RefUpload({
+  slot,
+  images,
+  onChange,
+  leading,
+}: {
+  slot: RefSlot;
+  images: RefFile[];
+  onChange: (i: RefFile[]) => void;
+  /**
+   * A tile that belongs to this slot but is not a picked file — today, the
+   * finished generation "to video" carried in, which is already in our store
+   * and has no `File` behind it.
+   *
+   * It goes inside the tile row rather than above the whole control, because
+   * it is one of this slot's inputs: rendered outside, it appears above the
+   * slot's own label and reads as belonging to the section, not the slot.
+   */
+  leading?: React.ReactNode;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [rejected, setRejected] = useState<string | null>(null);
   const media: SlotMedia = slot.media ?? "image";
@@ -390,6 +409,7 @@ export function RefUpload({ slot, images, onChange }: { slot: RefSlot; images: R
         {slot.maxMb != null && <span className="text-[11px] text-ink3">حداکثر {faNum(slot.maxMb)} مگابایت</span>}
       </div>
       <div className="flex flex-wrap gap-2.5">
+        {leading}
         {images.map((f, i) => (
           <div key={f.url} className="relative h-[84px] w-[84px] overflow-hidden rounded-2xl border border-line bg-card2">
             {media === "image" && <img src={f.url} alt="" className="h-full w-full object-cover" />}

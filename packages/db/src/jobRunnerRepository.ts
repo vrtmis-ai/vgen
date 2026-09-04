@@ -288,7 +288,11 @@ export class PostgresJobRunnerRepository {
       select id, storage_key from assets
       where id = any(${assetIds}::uuid[])
         and account_id = ${accountId}
-        and origin = 'upload'
+        -- Both origins, matching usableReferenceCount in quotesRepository:
+        -- a finished generation is a legal input to the next one ("to video"),
+        -- and the two predicates have to agree or a quote would price a
+        -- reference the worker then refuses to sign for.
+        and origin in ('upload', 'generated')
         and deleted_at is null
     `;
     return Object.fromEntries(rows.map((row) => [row.id, row.storage_key]));

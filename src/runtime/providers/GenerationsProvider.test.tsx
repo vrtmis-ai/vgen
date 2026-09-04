@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppServicesProvider } from "../AppServices";
 import { CatalogProvider } from "../../features/catalog/CatalogProvider";
 import { createDemoCatalogService } from "../../adapters/demo/catalog";
@@ -11,10 +11,20 @@ import { loadGenerations, saveGenerations, type Generation } from "../../lib/gal
 import { GenerationsProvider, useGenerations } from "./GenerationsProvider";
 import { NavigationProvider } from "./NavigationProvider";
 
+/* One stable push across the whole file rather than a fresh spy per
+   `useRouter()` call. Where the provider sends the browser after a submit is
+   behaviour worth asserting, and a mock that forgets is a mock that cannot. */
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }));
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  useRouter: () => router,
   usePathname: () => "/studio/video",
 }));
+
+beforeEach(() => {
+  router.push.mockClear();
+  router.replace.mockClear();
+});
 
 const stored: Generation = {
   id: "gen-1",
@@ -218,5 +228,132 @@ describe("the free-pipe preference reaches the quote", () => {
     await waitFor(() => expect(quote).toHaveBeenCalled());
     const sent = quote.mock.calls[0]?.[0] as { preferUnlimited?: boolean } | undefined;
     expect(sent?.preferUnlimited).toBe(true);
+  });
+});
+
+/**
+ * Pressing create in a studio and watching the page not move.
+ *
+ * The three studios all submit through `requestGeneration`, which was
+ * fire-and-forget in the strictest sense: the job went, the coins were held,
+ * and nothing on screen acknowledged the press. The new generation did appear
+ * as a tile in the canvas, but on the video studio that canvas is beside a
+ * 320px form panel and below the fold — so the button read as dead, and was
+ * reported as dead.
+ *
+ * Asserted on the router rather than on a rendered result, because the bug was
+ * never about what the destination looks like. It was that there wasn't one.
+ */
+describe("submitting from a studio takes you to your work", () => {
+  function Dock() {
+    const { requestGeneration } = useGenerations();
+    return <button onClick={() => requestGeneration("nano-banana", "یک گربه", INPUT, VARIANT_WITH_REF)}>dock</button>;
+  }
+
+  function renderDock(services: AppServices) {
+    return render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <AppServicesProvider services={services}>
+          <CatalogProvider families={catalog.families}>
+            <NavigationProvider>
+              <GenerationsProvider>
+                <Dock />
+              </GenerationsProvider>
+            </NavigationProvider>
+          </CatalogProvider>
+        </AppServicesProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  it("navigates to کارهای من once the job is accepted", async () => {
+    renderDock(createDemoServices());
+
+    await act(async () => screen.getByText("dock").click());
+
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/gallery"));
+  });
+
+  it("stays put when the submit is refused, so the error is still on screen", async () => {
+    const services = createDemoServices();
+    // A refusal, not a throw: `startGeneration` returns null for a variant the
+    // catalogue does not hold, which is the same "nothing was created" outcome
+    // as a rejected quote and must not move the page either.
+    const spied: AppServices = {
+      ...services,
+      generation: { ...services.generation, quote: vi.fn().mockRejectedValue(new Error("nope")) },
+    };
+    renderDock(spied);
+
+    await act(async () => screen.getByText("dock").click());
+
+    await waitFor(() => expect(router.push).not.toHaveBeenCalled());
+  });
+});
+
+/**
+ * "To video": a finished image handed to a video model as its opening frame.
+ *
+ * The file is already in our store under an asset id, so there is nothing to
+ * upload — and the quote endpoint accepts ids, not bytes. What this guards is
+ * the merge: a slot can hold a carried-in asset *and* a picked file, and an
+ * earlier version of this overwrote one map with the other.
+ */
+describe("already-stored assets reach the quote alongside uploads", () => {
+  function Carrier({ assetRefs, refs }: { assetRefs: Record<string, string[]>; refs: Record<string, { file: File; url: string }[]> }) {
+    const { startGeneration } = useGenerations();
+    return <button onClick={() => void startGeneration("nano-banana", "یک گربه", INPUT, VARIANT_WITH_REF, { refs, assetRefs })}>go</button>;
+  }
+
+  function renderCarrier(services: AppServices, assetRefs: Record<string, string[]>, refs: Record<string, { file: File; url: string }[]>) {
+    return render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <AppServicesProvider services={services}>
+          <CatalogProvider families={catalog.families}>
+            <NavigationProvider>
+              <GenerationsProvider>
+                <Carrier assetRefs={assetRefs} refs={refs} />
+              </GenerationsProvider>
+            </NavigationProvider>
+          </CatalogProvider>
+        </AppServicesProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  it("sends a carried asset id under its slot with nothing uploaded", async () => {
+    const services = createDemoServices();
+    const quote = vi.fn(services.generation.quote);
+    const upload = vi.fn(services.assets.upload);
+    const spied: AppServices = { ...services, assets: { upload }, generation: { ...services.generation, quote } };
+
+    renderCarrier(spied, { [REF_SLOT]: ["asset-from-gallery"] }, {});
+    await act(async () => screen.getByText("go").click());
+
+    await waitFor(() => expect(quote).toHaveBeenCalled());
+    const sent = quote.mock.calls[0]?.[0] as { referenceAssetIds: Record<string, string[]> } | undefined;
+    expect(sent?.referenceAssetIds[REF_SLOT]).toEqual(["asset-from-gallery"]);
+    // Nothing to upload: the bytes are already ours.
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it("keeps both when the same slot also holds a picked file, carried one first", async () => {
+    const services = createDemoServices();
+    const quote = vi.fn(services.generation.quote);
+    const spied: AppServices = { ...services, generation: { ...services.generation, quote } };
+
+    renderCarrier(
+      spied,
+      { [REF_SLOT]: ["asset-from-gallery"] },
+      {
+        [REF_SLOT]: [{ file: new File(["x"], "ref.png", { type: "image/png" }), url: "blob:a" }],
+      },
+    );
+    await act(async () => screen.getByText("go").click());
+
+    await waitFor(() => expect(quote).toHaveBeenCalled());
+    const sent = quote.mock.calls[0]?.[0] as { referenceAssetIds: Record<string, string[]> } | undefined;
+    expect(sent?.referenceAssetIds[REF_SLOT]).toHaveLength(2);
+    expect(sent?.referenceAssetIds[REF_SLOT]?.[0]).toBe("asset-from-gallery");
   });
 });

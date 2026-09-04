@@ -146,12 +146,22 @@ export function validateGenerationInput({
   prompt,
   input,
   refs,
+  assetRefs,
 }: {
   family: Family;
   variant: Variant;
   prompt: string;
   input: InputMap;
   refs: RefMap;
+  /**
+   * Slots already filled by a stored asset rather than a picked file — the
+   * account's own finished work, carried in by "to video".
+   *
+   * Counted for `required`, `requires` and `max`, and for nothing else: type
+   * and size were checked when the file was first stored, and there is no
+   * `File` here to re-read them from. Optional, because most callers have none.
+   */
+  assetRefs?: Record<string, string[]> | undefined;
 }): GenerationValidationResult {
   const issues: GenerationValidationIssue[] = [];
   const trimmedPrompt = prompt.trim();
@@ -176,18 +186,25 @@ export function validateGenerationInput({
 
   const slots = variantRefs(family, variant);
   const slotKeys = new Set(slots.map((slot) => slot.key));
-  for (const key of Object.keys(refs)) {
+  // How many inputs a slot holds in total, from either source. A required slot
+  // filled by a carried-in asset is filled; asking for a file as well would
+  // make "to video" impossible to satisfy.
+  const held = (key: string) => (refs[key]?.length ?? 0) + (assetRefs?.[key]?.length ?? 0);
+  // Deduplicated: a slot named in both maps is one slot, and reporting it twice
+  // would put the same complaint on the screen twice.
+  for (const key of new Set([...Object.keys(refs), ...Object.keys(assetRefs ?? {})])) {
     if (!slotKeys.has(key)) issues.push({ code: "unknown_reference", path: `refs.${key}`, message: "این فایل متعلق به مدل فعلی نیست." });
   }
   for (const slot of slots) {
     const files = refs[slot.key] ?? [];
-    if (slot.required && files.length === 0) {
+    const total = held(slot.key);
+    if (slot.required && total === 0) {
       issues.push({ code: "reference_required", path: `refs.${slot.key}`, message: `${slot.label} الزامی است.` });
     }
-    if (slot.requires && files.length > 0 && (refs[slot.requires]?.length ?? 0) === 0) {
+    if (slot.requires && total > 0 && held(slot.requires) === 0) {
       issues.push({ code: "reference_dependency", path: `refs.${slot.key}`, message: `${slot.label} به ورودی وابستهٔ خود نیاز دارد.` });
     }
-    if (files.length > slot.max) {
+    if (total > slot.max) {
       issues.push({ code: "too_many_files", path: `refs.${slot.key}`, message: `حداکثر ${slot.max} فایل مجاز است.` });
     }
     files.forEach((ref, index) => {

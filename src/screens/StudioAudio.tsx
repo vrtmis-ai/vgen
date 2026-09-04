@@ -24,6 +24,7 @@ import { ViewControls, useViewMode } from "../components/ViewControls";
 import { CoinMark } from "../components/chrome";
 import { Card, PanelShell, PanelTabs } from "../components/FormPanel";
 import { ModelPicker } from "../components/ModelPicker";
+import { promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { useAccess } from "../lib/access";
@@ -322,6 +323,7 @@ export default function StudioAudio({
               value={s.prompt}
               onChange={(e) => s.setPrompt(e.target.value)}
               rows={4}
+              dir={promptDir(s.prompt)}
               placeholder="دقیقاً همان چیزی که می‌خواهی خوانده شود."
               className="hide-scrollbar w-full resize-none bg-transparent text-[13px] leading-6 outline-none"
               style={{ color: "var(--vg-text)" }}

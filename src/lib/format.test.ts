@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coinDigits, faNum } from "./format";
+import { coinDigits, faNum, promptDir } from "./format";
 
 /**
  * Coins are billed in hundredths, so a wallet can hold 0.9 of one and the
@@ -58,5 +58,25 @@ describe("coinDigits", () => {
     // A phone number is digits with structure, not a quantity — grouping it
     // would be wrong, so this path stays.
     expect(faNum("0912 345 6789")).toBe("۰۹۱۲ ۳۴۵ ۶۷۸۹");
+  });
+});
+
+/**
+ * The empty case is the whole reason this helper exists rather than a literal
+ * `dir="auto"` on each field. `auto` reads the value, and an empty value sends
+ * it to LTR — which lays the Persian placeholder out backwards and throws its
+ * full stop to the wrong end. That regression shipped on all four prompt boxes
+ * before a screenshot caught it, so it gets a test rather than a comment.
+ */
+describe("promptDir", () => {
+  it("inherits the page direction while the field is empty, so the placeholder reads correctly", () => {
+    expect(promptDir("")).toBeUndefined();
+    // Whitespace is not a strong character either, and `auto` would read it as LTR.
+    expect(promptDir("   \n ")).toBeUndefined();
+  });
+
+  it("follows the content once there is any, in either language", () => {
+    expect(promptDir("یک سیب قرمز")).toBe("auto");
+    expect(promptDir("a red apple")).toBe("auto");
   });
 });

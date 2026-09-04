@@ -40,10 +40,31 @@ export interface GenerationRequestOptions {
    * wanted before there was a switch to say otherwise.
    */
   preferUnlimited?: boolean;
+  /**
+   * Files already in our store, by slot — the account's own finished work being
+   * fed back in, rather than something picked off a disk.
+   *
+   * Separate from `refs` because there is nothing to upload: "to video" hands a
+   * finished image to a video model, and those bytes are already here under an
+   * asset id the quote endpoint accepts. Merged with the ids the uploads
+   * produce, so a slot can hold both.
+   */
+  assetRefs?: Record<string, string[]>;
 }
 
 interface Generations {
   gens: Generation[];
+  /**
+   * Whether `gens` has been read back from localStorage yet.
+   *
+   * It starts empty on both server and client and fills in an effect, so for
+   * one render "this account has no generations" and "we have not looked yet"
+   * are the same value. A screen that redirects on an empty list has to tell
+   * them apart: the result page did not, so opening or refreshing a result URL
+   * bounced to the gallery every time, before the generation it names had any
+   * chance to load.
+   */
+  hydrated: boolean;
   startGeneration: (
     familyId: string,
     prompt: string,
@@ -90,10 +111,41 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
     if (hydrated) saveGenerations(gens);
   }, [gens, hydrated]);
 
-  const runningJobIds = useMemo(
-    () => gens.flatMap((generation) => (generation.status === "running" && generation.jobId ? [generation.jobId] : [])),
-    [gens],
-  );
+  /* Which jobs to ask about. Running ones, obviously — plus two kinds of
+     finished one that need a fresh answer.
+
+     A job whose asset id we never wrote down. That is every generation made
+     before `outputAssetId` existed, and they are exactly the ones somebody
+     would press "to video" on first; without this the button on their existing
+     work would carry nothing.
+
+     A job whose URL has expired, or is about to. Output URLs are signed for an
+     hour and this list is kept in localStorage forever, so an untouched gallery
+     turned into a wall of broken images at the sixty-minute mark — the files
+     were fine, the signatures were not, and nothing ever asked for new ones.
+     `urlsExpireAt` has been on the wire the whole time with no reader.
+
+     None of this can become a polling loop: `useGenerationJobs` returns `false`
+     from `refetchInterval` for anything not queued or running, so a finished
+     job is fetched once per session and never again, even if the fetch somehow
+     fails to satisfy the condition that selected it.
+
+     It refreshes when this list changes rather than on a timer, so a tab left
+     open for an hour still has to be touched before its pictures come back.
+     That is the cheap 90%: opening or navigating to the gallery re-signs. */
+  const runningJobIds = useMemo(() => {
+    // A margin, so a URL that dies while the page is being read is replaced
+    // before it does rather than after.
+    const soon = Date.now() + 2 * 60 * 1000;
+    return gens.flatMap((generation) => {
+      if (!generation.jobId) return [];
+      if (generation.status === "running" || !generation.outputAssetId) return [generation.jobId];
+      // An output with no recorded expiry predates that field, so its age is
+      // unknown and the safe reading is "assume it has gone".
+      if (generation.outputUrl && (generation.outputUrlExpiresAt ?? 0) < soon) return [generation.jobId];
+      return [];
+    });
+  }, [gens]);
   const jobQueries = useGenerationJobs(runningJobIds);
   // No progress percentage in the key any more: nothing on the server produces
   // one. A job is queued, running, or over — and the outputs arriving is what
@@ -117,10 +169,32 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
         // stored Generation keeps its own two-state vocabulary because that is
         // all a card renders.
         const status: GenStatus = job.status === "succeeded" ? "done" : "running";
-        const outputUrl = job.outputs[0]?.url ?? generation.outputUrl;
-        if (generation.status === status && generation.outputUrl === outputUrl) return generation;
+        const output = job.outputs[0];
+        const outputUrl = output?.url ?? generation.outputUrl;
+        // Kept alongside the URL because the URL cannot be kept: it is signed
+        // and expires, while the asset id is how the next generation names this
+        // file as an input. See `outputAssetId` in lib/gallery.
+        const outputAssetId = output?.assetId ?? generation.outputAssetId;
+        // Kept with the URL it applies to. Stored only when a URL came back in
+        // this response, so a re-read that produced nothing cannot leave a
+        // fresh expiry sitting next to a stale link.
+        const outputUrlExpiresAt = output?.url ? (job.urlsExpireAt ?? undefined) : generation.outputUrlExpiresAt;
+        if (
+          generation.status === status &&
+          generation.outputUrl === outputUrl &&
+          generation.outputAssetId === outputAssetId &&
+          generation.outputUrlExpiresAt === outputUrlExpiresAt
+        ) {
+          return generation;
+        }
         changed = true;
-        return { ...generation, status, ...(outputUrl ? { outputUrl } : {}) };
+        return {
+          ...generation,
+          status,
+          ...(outputUrl ? { outputUrl } : {}),
+          ...(outputAssetId ? { outputAssetId } : {}),
+          ...(outputUrlExpiresAt ? { outputUrlExpiresAt } : {}),
+        };
       });
       return changed ? next : previous;
     });
@@ -132,7 +206,7 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
       const family = families.find((candidate) => candidate.id === familyId);
       const catalogVariant = family?.variants.find((candidate) => candidate.id === variant.id);
       if (!family || !catalogVariant) return null;
-      if (!validateGenerationInput({ family, variant, prompt, input, refs }).valid) return null;
+      if (!validateGenerationInput({ family, variant, prompt, input, refs, assetRefs: options.assetRefs }).valid) return null;
       if (pendingRef.current) return null;
       const aspect = currentAspect(variantControls(family, variant), input);
       pendingRef.current = true;
@@ -152,7 +226,12 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
             async ([slot, files]) => [slot, await Promise.all(files.map(async (f) => (await services.assets.upload(f.file)).id))] as const,
           ),
         );
-        const referenceAssetIds = Object.fromEntries(uploaded);
+        /* Uploads and already-stored assets land in the same map, per slot.
+           Concatenated rather than merged by key replacement: a slot holds an
+           ordered list and "to video" fills the first entry, so a user who then
+           attaches a second image is adding to it, not replacing it. */
+        const referenceAssetIds: Record<string, string[]> = { ...(options.assetRefs ?? {}) };
+        for (const [slot, ids] of uploaded) referenceAssetIds[slot] = [...(referenceAssetIds[slot] ?? []), ...ids];
 
         const { job, quote } = await createGeneration.mutateAsync({
           quote: {
@@ -193,13 +272,32 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
     [createGeneration, families],
   );
 
+  /* The studios' start button, and the one place all three of them route
+     through — so it is the one place that has to answer "what just happened".
+
+     It used to answer nothing. The job was submitted, the coins were held, and
+     the page did not move: the new generation appeared as a tile somewhere in
+     the canvas the user was not necessarily looking at, and on the video studio
+     it is below a 320px form panel. Pressing a button that costs money and
+     watching the screen stay exactly as it was reads as a dead button, and it
+     was reported as one.
+
+     So it goes where the work is. `setTab("gallery")` rather than the result
+     page: the studios are where people submit several in a row, and کارهای من
+     is the screen that holds all of them with their progress — landing on one
+     result would hide the other four.
+
+     Only on success. A refusal has an error to show and moving the page would
+     take the user away from the form that produced it. */
   const requestGeneration = useCallback(
     (familyId: string, prompt: string, input: InputMap, variant: Variant, options?: GenerationRequestOptions) => {
-      void startGeneration(familyId, prompt, input, variant, options).catch((error: unknown) =>
-        setOperationError(error instanceof Error ? error : new Error(String(error))),
-      );
+      void startGeneration(familyId, prompt, input, variant, options)
+        .then((started) => {
+          if (started) navigation.setTab("gallery");
+        })
+        .catch((error: unknown) => setOperationError(error instanceof Error ? error : new Error(String(error))));
     },
-    [startGeneration],
+    [navigation, startGeneration],
   );
 
   const regenerate = useCallback(
@@ -224,8 +322,8 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<Generations>(
-    () => ({ gens, startGeneration, requestGeneration, regenerate, markDone }),
-    [gens, markDone, regenerate, requestGeneration, startGeneration],
+    () => ({ gens, hydrated, startGeneration, requestGeneration, regenerate, markDone }),
+    [gens, hydrated, markDone, regenerate, requestGeneration, startGeneration],
   );
 
   if (operationError) {
