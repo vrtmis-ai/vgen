@@ -25,20 +25,51 @@ export const QuoteGenerationRequestSchema = z
      */
     clipSeconds: z.number().positive().max(3600).optional(),
     /**
+     * Uploaded files per reference slot, as `slot key -> ordered asset ids`.
+     *
+     * Ids, never URLs and never bytes. The browser stores each file through
+     * `POST /assets` first and names what it stored; a request able to hand
+     * over a URL is a request able to point the provider anywhere it likes.
+     *
+     * **An id is not an authorisation.** These are uuids in a JSON body, so the
+     * server checks every one against the caller's own uploads before it prices
+     * anything — a caller naming somebody else's private upload would never see
+     * the bytes, but would see the picture made from them, which is the same
+     * leak wearing a hat.
+     *
+     * Order inside a slot is meaningful: first and last frame are two entries
+     * in one slot on several video models, and swapping them makes a different
+     * clip. Hence an array rather than a set.
+     *
+     * The slot keys are the catalogue's, already public on `GET /catalog`
+     * because a screen renders a control per slot.
+     */
+    referenceAssetIds: z.record(z.string().min(1), z.array(z.string().uuid()).max(8)).default({}),
+    /**
      * A preference, not an instruction — which is why it is a mood and not a
      * price.
      *
-     * The note above is right that a request able to name a feature is a
-     * request able to ask to be billed as something cheaper. This one names no
-     * feature, no model and no price: it says the customer would rather wait
-     * than spend, and the server decides whether that is available to them by
-     * looking up the same three things it already looks up — does this family
-     * have the pipe, does this account hold the entitlement, and is today's cap
-     * already reached. A `true` here can only ever make a generation slower.
+     * The note above is right that a request able to name its own feature,
+     * model or price is a request able to ask to be billed as something cheaper
+     * than it is. This one names none of those. It says the customer would
+     * rather wait than spend, and the server answers it by looking up exactly
+     * what it already looks up: does this variant have a grant, does this
+     * account's tier reach it, does the setting fall inside what the grant
+     * covers, and is today's cap spent. A `true` can only ever make a
+     * generation slower and cheaper, never faster or dearer.
      *
-     * The answer comes back on the quote's `unlimited` field, so the browser
-     * learns what actually happened rather than assuming it got what it asked
-     * for.
+     * **Absent means true, and that is not a style choice.** The grant has
+     * always applied automatically to anyone holding it, so a missing field has
+     * to keep meaning "free if I am entitled". Reading it as false would start
+     * charging every existing client that has not been taught to send it —
+     * silently, and only for the customers on the plans that were promised the
+     * perk. A flag that turns billing *on* by omission is the wrong default in
+     * the wrong direction.
+     *
+     * So `false` is the interesting value: it means "bill me, I want the quick
+     * queue". The answer comes back on the quote's `unlimited` field, which is
+     * absent when the generation is metered — so the browser learns what
+     * actually happened rather than assuming it got what it asked for.
      */
     preferUnlimited: z.boolean().optional(),
   })

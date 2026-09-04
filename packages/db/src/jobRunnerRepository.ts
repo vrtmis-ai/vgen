@@ -53,6 +53,24 @@ export interface ClaimedJob {
   estimatedCostUsd: number | null;
   /** Set when the generation is free under a grant rather than paid for. */
   entitlementId: string | null;
+  /**
+   * Uploaded files per reference slot, as `slot key -> ordered asset ids`.
+   *
+   * Ids rather than URLs, because a URL that was signed when the job was
+   * submitted may well have expired by the time a queue gets to it. The runner
+   * signs them at the moment it calls the provider.
+   */
+  referenceAssetIds: Record<string, string[]> | null;
+  /**
+   * The picked variant's reference slots, for `max` alone.
+   *
+   * A slot whose `max` is 1 takes a bare string upstream (`first_frame_url`);
+   * one that takes several takes an array (`image_urls`). Guessing that from
+   * whether the key ends in an "s" is the sort of rule that works for
+   * seventeen of eighteen slots and silently fails a generation on the
+   * eighteenth, so it is read from the catalogue that declares it.
+   */
+  refSlots: { key: string; max: number }[] | null;
   microCreditsHeld: number;
   /** Null when nothing was held: a granted job, or one quoted at zero. */
   holdId: string | null;
@@ -126,6 +144,8 @@ interface ClaimRow {
   external_model_id: string;
   modality: Modality;
   entitlement_id: string | null;
+  reference_asset_ids: Record<string, string[]> | null;
+  ref_slots: { key: string; max: number }[] | null;
   micro_credits_held: string;
   hold_id: string | null;
   param_overrides: ParamOverrides;
@@ -173,14 +193,19 @@ export class PostgresJobRunnerRepository {
         where id = ${jobId} and status in ('queued', 'running') and deleted_at is null
         returning *
       )
-      select job.id, job.account_id, job.created_by, job.params,
+      select job.id, job.account_id, job.created_by, job.params, job.reference_asset_ids,
              job.attempt_count as attempt_no, job.entitlement_id, job.micro_credits_held,
              run.id as provider_model_id, run.external_model_id, run.modality,
              provider.id as provider_id, provider.code as provider_code, provider.base_url,
              hold.id as hold_id,
              coalesce(route.param_overrides, '{}'::jsonb) as param_overrides,
+             coalesce(picked.capabilities -> 'variant' -> 'refs', 'null'::jsonb) as ref_slots,
              rate.provider_unit_cost_usd, quote.provider_cost_usd_micros as estimated_cost_usd_micros
       from claimed job
+      -- The row the customer picked, for its reference-slot declarations. The
+      -- serving row joined below may be a different provider's and carries no
+      -- variant at all, so the slots have to come from here.
+      left join provider_models picked on picked.id = job.provider_model_id
       left join unlimited_entitlements ent on ent.id = job.entitlement_id
       left join lateral (
         select r.serving_model_id, r.param_overrides
@@ -226,6 +251,8 @@ export class PostgresJobRunnerRepository {
       accountId: row.account_id,
       createdBy: row.created_by,
       params: row.params,
+      referenceAssetIds: row.reference_asset_ids,
+      refSlots: row.ref_slots,
       attemptNo: row.attempt_no,
       providerId: row.provider_id,
       providerCode: row.provider_code,
@@ -240,6 +267,31 @@ export class PostgresJobRunnerRepository {
       providerUnitCostUsd: row.provider_unit_cost_usd === null ? null : Number(row.provider_unit_cost_usd),
       estimatedCostUsd: row.estimated_cost_usd_micros === null ? null : Number(row.estimated_cost_usd_micros) / 1_000_000,
     };
+  }
+
+  /**
+   * Where each reference asset actually lives, for the account that owns it.
+   *
+   * The account is passed and compared even though the ids came off the job
+   * row, which the job's own account wrote. That is deliberate belt-and-braces
+   * on the one path where getting it wrong hands one customer's private upload
+   * to another customer's generation: a check that costs a predicate and can
+   * only ever be redundant is the right kind of redundant.
+   *
+   * Returns storage keys rather than URLs. Signing belongs to whoever is about
+   * to make the call, because a signature has an expiry and a job can sit in a
+   * queue — a URL signed at submission is a URL that may already be dead.
+   */
+  async referenceKeys(accountId: string, assetIds: string[]): Promise<Record<string, string>> {
+    if (assetIds.length === 0) return {};
+    const rows = await this.sql<{ id: string; storage_key: string }[]>`
+      select id, storage_key from assets
+      where id = any(${assetIds}::uuid[])
+        and account_id = ${accountId}
+        and origin = 'upload'
+        and deleted_at is null
+    `;
+    return Object.fromEntries(rows.map((row) => [row.id, row.storage_key]));
   }
 
   /**

@@ -138,6 +138,7 @@
           "badge": "پرچم‌دار",
           "unlimited": {
             "dailyCap": 50,
+            "minTier": 3,
             "limits": {
               "resolution": [
                 "1K",
@@ -153,6 +154,7 @@
           "badge": "جدید",
           "unlimited": {
             "dailyCap": 50,
+            "minTier": 3,
             "limits": {
               "resolution": [
                 "1K",
@@ -359,10 +361,7 @@
         {
           "id": "seedream-4-5",
           "featureCode": "image_generate",
-          "label": "۴٫۵",
-          "unlimited": {
-            "dailyCap": 50
-          }
+          "label": "۴٫۵"
         },
         {
           "id": "seedream-5-lite",
@@ -1790,17 +1789,17 @@
           "label": "۲٫۵ Turbo",
           "refs": [
             {
-              "group": "frame",
               "key": "image_url",
               "label": "فریم شروع (اختیاری)",
-              "max": 1
+              "max": 1,
+              "group": "frame"
             },
             {
-              "group": "frame",
               "key": "tail_image_url",
               "label": "فریم پایان",
               "max": 1,
-              "requires": "image_url"
+              "requires": "image_url",
+              "group": "frame"
             }
           ],
           "controls": [
@@ -2142,26 +2141,26 @@
           "label": "۲٫۷",
           "refs": [
             {
-              "group": "frame",
               "key": "first_frame_url",
               "label": "فریم شروع (اختیاری)",
               "max": 1,
-              "maxMb": 30
+              "maxMb": 30,
+              "group": "frame"
             },
             {
-              "group": "frame",
               "key": "last_frame_url",
               "label": "فریم پایان (اختیاری)",
               "max": 1,
-              "maxMb": 30
+              "maxMb": 30,
+              "group": "frame"
             },
             {
-              "group": "frame",
               "key": "first_clip_url",
               "label": "کلیپ شروع (اختیاری)",
               "max": 1,
               "media": "video",
-              "maxMb": 30
+              "maxMb": 30,
+              "group": "frame"
             },
             {
               "key": "driving_audio_url",
@@ -2418,10 +2417,10 @@
               "required": true
             },
             {
-              "group": "frame",
               "key": "first_frame",
               "label": "فریم شروع (اختیاری)",
-              "max": 1
+              "max": 1,
+              "group": "frame"
             }
           ],
           "controls": [

@@ -42,6 +42,7 @@ function healthyDependencies(): ApiDependencies {
       list: vi.fn(async () => ({
         version: "bootstrap-v1",
         publishedAt: 0,
+        flags: { siteBanner: true },
         presets: [],
         fragments: [],
         skills: [],

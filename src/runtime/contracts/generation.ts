@@ -18,8 +18,15 @@ export const QuoteGenerationRequestSchema = z.object({
   prompt: z.string(),
   input: InputMapSchema,
   referenceAssetIds: z.record(z.string(), z.array(z.string().min(1))).default({}),
-  /** "I would rather wait than spend." See the wire contract for why this is a
-   *  preference the server may decline rather than a billing instruction. */
+  /**
+   * "I would rather wait than spend."
+   *
+   * Absent means true — the grant has always applied automatically to anyone
+   * holding it, so an omitted field has to keep meaning "free if I am
+   * entitled". `false` is the interesting value: bill me, I want the quick
+   * queue. See the note on the server's copy in
+   * `packages/contracts/src/generation.ts`.
+   */
   preferUnlimited: z.boolean().optional(),
 });
 

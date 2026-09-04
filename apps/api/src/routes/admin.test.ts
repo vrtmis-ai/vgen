@@ -67,6 +67,8 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN) {
     revokePromo: vi.fn(async () => ({ id: "p1" })),
     isEarlyAccess: vi.fn(async () => true),
     setEarlyAccess: vi.fn(async (enabled: boolean) => enabled),
+    isSiteBanner: vi.fn(async () => true),
+    setSiteBanner: vi.fn(async (enabled: boolean) => enabled),
   };
   const verifyPassword = vi.fn(async () => ({ id: "u-admin", emailNormalized: "admin@deev.test" }));
 
@@ -546,6 +548,86 @@ describe("the staff cookie", () => {
     // session somewhere. The customer cookie stays Lax because the Google
     // callback genuinely is such a navigation.
     expect(String(response.headers["set-cookie"])).toContain("SameSite=Strict");
+    await app.close();
+  });
+});
+
+/**
+ * The announcement strip's switch.
+ *
+ * #61 asked for this and named the shape: one `feature_flags` row, no new
+ * table, no new customer route, toggled from the same surface that carries the
+ * invite gate.
+ */
+describe("the site banner flag", () => {
+  it("reports whether the strip is on", async () => {
+    const { app, access } = build({ roles: ["admin"], permissions: ["flags.write"] });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/site-banner", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ enabled: true });
+    expect(access.isSiteBanner).toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("turns it off, and says who did", async () => {
+    const { app, access, admin } = build({ roles: ["admin"], permissions: ["flags.write"] });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/admin/site-banner",
+      headers: AS_ADMIN,
+      payload: { enabled: false },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ enabled: false });
+    expect(access.setSiteBanner).toHaveBeenCalledWith(false, "u-admin");
+    // Audited: turning off the only thing advertising a live campaign is a
+    // change somebody will later want the author and the hour of.
+    expect(admin.recordAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "site_banner.changed", before: { enabled: true }, after: { enabled: false } }),
+    );
+    await app.close();
+  });
+
+  /**
+   * Read is gated too, unlike the invite gate's.
+   *
+   * There is no `flags.read`, and inventing one for a value already public on
+   * `GET /content` would be ceremony — but that means support staff get a 403
+   * on the read rather than the 200 they get for early access, so it is worth
+   * pinning rather than discovering.
+   */
+  it("needs flags.write for both halves", async () => {
+    const { app } = build({ roles: ["support"], permissions: ["invites.read"] });
+
+    const read = await app.inject({ method: "GET", url: "/api/v1/admin/site-banner", headers: AS_ADMIN });
+    const write = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/admin/site-banner",
+      headers: AS_ADMIN,
+      payload: { enabled: false },
+    });
+
+    expect(read.statusCode).toBe(403);
+    expect(write.statusCode).toBe(403);
+    await app.close();
+  });
+
+  it("refuses a body the schema does not name", async () => {
+    const { app, access } = build({ roles: ["admin"], permissions: ["flags.write"] });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/admin/site-banner",
+      headers: AS_ADMIN,
+      payload: { enabled: false, code: "site_banner_but_actually_something_else" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(access.setSiteBanner).not.toHaveBeenCalled();
     await app.close();
   });
 });

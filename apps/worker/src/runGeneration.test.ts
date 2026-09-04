@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ProviderTransportError, type GenerationOutcome, type GenerationProvider } from "@vgen/adapters";
+import { ProviderTransportError, type GenerationOutcome, type GenerationProvider, type GenerationRequest } from "@vgen/adapters";
 import type { AttemptRecord, ClaimedJob, SucceedInput } from "@vgen/db";
 import { runGeneration, type JobRunnerPort } from "./runGeneration";
 import type { OutputMirrorPort } from "./outputMirror";
@@ -28,6 +28,8 @@ function claimedJob(overrides: Partial<ClaimedJob> = {}): ClaimedJob {
     externalModelId: "z-image",
     modality: "image",
     entitlementId: null,
+    referenceAssetIds: null,
+    refSlots: null,
     microCreditsHeld: 2_000_000,
     holdId: "66666666-6666-4666-8666-666666666666",
     paramOverrides: {},
@@ -42,18 +44,32 @@ interface Recorder {
   attempts: AttemptRecord[];
   succeeded: SucceedInput[];
   failures: { jobId: string; errorCode: string; errorMessage: string }[];
+  /** Every (account, ids) pair the runner asked to resolve. */
+  referenceLookups: { accountId: string; assetIds: string[] }[];
 }
 
-function recorder(job: ClaimedJob | null, credentialFound = true): Recorder {
+/**
+ * Storage keys the fake runner will hand back, by asset id.
+ *
+ * A test that wants a reference to have vanished simply leaves it out, which
+ * is what a deleted upload looks like from here.
+ */
+function recorder(job: ClaimedJob | null, credentialFound = true, referenceKeys: Record<string, string> = {}): Recorder {
   const attempts: AttemptRecord[] = [];
   const succeeded: SucceedInput[] = [];
   const failures: { jobId: string; errorCode: string; errorMessage: string }[] = [];
+  const referenceLookups: { accountId: string; assetIds: string[] }[] = [];
   return {
     attempts,
     succeeded,
     failures,
+    referenceLookups,
     runner: {
       claim: async () => job,
+      referenceKeys: async (accountId, assetIds) => {
+        referenceLookups.push({ accountId, assetIds });
+        return Object.fromEntries(assetIds.filter((id) => id in referenceKeys).map((id) => [id, referenceKeys[id]!]));
+      },
       pickCredential: async () =>
         credentialFound ? { id: "77777777-7777-4777-8777-777777777777", label: "kie-1", secretRef: "KIE_API_KEY" } : null,
       recordAttempt: async (record) => {
@@ -71,12 +87,24 @@ function recorder(job: ClaimedJob | null, credentialFound = true): Recorder {
 }
 
 /** Answers `poll` from a script, one entry per call. */
-function fakeProvider(script: (GenerationOutcome | Error)[], onSubmit?: () => never): GenerationProvider {
+/**
+ * Records what it was asked to submit.
+ *
+ * The payload is the assertion for anything about references: the whole class
+ * of bug here is a field that exists at every layer and never reaches the
+ * provider, which is invisible unless a test looks at what actually went out.
+ */
+type RecordingProvider = GenerationProvider & { submitted: GenerationRequest[] };
+
+function fakeProvider(script: (GenerationOutcome | Error)[], onSubmit?: () => never): RecordingProvider {
   let index = 0;
+  const submitted: GenerationRequest[] = [];
   return {
     code: "kie",
-    submit: async () => {
+    submitted,
+    submit: async (request) => {
       onSubmit?.();
+      submitted.push(request);
       return {
         externalJobId: "task-1",
         endpoint: "https://api.kie.ai/api/v1/jobs/createTask",
@@ -149,6 +177,7 @@ function deps(rec: Recorder, provider: GenerationProvider | null, overrides: Par
     runner: rec.runner,
     createProvider: () => provider,
     mirror: fakeMirror(),
+    signReference: async (key: string) => `https://store.test/${key}?sig=x`,
     secrets: { KIE_API_KEY: "test-key" },
     isFinalAttempt: false,
     sleep: async () => {},
@@ -405,5 +434,106 @@ describe("sending a job somewhere else", () => {
     // Null, not zero. Zero reads as "this was free" and would quietly make an
     // unrated provider look like pure margin.
     expect(rec.succeeded[0]!.providerCostUsd).toBeNull();
+  });
+});
+
+/**
+ * The customer's uploaded references, on their way to the provider.
+ *
+ * This is where the silent drop lived. The browser has built a slot -> asset id
+ * map since #55; the adapter did not send it, the request contract had no field
+ * for it, and nothing downstream had anywhere to put it — so a customer could
+ * attach a first frame, watch it upload, and get a picture made from nothing at
+ * full price.
+ */
+describe("reference uploads reaching the provider", () => {
+  const ASSET_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const ASSET_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+  it("sends a single-slot reference as a bare string", async () => {
+    const job = claimedJob({
+      referenceAssetIds: { first_frame_url: [ASSET_A] },
+      refSlots: [{ key: "first_frame_url", max: 1 }],
+    });
+    const rec = recorder(job, true, { [ASSET_A]: "uploads/a.png" });
+    const provider = fakeProvider([succeededOutcome]);
+
+    await runGeneration(JOB_ID, deps(rec, provider));
+
+    // `max: 1` means the upstream parameter is a string, not a one-element
+    // array. Guessing that from the key ending in "url" rather than "urls"
+    // would be right here and wrong on `imageUrls`.
+    expect(provider.submitted[0]?.params.first_frame_url).toBe("https://store.test/uploads/a.png?sig=x");
+  });
+
+  it("sends a multi-slot reference as an ordered array", async () => {
+    const job = claimedJob({
+      referenceAssetIds: { image_urls: [ASSET_A, ASSET_B] },
+      refSlots: [{ key: "image_urls", max: 4 }],
+    });
+    const rec = recorder(job, true, { [ASSET_A]: "uploads/a.png", [ASSET_B]: "uploads/b.png" });
+    const provider = fakeProvider([succeededOutcome]);
+
+    await runGeneration(JOB_ID, deps(rec, provider));
+
+    // Order is the customer's: first and last frame are two entries in one slot
+    // on several models, and swapping them makes a different clip.
+    expect(provider.submitted[0]?.params.image_urls).toEqual([
+      "https://store.test/uploads/a.png?sig=x",
+      "https://store.test/uploads/b.png?sig=x",
+    ]);
+  });
+
+  it("looks the ids up against the job's own account", async () => {
+    const job = claimedJob({ referenceAssetIds: { image_urls: [ASSET_A] }, refSlots: [{ key: "image_urls", max: 2 }] });
+    const rec = recorder(job, true, { [ASSET_A]: "uploads/a.png" });
+
+    await runGeneration(JOB_ID, deps(rec, fakeProvider([succeededOutcome])));
+
+    expect(rec.referenceLookups).toEqual([{ accountId: job.accountId, assetIds: [ASSET_A] }]);
+  });
+
+  /**
+   * The behaviour the whole feature exists for.
+   *
+   * An upload deleted between the quote and the queue must fail the job and
+   * refund, never submit without it. A first-frame model handed no first frame
+   * does not error — it makes something else and charges for it, and the
+   * customer is left arguing with a picture.
+   */
+  it("fails and refunds rather than generating without a reference that has gone", async () => {
+    const job = claimedJob({ referenceAssetIds: { first_frame_url: [ASSET_A] }, refSlots: [{ key: "first_frame_url", max: 1 }] });
+    const rec = recorder(job, true, {}); // the upload is not there any more
+    const provider = fakeProvider([succeededOutcome]);
+
+    const result = await runGeneration(JOB_ID, deps(rec, provider));
+
+    expect(result).toEqual({ outcome: "failed", jobId: JOB_ID, errorCode: "reference_unavailable" });
+    expect(provider.submitted).toHaveLength(0);
+    expect(rec.succeeded).toHaveLength(0);
+    // Settled as a failure, which is what releases the hold.
+    expect(rec.failures[0]?.errorCode).toBe("reference_unavailable");
+  });
+
+  it("says something a customer can act on, and names nobody", async () => {
+    const job = claimedJob({ referenceAssetIds: { image_urls: [ASSET_A] }, refSlots: [{ key: "image_urls", max: 2 }] });
+    const rec = recorder(job, true, {});
+
+    await runGeneration(JOB_ID, deps(rec, fakeProvider([succeededOutcome])));
+
+    const message = rec.failures[0]?.errorMessage ?? "";
+    expect(message).toBe("A file attached to this generation is no longer available.");
+    expect(message).not.toMatch(/kie|wavespeed|useapi|s3|bucket|uploads\//i);
+  });
+
+  it("leaves a job with no references exactly as it was", async () => {
+    const rec = recorder(claimedJob());
+    const provider = fakeProvider([succeededOutcome]);
+
+    await runGeneration(JOB_ID, deps(rec, provider));
+
+    expect(provider.submitted[0]?.params).toEqual({ prompt: "a small red boat" });
+    // And no lookup at all, rather than one for an empty list.
+    expect(rec.referenceLookups).toHaveLength(0);
   });
 });

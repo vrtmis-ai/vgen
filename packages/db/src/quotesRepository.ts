@@ -30,6 +30,21 @@ export interface QuoteRequest {
   params: GenerationParams;
   prompt?: string | undefined;
   clipSeconds?: number | undefined;
+  /**
+   * "I would rather wait than spend." Absent means true — see the contract.
+   *
+   * Only ever narrows: a false here declines a grant the account already holds
+   * and pays the ordinary price. It can never open one it does not hold.
+   */
+  preferUnlimited?: boolean | undefined;
+  /**
+   * Uploaded files per reference slot, as `slot key -> ordered asset ids`.
+   *
+   * Ids, never URLs and never bytes. The browser uploads through
+   * `POST /assets` first and names what it stored; anything else would let a
+   * request point the provider at a URL of its choosing.
+   */
+  referenceAssetIds?: Record<string, string[]> | undefined;
 }
 
 export interface QuotedGeneration {
@@ -48,7 +63,16 @@ export type QuoteResult =
   | { outcome: "unknown_variant" }
   | { outcome: "tier_too_low"; requiredTier: Tier; currentTier: Tier }
   | { outcome: "not_offered" }
-  | { outcome: "no_price" };
+  | { outcome: "no_price" }
+  /**
+   * A reference id that is not this account's usable upload.
+   *
+   * One outcome for "does not exist", "belongs to somebody else" and "was
+   * deleted", on purpose: telling them apart would turn this route into an
+   * oracle for whether a given asset id exists, which is the whole reason a
+   * uuid is not an authorisation.
+   */
+  | { outcome: "unknown_reference" };
 
 interface CatalogRow {
   id: string;
@@ -71,6 +95,72 @@ function billableSeconds(params: GenerationParams, clipSeconds: number | undefin
   if (typeof duration === "number") return duration;
   if (typeof duration === "string" && duration.trim() !== "" && Number.isFinite(Number(duration))) return Number(duration);
   return clipSeconds;
+}
+
+/**
+ * Whether a grant reaches the settings actually being asked for.
+ *
+ * `covers` names the settings the subscription serves, as
+ * `control key -> allowed values`. Only the keys it names are narrowed —
+ * anything absent is unconstrained, so adding a control to a variant does not
+ * silently withdraw a grant that was written before it existed.
+ *
+ * Compared as strings on purpose. Control values arrive as `unknown` from a
+ * JSON body and the catalogue writes them as strings (`"1K"`, `"2K"`), but a
+ * number that round-trips through a client could arrive as `1024` or `"1024"`
+ * for the same setting. `String(value)` makes the two agree; a `===` against a
+ * raw `unknown` would silently fail to match and quietly bill someone.
+ *
+ * A missing param does not match a constrained key. If the pipe covers
+ * `resolution: ["1K","2K"]` and the request names no resolution, the model's
+ * own default decides what runs — and we do not know here what that is, so the
+ * safe answer is to price it. Missing configuration costs a sale, never the
+ * margin, which is how the tier gate above already resolves the same tension.
+ */
+export function coversSettings(covers: Record<string, string[]> | null, params: GenerationParams): boolean {
+  if (!covers) return true;
+  return Object.entries(covers).every(([key, allowed]) => {
+    const value = (params as Record<string, unknown>)[key];
+    if (value === undefined || value === null) return false;
+    return allowed.includes(String(value));
+  });
+}
+
+/**
+ * The reference ids this account may actually use, checked against the store.
+ *
+ * An asset id is a uuid in a URL-shaped hole, not a capability. Without this a
+ * caller could name somebody else's private upload and have it drawn from — the
+ * bytes never come back to them directly, but the picture made from them does,
+ * which is the same leak wearing a hat.
+ *
+ * Four conditions, and each excludes a real row that exists:
+ *
+ *   - `account_id` is the caller's, which is the actual authorisation
+ *   - `origin = 'upload'` so a *generated* asset cannot be fed back in by id;
+ *     that may become a feature one day and it should be a deliberate one
+ *   - `deleted_at is null`, because deleting an upload has to mean something
+ *   - the id parses as a uuid at all, which is checked by the contract before
+ *     this ever runs
+ *
+ * Returns the count of distinct ids that passed, so the caller can compare it
+ * against what was asked for rather than trusting a boolean.
+ */
+async function usableReferenceCount(sql: Sql, accountId: string, ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const [row] = await sql<{ n: string }[]>`
+    select count(distinct id)::text as n from assets
+    where id = any(${ids}::uuid[])
+      and account_id = ${accountId}
+      and origin = 'upload'
+      and deleted_at is null
+  `;
+  return Number(row?.n ?? 0);
+}
+
+/** Every id named across every slot, deduplicated. */
+function referenceIdsOf(map: Record<string, string[]> | undefined): string[] {
+  return [...new Set(Object.values(map ?? {}).flat())];
 }
 
 export class PostgresQuotesRepository {
@@ -135,9 +225,31 @@ export class PostgresQuotesRepository {
     const currentTier = await this.entitlements.tierForAccount(accountId);
     if (currentTier < requiredTier) return { outcome: "tier_too_low", requiredTier, currentTier };
 
+    // ---- the references -------------------------------------------------
+    // Before anything is priced, because a quote that names a file the caller
+    // may not use should not exist at all — not as a row, and not as a price
+    // they could then spend on a job.
+    const referenceIds = referenceIdsOf(request.referenceAssetIds);
+    if (referenceIds.length > 0) {
+      const usable = await usableReferenceCount(this.sql, accountId, referenceIds);
+      if (usable !== referenceIds.length) return { outcome: "unknown_reference" };
+    }
+
     // ---- free, or priced ------------------------------------------------
-    const available = await this.entitlements.availability(model.id, feature.id, accountId, currentTier);
-    const granted = available !== null && (available.remaining === null || available.remaining > 0);
+    // Four things have to hold before a generation is free, and the order is
+    // cheapest-question-first: did the customer ask for it, is there a grant
+    // this tier reaches, does the grant cover these settings, is there any of
+    // today's allowance left.
+    //
+    // `preferUnlimited` defaults to true because the grant has always applied
+    // automatically. Reading an absent field as false would start charging
+    // every client that has not been taught to send it — and only the
+    // customers on the plans that were sold the perk, which is the worst
+    // possible set of people to start billing by accident.
+    const wantsUnlimited = request.preferUnlimited ?? true;
+    const available = wantsUnlimited ? await this.entitlements.availability(model.id, feature.id, accountId, currentTier) : null;
+    const covered = available === null || coversSettings(available.grant.covers, request.params);
+    const granted = available !== null && covered && (available.remaining === null || available.remaining > 0);
 
     let priceId: string | null = null;
     let coins = 0;
@@ -192,12 +304,14 @@ export class PostgresQuotesRepository {
         account_id, created_by, params_hash,
         provider_model_id, feature_id, price_id, entitlement_id,
         provider_cost_usd_micros, sell_price_micro_credits,
-        exchange_rate_irr_per_usd, margin_usd_micros, expires_at
+        exchange_rate_irr_per_usd, margin_usd_micros, expires_at,
+        reference_asset_ids
       ) values (
         ${accountId}, ${request.userId}, ${Buffer.from(hashGenerationParams(request.params))},
         ${model.id}, ${feature.id}, ${priceId}, ${grant?.id ?? null},
         ${costUsdMicros}, ${microCredits},
-        ${Math.round(Number(fx.rate))}, ${sellUsdMicros - costUsdMicros}, ${expiresAt}
+        ${Math.round(Number(fx.rate))}, ${sellUsdMicros - costUsdMicros}, ${expiresAt},
+        ${referenceIds.length === 0 ? null : this.sql.json(request.referenceAssetIds ?? {})}
       )
       returning id, expires_at
     `;

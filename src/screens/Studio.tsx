@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { type Family, type ModelKind, type Variant } from "../data/models";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { VendorMark } from "../components/VendorMark";
-import type { InputMap } from "../components/controls";
+import type { InputMap, RefMap } from "../components/controls";
 import { FormPanel } from "../components/FormPanel";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { type Generation } from "../lib/gallery";
@@ -131,7 +131,7 @@ export default function Studio({
 }: {
   kind: ModelKind;
   gens: Generation[];
-  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
+  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, refs: RefMap) => void;
   onOpen: (g: Generation) => void;
 }) {
   const { t } = useI18n();

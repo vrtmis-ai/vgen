@@ -164,7 +164,7 @@ export function FormPanel({
   onGenerate,
 }: {
   families: Family[];
-  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
+  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, refs: RefMap) => void;
 }) {
   const { t, n } = useI18n();
   // A visitor sees the whole dock — models, controls, the price — and the one
@@ -456,7 +456,7 @@ export function FormPanel({
         ) : (
           <button
             disabled={!visitor && !ready}
-            onClick={() => (visitor ? signIn() : onGenerate(family, variant, prompt.trim(), input))}
+            onClick={() => (visitor ? signIn() : onGenerate(family, variant, prompt.trim(), input, refImages))}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold transition-opacity disabled:opacity-35"
             style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
           >

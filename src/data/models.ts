@@ -114,8 +114,20 @@ export interface Variant {
    * `limits` names the settings it covers. Nano Banana runs unlimited to 2K and
    * not at 4K, and the screen has to be able to say so before the switch is
    * flipped rather than after a quote comes back metered.
+   *
+   * `minTier` is the lowest plan tier the grant is open to, and it is not the
+   * same number as the family's own `minTier`: Nano Banana opens at tier 2 and
+   * its grant at tier 3, so a Pro customer can reach the model and not the free
+   * pipe. Without it a switch labelled free renders for somebody who will be
+   * charged the metered price, which is the one failure a price control must
+   * not have. `dailyCap` is nullable because a grant may be genuinely uncapped.
+   *
+   * The shape mirrors `UnlimitedPipeSchema`, and the values come from
+   * `unlimited_entitlements` — never from a hand-written guess here. This
+   * literal exists so demo mode and the committed snapshot have something to
+   * agree with; `catalogSnapshot.test.ts` is what holds them together.
    */
-  unlimited?: { dailyCap: number; limits?: Record<string, string[]> };
+  unlimited?: { dailyCap: number | null; minTier: 1 | 2 | 3; limits?: Record<string, string[]> };
   label: string; // short version label for the switcher
   badge?: string;
   refs?: RefSlot[] | null; // null = no input slots; undefined = inherit family.refs
@@ -329,14 +341,14 @@ export const FAMILIES: Family[] = [
         featureCode: "image_generate",
         label: "Pro",
         badge: "پرچم‌دار",
-        unlimited: { dailyCap: 50, limits: { resolution: ["1K", "2K"] } },
+        unlimited: { dailyCap: 50, minTier: 3, limits: { resolution: ["1K", "2K"] } },
       },
       {
         id: "nano-banana-2",
         featureCode: "image_generate",
         label: "نسخه ۲",
         badge: "جدید",
-        unlimited: { dailyCap: 50, limits: { resolution: ["1K", "2K"] } },
+        unlimited: { dailyCap: 50, minTier: 3, limits: { resolution: ["1K", "2K"] } },
         refs: [{ key: "image_input", label: "تصاویر ورودی (اختیاری)", max: 14 }],
         controls: [
           {
@@ -393,7 +405,7 @@ export const FAMILIES: Family[] = [
     ],
     variants: [
       // No `limits`: Seedream 4.5 has no resolution control to cap.
-      { id: "seedream-4-5", featureCode: "image_generate", label: "۴٫۵", unlimited: { dailyCap: 50 } },
+      { id: "seedream-4-5", featureCode: "image_generate", label: "۴٫۵" },
       { id: "seedream-5-lite", featureCode: "image_generate", label: "۵ Lite", badge: "ارزان" },
     ],
   },

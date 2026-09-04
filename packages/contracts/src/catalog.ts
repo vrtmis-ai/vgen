@@ -44,15 +44,23 @@ export const CatalogControlSchema = z.discriminatedUnion("kind", [
 
 export const CatalogRefSlotSchema = z.object({
   /**
-   * Which upload the slot belongs to, so a panel can offer them as the separate
-   * choices they are rather than one "add a file".
+   * Which upload this slot belongs to, so a panel can offer them as the separate
+   * choices they are rather than one generic "add a file".
    *
    * `frame` is a position in the clip — a start or an end the model interpolates
-   * between. `reference` is material it draws from. They are different questions
-   * and the reference asks them on separate tabs; merging them produced a single
-   * generic dropzone that told a customer nothing about what the model wanted.
+   * between. `reference` is material it draws from. Wan 2.7 takes both, and
+   * without the split its five slots render as one undifferentiated column that
+   * tells the customer nothing about what the model actually wants.
    *
-   * Absent means `reference`, which is the ordinary case.
+   * Absent means `reference`, which is the ordinary case, so no existing slot
+   * has to be edited to keep meaning what it meant.
+   *
+   * **This field is why the marker survives.** `capabilitiesFor` in
+   * `scripts/publish-catalog.ts` stores the whole variant, so a `group` written
+   * in `src/data/models.ts` reaches `provider_models.capabilities` on its own —
+   * but `PostgresCatalogRepository` parses that blob through this schema, and
+   * zod strips what a schema does not name. Without this line the seeder would
+   * write it, the database would hold it, and the browser would never see it.
    */
   group: z.enum(["reference", "frame"]).optional(),
   key: z.string().min(1),
@@ -87,28 +95,55 @@ export const CatalogRefSlotSchema = z.object({
  * threshold. `scripts/publish-unlimited.ts` seeds the second; this is the only
  * thing about it a browser is told.
  *
- * **On the variant, not the family.** Nano Banana has the pipe for Pro and for
- * 2, and Seedream has it for 4.5 and not for 5 Lite — a family-level flag would
- * promise it on a variant that cannot deliver it.
+ * **On the variant, not the family.** A grant is per catalogue row, so Nano
+ * Banana can have the pipe for Pro and for 2 while a sibling variant does not.
+ * A family-level flag would promise it on a variant that cannot deliver.
  *
  * Deliberately not a second catalogue entry either. The customer picks one Nano
  * Banana Pro and then chooses how it is served; two entries would make them
  * choose between models they cannot tell apart, and would double every price
  * table.
  *
- * `limits` names the settings the pipe covers, as `control key -> allowed
- * values`. Nano Banana runs unlimited up to 2K and not at 4K, and a screen has
- * to be able to say so *before* the choice is made rather than after a quote
- * comes back metered. Absent means the pipe covers every setting the variant
- * offers.
+ * **Derived, never seeded.** Every field here is read from
+ * `unlimited_entitlements` when the catalogue document is built — the same row
+ * the quote path checks and the same row that authorises a free job. Publishing
+ * a copy of it into `capabilities` would create a second place for the answer
+ * to live, and the two would disagree the first time a grant was retired: the
+ * shop would go on advertising a free pipe that the quote had stopped granting.
  *
- * `dailyCap` is what the plan allows per day, so a screen can say what the
- * choice costs in waiting. What is *left* of today comes back on the quote,
- * because only the server knows what has been spent.
+ * All three fields are public in the sense a price is public. What none of them
+ * says is whether *you* get it — that depends on your plan and on what you have
+ * spent today, and only the quote can answer it.
  */
 const UnlimitedPipeSchema = z.object({
-  dailyCap: z.number().int().positive(),
-  /** `control key -> the values the pipe covers`. Absent means all of them. */
+  /**
+   * Free generations per account per day.
+   *
+   * What is *left* of today comes back on the quote instead, because only the
+   * server knows what has been spent. This is the number a screen uses to say
+   * what the choice is worth before it is made.
+   */
+  dailyCap: z.number().int().positive().nullable(),
+  /**
+   * Lowest `plans.tier` the grant is open to.
+   *
+   * Present so a screen can offer the upgrade rather than a switch that fails.
+   * Without it the pipe looks available to everybody, and a customer on the
+   * wrong plan flips something labelled free and is charged the metered price —
+   * a money surprise, and the quote declining politely does not undo it.
+   */
+  minTier: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  /**
+   * `control key -> the values the pipe covers`. Absent means all of them.
+   *
+   * The subscription does not necessarily serve every setting the metered
+   * provider does. A setting outside this is priced the ordinary way, so the
+   * screen has to be able to say so *before* the choice rather than after a
+   * quote comes back with a number on it.
+   *
+   * A key absent from the object is unconstrained, so adding a control to a
+   * variant never silently narrows an existing grant.
+   */
   limits: z.record(z.string(), z.array(z.string().min(1))).optional(),
 });
 
@@ -169,5 +204,6 @@ export const CatalogSnapshotSchema = z.object({
   families: z.array(CatalogFamilySchema),
 });
 
+export type CatalogVariant = z.infer<typeof CatalogVariantSchema>;
 export type CatalogFamily = z.infer<typeof CatalogFamilySchema>;
 export type CatalogSnapshot = z.infer<typeof CatalogSnapshotSchema>;

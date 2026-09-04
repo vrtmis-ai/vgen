@@ -46,12 +46,19 @@ const runnerRepository = new PostgresJobRunnerRepository(sql);
  * Where finished generations are kept.
  *
  * `forcePathStyle` and these defaults are the local MinIO in docker-compose.
- * In production the endpoint moves and nothing else does — and the store is
- * reachable only from the API and this worker, never from a browser, which is
- * why uploads are proxied rather than presigned.
+ * In production the endpoint moves, and one more thing moves with it.
+ *
+ * This used to say the store was reachable only from the API and this worker.
+ * That was never quite true and is plainly false now: `signReference` below
+ * hands a signed URL to the generation PROVIDER, which fetches it from its own
+ * servers on the public internet. A private endpoint therefore produces a URL
+ * nobody outside can resolve, and every reference-based generation fails in a
+ * way that looks like the provider misbehaving. `OBJECT_STORAGE_PUBLIC_ENDPOINT`
+ * is the name those URLs carry; the connection stays on the private one.
  */
 const objectStore = createS3ObjectStore({
   bucket: process.env.OBJECT_STORAGE_BUCKET?.trim() || "vgen",
+  publicEndpoint: process.env.OBJECT_STORAGE_PUBLIC_ENDPOINT?.trim(),
   endpoint: process.env.OBJECT_STORAGE_ENDPOINT?.trim() || "http://127.0.0.1:9000",
   region: process.env.OBJECT_STORAGE_REGION?.trim() || "us-east-1",
   credentials: {
@@ -107,6 +114,10 @@ const worker = new Worker(
       createProvider: createGenerationProvider,
       mirror,
       secrets: process.env,
+      // Signed here, per attempt. The default expiry is the store's, which is
+      // measured against how long a provider takes to fetch what it was handed
+      // rather than against how long the job sat in the queue.
+      signReference: (key) => objectStore.signedUrl(key),
       // attemptsMade is the count *before* this one, so this is the last try
       // when there are no further deliveries left after it.
       isFinalAttempt: job.attemptsMade + 1 >= attempts,

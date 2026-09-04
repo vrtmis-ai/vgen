@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "../lib/i18n";
+import { useAccess } from "../lib/access";
 import { unlimitedFit } from "../lib/unlimited";
 import type { Variant } from "../data/models";
 
@@ -28,10 +29,17 @@ export function UnlimitedSwitch({
   onChange: (next: boolean) => void;
 }) {
   const { t } = useI18n();
-  const fit = unlimitedFit(variant, input);
+  const { tier } = useAccess();
+  const fit = unlimitedFit(variant, input, tier);
 
   // No pipe on this variant — the row is not a thing that could be here.
   if (!fit) return null;
+
+  // A plan below the grant's tier gets nothing rather than a disabled switch:
+  // the setting case is something the customer can fix from this dock, and a
+  // plan is not. Offering the upgrade belongs on the row that sells plans, not
+  // on a chip in the toolbar.
+  if (!fit.available && fit.reason === "tier") return null;
 
   const blocked = !fit.available;
 

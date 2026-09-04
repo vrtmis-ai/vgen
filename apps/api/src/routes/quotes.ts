@@ -32,6 +32,8 @@ export function registerGenerationQuotesRoute(
       params: body.params as GenerationParams,
       prompt: body.prompt,
       clipSeconds: body.clipSeconds,
+      preferUnlimited: body.preferUnlimited,
+      referenceAssetIds: body.referenceAssetIds,
     });
 
     if (result.outcome === "quoted") return reply.code(200).send(GenerationQuoteSchema.parse(result.quote));
@@ -53,6 +55,14 @@ export function registerGenerationQuotesRoute(
 
     if (result.outcome === "unknown_variant" || result.outcome === "unknown_account") {
       return reply.code(404).send({ error: { code: result.outcome, message: "That model is not available." } });
+    }
+
+    // 404 rather than 403, and one message for "does not exist", "is somebody
+    // else's" and "was deleted". Telling those apart would make this route an
+    // oracle for whether a given asset id exists, which is precisely what a
+    // uuid must not be worth.
+    if (result.outcome === "unknown_reference") {
+      return reply.code(404).send({ error: { code: result.outcome, message: "An attached file is not available." } });
     }
 
     // The variant exists but this combination of settings has no price — an

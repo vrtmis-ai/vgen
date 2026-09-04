@@ -148,7 +148,7 @@ export default function StudioImage({
   onOpenModel,
 }: {
   gens: Generation[];
-  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
+  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean) => void;
   onOpenModel: (familyId: string, prompt?: string) => void;
 }) {
   const { t, n } = useI18n();
@@ -163,7 +163,7 @@ export default function StudioImage({
   const { user, signIn } = useSession();
   const visitor = user === null;
   // Reachable *and* chosen. Either alone leaves the button lying about cost.
-  const freeNow = s.preferUnlimited && unlimitedFit(s.variant, s.input)?.available === true;
+  const freeNow = s.preferUnlimited && unlimitedFit(s.variant, s.input, access.tier)?.available === true;
   const locked = !access.can(s.family.id);
   const need = locked ? access.needs(s.family.id) : null;
   const [count, setCount] = useState(1);
@@ -503,7 +503,7 @@ export default function StudioImage({
                    colour is enough: it is the only lime in the dock. */
                 <button
                   disabled={!visitor && !s.ready}
-                  onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input))}
+                  onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited))}
                   className={`${CHIP_CLASS} justify-center px-4 transition-opacity disabled:opacity-35`}
                   style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
                 >

@@ -21,7 +21,20 @@ export function createHttpGenerationService(client: HttpClient): AppServices["ge
     quote(request, options) {
       return client.request("/generation/quotes", {
         method: "POST",
-        body: { variantId: request.variantId, params: request.input, prompt: request.prompt },
+        body: {
+          variantId: request.variantId,
+          params: request.input,
+          prompt: request.prompt,
+          // The field #55 built and this adapter used to drop on the floor.
+          // Sent always, including empty: the server schema defaults it, but an
+          // absent key and an empty object mean subtly different things to a
+          // reader and only one of them is what the screen intended.
+          referenceAssetIds: request.referenceAssetIds,
+          // Sent only when the screen has an opinion. The server reads an
+          // absent field as "free if I am entitled", which is what every
+          // caller wanted before there was a switch to say otherwise.
+          ...(request.preferUnlimited === undefined ? {} : { preferUnlimited: request.preferUnlimited }),
+        },
         schema: GenerationQuoteSchema,
         signal: options?.signal,
       });

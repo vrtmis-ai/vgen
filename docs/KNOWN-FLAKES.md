@@ -91,3 +91,96 @@ Recorded because the shape recurs: **any `waitFor` under
 `useFakeTimers({ shouldAdvanceTime: true })` is measuring patience against a
 clock that runner load is spending.** If a test in this repository fails on a
 loaded machine and passes locally, check that first.
+
+---
+
+## `e2e` · `auth.spec.ts` — cold compile, not a race
+
+> `the landing page's two entry points open the two auth routes`
+> — `Test timeout of 30000ms exceeded`, with the signup screen visibly rendered
+> in the snapshot
+
+#61 predicted this one in its own description, which is why it goes here rather
+than into a bug report:
+
+> This adds enough code that Next's **cold** compile of `/` and `/profile` got
+> slower, and `page.goto` runs against the 30s test timeout rather than the 15s
+> `expect.timeout` the config sets. Locally every spec passes on a warm server
+> and each failing one passed alone; on CI, which is always cold, this may
+> surface as timeouts that look like flakes.
+
+Seen once locally on 2026-08-30, on a suite run immediately after `.next` was
+deleted. The tell is in the page snapshot: the screen the test was navigating to
+had **rendered**, so nothing was stuck or missing — the compile simply ate the
+budget. Warm, the same spec passes in ~10s and the full suite in ~31s.
+
+**What to do about a red one:** re-run the file alone before believing it, which
+is the opposite of the advice on the rest of this page and is justified only by
+the snapshot showing a correctly rendered screen. If the snapshot shows an error
+state, a missing element, or the "content failed to load" panel, it is not this
+— read the entry below.
+
+The timeout is deliberately not raised. `playwright.config.ts` explains the 15s
+`expect.timeout` as a calibration against dev-server compile time, and the 30s
+test timeout is Playwright's own; moving either hides the next real regression
+by exactly as much as it hides this.
+
+---
+
+## `e2e` · anything asserting on the landing page — a fixture missing a field
+
+> Every landing assertion fails at once, and the snapshot shows
+> `محتوای منتشرشده بارگذاری نشد` — "the published content did not load"
+
+Not a flake. A deterministic failure with a misleading shape, recorded because
+it cost an hour and will happen again.
+
+`e2e/fixtures.ts` stubs `GET /content` with `page.route`, so **the e2e suite
+never talks to the real API** — which is why the failure survives killing the
+API, restarting it, and deleting `.next`, and why bisecting it looks like the
+application code broke.
+
+The shell blocks on the content document and paints nothing until it parses. So
+**a required field added to `ContentSnapshotSchema` breaks every landing test
+until the fixture learns it**, and the error the screen shows is about content
+being unavailable rather than about a schema. That is what happened when `flags`
+was added for the site banner.
+
+The contract has three copies now — `packages/contracts`, `src/runtime/contracts`
+and this fixture. The first two are a deliberate mirror; the fixture is the one
+that is easy to forget.
+
+---
+
+## `docker` · `web` restart-loops with `MODULE_NOT_FOUND … @swc/helpers`
+
+> The image builds, the container starts, and it exits immediately naming a
+> file inside a package that is present in the image
+
+Not a flake — a deterministic failure with a misleading shape. Recorded because
+it cost five image builds and because the two obvious diagnoses are both wrong.
+
+Next's `output: "standalone"` traces the files the server needs and copies them.
+For `@swc/helpers` it copies `cjs/` and `package.json` and stops. But
+`next/dist/server/require-hook.js` — the first thing the emitted `server.js`
+loads — resolves that package through its `exports` map to the **ESM** build, so
+the bundle holds a real `@swc/helpers` directory that cannot answer the one
+request ever made of it. `next.config.ts` therefore names it in
+`outputFileTracingIncludes`.
+
+**Two things it is not**, both tested rather than reasoned about:
+
+- **Not pnpm's linker.** The isolated `node_modules` layout looks like the
+  culprit — the error path runs through `.pnpm/next@…/node_modules/@swc/helpers`
+  — and installing that stage flat with `node-linker=hoisted` changes the shape
+  of the bundle without fixing anything. Removing the hoisting after the tracing
+  fix landed still boots and serves. If you are about to reach for
+  `node-linker`, this is the note saying it was already tried.
+- **Not a missing package.** `require('next/dist/server/require-hook.js')`
+  succeeds in the broken image. Every check short of starting the server agrees
+  the image is fine, which is why the Dockerfile now starts it.
+
+**The guard.** `docker/web.Dockerfile` boots the bundle and fetches `/` as its
+last build step, and fails the build on anything but a 200. That is deliberately
+heavier than a resolve check: a resolve check is exactly what passed while the
+image was broken.

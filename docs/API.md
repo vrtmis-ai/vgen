@@ -30,23 +30,23 @@ That was not true until this change: three generation calls were pointing at
 paths the API does not serve, in a job shape no server ever sent, and the
 gallery had no route at all.
 
-| `AppServices` call     | Frontend requests          | Server route          | Status   |
-| ---------------------- | -------------------------- | --------------------- | -------- |
-| `session.getCurrent()` | `GET /session`             | `routes/session.ts`   | **Live** |
-| `auth.*` (5 methods)   | `POST /auth/*`             | `routes/auth.ts`      | **Live** |
-| `catalog.list()`       | `GET /catalog`             | `routes/catalog.ts`   | **Live** |
-| `content.list()`       | `GET /content`             | `routes/content.ts`   | **Live** |
-| `community.list()`     | `GET /community`           | `routes/community.ts` | **Live** |
-| `community.share()`    | `POST /community`          | `routes/community.ts` | **Live** |
-| `plans.list()`         | `GET /plans`               | `routes/plans.ts`     | **Live** |
-| `wallet.getCurrent()`  | `GET /wallet`              | `routes/wallet.ts`    | **Live** |
-| `generation.quote()`   | `POST /generation/quotes`  | `routes/quotes.ts`    | **Live** |
-| `generation.create()`  | `POST /jobs`               | `routes/jobs.ts`      | **Live** |
-| `generation.getJob()`  | `GET /generation/jobs/:id` | `routes/jobs.ts`      | **Live** |
-| `gallery.list()`       | `GET /gallery`             | `routes/gallery.ts`   | **Live** |
-| `assets.upload()`      | `POST /assets`             | `routes/assets.ts`    | **Live** |
-| `campaign.getActive()` | `GET /campaigns/active`    | `routes/campaigns.ts` | **Live** |
-| `payment.createOrder()`| `POST /payments/orders`    | `routes/payments.ts`  | **Live** |
+| `AppServices` call      | Frontend requests          | Server route          | Status   |
+| ----------------------- | -------------------------- | --------------------- | -------- |
+| `session.getCurrent()`  | `GET /session`             | `routes/session.ts`   | **Live** |
+| `auth.*` (5 methods)    | `POST /auth/*`             | `routes/auth.ts`      | **Live** |
+| `catalog.list()`        | `GET /catalog`             | `routes/catalog.ts`   | **Live** |
+| `content.list()`        | `GET /content`             | `routes/content.ts`   | **Live** |
+| `community.list()`      | `GET /community`           | `routes/community.ts` | **Live** |
+| `community.share()`     | `POST /community`          | `routes/community.ts` | **Live** |
+| `plans.list()`          | `GET /plans`               | `routes/plans.ts`     | **Live** |
+| `wallet.getCurrent()`   | `GET /wallet`              | `routes/wallet.ts`    | **Live** |
+| `generation.quote()`    | `POST /generation/quotes`  | `routes/quotes.ts`    | **Live** |
+| `generation.create()`   | `POST /jobs`               | `routes/jobs.ts`      | **Live** |
+| `generation.getJob()`   | `GET /generation/jobs/:id` | `routes/jobs.ts`      | **Live** |
+| `gallery.list()`        | `GET /gallery`             | `routes/gallery.ts`   | **Live** |
+| `assets.upload()`       | `POST /assets`             | `routes/assets.ts`    | **Live** |
+| `campaign.getActive()`  | `GET /campaigns/active`    | `routes/campaigns.ts` | **Live** |
+| `payment.createOrder()` | `POST /payments/orders`    | `routes/payments.ts`  | **Live** |
 
 So `production` mode is complete end to end: sign in, browse the catalogue, see
 a price, submit a generation, watch it run, and see the file it produced. The
@@ -197,6 +197,7 @@ ElevenLabs voice list. Seven collections that were TypeScript arrays under
 {
   "version": "content-…",
   "publishedAt": 1234567890,
+  "flags": { "siteBanner": true },
   "presets": [],
   "fragments": [],
   "skills": [],
@@ -230,6 +231,29 @@ and a voice count to a visitor with no session.
 already exists and never deletes — pulling something is a decision a person
 made, and a seed run must not reverse it. `sort_order` does update, because the
 file is still the source of truth for order while no panel exists.
+
+**`flags` is here because of first paint, not because it is content.** The
+layout already blocks on this route for every visitor including anonymous ones,
+so a switch that has to be known before anything is painted costs no extra
+request and no flash of something that should have been off. A route of its own
+would answer after the first render, and the banner would appear and then
+vanish — worse than either state.
+
+- **`siteBanner` defaults to `true`.** An absent or deleted row means nobody has
+  turned it off. That is the opposite of how `early_access` reads a missing row,
+  deliberately: the invite gate gets to fail closed because it guards who may
+  sign up, while a banner failing closed would silently stop advertising a live
+  campaign.
+- **Toggled at `PATCH /admin/site-banner`** under `flags.write`, audited as
+  `site_banner.changed`. `GET /admin/site-banner` reads it under the same
+  permission — there is no `flags.read`, and inventing one for a value already
+  public on this route would be ceremony.
+- **It is not in `content.snapshot.json`.** A flag is a runtime switch whose
+  value at export time says nothing about its value now, so freezing one into a
+  fixture would only mislead. Demo mode supplies `true`, the same default the
+  server applies. `version` and `publishedAt` are left out for their own
+  reasons; the CI check that counts served rows sums `.length` over every key it
+  finds, so a non-array top-level entry would quietly make it `NaN`.
 
 **Demo mode serves the same document**, from `src/data/content.snapshot.json`,
 generated by `pnpm content:snapshot` and diffed in CI.
@@ -872,7 +896,7 @@ from. On the campaign row they would be numbers somebody typed, and the first
 plan repricing would make the advertisement wrong while leaving it perfectly
 valid. Derived, the strip cannot promise a rate the till will refuse. If a
 campaign ever needs a discount **of its own**, it becomes a column on
-`campaigns` *and* a term in the checkout pricing — never a number nothing
+`campaigns` _and_ a term in the checkout pricing — never a number nothing
 enforces.
 
 **Starting one is a row**, and there is deliberately no seed:
@@ -896,7 +920,7 @@ Requires a session.
 
 ```jsonc
 // request
-{ "planId": "pro", "cycle": "monthly" }   // cycle: "monthly" | "annual"
+{ "planId": "pro", "cycle": "monthly" } // cycle: "monthly" | "annual"
 ```
 
 ```jsonc
@@ -930,12 +954,12 @@ They agree today. If they ever drift, the sheet's own cross-check fires and
 refuses to send anyone to a gateway — safe, and completely broken until the two
 are reconciled. Move both together.
 
-| Outcome | Status | Meaning |
-| --- | --- | --- |
-| `unknown_plan` | 404 | Retired, private or misspelled — one answer for all three, so this cannot be used to discover private plan codes. |
-| `no_annual_option` | 409 | A year was asked for on a plan sold only monthly. Refused rather than quietly billed monthly. |
-| `no_exchange_rate` | 503 | No published USD→IRR rate. Ours to fix. |
-| `no_account` | 503 | A signed-in user whose row carries no personal account — a broken signup, not a bad request. |
+| Outcome            | Status | Meaning                                                                                                           |
+| ------------------ | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| `unknown_plan`     | 404    | Retired, private or misspelled — one answer for all three, so this cannot be used to discover private plan codes. |
+| `no_annual_option` | 409    | A year was asked for on a plan sold only monthly. Refused rather than quietly billed monthly.                     |
+| `no_exchange_rate` | 503    | No published USD→IRR rate. Ours to fix.                                                                           |
+| `no_account`       | 503    | A signed-in user whose row carries no personal account — a broken signup, not a bad request.                      |
 
 ### `POST /generation/quotes`
 
@@ -950,6 +974,8 @@ is left, and neither question has an answer for a stranger.
   "params": { "resolution": "1K" },
   "prompt": "a city at night", // priced only by the per-1k-character models
   "clipSeconds": 8, // only for models billed by an attached clip's length
+  "preferUnlimited": false, // optional; absent means true — see below
+  "referenceAssetIds": { "image_urls": ["0199…"] }, // slot -> ordered asset ids
 }
 ```
 
@@ -971,10 +997,43 @@ could name them is a request that could ask to be billed as something cheaper.
 - **`coins` is authoritative, and `0` is a real answer** — see Unlimited below.
 - **`unlimited` is present only when the zero came from a grant** rather than
   from a zero price, so you can say _why_ it is free and what is left.
+- **`preferUnlimited` is a mood, not a price.** It names no feature, model or
+  price — it says the customer would rather wait than spend, and a `true` can
+  only ever make a generation slower and cheaper. **Absent means `true`**: the
+  grant has always applied automatically to anyone holding it, so reading a
+  missing field as `false` would start charging every client that has not been
+  taught to send it, and only the customers on the plans that were sold the
+  perk. So `false` is the interesting value — _bill me, I want the quick
+  queue_. Read the response's `unlimited` block to learn what actually
+  happened rather than assuming you got what you asked for.
 - **`concurrency` is always present.** Price is not the only reason a
   generation might not start. Quoting is deliberately **not** refused when the
   account is full — the price is still the price, and a client that knows it is
   at 4 of 4 can say so instead of finding out by being rejected.
+- **`referenceAssetIds` names uploads by id, never by URL.** Upload through
+  `POST /assets` first; the ids go here as `slot key -> ordered asset ids`,
+  where the slot key is the catalogue's (`image_urls`, `first_frame_url`) and
+  the order matters — first and last frame are two entries in one slot on
+  several video models.
+- **An asset id is not an authorisation.** Every id is checked against the
+  caller's own uploads before anything is priced: it must be their account's,
+  `origin = 'upload'`, and not deleted. A caller naming somebody else's private
+  upload would never see the bytes, but would see the picture made from them,
+  which is the same leak wearing a hat. A failure is `unknown_reference`, 404,
+  with one message for missing, deleted and somebody else's — telling those
+  apart would make this route an oracle for whether an asset id exists.
+- **All or nothing.** One unusable id refuses the whole quote rather than
+  pricing what is left. Partial acceptance is the silent-drop bug in a new hat:
+  two faces attached, one refused, and the picture comes back made from one face
+  at the price of two.
+- **The job takes them from the quote, never from the submission.** `params` is
+  hash-bound; the references sit outside that hash, so reading them from the
+  `POST /jobs` body would let a quote with no attachments be spent on a job that
+  drew from a face. The job keeps its own copy because 0023 purges expired
+  quotes and "what went into this picture" outlives them.
+- **A reference that has gone fails the job and refunds**, rather than
+  generating without it — `reference_unavailable`. A first-frame model handed no
+  first frame does not error; it makes something else and charges for it.
 - **Quotes expire in five minutes** and are bound to a hash of `params`, so a
   cheap quote cannot be spent on an expensive job.
 - **Asking the price consumes nothing.** The free allowance is spent at job
@@ -1110,9 +1169,17 @@ the set collapse to `provider_failed`, so a provider inventing a new one cannot
 leak through the gap. Render by `code`; treat `message` as a fallback, not a
 diagnosis.
 
-`width`, `height` and `durationMs` are null today. The columns exist and the
-gallery reads them; nothing measures a file on the way in yet, and a screen
-should lay out from the variant's aspect ratio rather than wait for them.
+`width`, `height` and `durationMs` are measured from the file itself, by the
+worker, at the moment it mirrors the output — the one point the whole file is in
+memory. They describe what was delivered, which is not always what was asked
+for.
+
+Any of them can still be null, and a screen must handle that rather than assume
+a number. Null means the format carries no such property — an mp3 has no
+dimensions — or that it is one we do not parse: PNG, JPEG, GIF, WebP, MP4 and
+QuickTime are read for size, MP4, QuickTime and MP3 for duration, and anything
+else measures as null rather than as a guess. A pre-existing row is also null,
+because nothing backfilled what was never recorded.
 
 ### `GET /gallery`
 
@@ -1309,6 +1376,24 @@ What a UI needs to know:
   provider's row exists in `provider_models` but carries no `variant` in its
   capabilities, and the catalogue query excludes rows without one — otherwise
   the model would render twice and half the picks would be wrong.
+- **`GET /catalog` says which variants have the pipe.** A variant that has one
+  carries `unlimited: { dailyCap, minTier, limits? }`; the rest carry nothing.
+  It is **derived from `unlimited_entitlements` when the document is built**,
+  never seeded into `capabilities` — one row answers both the shop and the
+  quote, so the two cannot come to disagree and advertise a pipe that has been
+  withdrawn. A grant whose serving model or provider is switched off is not
+  published, for the same reason `findGrant` refuses it.
+- **`minTier` is on the marker so a screen can offer the upgrade** instead of a
+  switch that fails. Without it the pipe looks available to everyone, and a
+  customer on the wrong plan flips something labelled free and is charged.
+- **`limits` names the settings the pipe covers**, as `control key -> allowed
+values`, and a key it does not mention is unconstrained. The subscription
+  serves Nano Banana to 2K; 4K is quoted and billed the metered way even for an
+  entitled account. Say so before the choice is made — after it, the customer
+  has already been charged. _(The 2K ceiling is currently unverified: there is
+  no useapi token in this environment to ask. It restricts rather than permits,
+  which is the safe side, and the useapi spike replaces it with a measured
+  fact.)_
 - **Past the daily allowance the customer is charged, not refused.** The quote
   simply comes back with the normal price and no `unlimited` block. "You have
   had your fifty free, this one costs four coins" needs no new UI to say.
@@ -1372,20 +1457,11 @@ So you can tell a gap from a bug:
 - **Payments.** Plans render and price correctly; nothing charges. Blocked on
   which Iranian gateway to use — ZarinPal, IDPay, NextPay and Zibal all work
   differently enough that the choice comes first.
-- **Reference images are accepted but not yet attached to a generation.**
-  `POST /assets` stores one and hands back an id; nothing sends those ids with
-  a quote. `GenerationsProvider` refuses a generation carrying references
-  rather than silently dropping them, and the TODO there names the two lines it
-  needs. That is UI work now, not backend work.
-- **Nothing measures a file.** `assets.width`, `height` and `duration_ms` are
-  written null. The gallery reads them and a screen can lay out without them.
-- **Some screens still read `FAMILIES` directly.** `getFamily()` in Community,
-  Effects, Profile, Mcp and AssetViewer, and the whole list in Landing, import
-  `src/data/models.ts` rather than going through `useCatalogFamilies()`. Nothing
-  is broken by it today — the committed snapshot and the API are the same
-  document — but those screens read a compiled-in constant instead of the served
-  catalog, so a family retired in the database would keep rendering. Porting
-  them is UI work and the port is already there.
+- **Nothing measures a WebM, OGG or WAV file.** Every format our providers
+  actually return is measured; these three are parsed by nobody because nothing
+  produces them. `assets.width`, `height` and `duration_ms` stay null for them,
+  as they do for every row written before measurement existed — there is no
+  backfill.
 
 ## Asking for a change
 

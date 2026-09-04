@@ -10,7 +10,10 @@ describe("naming the models the pipe covers", () => {
    * this test.
    */
   it("names exactly the variants marked in the catalogue", () => {
-    expect(unlimitedModelNames(FAMILIES)).toEqual(["Nano Banana Pro", "Nano Banana نسخه ۲", "Seedream ۴٫۵"]);
+    // Seedream 4.5 was on this list on a guess, before the catalogue could be
+    // asked. `unlimited_entitlements` grants the pipe to the two Nano Bananas
+    // and to nothing else, so the shop must not go on naming a third.
+    expect(unlimitedModelNames(FAMILIES)).toEqual(["Nano Banana Pro", "Nano Banana نسخه ۲"]);
   });
 
   it("says nothing when nothing is covered", () => {

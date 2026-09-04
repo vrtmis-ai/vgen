@@ -11,7 +11,7 @@ export default function StudioImagePage() {
   return (
     <StudioImage
       gens={gens}
-      onGenerate={(family, variant, prompt, input) => requestGeneration(family.id, prompt, input, variant)}
+      onGenerate={(family, variant, prompt, input, preferUnlimited) => requestGeneration(family.id, prompt, input, variant, { preferUnlimited })}
       onOpenModel={openModel}
     />
   );

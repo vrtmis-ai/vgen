@@ -40,10 +40,16 @@ const collections = {
 export function createDemoContentService(now: () => number): AppServices["content"] {
   return {
     async list() {
-      // Not from the file: the export leaves both out on purpose, because they
-      // derive from row timestamps and would make the committed snapshot differ
-      // on every run.
-      return { version: "demo-content-v1", publishedAt: now(), ...collections };
+      // Not from the file: the export leaves all three out on purpose. The two
+      // timestamps derive from rows and would make the committed snapshot
+      // differ on every run; `flags` is a runtime switch whose value at export
+      // time says nothing about its value now.
+      //
+      // The banner is on in demo mode, which is the same default the server
+      // applies when nobody has turned it off — demo exists to show the
+      // product, and a strip that is invisible here but present in production
+      // is a difference somebody finds by shipping.
+      return { version: "demo-content-v1", publishedAt: now(), flags: { siteBanner: true }, ...collections };
     },
   };
 }
