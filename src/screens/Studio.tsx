@@ -257,8 +257,11 @@ export default function Studio({
                       style={{ aspectRatio: `${g.w} / ${g.h}`, background: g.grad, maxHeight: "70dvh" }}
                       aria-label={`باز کردن — ${g.prompt.trim() ? g.prompt.trim().slice(0, 60) : g.name}`}
                     >
+                      {/* `g.kind`, not the file extension. An output URL is
+                          signed and ends in a query string, so `.mp4$` never
+                          matches one and every clip was handed to an `<img>`. */}
                       {g.outputUrl &&
-                        (isVideoUrl(g.outputUrl) ? (
+                        (g.kind === "video" ? (
                           <video src={g.outputUrl} muted loop playsInline className="absolute inset-0 size-full object-cover" />
                         ) : (
                           <img src={g.outputUrl} alt="" className="absolute inset-0 size-full object-cover" />

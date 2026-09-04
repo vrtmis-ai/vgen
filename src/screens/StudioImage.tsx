@@ -195,17 +195,40 @@ export default function StudioImage({
      items actually differ, and the seeded stand-ins were all one shape. Real
      generations carry their own w/h. */
   const RATIOS = [9 / 16, 3 / 4, 16 / 9, 1, 4 / 5];
-  const shaped = Array.from({ length: 42 }, (_, i) => {
-    const base = wall[i % wall.length]!;
-    const ratio = finished.length > 0 ? base.w / base.h : RATIOS[i % RATIOS.length]!;
-    const [w, h] = ratio >= 1 ? [1200, Math.round(1200 / ratio)] : [Math.round(900 * ratio), 900];
-    return {
-      key: `${base.id}-${i}`,
-      ratio,
-      asset: { ...base, w, h, url: art(`${base.id}-${i}`, w, h) } as ViewerAsset,
-      pending: null as Generation | null,
-    };
-  });
+  /* Two walls, and they are not the same wall with a different source.
+
+     The demo wall exists so a brand-new account does not look at a hole: ten
+     seeded examples repeated up to 42 frames, each given its own placeholder so
+     the repetition is not obvious. Every part of that — the repeat, the 42, the
+     per-tile `art()` — is scaffolding for an empty library.
+
+     Run it over real work and it destroys the thing it is displaying. `base`
+     already carries `outputUrl`, the file the customer paid for; the spread
+     that follows overwrote it with a random photo from picsum.photos, and the
+     repeat then showed one generation as forty-two different stock pictures.
+     Generating something and watching unrelated images appear is what "the site
+     does not work" looked like from outside.
+
+     So real work is rendered once each, at its own size, from its own URL. */
+  const shaped =
+    finished.length > 0
+      ? wall.map((base) => ({
+          key: base.id,
+          ratio: base.w / base.h,
+          asset: base,
+          pending: null as Generation | null,
+        }))
+      : Array.from({ length: 42 }, (_, i) => {
+          const base = wall[i % wall.length]!;
+          const ratio = RATIOS[i % RATIOS.length]!;
+          const [w, h] = ratio >= 1 ? [1200, Math.round(1200 / ratio)] : [Math.round(900 * ratio), 900];
+          return {
+            key: `${base.id}-${i}`,
+            ratio,
+            asset: { ...base, w, h, url: art(`${base.id}-${i}`, w, h) } as ViewerAsset,
+            pending: null as Generation | null,
+          };
+        });
   // Named as a set, not one at a time: whether a name needs an ordinal is a
   // fact about the whole wall, so it cannot be decided from inside one tile.
   const names = tileNames(

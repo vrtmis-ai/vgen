@@ -1,8 +1,17 @@
 const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 
-/** True when a cover URL points to a video (render as <video>, not <img>). */
+/**
+ * True when a cover URL points to a video (render as <video>, not <img>).
+ *
+ * The extension may be followed by a query or a fragment. Anchoring this at the
+ * end of the string worked for catalogue covers, which are plain URLs, and
+ * silently failed for anything signed — an S3 URL ends in its signature, so a
+ * real generated clip read as "not a video" and went to an `<img>`. Callers
+ * that hold a catalogue `kind` should prefer it; this is for the ones that only
+ * ever have a URL.
+ */
 export function isVideoUrl(u?: string): boolean {
-  return !!u && /\.(mp4|webm)$/i.test(u);
+  return !!u && /\.(mp4|webm)(?:[?#]|$)/i.test(u);
 }
 
 /**

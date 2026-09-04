@@ -6,6 +6,31 @@ import type { ModelKind } from "../data/models";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { useI18n } from "../lib/i18n";
 
+/**
+ * The generation itself, which this screen used to leave out.
+ *
+ * Every card here drew `g.grad` and stopped — a coloured rectangle where the
+ * file the customer paid for should be. The prompt and the model name were
+ * right, so the card looked deliberate rather than broken, which is why it
+ * survived: nothing about it says "missing picture".
+ *
+ * Keyed off `g.kind` rather than the file extension. These URLs are signed and
+ * carry a query string, so `isVideoUrl`'s `.mp4$` never matches one and every
+ * clip would be handed to an `<img>`. The catalogue knows what it made.
+ *
+ * The gradient stays underneath as the backdrop for audio, for a running job,
+ * and for the moment before the image decodes.
+ */
+function Thumbnail({ g }: { g: Generation }) {
+  if (!g.outputUrl || g.kind === "audio") return null;
+  const className = "absolute inset-0 size-full object-cover";
+  return g.kind === "video" ? (
+    <video src={g.outputUrl} muted loop playsInline className={className} />
+  ) : (
+    <img src={g.outputUrl} alt="" className={className} />
+  );
+}
+
 function GenCard({ g, i, onOpen, list }: { g: Generation; i: number; onOpen: () => void; list?: boolean }) {
   const { t } = useI18n();
   const running = g.status === "running";
@@ -24,6 +49,7 @@ function GenCard({ g, i, onOpen, list }: { g: Generation; i: number; onOpen: () 
         style={{ background: "var(--vg-surface)" }}
       >
         <span className="relative size-14 shrink-0 overflow-hidden rounded-lg" style={{ background: g.grad }}>
+          <Thumbnail g={g} />
           {running && <span className="shimmer absolute inset-0" />}
         </span>
         <span className="min-w-0 flex-1">
@@ -56,6 +82,7 @@ function GenCard({ g, i, onOpen, list }: { g: Generation; i: number; onOpen: () 
       className="mb-3 block w-full break-inside-avoid overflow-hidden rounded-bezel border border-line text-start active:scale-[0.98] transition-transform"
     >
       <div className="relative w-full" style={{ aspectRatio: `${g.w}/${g.h}`, background: g.grad }}>
+        <Thumbnail g={g} />
         {running && <div className="shimmer absolute inset-0 bg-card/60" />}
         <div className="scrim-media" />
         <div className="absolute start-2 top-2">
