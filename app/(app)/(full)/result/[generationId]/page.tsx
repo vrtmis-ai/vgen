@@ -11,7 +11,7 @@ import { useNavigation } from "../../../../../src/runtime/providers/NavigationPr
 export default function ResultPage() {
   const params = useParams<{ generationId: string }>();
   const searchParams = useSearchParams();
-  const { gens, hydrated, regenerate, markDone } = useGenerations();
+  const { gens, hydrated, regenerate, removeGeneration, markDone } = useGenerations();
   const { goBack, openModel } = useNavigation();
 
   const generation = gens.find((candidate) => candidate.id === decodeURIComponent(params.generationId));
@@ -38,6 +38,9 @@ export default function ResultPage() {
          "start again, from nothing" — the image the button is attached to was
          dropped on the way. */
       onToVideo={() => openModel("seedance", generation.prompt, generation.id)}
+      /* No redirect of its own: the generation leaves `gens`, the lookup above
+         misses, and the page sends itself to the gallery. */
+      onRemove={() => void removeGeneration(generation.id)}
       onDone={() => markDone(generation.id)}
     />
   );

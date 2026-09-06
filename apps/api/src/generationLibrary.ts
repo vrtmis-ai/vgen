@@ -18,7 +18,32 @@ import type { GalleryQuery, GenerationRecord, PostgresGalleryRepository, StoredO
 export interface GenerationLibraryApplication {
   get(jobId: string, userId: string): Promise<GenerationJob | null>;
   list(userId: string, query: GalleryQuery): Promise<GalleryPage>;
+  /** A link that saves the file instead of displaying it. Null if there is no such output. */
+  downloadUrl(jobId: string, userId: string, index: number): Promise<string | null>;
+  /** Take a settled generation off the account's wall. */
+  remove(jobId: string, userId: string): Promise<"removed" | "still_running" | "not_found">;
 }
+
+/**
+ * The extension for a stored file, from what it actually is.
+ *
+ * Read from the mime type rather than from the generation's `kind`, because
+ * `kind` is a category ("video") and a filename needs the container the bytes
+ * are actually in. Unknown types get no extension rather than a wrong one —
+ * every operating system handles a missing extension better than a lying one.
+ */
+const EXTENSIONS: Readonly<Record<string, string>> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/webm": "webm",
+  "audio/mpeg": "mp3",
+  "audio/wav": "wav",
+  "audio/ogg": "ogg",
+};
 
 export class GenerationLibraryService implements GenerationLibraryApplication {
   constructor(
@@ -36,6 +61,36 @@ export class GenerationLibraryService implements GenerationLibraryApplication {
     const page = await this.gallery.listForUser(userId, query);
     const items = await Promise.all(page.items.map((record) => this.withUrls(record)));
     return page.nextCursor ? { items, nextCursor: page.nextCursor } : { items };
+  }
+
+  /**
+   * The same object, signed to arrive as a file.
+   *
+   * Separate from `describe()` on purpose: the inline URL it produces is what
+   * an `<img src>` uses, and asking the store for `Content-Disposition:
+   * attachment` there would stop every picture rendering. Nothing signs twice
+   * per output on a gallery read, because this is only reached when somebody
+   * presses the button.
+   */
+  async downloadUrl(jobId: string, userId: string, index: number): Promise<string | null> {
+    const record = await this.gallery.getForUser(jobId, userId);
+    const output = record?.outputs[index];
+    if (!record || !output) return null;
+    // A pre-mirroring row still lives on the provider's host, where we can ask
+    // for nothing. Better a link that opens than no link at all.
+    if (output.externalUrl) return output.externalUrl;
+    const extension = EXTENSIONS[output.mimeType];
+    const filename = `vgen-${record.id}${extension ? `.${extension}` : ""}`;
+    return this.store.signedUrl(output.key, this.expirySeconds, { downloadAs: filename });
+  }
+
+  /**
+   * Straight through to the repository, which owns the rules about which
+   * generations may go. Here for the same reason `get` and `list` are: routes
+   * talk to this, never to `@vgen/db`.
+   */
+  remove(jobId: string, userId: string): Promise<"removed" | "still_running" | "not_found"> {
+    return this.gallery.removeForUser(jobId, userId);
   }
 
   private async withUrls(record: GenerationRecord): Promise<GenerationJob> {

@@ -357,3 +357,106 @@ describe("already-stored assets reach the quote alongside uploads", () => {
     expect(sent?.referenceAssetIds[REF_SLOT]?.[0]).toBe("asset-from-gallery");
   });
 });
+
+/**
+ * The provider collapsed every server state onto two words:
+ * `job.status === "succeeded" ? "done" : "running"`. A job the provider refused
+ * settles in seconds and then renders as forever-generating, because nothing
+ * ever revises the word — the poll stops the moment the server calls the job
+ * settled, so the spinner outlives the job for as long as the tab is open.
+ *
+ * These read a real reconciliation: a stored generation, a server job, and what
+ * the list says afterwards.
+ */
+describe("a settled job stops looking like a running one", () => {
+  const running: Generation = { ...stored, id: "gen-2", jobId: "job-2", status: "running" };
+
+  function StatusProbe() {
+    const { gens } = useGenerations();
+    const gen = gens.find((g) => g.id === "gen-2");
+    return (
+      <output data-testid="state">{`${gen?.status ?? "?"}|${gen?.error?.code ?? "-"}|${gen?.outW ?? "-"}x${gen?.outH ?? "-"}`}</output>
+    );
+  }
+
+  function renderAgainst(job: object) {
+    const services = createDemoServices();
+    const spied: AppServices = {
+      ...services,
+      generation: { ...services.generation, getJob: vi.fn(async () => job as never) },
+    };
+    return render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AppServicesProvider services={spied}>
+          <CatalogProvider families={catalog.families}>
+            <NavigationProvider>
+              <GenerationsProvider>
+                <StatusProbe />
+              </GenerationsProvider>
+            </NavigationProvider>
+          </CatalogProvider>
+        </AppServicesProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  const job = (over: Record<string, unknown>) => ({
+    id: "job-2",
+    familyId: "seedance",
+    variantId: "v1",
+    coins: 4.2,
+    prompt: "یک گربه",
+    createdAt: 1_000,
+    updatedAt: 2_000,
+    outputs: [],
+    urlsExpireAt: null,
+    ...over,
+  });
+
+  beforeEach(() => saveGenerations([running]));
+
+  it("says failed, and says why, when the provider refused it", async () => {
+    renderAgainst(job({ status: "failed", error: { code: "provider_failed", message: "no" } }));
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("failed|provider_failed"));
+  });
+
+  it.each(["cancelled", "expired"])("treats %s as over rather than as still running", async (status) => {
+    renderAgainst(job({ status }));
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("failed|-"));
+  });
+
+  it("keeps saying running while the job really is", async () => {
+    renderAgainst(job({ status: "running" }));
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("running|-"));
+  });
+
+  /* The other half of the same discard: the reconciliation read `assetId` and
+     `url` off the output and left `width`/`height` on the floor, so the card
+     kept the aspect that was *asked* for. A 9:16 request answered at 768×1344
+     is a 2% disagreement, and 2% of a tall card is the thin blue line along the
+     top and bottom edges — the card's own gradient, showing through a
+     `contain` fit. */
+  it("records the size the file actually came back at", async () => {
+    renderAgainst(
+      job({
+        status: "succeeded",
+        outputs: [
+          {
+            assetId: "11111111-1111-4111-8111-111111111111",
+            url: "https://files.example/x",
+            kind: "image",
+            mimeType: "image/png",
+            width: 768,
+            height: 1344,
+            durationMs: null,
+          },
+        ],
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("done|-|768x1344"));
+  });
+});

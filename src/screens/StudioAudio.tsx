@@ -24,7 +24,7 @@ import { ViewControls, useViewMode } from "../components/ViewControls";
 import { CoinMark } from "../components/chrome";
 import { Card, PanelShell, PanelTabs } from "../components/FormPanel";
 import { ModelPicker } from "../components/ModelPicker";
-import { promptDir } from "../lib/format";
+import { labelDir, promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { useAccess } from "../lib/access";
@@ -311,7 +311,9 @@ export default function StudioAudio({
           {/* "متن", not "پرامپت" — this is read aloud verbatim, and the helper
               says so. Their label and their helper, both earned. */}
           <Card className="p-3">
-            <div className="mb-1 flex items-center justify-between">
+            {/* The whole row flips, not just the caption: the count belongs on
+                the far side from the label, whichever side that is. */}
+            <div className="mb-1 flex items-center justify-between" dir={labelDir(s.prompt)}>
               <span className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
                 متن
               </span>
@@ -325,7 +327,7 @@ export default function StudioAudio({
               rows={4}
               dir={promptDir(s.prompt)}
               placeholder="دقیقاً همان چیزی که می‌خواهی خوانده شود."
-              className="hide-scrollbar w-full resize-none bg-transparent text-[13px] leading-6 outline-none"
+              className="hide-scrollbar vg-field-inset resize-none bg-transparent text-[13px] leading-6 outline-none"
               style={{ color: "var(--vg-text)" }}
             />
             <p className="mt-1 text-[10.5px] leading-4" style={{ color: "var(--vg-text-muted)" }}>

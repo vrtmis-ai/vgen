@@ -98,7 +98,18 @@ const sliderModels = (families: readonly Family[]) =>
     ...families.filter((f) => f.kind === "audio"),
   ].filter((f) => hasModelMark(f.id, f.vendor));
 
-export function HeroSection({ plans, onSignIn, onSignUp }: { plans: readonly Plan[]; onSignIn: () => void; onSignUp: () => void }) {
+export function HeroSection({
+  plans,
+  onSignIn,
+  onSignUp,
+  signedIn,
+}: {
+  plans: readonly Plan[];
+  onSignIn: () => void;
+  onSignUp: () => void;
+  /** The landing page is reachable while signed in, where "log in" is nonsense. */
+  signedIn?: boolean | undefined;
+}) {
   const ENTRY_PLAN = entryPlan(plans);
   const { t, n, lang } = useI18n();
   const rtl = lang === "fa";
@@ -110,7 +121,7 @@ export function HeroSection({ plans, onSignIn, onSignUp }: { plans: readonly Pla
 
   return (
     <>
-      <HeroHeader onSignIn={onSignIn} onSignUp={onSignUp} />
+      <HeroHeader onSignIn={onSignIn} onSignUp={onSignUp} signedIn={signedIn} />
       <main className="overflow-x-hidden">
         {/* `overflow-hidden`, which the original does not need and we do.
             The video card is `absolute inset-1` with an aspect ratio, so its
@@ -271,7 +282,7 @@ export function HeroSection({ plans, onSignIn, onSignUp }: { plans: readonly Pla
   );
 }
 
-const HeroHeader = ({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => void }) => {
+const HeroHeader = ({ onSignIn, onSignUp, signedIn }: { onSignIn: () => void; onSignUp: () => void; signedIn?: boolean | undefined }) => {
   const { t } = useI18n();
   // The landing page renders inside CatalogProvider — #55 moved it there so an
   // anonymous visitor could read the catalogue — so the same menus the app's bar
@@ -318,14 +329,23 @@ const HeroHeader = ({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: ()
             )}
           >
             <div className="flex w-full items-center justify-between gap-12 lg:w-auto">
-              <a href="#" aria-label={BRAND.name} className="flex items-center gap-2">
+              {/* A button, not `href="#"`. The fragment jumped to the top
+                  instantly and left a `#` in the address bar that survived
+                  every later navigation; this is the same gesture, smooth, and
+                  it leaves the URL alone. */}
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                aria-label={BRAND.name}
+                className="flex items-center gap-2"
+              >
                 <span
                   className="text-[20px] font-light tracking-[0.34em]"
                   style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
                 >
                   {BRAND.name}
                 </span>
-              </a>
+              </button>
 
               <button
                 onClick={() => setMenuState(!menuState)}
@@ -393,9 +413,13 @@ const HeroHeader = ({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: ()
                   ))}
                 </ul>
               </div>
+              {/* One button once there is an account: "log in" and "sign up"
+                  both read as errors to somebody already signed in, and this
+                  page is now reachable from the wordmark on every screen. */}
               <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
                 <Button
                   data-testid="landing-login"
+                  hidden={signedIn}
                   onClick={onSignIn}
                   variant="outline"
                   size="sm"
@@ -411,7 +435,7 @@ const HeroHeader = ({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: ()
                   className="rounded-full font-semibold"
                   style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
                 >
-                  <span>{t("lp_signup")}</span>
+                  <span>{t(signedIn ? "lp_workspace" : "lp_signup")}</span>
                 </Button>
               </div>
             </div>

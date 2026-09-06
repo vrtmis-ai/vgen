@@ -30,23 +30,25 @@ That was not true until this change: three generation calls were pointing at
 paths the API does not serve, in a job shape no server ever sent, and the
 gallery had no route at all.
 
-| `AppServices` call      | Frontend requests          | Server route          | Status   |
-| ----------------------- | -------------------------- | --------------------- | -------- |
-| `session.getCurrent()`  | `GET /session`             | `routes/session.ts`   | **Live** |
-| `auth.*` (5 methods)    | `POST /auth/*`             | `routes/auth.ts`      | **Live** |
-| `catalog.list()`        | `GET /catalog`             | `routes/catalog.ts`   | **Live** |
-| `content.list()`        | `GET /content`             | `routes/content.ts`   | **Live** |
-| `community.list()`      | `GET /community`           | `routes/community.ts` | **Live** |
-| `community.share()`     | `POST /community`          | `routes/community.ts` | **Live** |
-| `plans.list()`          | `GET /plans`               | `routes/plans.ts`     | **Live** |
-| `wallet.getCurrent()`   | `GET /wallet`              | `routes/wallet.ts`    | **Live** |
-| `generation.quote()`    | `POST /generation/quotes`  | `routes/quotes.ts`    | **Live** |
-| `generation.create()`   | `POST /jobs`               | `routes/jobs.ts`      | **Live** |
-| `generation.getJob()`   | `GET /generation/jobs/:id` | `routes/jobs.ts`      | **Live** |
-| `gallery.list()`        | `GET /gallery`             | `routes/gallery.ts`   | **Live** |
-| `assets.upload()`       | `POST /assets`             | `routes/assets.ts`    | **Live** |
-| `campaign.getActive()`  | `GET /campaigns/active`    | `routes/campaigns.ts` | **Live** |
-| `payment.createOrder()` | `POST /payments/orders`    | `routes/payments.ts`  | **Live** |
+| `AppServices` call         | Frontend requests                                  | Server route          | Status   |
+| -------------------------- | -------------------------------------------------- | --------------------- | -------- |
+| `session.getCurrent()`     | `GET /session`                                     | `routes/session.ts`   | **Live** |
+| `auth.*` (5 methods)       | `POST /auth/*`                                     | `routes/auth.ts`      | **Live** |
+| `catalog.list()`           | `GET /catalog`                                     | `routes/catalog.ts`   | **Live** |
+| `content.list()`           | `GET /content`                                     | `routes/content.ts`   | **Live** |
+| `community.list()`         | `GET /community`                                   | `routes/community.ts` | **Live** |
+| `community.share()`        | `POST /community`                                  | `routes/community.ts` | **Live** |
+| `plans.list()`             | `GET /plans`                                       | `routes/plans.ts`     | **Live** |
+| `wallet.getCurrent()`      | `GET /wallet`                                      | `routes/wallet.ts`    | **Live** |
+| `generation.quote()`       | `POST /generation/quotes`                          | `routes/quotes.ts`    | **Live** |
+| `generation.create()`      | `POST /jobs`                                       | `routes/jobs.ts`      | **Live** |
+| `generation.getJob()`      | `GET /generation/jobs/:id`                         | `routes/jobs.ts`      | **Live** |
+| `generation.downloadUrl()` | `GET /generation/jobs/:id/outputs/:index/download` | `routes/jobs.ts`      | **Live** |
+| `generation.remove()`      | `DELETE /generation/jobs/:id`                      | `routes/jobs.ts`      | **Live** |
+| `gallery.list()`           | `GET /gallery`                                     | `routes/gallery.ts`   | **Live** |
+| `assets.upload()`          | `POST /assets`                                     | `routes/assets.ts`    | **Live** |
+| `campaign.getActive()`     | `GET /campaigns/active`                            | `routes/campaigns.ts` | **Live** |
+| `payment.createOrder()`    | `POST /payments/orders`                            | `routes/payments.ts`  | **Live** |
 
 So `production` mode is complete end to end: sign in, browse the catalogue, see
 a price, submit a generation, watch it run, and see the file it produced. The
@@ -1040,6 +1042,37 @@ could name them is a request that could ask to be billed as something cheaper.
 - **A reference that has gone fails the job and refunds**, rather than
   generating without it — `reference_unavailable`. A first-frame model handed no
   first frame does not error; it makes something else and charges for it.
+- **The provider fetches the reference itself, from a URL we sign.** That URL is
+  signed against `OBJECT_STORAGE_PUBLIC_ENDPOINT`, so it has to be an address the
+  _provider's_ servers can reach — `https://files.deev.ir` in production. **In
+  local development that variable is unset, so the URL says `127.0.0.1:9000` and
+  no provider on earth can fetch it.**
+
+  This affects **every** generation carrying a file, not only image-to-video:
+  Recraft, Topaz, Nano Banana with references, and every first/last-frame video
+  model. Text-to-image and text-to-video attach nothing and run locally.
+
+  The worker now refuses these before calling the provider, with
+  `reference_unreachable`, rather than spending the call and reporting
+  `provider_failed` — which read as the provider's fault and cost a real
+  generation to learn otherwise. The coins are held and refunded either way.
+
+  There is no way around it inside the request. KIE rejects a `data:` URI
+  (`"image file type not supported"`) and publishes no upload endpoint, so the
+  file has to be somewhere public. To run these locally, point
+  `OBJECT_STORAGE_PUBLIC_ENDPOINT` at a store the internet can read — the real
+  bucket, or a tunnel (`cloudflared tunnel --url http://127.0.0.1:9000`) — and
+  restart the worker.
+- **A single-file slot goes up as a bare string, a multi-file slot as an array**,
+  decided by the slot's own `max`. The runner learns the slots from
+  `provider_models.capabilities`, resolving the **variant's** declaration and
+  falling back to the **family's** — the same resolution `variantRefs()` does for
+  the screen. Reading only the variant's was a real bug: 29 of 44 variants
+  declare none of their own, so the runner defaulted to "assume many" and sent
+  Recraft `image: ["https://…"]` where it wanted a string. KIE answers that with
+  a generic `500 "Image service internal error"`, which is indistinguishable
+  from an outage; its `remove-background` sibling is the one that says so
+  plainly, `422 image_url必须是http(s) URL`.
 - **Quotes expire in five minutes** and are bound to a hash of `params`, so a
   cheap quote cannot be spent on an expensive job.
 - **Asking the price consumes nothing.** The free allowance is spent at job
@@ -1123,6 +1156,24 @@ Only same-account submissions serialise. Two customers never touch the same row,
 so what this costs is exactly the concurrency the per-account limit already
 denied.
 
+### `GET /generation/jobs/:jobId/outputs/:index/download`
+
+Saves one output instead of displaying it. Answers **302** to the same file,
+signed with `Content-Disposition: attachment` and a filename derived from the
+stored mime type. Scoped to the caller, and a missing job or index is a 404 for
+the same reason as above.
+
+It exists because the `download` attribute on an anchor is honoured **only for
+same-origin URLs**, and an output URL is never same-origin — it is signed against
+the object store's host (`files.deev.ir` in production), not the app's. The
+attribute was silently ignored and the browser did the other thing it knows how
+to do with a picture: opened it in a tab.
+
+A redirect rather than a proxy: the bytes still travel store → browser, and the
+only thing this adds is the session check and one header. It is also why the
+inline `url` on an output carries no disposition — the same object is an
+`<img src>` on two screens, and an attachment header would stop it rendering.
+
 ### `GET /generation/jobs/:jobId`
 
 The same shape, scoped to the caller. Somebody else's job is a **404, not a
@@ -1166,7 +1217,7 @@ passes rather than after an image has already failed to load.
 **A failed job's `error` is ours, not the supplier's.** `error.code` is one of a
 fixed set — `provider_unavailable`, `submit_failed`, `poll_failed`,
 `provider_timeout`, `provider_cancelled`, `provider_failed`, `content_policy`,
-`no_output`, `storage_failed` — and `error.message` is a fixed sentence chosen by
+`no_output`, `storage_failed`, `worker_lost`, `reference_unreachable` — and `error.message` is a fixed sentence chosen by
 that code. Anything the upstream said is written to `job_attempts` and to the log
 for whoever debugs it, and is never copied onto the job. It used to be: a missing
 credential came back as "…is not configured (WAVESPEED_API_KEY is not set)",
@@ -1186,6 +1237,29 @@ dimensions — or that it is one we do not parse: PNG, JPEG, GIF, WebP, MP4 and
 QuickTime are read for size, MP4, QuickTime and MP3 for duration, and anything
 else measures as null rather than as a guess. A pre-existing row is also null,
 because nothing backfilled what was never recorded.
+
+### `DELETE /generation/jobs/:jobId`
+
+Takes one generation off the customer's wall. Answers **200
+`{ "outcome": "removed" }`**.
+
+A **soft** delete: `jobs.deleted_at` is stamped and every read here already
+filters on it. The row itself stays, because it is the accounting record as well
+as the gallery item — the hold, the capture and the provider's cost all point at
+it, and a customer tidying a failed attempt off their wall is not a reason to
+lose the trail for money that moved. Assets keep their own lifecycle and are
+reaped on their own schedule, not by this.
+
+**409 `job_running` while the generation is still queued or running.** That
+refusal is the point of the route rather than an edge of it: a live job has
+credits held against it, and a row that vanished while its hold stood would
+leave the customer short by an amount nothing on their screen could account for.
+There is no cancel here — stopping a generation is a different act with a
+different effect on the money, and deleting the row would be neither.
+
+**404** for a job that is not the caller's, a job already removed, and a `draft`
+— same reason as the read above: whether an id exists is not this caller's
+business.
 
 ### `GET /gallery`
 
@@ -1288,17 +1362,25 @@ told no is worse than telling them now.
 The `error_code` on a failed job is the provider's own where there is one, or
 one of ours:
 
-| `error_code`             | Means                                                         |
-| ------------------------ | ------------------------------------------------------------- |
-| `provider_unavailable`   | No adapter for that provider — configuration, not weather     |
-| `credential_unavailable` | No active credential, or its secret is not in the environment |
-| `submit_failed`          | The provider would not accept the task                        |
-| `poll_failed`            | The provider stopped answering about a task it accepted       |
-| `provider_timeout`       | Accepted, never finished                                      |
-| `no_output`              | Reported success and returned no files                        |
+| `error_code`             | Means                                                          |
+| ------------------------ | -------------------------------------------------------------- |
+| `provider_unavailable`   | No adapter for that provider — configuration, not weather      |
+| `credential_unavailable` | No active credential, or its secret is not in the environment  |
+| `submit_failed`          | The provider would not accept the task                         |
+| `poll_failed`            | The provider stopped answering about a task it accepted        |
+| `provider_timeout`       | Accepted, never finished                                       |
+| `no_output`              | Reported success and returned no files                         |
+| `worker_lost`            | The queue gave up on the job before the worker could settle it |
 
 `no_output` is a failure on purpose. Capturing a hold there would charge
 somebody for an empty gallery.
+
+`worker_lost` is the queue settling a job the worker never got to finish — a
+process killed mid-poll and then found stalled more times than BullMQ allows.
+Nothing settles `jobs.status` except the worker's own success and failure paths,
+so before this code existed such a row stayed `running` for ever with the
+customer's credits still held, and no reaper anywhere would have found it. It is
+always a refund, and it is always worth retrying.
 
 ### Which provider runs a job
 

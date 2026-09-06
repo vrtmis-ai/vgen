@@ -185,4 +185,34 @@ export class PostgresGalleryRepository {
     const items = rows.slice(0, limit).map(toRecord);
     return hasMore && items.length > 0 ? { items, nextCursor: items[items.length - 1]!.id } : { items };
   }
+
+  /**
+   * Take one generation out of the account's history.
+   *
+   * Soft, because `jobs` is the accounting record as well as the gallery: the
+   * hold, the capture and the provider's cost all point at this row, and a
+   * customer tidying a failed attempt off their wall is not a reason to lose
+   * the trail for the money that moved. `deleted_at` is what every read here
+   * already filters on, and the assets keep their own lifecycle — the object
+   * itself is reaped on its own schedule, not by this.
+   *
+   * Refused while the job is still going. A queued or running generation has
+   * credits held against it and a worker on the way; hiding it would leave the
+   * customer with coins missing from a balance and nothing on screen to
+   * explain them. `draft` is refused for the opposite reason — it was never
+   * submitted, so the gallery does not show it and there is nothing to remove.
+   */
+  async removeForUser(jobId: string, userId: string): Promise<"removed" | "still_running" | "not_found"> {
+    const [job] = await this.sql<{ status: GenerationRecord["status"] }[]>`
+      select status from jobs
+      where id = ${jobId}
+        and deleted_at is null
+        and status <> 'draft'
+        and account_id = (select personal_account_id from users where id = ${userId})
+    `;
+    if (!job) return "not_found";
+    if (job.status === "queued" || job.status === "running") return "still_running";
+    await this.sql`update jobs set deleted_at = now() where id = ${jobId} and deleted_at is null`;
+    return "removed";
+  }
 }

@@ -1456,9 +1456,25 @@
       "cover": "https://file.aiquickdraw.com/static//kie-maket/17622493381934oqt0mus.mp4",
       "refs": [
         {
-          "key": "image_urls",
-          "label": "فریم شروع و پایان (اختیاری)",
-          "max": 2
+          "group": "frame",
+          "key": "image_url_start",
+          "sends": {
+            "key": "image_urls",
+            "at": 0
+          },
+          "label": "فریم شروع (اختیاری)",
+          "max": 1
+        },
+        {
+          "group": "frame",
+          "key": "image_url_end",
+          "sends": {
+            "key": "image_urls",
+            "at": 1
+          },
+          "label": "فریم پایان (اختیاری)",
+          "max": 1,
+          "requires": "image_url_start"
         }
       ],
       "maxPrompt": 2500,
@@ -2758,9 +2774,25 @@
       "cover": "https://file.aiquickdraw.com/custom-page/akr/section-images/1760692238600spjz047p.mp4",
       "refs": [
         {
-          "key": "imageUrls",
-          "label": "تصاویر مرجع / فریم (اختیاری)",
-          "max": 2
+          "group": "frame",
+          "key": "image_url_start",
+          "sends": {
+            "key": "imageUrls",
+            "at": 0
+          },
+          "label": "فریم شروع (اختیاری)",
+          "max": 1
+        },
+        {
+          "group": "frame",
+          "key": "image_url_end",
+          "sends": {
+            "key": "imageUrls",
+            "at": 1
+          },
+          "label": "فریم پایان (اختیاری)",
+          "max": 1,
+          "requires": "image_url_start"
         }
       ],
       "controls": [

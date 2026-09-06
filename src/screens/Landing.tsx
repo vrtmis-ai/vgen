@@ -729,11 +729,14 @@ export default function Landing({
   posts,
   onSignIn,
   onSignUp,
+  signedIn,
 }: {
   plans: readonly Plan[];
   posts: readonly CommunityPost[];
   onSignIn: () => void;
   onSignUp: () => void;
+  /** Reachable from the wordmark while signed in, where the auth CTAs do not apply. */
+  signedIn?: boolean | undefined;
 }) {
   return (
     /* `overflow-x: clip`, not `hidden`. The section lights are meant to spill
@@ -758,7 +761,7 @@ export default function Landing({
           so there is no TopNav here, and its slider is the model wall, so there
           is no separate Models section either. What could not come across
           verbatim is listed at the top of that file. */}
-      <HeroSection plans={plans} onSignIn={onSignIn} onSignUp={onSignUp} />
+      <HeroSection plans={plans} onSignIn={onSignIn} onSignUp={onSignUp} signedIn={signedIn} />
       <Features />
       <Reel posts={posts} />
       <Plans plans={plans} onSignIn={onSignUp} />

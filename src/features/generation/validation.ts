@@ -90,6 +90,15 @@ const GENERATION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   provider_cancelled: "این ساخت پیش از پایان لغو شد؛ سکه‌ای از شما کم نشد.",
   storage_failed: "ساخت انجام شد اما ذخیره نشد؛ سکه‌ای از شما کم نشد.",
   no_output: "هیچ خروجی‌ای ساخته نشد؛ سکه‌ای از شما کم نشد.",
+  /* The queue gave up on the job before anything could settle it — a worker
+     restarted mid-generation. Nothing about it is the customer's doing, and
+     trying again is genuinely the right advice. */
+  worker_lost: "این ساخت نیمه‌کاره ماند؛ سکه‌ای از شما کم نشد. دوباره تلاش کن.",
+  /* Only ever seen while running the stack locally: the provider downloads
+     attached files from our object store, and on a laptop that store is not on
+     the internet. Said plainly because the reader is a developer, and "provider
+     failed" sent them looking at the provider. */
+  reference_unreachable: "فایل پیوست برای ارائه‌دهنده قابل دریافت نیست؛ سکه‌ای از شما کم نشد. (فقط در اجرای محلی رخ می‌دهد.)",
 
   /* Never reached the API at all. `src/adapters/http/client.ts` raises these
      itself, so they carry status 0 and no server ever saw the request — which
@@ -107,6 +116,19 @@ const GENERATION_ERROR_FALLBACK = "ساخت محتوا انجام نشد؛ دو�
 export function generationErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return GENERATION_ERROR_FALLBACK;
   return GENERATION_ERROR_MESSAGES[error.code] ?? GENERATION_ERROR_FALLBACK;
+}
+
+/**
+ * The same table, for a failure that arrived on a job rather than as a thrown
+ * request error.
+ *
+ * A job that the worker settled carries `error.code` in its body — the request
+ * for it succeeded. That is the same vocabulary `GENERATION_ERROR_MESSAGES`
+ * already covers (`provider_failed`, `content_policy`, `no_output`, …), so this
+ * reads the one table instead of starting a second one that would drift from it.
+ */
+export function jobFailureMessage(code: string | undefined): string {
+  return (code ? GENERATION_ERROR_MESSAGES[code] : undefined) ?? GENERATION_ERROR_FALLBACK;
 }
 
 function acceptsMime(slot: RefSlot, mime: string): boolean {

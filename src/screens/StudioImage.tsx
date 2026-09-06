@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { Plus, Minus, Sparkle, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock } from "@phosphor-icons/react";
-import { type Family, type Variant } from "../data/models";
+import { useEffect, useRef, useState } from "react";
+import { Plus, Minus, Sparkle, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock, X, SpeakerHigh } from "@phosphor-icons/react";
+import { variantRefs, type Family, type Variant } from "../data/models";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
-import type { InputMap } from "../components/controls";
+import { addRefFiles, slotAccept, type InputMap, type RefMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
-import { type Generation } from "../lib/gallery";
+import { displayAspect, type Generation } from "../lib/gallery";
 import { CoinMark } from "../components/chrome";
 import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
@@ -16,6 +16,7 @@ import { unlimitedFit } from "../lib/unlimited";
 import { promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
+import { useAppServices } from "../runtime/AppServices";
 import { useAccess } from "../lib/access";
 
 /* ---------------------------------------------------------------------------
@@ -74,6 +75,9 @@ function tileNames(assets: ViewerAsset[], familyName: (familyId: string) => stri
  *  clips on both axes, so an in-tree menu is cut to the row's 40px. */
 const CHIP_CLASS = "flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold";
 const CHIP_STYLE: React.CSSProperties = { background: "var(--vg-surface-overlay)", color: "var(--vg-text)" };
+
+/** What to call the file a slot is asking for. Topaz upscales clips too. */
+const SLOT_NOUN: Record<"image" | "video" | "audio", string> = { image: "تصویر", video: "ویدیو", audio: "فایل صوتی" };
 
 function chipOptions(c: ChipControl) {
   return c.kind === "slider"
@@ -149,13 +153,22 @@ export default function StudioImage({
   onOpenModel,
 }: {
   gens: Generation[];
-  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean) => void;
+  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean, refs: RefMap) => void;
   onOpenModel: (familyId: string, prompt?: string) => void;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
+  const services = useAppServices();
   const families = catalogFamilies.filter((f) => f.kind === "image");
-  const s = useCreateState(families);
+
+  /* The model's input files.
+     Held above `useCreateState` because the hook validates against them: a slot
+     marked `required` — Recraft and Topaz both have one — is satisfied only by
+     something actually attached, and the hook used to be handed `{}`. That made
+     `ready` false for as long as either model was selected, so the create button
+     was dead and the dock said nothing about why. */
+  const [refs, setRefs] = useState<RefMap>({});
+  const s = useCreateState(families, refs);
   const access = useAccess();
   // A visitor sees the whole studio — models, controls, the price — and only
   // the button that would spend turns into the way to get an account. The
@@ -171,6 +184,50 @@ export default function StudioImage({
   const [viewing, setViewing] = useState<ViewerAsset | null>(null);
   const view = useViewMode("image", { mode: "grid", density: 4 });
 
+  /* The one slot this model takes, if it takes one.
+     Every image family in the catalogue declares at most a single input slot —
+     Recraft and Topaz one required image, Nano Banana up to eight optional
+     ones — so the dock drives that slot directly instead of growing the tabbed
+     slot grid the video panel needs. If an image model ever declares two, this
+     picks the first and the second becomes unreachable, which is the moment to
+     move this surface onto `RefUpload`. */
+  const slot = variantRefs(s.family, s.variant)[0];
+  const picked = slot ? (refs[slot.key] ?? []) : [];
+  const needsFile = slot?.required === true && picked.length === 0;
+  const pickRef = useRef<HTMLInputElement>(null);
+  const [tooBig, setTooBig] = useState<string | null>(null);
+
+  /* Files belong to the model that asked for them.
+     Switching model has to drop them — the next model's slot has a different
+     name and the API would be handed a file for a field it does not have — and
+     revoke their object URLs with them, or the tab leaks a blob per upload. */
+  const variantId = s.variant.id;
+  useEffect(() => {
+    setTooBig(null);
+    setRefs((previous) => {
+      for (const files of Object.values(previous)) for (const file of files) URL.revokeObjectURL(file.url);
+      // Identity matters: returning a fresh {} every time would re-render, and
+      // this effect's own dependency is stable, so it would settle — but the
+      // wall below re-lays out on every render and it is not free.
+      return Object.keys(previous).length === 0 ? previous : {};
+    });
+  }, [variantId]);
+
+  async function addFiles(files: File[]) {
+    if (!slot || files.length === 0) return;
+    const next = await addRefFiles(slot, picked, files);
+    setTooBig(next.rejected);
+    setRefs({ [slot.key]: next.files });
+  }
+
+  function dropFile(index: number) {
+    if (!slot) return;
+    const file = picked[index];
+    if (file) URL.revokeObjectURL(file.url);
+    setTooBig(null);
+    setRefs({ [slot.key]: picked.filter((_, at) => at !== index) });
+  }
+
   const mine = gens.filter((g) => g.kind === "image");
   /* Jobs still running are held out of the wall and put in front of it.
      The wall repeats its items to fill 42 tiles, and a running job repeated
@@ -178,22 +235,34 @@ export default function StudioImage({
      also has no picture yet, so it cannot take part in a layout whose whole
      job is arranging pictures. */
   const running = mine.filter((g) => g.status === "running");
-  const finished = mine.filter((g) => g.status !== "running");
+  /* `done`, not "not running". A refused generation has no file, so it fell to
+     the `art()` placeholder below and appeared on the wall as somebody else's
+     stock photograph — the studio claiming a picture where the provider had
+     produced none. A failure belongs in کارهای من, which draws it as one and
+     offers to remove it; this surface is the pictures you actually have. */
+  const finished = mine.filter((g) => g.status === "done");
   /* No stand-in library.
      This used to fall back to the seeded examples so the dock would not float
      over nothing. It filled the create surface with forty-two pictures the
      account did not make — a promise on arrival, and a gallery over the one
      screen that is supposed to be a workbench. An empty canvas is the correct
      first state, not a hole to be papered over; see the empty branch below. */
-  const wall: ViewerAsset[] = finished.map((g) => ({
-    id: g.id,
-    url: g.outputUrl ?? art(g.id),
-    prompt: g.prompt,
-    familyId: g.familyId,
-    w: g.w,
-    h: g.h,
-    createdAt: g.createdAt,
-  }));
+  const wall: ViewerAsset[] = finished.map((g) => {
+    // What arrived, not what was ordered — the same correction the result page
+    // makes. The row heights here are computed from these ratios, so a 9:16
+    // request answered at 768×1344 laid out a hair short of its own picture.
+    const shape = displayAspect(g);
+    return {
+      id: g.id,
+      ...(g.jobId ? { jobId: g.jobId } : {}),
+      url: g.outputUrl ?? art(g.id),
+      prompt: g.prompt,
+      familyId: g.familyId,
+      w: shape.w,
+      h: shape.h,
+      createdAt: g.createdAt,
+    };
+  });
 
   /* Mixed ratios on purpose: the wall is only worth a justified layout if the
      items actually differ, and the seeded stand-ins were all one shape. Real
@@ -238,13 +307,23 @@ export default function StudioImage({
     ...shaped.map((t, i) => ({ ...t, name: names[i]! })),
   ];
 
-  // No blob, no fetch: the asset is a remote URL and `download` on an anchor is
-  // the whole mechanism. It becomes a real save once outputs live in our own
-  // storage and the response carries Content-Disposition.
+  /* Through the API, not straight at the file — the same fix the result page
+     got, which is why this stayed broken here: `download` on an anchor is
+     honoured only for same-origin URLs, and an output URL is signed against the
+     object store's host. The attribute was ignored and the browser did the
+     other thing it knows how to do with a picture — showed it, in a tab.
+
+     The route answers 302 to the same object signed to arrive as an
+     attachment, with the name and extension decided from the stored mime type.
+     A demo generation has no job behind it and its URL is already local to the
+     page, so there the attribute works and is all there is. */
   const download = (a: ViewerAsset) => {
     const el = document.createElement("a");
-    el.href = a.url;
-    el.download = `vgen-${a.id}.jpg`;
+    if (a.jobId) el.href = services.generation.downloadUrl(a.jobId);
+    else {
+      el.href = a.url;
+      el.download = `vgen-${a.id}.jpg`;
+    }
     el.rel = "noopener";
     el.click();
   };
@@ -401,20 +480,84 @@ export default function StudioImage({
         <div className="pointer-events-auto w-full max-w-[1120px] rounded-[26px] p-[2px]" style={{ background: "var(--vg-border)" }}>
           <div className="rounded-3xl p-4 md:p-5" style={{ background: "rgba(18,18,18,0.96)", backdropFilter: "blur(11px)" }}>
             <div className="flex items-start gap-3">
-              <button
-                aria-label="افزودن تصویر مرجع"
-                className="grid size-8 shrink-0 place-items-center rounded-[10px]"
-                style={{ background: "var(--vg-surface-raised)", color: "var(--vg-text)" }}
-              >
-                <Plus size={15} weight="bold" />
-              </button>
+              {/* The button that did nothing.
+                  It was markup — no handler, no file input, no slot behind it —
+                  on the surface where Recraft and Topaz cannot run without one.
+                  It now drives this model's own slot, and hides on the models
+                  that take no file at all rather than offering an upload with
+                  nowhere to put it. */}
+              {slot && (
+                <div className="flex shrink-0 items-center gap-2">
+                  {picked.map((file, index) => (
+                    <span
+                      key={file.url}
+                      className="relative grid size-8 place-items-center overflow-hidden rounded-[10px]"
+                      style={{ background: "var(--vg-surface-raised)" }}
+                    >
+                      {(slot.media ?? "image") === "image" && <img src={file.url} alt="" className="size-full object-cover" />}
+                      {slot.media === "video" && (
+                        <video src={file.url} muted playsInline preload="metadata" className="size-full object-cover" />
+                      )}
+                      {slot.media === "audio" && <SpeakerHigh size={14} style={{ color: "var(--vg-text-muted)" }} />}
+                      <button
+                        onClick={() => dropFile(index)}
+                        aria-label={`حذف ${slot.label}`}
+                        className="absolute inset-0 grid place-items-center opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100"
+                        style={{ background: "rgba(0,0,0,0.6)", color: "var(--vg-text)" }}
+                      >
+                        <X size={13} weight="bold" />
+                      </button>
+                    </span>
+                  ))}
+                  {picked.length < slot.max && (
+                    <button
+                      onClick={() => pickRef.current?.click()}
+                      aria-label={`افزودن ${slot.label}`}
+                      className="grid size-8 place-items-center rounded-[10px]"
+                      style={{
+                        background: "var(--vg-surface-raised)",
+                        // The only thing standing between the customer and a
+                        // generation on a model that requires a file, so it says
+                        // so rather than sitting quiet beside the prompt box.
+                        color: needsFile ? "var(--vg-primary-soft)" : "var(--vg-text)",
+                        ...(needsFile ? { boxShadow: "inset 0 0 0 1px var(--vg-primary-a40)" } : {}),
+                      }}
+                    >
+                      <Plus size={15} weight="bold" />
+                    </button>
+                  )}
+                  <input
+                    ref={pickRef}
+                    type="file"
+                    accept={slotAccept(slot)}
+                    multiple={slot.max > 1}
+                    hidden
+                    onChange={(e) => {
+                      // Copied out before the input is cleared: resetting `value`
+                      // empties the live FileList itself. Clearing is what lets a
+                      // removed file be picked again.
+                      const files = Array.from(e.target.files ?? []);
+                      e.target.value = "";
+                      void addFiles(files);
+                    }}
+                  />
+                </div>
+              )}
+              {/* Recraft and Topaz take no prompt at all — they upscale or cut
+                  out the picture you hand them. The dock asked for one anyway
+                  and sent it: a real job went up as `{image: […], prompt:
+                  "recraft this"}`. KIE ignores the stray field, so nothing
+                  broke, but the box invited the customer to write something
+                  that could not affect the result. The panel has always
+                  disabled it on these models; this surface never did. */}
               <textarea
                 value={s.prompt}
                 onChange={(e) => s.setPrompt(e.target.value)}
                 rows={2}
                 dir={promptDir(s.prompt)}
-                placeholder="تصویری که در ذهن داری را توصیف کن."
-                className="hide-scrollbar min-h-[52px] w-full resize-none bg-transparent text-[13.5px] leading-6 outline-none"
+                disabled={s.family.noPrompt}
+                placeholder={s.family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط تصویر بده." : "تصویری که در ذهن داری را توصیف کن."}
+                className="hide-scrollbar vg-field-inset min-h-[52px] resize-none bg-transparent text-[13.5px] leading-6 outline-none disabled:opacity-40"
                 style={{ color: "var(--vg-text)" }}
               />
             </div>
@@ -515,7 +658,7 @@ export default function StudioImage({
                    colour is enough: it is the only lime in the dock. */
                 <button
                   disabled={!visitor && !s.ready}
-                  onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited))}
+                  onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, refs))}
                   className={`${CHIP_CLASS} justify-center px-4 transition-opacity disabled:opacity-35`}
                   style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
                 >
@@ -531,6 +674,23 @@ export default function StudioImage({
                 </button>
               )}
             </div>
+
+            {/* Why the button is off, on the one surface that never said.
+                A model with a required slot quotes and prices normally and then
+                refuses to submit, so a dead "بساز" was the entire explanation
+                — on Recraft, which cannot do anything at all without a picture.
+                It names the model because the dock is one click from being a
+                different one, and the answer changes with it. */}
+            {needsFile && !visitor && !locked && (
+              <p className="mt-2.5 text-[11.5px]" style={{ color: "var(--vg-primary-soft)" }}>
+                <bdi>{s.family.name}</bdi> روی یک {SLOT_NOUN[slot?.media ?? "image"]} کار می‌کند — با دکمهٔ + یکی اضافه کن.
+              </p>
+            )}
+            {tooBig && (
+              <p className="mt-2.5 text-[11.5px]" style={{ color: "var(--vg-danger)" }}>
+                فایل بزرگ‌تر از {tooBig} رد شد.
+              </p>
+            )}
           </div>
         </div>
       </div>

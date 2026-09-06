@@ -32,10 +32,31 @@ export interface StoredObject {
   mimeType: string;
 }
 
+export interface SignedUrlOptions {
+  /**
+   * Serve this object as a download with the given filename, rather than
+   * letting the browser display it inline.
+   */
+  downloadAs?: string | undefined;
+}
+
+/**
+ * `attachment; filename="…"` with a UTF-8 fallback.
+ *
+ * A generation's filename is ours (`vgen-<id>.png`), so the ASCII form is
+ * always safe — but the header is built once, here, rather than at the call
+ * site, so a filename that ever stops being ASCII cannot break the header by
+ * smuggling a quote or a newline into it.
+ */
+function contentDisposition(filename: string): string {
+  const safe = filename.replace(/[^\w.-]/g, "_");
+  return `attachment; filename="${safe}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}
+
 export interface ObjectStore {
   put(key: string, body: Uint8Array, mimeType: string): Promise<StoredObject>;
   /** A time-limited GET. The only way anything reads out of here. */
-  signedUrl(key: string, expiresInSeconds?: number): Promise<string>;
+  signedUrl(key: string, expiresInSeconds?: number, options?: SignedUrlOptions): Promise<string>;
   delete(key: string): Promise<void>;
   /** Idempotent. Called at startup so a fresh volume is not a runtime surprise. */
   ensureBucket(): Promise<void>;
@@ -103,10 +124,31 @@ export class S3ObjectStore implements ObjectStore {
     return { bucket: this.bucket, key, byteSize: body.byteLength, sha256, mimeType };
   }
 
-  async signedUrl(key: string, expiresInSeconds?: number): Promise<string> {
-    return getSignedUrl(this.signingClient, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
-      expiresIn: expiresInSeconds ?? this.defaultExpirySeconds,
-    });
+  /**
+   * `downloadAs` asks the store to answer with `Content-Disposition:
+   * attachment`, which is the only thing that makes a browser save the file
+   * rather than display it.
+   *
+   * The `download` attribute on an anchor cannot do this job: the HTML spec
+   * honours it only for same-origin URLs, and these are signed against the
+   * store's own host — `127.0.0.1:9000` locally, `files.deev.ir` in production,
+   * never the app's origin. So the attribute was silently ignored and the
+   * browser simply navigated to the picture.
+   *
+   * It is a per-call option rather than a property of the URL because the same
+   * object is also an `<img src>` on two screens, and an attachment header
+   * would stop it rendering there.
+   */
+  async signedUrl(key: string, expiresInSeconds?: number, options?: SignedUrlOptions): Promise<string> {
+    return getSignedUrl(
+      this.signingClient,
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ...(options?.downloadAs ? { ResponseContentDisposition: contentDisposition(options.downloadAs) } : {}),
+      }),
+      { expiresIn: expiresInSeconds ?? this.defaultExpirySeconds },
+    );
   }
 
   async delete(key: string): Promise<void> {

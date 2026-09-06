@@ -283,7 +283,7 @@ export function ModelPicker({
           onChange={(e) => setQ(e.target.value)}
           placeholder="جستجوی مدل"
           autoFocus
-          className="w-full bg-transparent text-[13px] outline-none"
+          className="vg-field-pad w-full bg-transparent text-[13px] outline-none"
           style={{ color: "var(--vg-text)" }}
         />
       </div>

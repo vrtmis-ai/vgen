@@ -59,6 +59,7 @@ const ITEMS: { key: NavKey; label: string; labelKey?: TKey; badge?: string }[] =
 export function TopBar({
   active,
   onNav,
+  onHome,
   menus,
   onOpenModel,
   coins,
@@ -69,6 +70,8 @@ export function TopBar({
 }: {
   active: NavKey;
   onNav: (k: NavKey) => void;
+  /** The wordmark. Goes to the landing page, wherever you are. */
+  onHome: () => void;
   /** Built from the catalogue by the layout, so this stays a pure component. */
   menus: NavMenus;
   onOpenModel: (familyId: string) => void;
@@ -101,7 +104,8 @@ export function TopBar({
         {/* Wordmark leads the row. In RTL that puts it on the right, which is
             where the reference puts it in LTR — the same position, mirrored. */}
         <button
-          onClick={() => onNav("explore")}
+          onClick={onHome}
+          aria-label={BRAND.name}
           className="shrink-0 text-[17px] font-light tracking-[0.34em]"
           style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
         >

@@ -53,6 +53,14 @@ import { useModalSurface } from "./FloatingSurface";
 
 export interface ViewerAsset {
   id: string;
+  /**
+   * The job that produced it, when one did.
+   *
+   * Absent on a demo generation, which has no server behind it. Present is what
+   * lets the download button go through the API for a link that saves rather
+   * than one the browser opens in a tab.
+   */
+  jobId?: string | undefined;
   url: string;
   prompt: string;
   familyId: string;

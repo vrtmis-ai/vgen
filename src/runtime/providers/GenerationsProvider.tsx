@@ -1,13 +1,15 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { defaultInput, variantControls, type Variant } from "../../data/models";
 import type { InputMap, RefMap } from "../../components/controls";
 import { loadGenerations, saveGenerations, uid, type GenStatus, type Generation } from "../../lib/gallery";
 import { currentAspect } from "../../features/generation/aspect";
 import { validateGenerationInput } from "../../features/generation/validation";
+import { generationFromJob, mergeGenerations, sameGenerations } from "../../features/generation/fromJob";
 import { useCatalogFamilies } from "../../features/catalog/CatalogProvider";
-import { useCreateGeneration, useGenerationJobs } from "../../features/generation/useGeneration";
+import { useCreateGeneration, useGalleryHistory, useGenerationJobs } from "../../features/generation/useGeneration";
 import { SystemState } from "../../components/SystemState";
 import { ApiError } from "../../adapters/http/client";
 import type { GenerationQuote } from "../contracts/generation";
@@ -75,6 +77,15 @@ interface Generations {
   /** Fire-and-forget start used by the studio docks, which have no result to await. */
   requestGeneration: (familyId: string, prompt: string, input: InputMap, variant: Variant, options?: GenerationRequestOptions) => void;
   regenerate: (previous: Generation) => Promise<void>;
+  /**
+   * Take one generation out of the account's history, here and on the server.
+   *
+   * Local-only would not hold: the wall is merged with `GET /gallery` on every
+   * load, so a row dropped from this list walks straight back in on the next
+   * read. Refused server-side while a job is still running, because its credits
+   * are still held.
+   */
+  removeGeneration: (id: string) => Promise<void>;
   markDone: (id: string) => void;
 }
 
@@ -93,6 +104,7 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   const services = useAppServices();
   const navigation = useNavigation();
   const createGeneration = useCreateGeneration();
+  const queryClient = useQueryClient();
   const pendingRef = useRef(false);
   const [operationError, setOperationError] = useState<Error | null>(null);
 
@@ -110,6 +122,29 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
     // Guarded: without this the empty pre-hydration list overwrites real storage.
     if (hydrated) saveGenerations(gens);
   }, [gens, hydrated]);
+
+  /* The history, from the database rather than from this browser.
+     `GET /api/v1/gallery` has worked since Phase H and nothing called it, so a
+     gallery was only ever as complete as the one device that made it — sign in
+     somewhere else and your work appeared to be gone.
+
+     Folded into the same list rather than kept beside it, so everything
+     downstream (the wall, a deep-linked result, the profile count, "to video")
+     keeps reading one collection. What this browser started and the server has
+     not answered about yet survives the fold; see `mergeGenerations`. */
+  const history = useGalleryHistory(hydrated);
+  const historyItems = history.data?.items;
+  useEffect(() => {
+    if (!historyItems) return;
+    const server = historyItems.map((job) => generationFromJob(job, families));
+    setGens((previous) => {
+      const merged = mergeGenerations(previous, server);
+      // Same identity brake as the reconciliation effect below: this runs on
+      // every render while the query has data, and a fresh array each time
+      // would loop through the save effect and back.
+      return sameGenerations(previous, merged) ? previous : merged;
+    });
+  }, [historyItems, families]);
 
   /* Which jobs to ask about. Running ones, obviously — plus two kinds of
      finished one that need a fresh answer.
@@ -139,6 +174,11 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
     const soon = Date.now() + 2 * 60 * 1000;
     return gens.flatMap((generation) => {
       if (!generation.jobId) return [];
+      // A failed job is over and has no file, so both clauses below would have
+      // matched it forever. It is asked about once, when it is still `running`
+      // here and already `failed` on the server; after that there is nothing
+      // left to learn.
+      if (generation.status === "failed") return [];
       if (generation.status === "running" || !generation.outputAssetId) return [generation.jobId];
       // An output with no recorded expiry predates that field, so its age is
       // unknown and the safe reading is "assume it has gone".
@@ -165,10 +205,23 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
       const next = previous.map((generation) => {
         const job = generation.jobId ? byId.get(generation.jobId) : undefined;
         if (!job) return generation;
-        // `succeeded` is the database's word and therefore the wire's. The
-        // stored Generation keeps its own two-state vocabulary because that is
-        // all a card renders.
-        const status: GenStatus = job.status === "succeeded" ? "done" : "running";
+        /* `succeeded` is the database's word and therefore the wire's; the
+           stored Generation keeps a shorter one because a card only has three
+           things to draw.
+
+           This used to be `succeeded ? "done" : "running"`, which quietly made
+           "failed" mean "still going". A job that a provider refuses settles in
+           seconds, and the card it belongs to span for as long as the tab was
+           open — the poll stops (the server calls it settled, so
+           `refetchInterval` returns false) but nothing ever corrected the word.
+           `cancelled` and `expired` join `failed`: all three are over, and all
+           three end in a refund. */
+        const status: GenStatus =
+          job.status === "succeeded"
+            ? "done"
+            : job.status === "failed" || job.status === "cancelled" || job.status === "expired"
+              ? "failed"
+              : "running";
         const output = job.outputs[0];
         const outputUrl = output?.url ?? generation.outputUrl;
         // Kept alongside the URL because the URL cannot be kept: it is signed
@@ -179,11 +232,20 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
         // this response, so a re-read that produced nothing cannot leave a
         // fresh expiry sitting next to a stale link.
         const outputUrlExpiresAt = output?.url ? (job.urlsExpireAt ?? undefined) : generation.outputUrlExpiresAt;
+        // What the file actually is, rather than what was ordered. The server
+        // measures this from the bytes; drawing the request's shape instead is
+        // what leaves gradient bands along two edges. See `outW` in lib/gallery.
+        const outW = output?.width ?? generation.outW;
+        const outH = output?.height ?? generation.outH;
+        const error = job.error ?? generation.error;
         if (
           generation.status === status &&
           generation.outputUrl === outputUrl &&
           generation.outputAssetId === outputAssetId &&
-          generation.outputUrlExpiresAt === outputUrlExpiresAt
+          generation.outputUrlExpiresAt === outputUrlExpiresAt &&
+          generation.outW === outW &&
+          generation.outH === outH &&
+          generation.error === error
         ) {
           return generation;
         }
@@ -194,6 +256,8 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
           ...(outputUrl ? { outputUrl } : {}),
           ...(outputAssetId ? { outputAssetId } : {}),
           ...(outputUrlExpiresAt ? { outputUrlExpiresAt } : {}),
+          ...(outW && outH ? { outW, outH } : {}),
+          ...(error ? { error } : {}),
         };
       });
       return changed ? next : previous;
@@ -317,13 +381,33 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
     [families, navigation, startGeneration],
   );
 
+  const removeGeneration = useCallback(
+    async (id: string) => {
+      const generation = gens.find((candidate) => candidate.id === id);
+      if (!generation) return;
+      /* The server first, then the list. The other order shows the row leaving
+         and then puts it back when the request is refused — and the one refusal
+         this has is "that job is still running", which is exactly the case
+         where the customer must not be told it is gone. */
+      if (generation.jobId) {
+        await services.generation.remove(generation.jobId);
+        // The history query holds a page that still contains it, and the merge
+        // effect runs off that page. Without this the row returns on the next
+        // render rather than on the next reload.
+        await queryClient.invalidateQueries({ queryKey: ["gallery-history"] });
+      }
+      setGens((previous) => previous.filter((candidate) => candidate.id !== id));
+    },
+    [gens, queryClient, services],
+  );
+
   const markDone = useCallback((id: string) => {
     setGens((previous) => previous.map((generation) => (generation.id === id ? { ...generation, status: "done" } : generation)));
   }, []);
 
   const value = useMemo<Generations>(
-    () => ({ gens, hydrated, startGeneration, requestGeneration, regenerate, markDone }),
-    [gens, hydrated, markDone, regenerate, requestGeneration, startGeneration],
+    () => ({ gens, hydrated, startGeneration, requestGeneration, regenerate, removeGeneration, markDone }),
+    [gens, hydrated, markDone, regenerate, removeGeneration, requestGeneration, startGeneration],
   );
 
   if (operationError) {

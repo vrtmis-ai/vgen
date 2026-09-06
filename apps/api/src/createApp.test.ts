@@ -70,6 +70,8 @@ function healthyDependencies(): ApiDependencies {
     generationLibrary: {
       get: vi.fn(async () => generationJob()),
       list: vi.fn(async () => ({ items: [generationJob()] })),
+      downloadUrl: vi.fn(async () => "https://files.example/vgen-job.png"),
+      remove: vi.fn(async () => "removed" as const),
     },
     assetUploads: {
       upload: vi.fn(async () => ({
@@ -231,6 +233,61 @@ describe("reading a generation job", () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/generation/jobs/abc" });
     expect(response.statusCode).toBe(401);
     expect(dependencies.generationLibrary.get).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
+describe("removing a generation", () => {
+  it("removes the caller's own job", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/generation/jobs/abc" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ outcome: "removed" });
+    expect(dependencies.generationLibrary.remove).toHaveBeenCalledWith("abc", "22222222-2222-4222-8222-222222222222");
+    await app.close();
+  });
+
+  /* A running generation has credits held against it. Letting it disappear
+     would leave the customer short by an amount nothing on their screen
+     accounts for, so the refusal is the point of the route rather than an edge
+     of it. */
+  it("refuses to remove a generation that has not finished", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    dependencies.generationLibrary.remove = vi.fn(async () => "still_running" as const);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/generation/jobs/abc" });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ error: { code: "job_running" } });
+    await app.close();
+  });
+
+  // 404 rather than 403, for the same reason the read does it: whether an id
+  // exists is not this caller's business.
+  it("answers 404 when the job is not the caller's", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    dependencies.generationLibrary.remove = vi.fn(async () => "not_found" as const);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/generation/jobs/abc" });
+    expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("does not let an anonymous visitor remove anything", async () => {
+    const dependencies = healthyDependencies();
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/generation/jobs/abc" });
+    expect(response.statusCode).toBe(401);
+    expect(dependencies.generationLibrary.remove).not.toHaveBeenCalled();
     await app.close();
   });
 });

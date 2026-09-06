@@ -30,7 +30,7 @@ function harness(payload: unknown = QUOTE) {
     .fn()
     .mockResolvedValue(new Response(JSON.stringify(payload), { status: 200, headers: { "content-type": "application/json" } }));
   const client = createHttpClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
-  return { generation: createHttpGenerationService(client), fetchImpl };
+  return { generation: createHttpGenerationService(client, BASE_URL), fetchImpl };
 }
 
 function bodyOf(fetchImpl: ReturnType<typeof vi.fn>): Record<string, unknown> {

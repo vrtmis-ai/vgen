@@ -68,6 +68,7 @@ const dict = {
     home_price_na: "قیمت متغیر",
     // landing (logged out)
     lp_login: "ورود",
+    lp_workspace: "برو به استودیو",
     lp_signup: "رایگان بساز",
     lp_hero_title: "ایده‌ات را بساز؛ از اولین فریم تا صدای آخر",
     lp_hero_sub: "تصویر، ویدیو و صدا را با مدل‌های روز دنیا در یک استودیو بساز. فارسی بنویس و با کارت ایرانی شروع کن.",
@@ -450,6 +451,7 @@ const dict = {
     // result
     r_result: "نتیجه",
     r_making: "در حال ساخت",
+    r_failed: "انجام نشد",
     r_download: "دانلود",
     r_regen: "ساخت دوباره",
     r_to_video: "به ویدیو",
@@ -493,6 +495,9 @@ const dict = {
     gal_empty_sub: "هر چی بسازی این‌جا جمع می‌شه",
     gal_browse: "رفتن به مدل‌ها",
     gal_making: "در حال ساخت",
+    gal_failed: "انجام نشد",
+    gal_refunded: "سکه‌ها برگشت",
+    gal_remove: "حذف از کارهای من",
     // community
     com_title: "کامیونیتی",
   },
@@ -540,6 +545,7 @@ const dict = {
     home_price_from: "from",
     home_price_na: "Varies",
     lp_login: "Log in",
+    lp_workspace: "Go to the studio",
     lp_signup: "Create for free",
     lp_hero_title: "Build your idea, from the first frame to the final sound",
     lp_hero_sub: "Create images, video, and voice with leading models in one studio. Write in Persian and pay with an Iranian card.",
@@ -905,6 +911,7 @@ const dict = {
     g_need_also: "You also need to provide:",
     r_result: "Result",
     r_making: "Generating",
+    r_failed: "Did not complete",
     r_download: "Download",
     r_regen: "Regenerate",
     r_to_video: "To video",
@@ -941,6 +948,9 @@ const dict = {
     gal_empty_sub: "Everything you create collects here",
     gal_browse: "Browse models",
     gal_making: "Generating",
+    gal_failed: "Did not complete",
+    gal_refunded: "Coins refunded",
+    gal_remove: "Remove from my work",
     com_title: "Community",
   },
 } as const;

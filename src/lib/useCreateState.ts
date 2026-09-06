@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { defaultInput, variantControls, type Control, type Family, type Variant } from "../data/models";
 import { useAccess } from "./access";
-import type { InputMap } from "../components/controls";
+import type { InputMap, RefMap } from "../components/controls";
 import { priceCoins } from "../data/pricing";
 import { validateGenerationInput } from "../features/generation/validation";
 import { useIsMutating } from "@tanstack/react-query";
@@ -91,7 +91,17 @@ export function variantMeta(family: Family, variant: Variant): VariantMeta {
   return { topRes, range };
 }
 
-export function useCreateState(families: Family[]) {
+/**
+ * @param refs Files the surface has picked for this model's input slots.
+ *
+ * Optional only because the audio dock has no slots to fill. It is not a detail
+ * a caller may leave out: this was hardcoded to `{}`, so a model with a
+ * `required` slot — Recraft, Topaz — reported `reference_required` no matter
+ * what had been attached, and `ready` was false for as long as it stayed
+ * selected. The create button was permanently dead on those models on every
+ * surface that uses this hook, with nothing on screen saying why.
+ */
+export function useCreateState(families: Family[], refs: RefMap = {}) {
   const access = useAccess();
   const isSubmitting = useIsMutating({ mutationKey: CREATE_GENERATION_MUTATION_KEY }) > 0;
   /**
@@ -159,7 +169,7 @@ export function useCreateState(families: Family[]) {
   const [preferUnlimited, setPreferUnlimited] = useState(false);
 
   const price = priceCoins(variant, input, { chars: prompt.length, clipSeconds: 0 });
-  const validation = validateGenerationInput({ family, variant, prompt, input, refs: {} });
+  const validation = validateGenerationInput({ family, variant, prompt, input, refs });
   const ready = validation.valid && price !== null && !isSubmitting;
 
   return {

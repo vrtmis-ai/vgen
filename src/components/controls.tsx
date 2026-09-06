@@ -342,6 +342,37 @@ function readDuration(url: string, media: SlotMedia): Promise<number | undefined
   });
 }
 
+/** The media each slot kind accepts, for a file input's `accept`. */
+export function slotAccept(slot: RefSlot): string {
+  return ACCEPT[slot.media ?? "image"];
+}
+
+/**
+ * A slot's files after a pick, and what was turned away.
+ *
+ * Lives outside `RefUpload` because the image studio's dock takes files too and
+ * has no room for the 84px tile grid that component is. The rules about what a
+ * slot will hold — the ceiling, the per-file size cap, reading a clip's length
+ * — belong to the slot rather than to either surface, so both surfaces call
+ * this and neither carries its own copy to drift.
+ */
+export async function addRefFiles(slot: RefSlot, held: RefFile[], picked: File[]): Promise<{ files: RefFile[]; rejected: string | null }> {
+  const files = [...held];
+  let rejected: string | null = null;
+  for (const file of picked) {
+    if (files.length >= slot.max) break;
+    // KIE publishes no enforced cap and no 413, so an over-sized file would be
+    // accepted and only fail deep in the job — after the user has been charged.
+    if (slot.maxMb != null && file.size > slot.maxMb * 1024 * 1024) {
+      rejected = `${faNum(slot.maxMb)} مگابایت`;
+      continue;
+    }
+    const url = URL.createObjectURL(file);
+    files.push({ file, url, duration: await readDuration(url, slot.media ?? "image") });
+  }
+  return { files, rejected };
+}
+
 /**
  * Reference / input file slot. Fully controlled — the owner holds the files so
  * they can actually reach the generation request (they used to die in local state).
@@ -374,25 +405,13 @@ export function RefUpload({
     // Copy out of the live FileList before clearing the input — resetting
     // `value` empties the list itself, so reading it afterwards yields nothing.
     // Clearing is what lets a removed file be re-picked and still fire onChange.
-    const files = Array.from(e.target.files ?? []);
+    const picked = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!files.length) return;
+    if (!picked.length) return;
 
-    const next = [...images];
-    let tooBig: string | null = null;
-    for (const f of files) {
-      if (next.length >= slot.max) break;
-      // KIE publishes no enforced cap and no 413, so an over-sized file would be
-      // accepted and only fail deep in the job — after the user has been charged.
-      if (slot.maxMb != null && f.size > slot.maxMb * 1024 * 1024) {
-        tooBig = `${faNum(slot.maxMb)} مگابایت`;
-        continue;
-      }
-      const url = URL.createObjectURL(f);
-      next.push({ file: f, url, duration: await readDuration(url, media) });
-    }
-    setRejected(tooBig);
-    onChange(next);
+    const next = await addRefFiles(slot, images, picked);
+    setRejected(next.rejected);
+    onChange(next.files);
   }
 
   function remove(i: number) {
@@ -442,7 +461,7 @@ export function RefUpload({
         )}
       </div>
       {rejected && <span className="text-[11px] text-danger">فایل بزرگ‌تر از {rejected} رد شد</span>}
-      <input ref={inputRef} type="file" accept={ACCEPT[media]} multiple={slot.max > 1} hidden onChange={pick} />
+      <input ref={inputRef} type="file" accept={slotAccept(slot)} multiple={slot.max > 1} hidden onChange={pick} />
     </div>
   );
 }

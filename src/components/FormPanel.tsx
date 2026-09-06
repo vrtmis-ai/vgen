@@ -8,7 +8,7 @@ import { useCreateState, valueLabel, rangeOf } from "../lib/useCreateState";
 import { ModelPicker } from "./ModelPicker";
 import { PresetPicker } from "./PresetPicker";
 import type { Preset } from "../runtime/contracts/content";
-import { promptDir } from "../lib/format";
+import { labelDir, promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
 import { CoinMark } from "./chrome";
@@ -177,10 +177,17 @@ export function FormPanel({
   const [preset, setPreset] = useState<Preset | null>(null);
   const modelRow = useRef<HTMLDivElement>(null);
 
+  /* Files live here rather than in `useCreateState`, because they are object
+     URLs with a lifetime: switching model has to revoke them or the tab leaks a
+     blob per upload. Declared above the hook because the hook validates against
+     them — a `required` slot is only satisfied by what has actually been
+     picked, and passing `{}` is what left the button dead on those models. */
+  const [refImages, setRefImages] = useState<RefMap>({});
+
   // Same hook as the other two studios. This panel used to keep its own copy of
   // family/controls/input/price, which is how it ended up pinned to variants[0]
   // while the shared version moved on.
-  const s = useCreateState(families);
+  const s = useCreateState(families, refImages);
   const { family, variant, chips, input, prompt, price, ready, validation, isSubmitting } = s;
   const access = useAccess();
   const locked = !access.can(family.id);
@@ -200,10 +207,6 @@ export function FormPanel({
   const shownSlots = slotsInGroup(slots, activeTab);
   const pairs = pairsImages(shownSlots);
 
-  /* Files live here rather than in `useCreateState`, because they are object
-     URLs with a lifetime: switching model has to revoke them or the tab leaks a
-     blob per upload. */
-  const [refImages, setRefImages] = useState<RefMap>({});
   useEffect(() => {
     return () => {
       for (const files of Object.values(refImages)) for (const file of files) URL.revokeObjectURL(file.url);
@@ -299,7 +302,10 @@ export function FormPanel({
         )}
 
         <Card className="p-3">
-          <p className="mb-1 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+          {/* Follows the field: `dir="auto"` below sends the text to the other
+              edge the moment a Latin character is typed, and a caption left on
+              the far side is what makes a symmetrically padded box look wrong. */}
+          <p className="mb-1 text-[11px]" dir={labelDir(prompt)} style={{ color: "var(--vg-text-muted)" }}>
             پرامپت
           </p>
           <textarea
@@ -309,7 +315,7 @@ export function FormPanel({
             dir={promptDir(prompt)}
             disabled={family.noPrompt}
             placeholder={family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط فایل بده" : "صحنه‌ات را با جزئیات توصیف کن."}
-            className="hide-scrollbar w-full resize-none bg-transparent text-[13px] leading-6 outline-none disabled:opacity-40"
+            className="hide-scrollbar vg-field-inset resize-none bg-transparent text-[13px] leading-6 outline-none disabled:opacity-40"
             style={{ color: "var(--vg-text)" }}
           />
           {/* Toggles live inside the prompt card, as small pills on its floor. */}

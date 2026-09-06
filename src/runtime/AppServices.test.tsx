@@ -20,7 +20,7 @@ const services = {
   wallet: { getCurrent: vi.fn() },
   campaign: { getActive: vi.fn() },
   payment: { createOrder: vi.fn() },
-  generation: { quote: vi.fn(), create: vi.fn(), getJob: vi.fn() },
+  generation: { quote: vi.fn(), create: vi.fn(), getJob: vi.fn(), downloadUrl: vi.fn(), remove: vi.fn() },
   gallery: { list: vi.fn() },
   assets: { upload: vi.fn() },
 } satisfies AppServices;
