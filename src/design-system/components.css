@@ -415,6 +415,34 @@
   border-color: var(--vg-danger);
 }
 
+/* A borderless field sitting directly on a padded card — the prompt boxes and
+   the pickers' search rows.
+
+   They carry no padding of their own, and the app-wide focus ring
+   (`:focus-visible` in tokens.css) is drawn on the element's own box, so the
+   ring landed against the first letter: text touching a line on both sides,
+   which is what "too close to the border" looks like.
+
+   The padding buys that gap and the negative margin spends it straight back
+   out into the card's own padding, so the first letter still starts on the
+   same line as the label above it. Both are inline, so it mirrors in Persian
+   with no direction-specific rule — the point is that both scripts clear the
+   ring, whichever edge each one starts from. */
+.vg-field-inset {
+  inline-size: calc(100% + 2 * var(--vg-space-2));
+  margin-inline: calc(-1 * var(--vg-space-2));
+  padding-inline: var(--vg-space-2);
+  border-radius: var(--vg-radius);
+}
+
+/* The same gap where there is no label to line up with, so nothing is pulled
+   back out: a search row's field sits beside its magnifier and simply needs
+   the ring off its text. */
+.vg-field-pad {
+  padding-inline: var(--vg-space-2);
+  border-radius: var(--vg-radius);
+}
+
 /* Chip — AI tags, categories, filters. */
 .vg-chip {
   display: inline-flex;

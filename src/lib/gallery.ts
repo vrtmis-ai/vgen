@@ -1,7 +1,17 @@
 import { z } from "zod";
 import { readStoredCollection, writeStoredCollection } from "../adapters/browser/storage";
 
-export type GenStatus = "running" | "done";
+/**
+ * Three states, because a job has three outcomes.
+ *
+ * This was `"running" | "done"`, and the provider mapped everything that was
+ * not `succeeded` onto `running` — so a job that failed in three seconds
+ * rendered as forever-generating, and the poll that would have corrected it
+ * never fires again once the server calls the job settled. The wire has always
+ * carried all seven server states plus an `error`; this vocabulary was the part
+ * that could not say what happened.
+ */
+export type GenStatus = "running" | "done" | "failed";
 
 export interface Generation {
   /** Optimistic client key. Server calls must use jobId. */
@@ -14,8 +24,26 @@ export interface Generation {
   grad: string;
   kind: "image" | "video" | "audio";
   prompt: string;
+  /**
+   * The aspect that was *asked for*, from the form's own control.
+   *
+   * Kept because it is all there is until the file exists — a running card has
+   * to reserve a box of some shape. It is not what came back: see `outW`/`outH`.
+   */
   w: number;
   h: number;
+  /**
+   * The aspect that *arrived*, measured from the bytes by the server.
+   *
+   * A provider is entitled to answer at its own size, and they do: a 9:16
+   * request (0.5625) comes back 768×1344 (0.5714), a 16:9 one comes back
+   * 864×496 (1.7419). Drawing that into a box built from `w`/`h` leaves a strip
+   * of the card's gradient showing along two edges — the thin blue lines above
+   * and below a finished picture. The API has always sent `width`/`height` on
+   * every output; nothing read them.
+   */
+  outW?: number | undefined;
+  outH?: number | undefined;
   durationMs?: number | undefined;
   /** URL in Vgen-owned storage, not an expiring provider URL. */
   outputUrl?: string | undefined;
@@ -39,6 +67,12 @@ export interface Generation {
   /** Server-computed perceptual hash, opaque to the client. */
   phash?: string | undefined;
   status: GenStatus;
+  /**
+   * Why it failed, straight from the job. `code` is one of the worker's
+   * allow-listed public codes — never provider text — and `docs/API.md` lists
+   * what a person can do about each. Present only when `status` is `failed`.
+   */
+  error?: { code: string; message: string } | undefined;
   progress?: number | undefined;
   createdAt: number;
 }
@@ -57,12 +91,15 @@ const GenerationSchema: z.ZodType<Generation> = z.object({
   prompt: z.string(),
   w: z.number().int().positive(),
   h: z.number().int().positive(),
+  outW: z.number().int().positive().optional(),
+  outH: z.number().int().positive().optional(),
   durationMs: z.number().int().nonnegative().optional(),
   outputUrl: z.string().min(1).optional(),
   outputAssetId: z.string().min(1).optional(),
   outputUrlExpiresAt: z.number().int().nonnegative().optional(),
   phash: z.string().min(1).optional(),
-  status: z.enum(["running", "done"]),
+  status: z.enum(["running", "done", "failed"]),
+  error: z.object({ code: z.string().min(1), message: z.string() }).optional(),
   progress: z.number().min(0).max(100).optional(),
   createdAt: z.number().int().nonnegative(),
 });
@@ -73,6 +110,18 @@ export function loadGenerations(): Generation[] {
 
 export function saveGenerations(gens: Generation[]): void {
   writeStoredCollection(KEY, gens);
+}
+
+/**
+ * The shape to draw this generation in: what arrived, or what was asked for.
+ *
+ * Both screens size a box and then paint the file into it. Sizing from the
+ * request is what puts gradient bands around a finished picture, so the real
+ * measurement wins wherever there is one — and there only is one once the job
+ * has produced a file, which is exactly when the box stops being a placeholder.
+ */
+export function displayAspect(gen: Generation): { w: number; h: number } {
+  return gen.outW && gen.outH ? { w: gen.outW, h: gen.outH } : { w: gen.w, h: gen.h };
 }
 
 export function uid(): string {

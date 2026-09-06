@@ -224,6 +224,85 @@ describe("paging a gallery", () => {
   });
 });
 
+/**
+ * Taking a generation back off the wall.
+ *
+ * Soft, and refused while the job is alive. The second of those is the one that
+ * matters: a queued or running generation has credits held against it, and a
+ * row that vanishes while its hold stands leaves the customer short by an
+ * amount nothing on their screen can account for.
+ */
+describe("removing a generation", () => {
+  it("hides a settled generation from the account's own gallery", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const failed = await seedJob(tx, { accountId, userId, status: "failed" });
+      const kept = await seedJob(tx, { accountId, userId });
+      const gallery = new PostgresGalleryRepository(tx);
+
+      expect(await gallery.removeForUser(failed.jobId, userId)).toBe("removed");
+
+      const page = await gallery.listForUser(userId);
+      expect(page.items.map((item) => item.id)).toEqual([kept.jobId]);
+      // Gone from every read, not only from the page — a result link to it must
+      // not keep working after the row has been taken off the wall.
+      expect(await gallery.getForUser(failed.jobId, userId)).toBeNull();
+    });
+  });
+
+  it("keeps the row, because it is the record of money that moved", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const failed = await seedJob(tx, { accountId, userId, status: "failed" });
+
+      await new PostgresGalleryRepository(tx).removeForUser(failed.jobId, userId);
+
+      const [row] = await tx<{ status: string; deleted_at: Date | null }[]>`
+        select status, deleted_at from jobs where id = ${failed.jobId}
+      `;
+      expect(row?.status).toBe("failed");
+      expect(row?.deleted_at).not.toBeNull();
+    });
+  });
+
+  it("refuses while the generation is still running", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const running = await seedJob(tx, { accountId, userId, status: "running" });
+      const gallery = new PostgresGalleryRepository(tx);
+
+      expect(await gallery.removeForUser(running.jobId, userId)).toBe("still_running");
+      // Still there, which is the whole point of refusing.
+      expect(await gallery.getForUser(running.jobId, userId)).not.toBeNull();
+    });
+  });
+
+  it("does not let one account remove another's generation", async () => {
+    await inRollback(sql, async (tx) => {
+      const owner = await makeUser(tx);
+      const stranger = await makeUser(tx);
+      const job = await seedJob(tx, { accountId: owner.accountId, userId: owner.userId, status: "failed" });
+      const gallery = new PostgresGalleryRepository(tx);
+
+      // "not_found" rather than a refusal: whether the id exists is not the
+      // stranger's business, and an answer that told them apart would say so.
+      expect(await gallery.removeForUser(job.jobId, stranger.userId)).toBe("not_found");
+      expect(await gallery.getForUser(job.jobId, owner.userId)).not.toBeNull();
+    });
+  });
+
+  it("answers not_found the second time", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const job = await seedJob(tx, { accountId, userId, status: "failed" });
+      const gallery = new PostgresGalleryRepository(tx);
+
+      expect(await gallery.removeForUser(job.jobId, userId)).toBe("removed");
+      expect(await gallery.removeForUser(job.jobId, userId)).toBe("not_found");
+    });
+  });
+});
+
 describe("keeping an uploaded reference", () => {
   const upload = (accountId: string, userId: string, sha256: string) => ({
     accountId,

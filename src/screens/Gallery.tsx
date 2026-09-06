@@ -1,84 +1,173 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ImagesSquare, CircleNotch } from "@phosphor-icons/react";
-import type { Generation } from "../lib/gallery";
+import { ImagesSquare, CircleNotch, WarningCircle, Trash } from "@phosphor-icons/react";
+import { displayAspect, type Generation } from "../lib/gallery";
 import type { ModelKind } from "../data/models";
 import { GenerationMedia } from "../components/GenerationMedia";
 import { ViewControls, useViewMode } from "../components/ViewControls";
+import { jobFailureMessage } from "../features/generation/validation";
 import { useI18n } from "../lib/i18n";
 
-function GenCard({ g, i, onOpen, list }: { g: Generation; i: number; onOpen: () => void; list?: boolean }) {
+/**
+ * Take a refused generation off the wall.
+ *
+ * Offered on failures only, and that is a decision rather than an oversight: a
+ * finished generation is the thing the customer paid for, and a delete control
+ * sitting on every tile is one mis-tap away from destroying it. A failure has
+ * nothing in it to lose — no file was made and the coins already came back — so
+ * it is the one card where removal is a tidy-up rather than a loss.
+ */
+function RemoveButton({ onRemove }: { onRemove: () => void }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      onClick={(event) => {
+        // The card underneath is a button that opens the result.
+        event.stopPropagation();
+        setBusy(true);
+        onRemove();
+      }}
+      disabled={busy}
+      aria-label={t("gal_remove")}
+      title={t("gal_remove")}
+      className="grid size-7 shrink-0 place-items-center rounded-lg transition-opacity disabled:opacity-40"
+      style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+    >
+      <Trash size={13} />
+    </button>
+  );
+}
+
+function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; onOpen: () => void; onRemove: () => void; list?: boolean }) {
   const { t } = useI18n();
   const running = g.status === "running";
+  const failed = g.status === "failed";
+  // What arrived rather than what was ordered. `cover` hides the difference on
+  // a card, but the tile still has to reserve the right shape or the wall
+  // reflows the moment a file lands.
+  const shape = displayAspect(g);
 
   /* In list view the thumbnail stops being the card and becomes a 56px chip
      beside the prompt — the point of the list is reading what you asked for,
      and a full-bleed 9:16 frame per row makes that a scroll. */
   if (list) {
     return (
-      <motion.button
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: Math.min(i, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
-        onClick={onOpen}
-        className="mb-2 flex w-full break-inside-avoid items-center gap-3 rounded-xl border border-line p-2 text-start"
-        style={{ background: "var(--vg-surface)" }}
-      >
-        <span className="relative size-14 shrink-0 overflow-hidden rounded-lg" style={{ background: g.grad }}>
-          <GenerationMedia gen={g} />
-          {running && <span className="shimmer absolute inset-0" />}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="ltr line-clamp-2 block text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
-            {g.prompt || "—"}
+      /* The remove control is a sibling of the card, not a child of it: the card
+         is itself a button, and a button inside a button is invalid markup that
+         browsers resolve by dropping one of them. */
+      <div className="relative mb-2 break-inside-avoid">
+        <motion.button
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: Math.min(i, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
+          onClick={onOpen}
+          className={`flex w-full items-center gap-3 rounded-xl border border-line p-2 text-start ${failed ? "pe-11" : ""}`}
+          style={{ background: "var(--vg-surface)" }}
+        >
+          <span className="relative size-14 shrink-0 overflow-hidden rounded-lg" style={{ background: g.grad }}>
+            <GenerationMedia gen={g} />
+            {running && <span className="shimmer absolute inset-0" />}
           </span>
-          <span className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-            <bdi>{g.name}</bdi>
-            <span className="vg-numeric">
-              {g.w}×{g.h}
+          <span className="min-w-0 flex-1">
+            <span className="ltr line-clamp-2 block text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
+              {g.prompt || "—"}
             </span>
-            {running && (
-              <span className="flex items-center gap-1" style={{ color: "var(--vg-primary-soft)" }}>
-                <CircleNotch size={10} className="animate-spin" />
-                {t("gal_making")}
+            <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+              <bdi>{g.name}</bdi>
+              {/* The file's real size once there is a file. This printed the
+                  requested aspect as though it were pixel dimensions — "9×16"
+                  beside a 768×1344 picture. */}
+              <span className="vg-numeric">
+                {shape.w}×{shape.h}
               </span>
-            )}
+              {running && (
+                <span className="flex items-center gap-1" style={{ color: "var(--vg-primary-soft)" }}>
+                  <CircleNotch size={10} className="animate-spin" />
+                  {t("gal_making")}
+                </span>
+              )}
+              {failed && (
+                <>
+                  <span className="flex items-center gap-1" style={{ color: "var(--vg-text-muted)" }}>
+                    <WarningCircle size={11} />
+                    {t("gal_failed")}
+                  </span>
+                  {/* Where somebody is most likely to be looking for it.
+                      Every failure is refunded in full — the worker releases the
+                      hold and charges zero — and a row that says only "did not
+                      complete" leaves the customer to work out for themselves
+                      whether they were billed for it. */}
+                  <span style={{ color: "var(--vg-success, var(--vg-primary-soft))" }}>{t("gal_refunded")}</span>
+                </>
+              )}
+            </span>
           </span>
-        </span>
-      </motion.button>
+        </motion.button>
+        {failed && (
+          <div className="absolute top-1/2 -translate-y-1/2" style={{ insetInlineEnd: "0.5rem" }}>
+            <RemoveButton onRemove={onRemove} />
+          </div>
+        )}
+      </div>
     );
   }
 
   return (
-    <motion.button
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: i * 0.03, ease: [0.16, 1, 0.3, 1] }}
-      onClick={onOpen}
-      className="mb-3 block w-full break-inside-avoid overflow-hidden rounded-bezel border border-line text-start active:scale-[0.98] transition-transform"
-    >
-      <div className="relative w-full" style={{ aspectRatio: `${g.w}/${g.h}`, background: g.grad }}>
-        <GenerationMedia gen={g} />
-        {running && <div className="shimmer absolute inset-0 bg-card/60" />}
-        <div className="scrim-media" />
-        <div className="absolute start-2 top-2">
-          {running ? (
-            <span className="flex items-center gap-1 rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
-              <CircleNotch size={11} className="animate-spin" />
-              {t("gal_making")}
-            </span>
-          ) : (
-            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
-              {t(g.kind === "video" ? "kind_video" : g.kind === "audio" ? "kind_audio" : "kind_image")}
-            </span>
-          )}
+    // Same reason as the list branch: the remove control cannot live inside the
+    // card, because the card is a button.
+    <div className="relative mb-3 break-inside-avoid">
+      <motion.button
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: i * 0.03, ease: [0.16, 1, 0.3, 1] }}
+        onClick={onOpen}
+        className="block w-full overflow-hidden rounded-bezel border border-line text-start active:scale-[0.98] transition-transform"
+      >
+        <div className="relative w-full" style={{ aspectRatio: `${shape.w}/${shape.h}`, background: g.grad }}>
+          <GenerationMedia gen={g} />
+          {running && <div className="shimmer absolute inset-0 bg-card/60" />}
+          <div className="scrim-media" />
+          <div className="absolute start-2 top-2 flex flex-col items-start gap-1">
+            {running ? (
+              <span className="flex items-center gap-1 rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
+                <CircleNotch size={11} className="animate-spin" />
+                {t("gal_making")}
+              </span>
+            ) : failed ? (
+              <>
+                <span className="flex items-center gap-1 rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
+                  <WarningCircle size={11} />
+                  {t("gal_failed")}
+                </span>
+                {/* The refund, said on the card rather than only on the result
+                    page. Every failure releases its hold and charges zero, and
+                    somebody who watched coins leave their wallet needs telling
+                    that the two cancelled out — here, where they are looking. */}
+                <span className="rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{t("gal_refunded")}</span>
+              </>
+            ) : (
+              <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
+                {t(g.kind === "video" ? "kind_video" : g.kind === "audio" ? "kind_audio" : "kind_image")}
+              </span>
+            )}
+          </div>
+          <div className="absolute inset-x-2.5 bottom-2.5">
+            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{g.name}</span>
+            {/* The reason, on a card that has nothing else to show. A failed
+                tile is an empty gradient with a badge on it, and "why" is what
+                the customer came to it for. */}
+            {failed && <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-white/85">{jobFailureMessage(g.error?.code)}</p>}
+            {g.prompt && <p className="ltr mt-1.5 line-clamp-2 text-[11.5px] leading-snug text-white/85">{g.prompt}</p>}
+          </div>
         </div>
-        <div className="absolute inset-x-2.5 bottom-2.5">
-          <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{g.name}</span>
-          {g.prompt && <p className="ltr mt-1.5 line-clamp-2 text-[11.5px] leading-snug text-white/85">{g.prompt}</p>}
+      </motion.button>
+      {failed && (
+        <div className="absolute top-2" style={{ insetInlineEnd: "0.5rem" }}>
+          <RemoveButton onRemove={onRemove} />
         </div>
-      </div>
-    </motion.button>
+      )}
+    </div>
   );
 }
 
@@ -92,7 +181,17 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "running", label: "در حال ساخت" },
 ];
 
-export default function Gallery({ gens, onOpen, onBrowse }: { gens: Generation[]; onOpen: (g: Generation) => void; onBrowse: () => void }) {
+export default function Gallery({
+  gens,
+  onOpen,
+  onRemove,
+  onBrowse,
+}: {
+  gens: Generation[];
+  onOpen: (g: Generation) => void;
+  onRemove: (g: Generation) => void;
+  onBrowse: () => void;
+}) {
   const { t, n } = useI18n();
   const [filter, setFilter] = useState<Filter>("all");
   const view = useViewMode("gallery", { mode: "grid", density: 1 });
@@ -171,7 +270,7 @@ export default function Gallery({ gens, onOpen, onBrowse }: { gens: Generation[]
            The density stepper drives the column count directly. */
         <div className="[column-fill:_balance] gap-3" style={{ columnCount: view.mode === "list" ? 1 : view.cols }}>
           {shown.map((g, i) => (
-            <GenCard key={g.id} g={g} i={i} onOpen={() => onOpen(g)} list={view.mode === "list"} />
+            <GenCard key={g.id} g={g} i={i} onOpen={() => onOpen(g)} onRemove={() => onRemove(g)} list={view.mode === "list"} />
           ))}
         </div>
       )}

@@ -86,4 +86,71 @@ export function registerGenerationJobsRoute(
     if (!job) return reply.code(404).send({ error: { code: "job_not_found", message: "No such job." } });
     return reply.code(200).send(job);
   });
+
+  /**
+   * Save one output, rather than look at it.
+   *
+   * A redirect rather than a proxy: the bytes still come straight from the
+   * object store, and the only thing this adds is the session check and a
+   * signature that carries `Content-Disposition: attachment`. Streaming them
+   * through Node instead would spend a request slot per megabyte to change one
+   * header.
+   *
+   * It exists at all because the `download` attribute on an anchor is ignored
+   * for cross-origin URLs, and every output URL is cross-origin — signed
+   * against the store's host, never the app's. The button looked like it
+   * worked and opened the picture in a tab.
+   */
+  app.get<{ Params: { jobId: string; index: string } }>(
+    "/api/v1/generation/jobs/:jobId/outputs/:index/download",
+    async (request, reply) => {
+      const session = await sessions.getCurrent(request);
+      if (session.status !== "authed") {
+        return reply.code(401).send({ error: { code: "unauthorized", message: "Authentication required." } });
+      }
+
+      const index = Number(request.params.index);
+      if (!Number.isInteger(index) || index < 0) {
+        return reply.code(400).send({ error: { code: "invalid_index", message: "Output index must be a whole number." } });
+      }
+
+      const url = await library.downloadUrl(request.params.jobId, session.user.id, index);
+      // Same 404 as above, for the same reason: whether an id exists is not
+      // this caller's business.
+      if (!url) return reply.code(404).send({ error: { code: "output_not_found", message: "No such output." } });
+      // 302 rather than 301: the URL it points at is signed and expires within
+      // the hour, and a permanent redirect is exactly the thing a browser is
+      // entitled to remember.
+      return reply.redirect(url, 302);
+    },
+  );
+
+  /**
+   * Take one generation off the customer's wall.
+   *
+   * A soft delete — see `removeForUser`. The row stays as the accounting record
+   * for money that already moved; it stops being part of the gallery.
+   *
+   * 409 rather than a silent success while the job is still going. A queued or
+   * running generation has credits held against it, and hiding it would leave
+   * the customer with coins missing from their balance and nothing on screen
+   * that accounts for them. There is no cancel here: stopping a generation is a
+   * different act with a different effect on the money, and quietly deleting
+   * the row would be neither.
+   */
+  app.delete<{ Params: { jobId: string } }>("/api/v1/generation/jobs/:jobId", async (request, reply) => {
+    const session = await sessions.getCurrent(request);
+    if (session.status !== "authed") {
+      return reply.code(401).send({ error: { code: "unauthorized", message: "Authentication required." } });
+    }
+
+    const outcome = await library.remove(request.params.jobId, session.user.id);
+    // Same 404 as the reads above, for the same reason: whether an id exists is
+    // not this caller's business.
+    if (outcome === "not_found") return reply.code(404).send({ error: { code: "job_not_found", message: "No such job." } });
+    if (outcome === "still_running") {
+      return reply.code(409).send({ error: { code: "job_running", message: "That generation has not finished yet." } });
+    }
+    return reply.code(200).send({ outcome });
+  });
 }

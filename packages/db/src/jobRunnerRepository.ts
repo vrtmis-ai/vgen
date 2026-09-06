@@ -70,7 +70,7 @@ export interface ClaimedJob {
    * seventeen of eighteen slots and silently fails a generation on the
    * eighteenth, so it is read from the catalogue that declares it.
    */
-  refSlots: { key: string; max: number }[] | null;
+  refSlots: { key: string; max: number; sends?: { key: string; at: number } | undefined }[] | null;
   microCreditsHeld: number;
   /** Null when nothing was held: a granted job, or one quoted at zero. */
   holdId: string | null;
@@ -199,7 +199,28 @@ export class PostgresJobRunnerRepository {
              provider.id as provider_id, provider.code as provider_code, provider.base_url,
              hold.id as hold_id,
              coalesce(route.param_overrides, '{}'::jsonb) as param_overrides,
-             coalesce(picked.capabilities -> 'variant' -> 'refs', 'null'::jsonb) as ref_slots,
+             -- Variant's own slots, else the family's — the same resolution
+             -- variantRefs() does for the screen. Reading only the variant's
+             -- was the bug: 29 of 44 variants declare none of their own and
+             -- inherit the family's, so the runner saw no declaration at all
+             -- for them and fell back to its "assume many" default. That sent
+             -- Recraft a one-element array where its only slot wants a bare
+             -- URL string; KIE answered 500 on every Recraft generation ever
+             -- started, and its remove-background sibling said the quiet part
+             -- out loud: image_url必须是http(s) URL. The same blindness meant
+             -- the slots' sends mapping never arrived, so Kling 3 and every
+             -- Veo silently skipped folding their start and end frames into
+             -- one positional image_urls.
+             --
+             -- An explicit null on the variant means "this variant takes no
+             -- files" and must NOT inherit. That survives here for free:
+             -- -> yields SQL NULL only when the key is absent, while a jsonb
+             -- null is a value, and coalesce stops on it.
+             coalesce(
+               picked.capabilities -> 'variant' -> 'refs',
+               picked.capabilities -> 'family' -> 'refs',
+               'null'::jsonb
+             ) as ref_slots,
              rate.provider_unit_cost_usd, quote.provider_cost_usd_micros as estimated_cost_usd_micros
       from claimed job
       -- The row the customer picked, for its reference-slot declarations. The

@@ -115,11 +115,16 @@ interface Submitted {
 }
 
 /** A funded account that has quoted and submitted a real paid generation. */
-async function submitPaid(tx: Sql, startingCoins = 500): Promise<Submitted> {
+async function submitPaid(
+  tx: Sql,
+  startingCoins = 500,
+  /** A specific variant, for a test that is about one model rather than about any. */
+  on?: { variantId: string; params: Record<string, string> },
+): Promise<Submitted> {
   const { userId, accountId } = await makeUser(tx);
   await subscribe(tx, accountId, 3);
   await tx`select grant_credits(${accountId}, 'purchase', ${startingCoins * COIN})`;
-  const { variantId, params } = await paidVariant(tx);
+  const { variantId, params } = on ?? (await paidVariant(tx));
 
   const quote = await new PostgresQuotesRepository(tx).create({ userId, variantId, params });
   if (quote.outcome !== "quoted") throw new Error(`expected a quote, got ${quote.outcome}`);
@@ -141,6 +146,95 @@ async function balanceOf(tx: Sql, accountId: string) {
   `;
   return { spendable: Number(row?.micro_credits ?? 0), held: Number(row?.held_micro_credits ?? 0) };
 }
+
+/**
+ * A priced, active variant of one family that declares no slots of its own.
+ *
+ * The "no slots of its own" part is the whole point: those variants inherit the
+ * family's, and inheriting is what the claim query used to lose.
+ */
+async function inheritingVariant(tx: Sql, family: string): Promise<{ variantId: string; params: Record<string, string> }> {
+  const [row] = await tx<{ variant_id: string; selector: Record<string, string> }[]>`
+    select model.capabilities -> 'variant' ->> 'id' as variant_id, price.selector
+    from provider_models model
+    join model_prices price on price.provider_model_id = model.id
+    where model.family = ${family}
+      and model.capabilities ? 'variant'
+      and not (model.capabilities -> 'variant' ? 'refs')
+      and model.capabilities -> 'family' ? 'refs'
+      and model.is_active and price.is_offered and price.valid_to is null
+    limit 1
+  `;
+  if (!row?.variant_id) throw new Error(`the seeded catalogue has no priced ${family} variant that inherits its family's slots`);
+  return { variantId: row.variant_id, params: row.selector };
+}
+
+/* ---------------------------------------------------------------------------
+   What the runner is told a model's input slots are.
+
+   Read from the wrong place, this is invisible and expensive. `attachReferences`
+   uses `max` to decide whether a field takes one URL or a list, and `sends` to
+   fold two labelled slots into one positional array. Hand it no declaration and
+   it assumes "many" — which is how Recraft, whose only slot is a single `image`,
+   received `image: ["https://…"]` and answered 500 on every generation anyone
+   ever started with it. Recraft's sibling said the quiet part out loud:
+   `image_url必须是http(s) URL`.
+
+   29 of 44 variants declare no slots of their own, so this was the majority
+   case rather than an edge of it.
+   --------------------------------------------------------------------------- */
+describe("the input slots a claim hands the runner", () => {
+  it("falls back to the family's slots when the variant declares none", async () => {
+    await inRollback(sql, async (tx) => {
+      const { variantId, params } = await inheritingVariant(tx, "recraft");
+      const { jobId } = await submitPaid(tx, 500, { variantId, params });
+
+      const claimed = await new PostgresJobRunnerRepository(tx).claim(jobId);
+
+      // Not merely present — `max` is the field that decides string vs array,
+      // and getting it wrong is the whole bug.
+      expect(claimed!.refSlots).toEqual([expect.objectContaining({ key: "image", max: 1 })]);
+    });
+  });
+
+  it("carries `sends`, so paired frame slots can still be folded into one array", async () => {
+    await inRollback(sql, async (tx) => {
+      const { variantId, params } = await inheritingVariant(tx, "veo");
+      const { jobId } = await submitPaid(tx, 500, { variantId, params });
+
+      const claimed = await new PostgresJobRunnerRepository(tx).claim(jobId);
+
+      // Without this the start/end frame mapping is not wrong, it simply never
+      // runs: the runner sends `image_url_start` as a literal field name no
+      // provider has ever heard of.
+      // `imageUrls`, camelCase, because that is the field Veo's API actually
+      // names — Kling 3 spells its equivalent `image_urls`. The whole reason
+      // `sends` exists is that the upstream field name is not the slot's.
+      expect(claimed!.refSlots).toEqual([
+        expect.objectContaining({ key: "image_url_start", max: 1, sends: { key: "imageUrls", at: 0 } }),
+        expect.objectContaining({ key: "image_url_end", max: 1, sends: { key: "imageUrls", at: 1 } }),
+      ]);
+    });
+  });
+
+  it("treats an explicit null on the variant as 'takes no files', not as 'inherit'", async () => {
+    await inRollback(sql, async (tx) => {
+      const { variantId, params } = await inheritingVariant(tx, "recraft");
+      // The distinction `variantRefs()` draws and the coalesce has to preserve:
+      // an absent key inherits, an explicit null overrides with nothing.
+      await tx`
+        update provider_models
+        set capabilities = jsonb_set(capabilities, '{variant,refs}', 'null'::jsonb)
+        where capabilities -> 'variant' ->> 'id' = ${variantId}
+      `;
+      const { jobId } = await submitPaid(tx, 500, { variantId, params });
+
+      const claimed = await new PostgresJobRunnerRepository(tx).claim(jobId);
+
+      expect(claimed!.refSlots).toBeNull();
+    });
+  });
+});
 
 describe("claiming a job", () => {
   it("moves it to running and hands back what the runner needs to call the provider", async () => {

@@ -6,7 +6,7 @@ import { createGenerationProvider, createS3ObjectStore } from "@vgen/adapters";
 import { PostgresJobRunnerRepository, PostgresOutboxDispatcher } from "@vgen/db";
 import { BullGenerationPublisher } from "./outboxConsumer";
 import { HttpOutputMirror } from "./outputMirror";
-import { runGeneration } from "./runGeneration";
+import { isLoopbackUrl, runGeneration, WORKER_LOST } from "./runGeneration";
 
 export const GENERATION_QUEUE = "generation" as const;
 
@@ -69,6 +69,23 @@ const objectStore = createS3ObjectStore({
 const mirror = new HttpOutputMirror({ store: objectStore });
 
 const log = (event: Record<string, unknown>) => console.info(JSON.stringify(event));
+
+/* Say, on every boot, the one setting that decides whether a generation with an
+   attachment can work at all.
+
+   It is read from the environment, applies only to jobs carrying a file, and
+   fails them in a way that looks like the provider's fault — so an unset or
+   stale value is invisible until somebody spends a real generation finding out.
+   Diagnosing that from the outside took three rounds once; a line in the log
+   costs nothing and makes it the first thing anyone sees. */
+const referenceHost =
+  process.env.OBJECT_STORAGE_PUBLIC_ENDPOINT?.trim() || process.env.OBJECT_STORAGE_ENDPOINT?.trim() || "http://127.0.0.1:9000";
+log({
+  event: "worker.reference_host",
+  host: referenceHost,
+  // The same rule `isLoopbackUrl` applies per job, stated once at startup.
+  reachableByProviders: !isLoopbackUrl(referenceHost),
+});
 
 let dispatching = false;
 async function dispatch(): Promise<void> {
@@ -133,11 +150,48 @@ const worker = new Worker(
   { connection, concurrency: Number(process.env.WORKER_CONCURRENCY ?? "8") },
 );
 
+/**
+ * The queue has given up on a delivery — and may have given up on the job.
+ *
+ * This only logged, and that was a hole with money in it. `jobs.status` is
+ * written to a terminal value in exactly three places, all inside
+ * `runGeneration`'s own `settle()`/`succeed()`. When BullMQ fails a job on its
+ * own — a worker killed mid-poll and found stalled more times than
+ * `maxStalledCount` allows — the processor never runs again, so nothing ever
+ * settles the row: it stays `running` forever with the customer's coins held
+ * against it, and no reaper, lease or heartbeat exists anywhere to find it.
+ *
+ * `hasNextAttempt` is the guard that keeps an ordinary retry from being settled
+ * early: a delivery that will be redelivered has not failed, the attempt has.
+ *
+ * `fail()` is safe to call either way — it takes the row lock and returns
+ * without touching anything unless the job is still `queued` or `running`, so
+ * a race with a processor that settled first cannot double-refund.
+ */
 worker.on("failed", (job, error) => {
+  const jobId = job?.data?.jobId;
+  const attempts = job?.opts.attempts ?? 1;
+  const hasNextAttempt = job !== undefined && job.attemptsMade < attempts;
   console.error(
-    JSON.stringify({ event: "generation.attempt_failed", jobId: job?.data?.jobId, attempts: job?.attemptsMade, error: error.message }),
+    JSON.stringify({
+      event: "generation.attempt_failed",
+      jobId,
+      attempts: job?.attemptsMade,
+      settling: !hasNextAttempt,
+      error: error.message,
+    }),
   );
+  if (!jobId || hasNextAttempt) return;
+  void runnerRepository.fail(jobId, WORKER_LOST, "This generation was interrupted and did not finish.").catch((failure: unknown) => {
+    // Nothing else will try: this is the last line between a stalled job and a
+    // hold that never returns, so a failure here is worth its own log line.
+    console.error(JSON.stringify({ event: "generation.settle_failed", jobId, error: messageOf(failure) }));
+  });
 });
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : "unknown error";
+}
 
 let closing = false;
 async function close(): Promise<void> {

@@ -77,6 +77,21 @@ export interface RefSlot {
    * there is no end frame without a start frame.
    */
   requires?: string;
+  /**
+   * Where this slot's file goes upstream, when several slots share one field.
+   *
+   * Normally `key` is both the slot's identity and the provider's field name.
+   * Kling 3 and Veo break that: both take a single `image_urls` array whose
+   * *position* decides meaning — element 0 is the start frame, element 1 the
+   * end frame — so one array cannot be two labelled slots, and one labelled
+   * slot cannot say which end you are filling. Declaring both halves with a
+   * shared destination lets the picker offer "start" and "end" as the separate
+   * things they are, and lets the worker rebuild the array the API wants.
+   *
+   * Only the upstream shape needs this. A model with genuinely distinct fields
+   * (`first_frame_url`/`last_frame_url`) keeps saying so with its own keys.
+   */
+  sends?: { key: string; at: number };
 }
 
 /**
@@ -719,7 +734,21 @@ export const FAMILIES: Family[] = [
     badge: "سینمایی",
     grad: "linear-gradient(135deg,#f7c948,#f86a3b)",
     cover: "https://file.aiquickdraw.com/static//kie-maket/17622493381934oqt0mus.mp4",
-    refs: [{ key: "image_urls", label: "فریم شروع و پایان (اختیاری)", max: 2 }],
+    /* One `image_urls` array upstream, two slots here — see `sends`. It read
+       "start and end frame" on a single picker, which cannot say which of the
+       two files you just added is which, and silently made the order you
+       happened to pick them in the thing that decided. */
+    refs: [
+      { group: "frame", key: "image_url_start", label: "فریم شروع (اختیاری)", max: 1, sends: { key: "image_urls", at: 0 } },
+      {
+        group: "frame",
+        key: "image_url_end",
+        label: "فریم پایان (اختیاری)",
+        max: 1,
+        requires: "image_url_start",
+        sends: { key: "image_urls", at: 1 },
+      },
+    ],
     controls: [
       {
         kind: "aspect",
@@ -1228,7 +1257,21 @@ export const FAMILIES: Family[] = [
     badge: "جدید",
     grad: "linear-gradient(135deg,#0ea5e9,#6366f1)",
     cover: "https://file.aiquickdraw.com/custom-page/akr/section-images/1760692238600spjz047p.mp4",
-    refs: [{ key: "imageUrls", label: "تصاویر مرجع / فریم (اختیاری)", max: 2 }],
+    /* Same positional array as Kling, under a different name. Veo also branches
+       on how many it gets — one image means "unfold around it", two mean first
+       and last — which is why the end slot names the start as its dependency
+       rather than being independently fillable. */
+    refs: [
+      { group: "frame", key: "image_url_start", label: "فریم شروع (اختیاری)", max: 1, sends: { key: "imageUrls", at: 0 } },
+      {
+        group: "frame",
+        key: "image_url_end",
+        label: "فریم پایان (اختیاری)",
+        max: 1,
+        requires: "image_url_start",
+        sends: { key: "imageUrls", at: 1 },
+      },
+    ],
     controls: [
       { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916] },
       QUALITY("720p", ["720p", "1080p", "4k"]),

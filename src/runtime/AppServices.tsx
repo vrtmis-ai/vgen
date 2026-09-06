@@ -96,6 +96,24 @@ export interface AppServices {
     quote(request: QuoteGenerationRequest, options?: RequestOptions): Promise<GenerationQuote>;
     create(request: CreateGenerationRequest, options?: RequestOptions): Promise<GenerationJob>;
     getJob(jobId: string, options?: RequestOptions): Promise<GenerationJob>;
+    /**
+     * Where to send the browser to save an output, rather than look at it.
+     *
+     * A URL and not a request: the point is to let the browser do the download
+     * itself, with its own progress and its own destination. Fetching the bytes
+     * into the page to re-offer them would buy nothing and cost the whole file
+     * in memory.
+     */
+    downloadUrl(jobId: string, index?: number): string;
+    /**
+     * Take a finished generation off the account's wall.
+     *
+     * Soft on the server — the row stays as the record of money that moved —
+     * and refused while the job is still running, because a generation with
+     * credits held against it cannot be made invisible without those coins
+     * becoming unaccountable.
+     */
+    remove(jobId: string, options?: RequestOptions): Promise<void>;
   };
   gallery: {
     list(query?: GalleryQuery, options?: RequestOptions): Promise<GalleryPage>;

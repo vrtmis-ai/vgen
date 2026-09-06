@@ -29,7 +29,7 @@ export default function ProfilePage() {
 function ProfileScreen() {
   const { user, wallet, signOut } = useAuthedSession();
   const { gens } = useGenerations();
-  const { openWallet, openModel, goBack } = useNavigation();
+  const { openWallet, openModel, goBack, setTab } = useNavigation();
 
   return (
     <Profile
@@ -37,7 +37,8 @@ function ProfileScreen() {
       wallet={wallet}
       gens={gens}
       onWallet={openWallet}
-      onGallery={goBack}
+      onBack={goBack}
+      onGallery={() => setTab("gallery")}
       onOpenModel={openModel}
       onSignOut={signOut}
     />

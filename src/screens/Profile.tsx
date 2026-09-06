@@ -40,6 +40,7 @@ export default function Profile({
   wallet,
   gens,
   onWallet,
+  onBack,
   onGallery,
   onOpenModel,
   onSignOut,
@@ -48,6 +49,13 @@ export default function Profile({
   wallet: Wallet;
   gens: Generation[];
   onWallet: () => void;
+  /* Two props, because they were one and it sent people to the wrong screen.
+
+     "My gallery" and "Back" both called `onGallery`, which the page bound to
+     `goBack`. On a cold load of /profile there is nothing behind it, so
+     `goBack` falls through to its last-workspace default — /studio/video — and
+     the row labelled "my gallery" opened the video studio. */
+  onBack: () => void;
   onGallery: () => void;
   onOpenModel: (familyId: string) => void;
   onSignOut: () => void;
@@ -68,7 +76,7 @@ export default function Profile({
        screenshot, not a desktop layout. */
     <div className="relative z-10 mx-auto w-full max-w-[900px] px-4 pb-16 pt-5 md:px-8">
       <button
-        onClick={onGallery}
+        onClick={onBack}
         className="mb-5 flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-semibold"
         style={{ background: "var(--vg-surface)", color: "var(--vg-text-muted)", border: "1px solid var(--vg-border-subtle)" }}
       >

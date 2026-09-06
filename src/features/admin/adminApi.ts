@@ -192,6 +192,15 @@ const UserRowSchema = z
     coinsPurchased: z.number(),
     coinsSpent: z.number(),
     jobs: z.number(),
+    /* The same jobs by what they produced, and the subscription behind the
+       balance. Both were already in the database and neither was ever asked
+       for: a job total cannot tell 400 pictures from 400 videos, and a balance
+       with no plan beside it does not say how it got there. */
+    images: z.number(),
+    videos: z.number(),
+    audio: z.number(),
+    planName: z.string().nullable(),
+    planTier: z.number().nullable(),
     providerCostUsd: z.number(),
     lastJobAt: z.number().nullable(),
     activeBans: z.number(),

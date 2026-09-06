@@ -112,6 +112,19 @@ export function createDemoGenerationAdapters(now: () => number): {
       stored.job = job;
       return job;
     },
+
+    // Demo outputs are data/blob URLs that already live in the page, so there
+    // is nothing to route through an API that is not running. Handing back the
+    // output itself keeps the button honest in demo mode.
+    downloadUrl(jobId, index = 0) {
+      return jobs.get(jobId)?.job.outputs[index]?.url ?? "";
+    },
+
+    // A hard delete here, where the server's is soft: the map is the demo's
+    // whole history and it keeps no ledger for the row to go on standing for.
+    async remove(jobId) {
+      jobs.delete(jobId);
+    },
   };
 
   const gallery: AppServices["gallery"] = {

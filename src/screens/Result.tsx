@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, DownloadSimple, ArrowsClockwise, FilmSlate, ShareNetwork } from "@phosphor-icons/react";
-import type { Generation } from "../lib/gallery";
+import { ArrowRight, DownloadSimple, ArrowsClockwise, FilmSlate, ShareNetwork, WarningCircle, Trash } from "@phosphor-icons/react";
+import { displayAspect, type Generation } from "../lib/gallery";
 import { Logo } from "../components/chrome";
 import { GenerationMedia } from "../components/GenerationMedia";
+import { jobFailureMessage } from "../features/generation/validation";
 import { useI18n, type TKey } from "../lib/i18n";
+import { useAppServices } from "../runtime/AppServices";
 
 const STAGE_KEYS: TKey[] = ["r_stage1", "r_stage2", "r_stage3", "r_stage4"];
 
@@ -14,6 +16,7 @@ export default function Result({
   onBack,
   onRegenerate,
   onToVideo,
+  onRemove,
   onDone,
 }: {
   gen: Generation;
@@ -21,9 +24,17 @@ export default function Result({
   onBack: () => void;
   onRegenerate: () => void;
   onToVideo: () => void;
+  /** Offered on a refused generation only — see the button at the foot. */
+  onRemove: () => void;
   onDone?: () => void;
 }) {
   const { t, n } = useI18n();
+  const services = useAppServices();
+  /* A refusal is an outcome, not a pause. Before this branch existed the screen
+     had two states and a failed job fell into the one with the spinner, so the
+     page kept promising a file the provider had already declined to make — for
+     as long as the tab stayed open. */
+  const failed = gen.status === "failed";
   /* Read, not simulated.
      This screen used to run its own interval, which was fine while a job could
      only be watched from here. It can now also be watched in the studio canvas
@@ -33,8 +44,8 @@ export default function Result({
 
      `instant` still means "opened from history", where there is nothing to
      watch and the answer is simply 100. */
-  const pct = instant ? 100 : Math.round(gen.progress ?? (gen.status === "done" ? 100 : 0));
-  const done = gen.status === "done" || pct >= 100;
+  const pct = failed ? 0 : instant ? 100 : Math.round(gen.progress ?? (gen.status === "done" ? 100 : 0));
+  const done = !failed && (gen.status === "done" || pct >= 100);
   const firedDone = useRef(false);
 
   useEffect(() => {
@@ -45,19 +56,26 @@ export default function Result({
   }, [done, instant, onDone]);
 
   const stage = t(STAGE_KEYS[Math.min(STAGE_KEYS.length - 1, Math.floor((pct / 100) * STAGE_KEYS.length))]!);
-  const ratio = gen.w / gen.h;
+  // The shape that arrived, not the one that was ordered — see `displayAspect`.
+  const shape = displayAspect(gen);
+  const ratio = shape.w / shape.h;
 
-  /* The same anchor StudioImage's viewer uses. This button was `() => {}` — a
-     control that looks live, is not disabled, and does nothing when pressed,
-     next to the file it claims to save.
+  /* Through the API, not straight at the file.
 
-     The extension comes from `kind` rather than from the URL: these links are
-     signed and end in a signature, so there is no extension in them to read. */
+     This used to point an `<a download>` at `gen.outputUrl` and hope. The
+     `download` attribute is honoured only for same-origin URLs, and an output
+     URL is signed against the object store's host — `127.0.0.1:9000` locally,
+     `files.deev.ir` in production — so it was always ignored and the browser
+     did the other thing it knows how to do with a picture: showed it, in a tab,
+     which is not what the button says.
+
+     The route answers 302 to the same file signed to arrive as an attachment.
+     The name and extension are decided there too, from the stored mime type,
+     because the server is the only side that knows what the bytes are. */
   const download = () => {
-    if (!gen.outputUrl) return;
+    if (!gen.jobId || !gen.outputUrl) return;
     const el = document.createElement("a");
-    el.href = gen.outputUrl;
-    el.download = `vgen-${gen.id}.${gen.kind === "video" ? "mp4" : gen.kind === "audio" ? "mp3" : "png"}`;
+    el.href = services.generation.downloadUrl(gen.jobId);
     el.rel = "noopener";
     el.click();
   };
@@ -76,7 +94,7 @@ export default function Result({
         >
           <ArrowRight size={18} weight="bold" className="ltr:-scale-x-100" />
         </button>
-        <div className="text-[15px] font-medium">{done ? t("r_result") : t("r_making")}</div>
+        <div className="text-[15px] font-medium">{failed ? t("r_failed") : done ? t("r_result") : t("r_making")}</div>
       </div>
 
       <div className="md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:items-start md:gap-6">
@@ -91,9 +109,23 @@ export default function Result({
                 : { aspectRatio: `${ratio}`, background: done ? gen.grad : "var(--vg-surface)" }
             }
           >
-            {!done && <div className="shimmer absolute inset-0" />}
+            {!done && !failed && <div className="shimmer absolute inset-0" />}
+            {/* The refusal, where the picture would have been. Sized and placed
+                like the progress block it replaces, because it answers the same
+                question — "what is happening to my generation" — with the one
+                fact that block could not carry. */}
+            {failed && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center">
+                <div style={{ color: "var(--vg-text-muted)" }}>
+                  <WarningCircle size={40} weight="regular" />
+                </div>
+                <div className="text-[13px] leading-6" style={{ color: "var(--vg-text-secondary)" }}>
+                  {jobFailureMessage(gen.error?.code)}
+                </div>
+              </div>
+            )}
             <AnimatePresence>
-              {!done && (
+              {!done && !failed && (
                 <motion.div exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-ink">
                   <Logo size={48} animate />
                   <div className="text-[12.5px] text-ink2">{stage}</div>
@@ -119,10 +151,15 @@ export default function Result({
                 {/* Behind the file, not instead of it. This screen exists to show
                     the thing that was just paid for and it drew the gradient and
                     stopped — a coloured rectangle captioned "sample", on the one
-                    page where the output is the entire point. `contain`, because
-                    the stored w/h is the aspect that was *asked* for and the
-                    provider is entitled to answer at its own: cropping a 864×496
-                    clip into a 16:9 box loses a strip of what was bought. */}
+                    page where the output is the entire point.
+
+                    `contain` still, because a provider is entitled to answer at
+                    its own aspect and cropping a 864×496 clip into a 16:9 box
+                    loses a strip of what was bought. It no longer letterboxes:
+                    the box above is now built from the file's measured size, so
+                    there is nothing for the gradient to show through. It stays
+                    `contain` as the guard for the case where those two ever
+                    disagree again — a pre-measurement row, say. */}
                 <div className="absolute inset-0" style={{ background: gen.grad }} />
                 <GenerationMedia gen={gen} fit="contain" controls />
                 {gen.kind === "audio" && !gen.outputUrl && (
@@ -162,7 +199,10 @@ export default function Result({
 
           <div className="mt-5 grid grid-cols-3 gap-2.5">
             <ActionBtn icon={<DownloadSimple size={20} />} label={t("r_download")} onClick={download} disabled={!done || !gen.outputUrl} />
-            <ActionBtn icon={<ArrowsClockwise size={20} />} label={t("r_regen")} onClick={onRegenerate} disabled={!done} />
+            {/* Enabled on failure too, and it is the only one that is: a refused
+                generation refunds, so trying again is both possible and the
+                obvious next move. Download and "to video" need a file. */}
+            <ActionBtn icon={<ArrowsClockwise size={20} />} label={t("r_regen")} onClick={onRegenerate} disabled={!done && !failed} />
             {gen.kind === "image" ? (
               // Disabled without a file: "to video" carries this image into the
               // video model as its opening frame, and there is nothing to carry
@@ -178,6 +218,22 @@ export default function Result({
               <ActionBtn icon={<ShareNetwork size={20} />} label={t("r_share")} onClick={() => {}} disabled={!done} />
             )}
           </div>
+
+          {/* A refusal is the one outcome with nothing to keep.
+              No file was made and the hold was released, so the row is a note
+              saying a provider said no — worth seeing once, and then worth
+              being able to clear. Nothing like it is offered on a finished
+              generation: that is the thing the customer paid for. */}
+          {failed && (
+            <button
+              onClick={onRemove}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl py-2.5 text-[12px]"
+              style={{ color: "var(--vg-text-muted)" }}
+            >
+              <Trash size={14} />
+              {t("gal_remove")}
+            </button>
+          )}
         </div>
       </div>
     </div>

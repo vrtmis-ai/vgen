@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ProviderTransportError, type GenerationOutcome, type GenerationProvider, type GenerationRequest } from "@vgen/adapters";
 import type { AttemptRecord, ClaimedJob, SucceedInput } from "@vgen/db";
-import { runGeneration, type JobRunnerPort } from "./runGeneration";
+import { attachReferences, runGeneration, type JobRunnerPort } from "./runGeneration";
 import type { OutputMirrorPort } from "./outputMirror";
 
 /**
@@ -526,6 +526,44 @@ describe("reference uploads reaching the provider", () => {
     expect(message).not.toMatch(/kie|wavespeed|useapi|s3|bucket|uploads\//i);
   });
 
+  /* The report was "recraft doesn't work", twice. The first time it was our
+     payload shape; the second time it was this, and the job said "provider
+     failed" — which sent the reader to look at the provider. Nothing here can
+     make a laptop reachable from KIE; the point is to say so, before spending
+     a real provider call on a generation that cannot succeed. */
+  it("refuses before calling the provider when the file is only reachable from this machine", async () => {
+    const job = claimedJob({ referenceAssetIds: { image: [ASSET_A] }, refSlots: [{ key: "image", max: 1 }] });
+    const rec = recorder(job, true, { [ASSET_A]: "uploads/a.png" });
+    const provider = fakeProvider([succeededOutcome]);
+
+    const result = await runGeneration(JOB_ID, {
+      ...deps(rec, provider),
+      signReference: async () => "http://127.0.0.1:9000/vgen/uploads/a.png?X-Amz-Signature=x",
+    });
+
+    expect(result).toEqual({ outcome: "failed", jobId: JOB_ID, errorCode: "reference_unreachable" });
+    // The whole saving: no call, so no provider bill and no misleading answer.
+    expect(provider.submitted).toHaveLength(0);
+    expect(rec.failures[0]?.errorCode).toBe("reference_unreachable");
+    // Settled as a failure, which is what releases the hold.
+    expect(rec.failures[0]?.errorMessage).toBe("This environment cannot share attached files with the provider.");
+  });
+
+  it("still submits when the store is on a real host", async () => {
+    const job = claimedJob({ referenceAssetIds: { image: [ASSET_A] }, refSlots: [{ key: "image", max: 1 }] });
+    const rec = recorder(job, true, { [ASSET_A]: "uploads/a.png" });
+    const provider = fakeProvider([succeededOutcome]);
+
+    await runGeneration(JOB_ID, {
+      ...deps(rec, provider),
+      signReference: async () => "https://files.deev.ir/vgen/uploads/a.png?X-Amz-Signature=x",
+    });
+
+    // Production signs against a real host, so the guard above must be invisible
+    // there — and the shape Recraft actually wants is a bare string.
+    expect(provider.submitted[0]?.params.image).toBe("https://files.deev.ir/vgen/uploads/a.png?X-Amz-Signature=x");
+  });
+
   it("leaves a job with no references exactly as it was", async () => {
     const rec = recorder(claimedJob());
     const provider = fakeProvider([succeededOutcome]);
@@ -535,5 +573,50 @@ describe("reference uploads reaching the provider", () => {
     expect(provider.submitted[0]?.params).toEqual({ prompt: "a small red boat" });
     // And no lookup at all, rather than one for an empty list.
     expect(rec.referenceLookups).toHaveLength(0);
+  });
+});
+
+/**
+ * Kling 3 and Veo take one positional `image_urls` array — element 0 is the
+ * start frame, element 1 the end — so the catalogue declares two labelled slots
+ * that both `send` into it. Without the merge each slot wrote the whole field
+ * and the second one silently replaced the first: pick a start and an end, and
+ * the provider received only the end, in position zero, as the opening frame.
+ */
+describe("frame slots that share one upstream array", () => {
+  const slots = [
+    { key: "image_url_start", max: 1, sends: { key: "image_urls", at: 0 } },
+    { key: "image_url_end", max: 1, sends: { key: "image_urls", at: 1 } },
+  ];
+  const urls = { a: "https://files/start.png", b: "https://files/end.png" };
+
+  it("rebuilds the array in the order the provider defines, whatever order the slots arrive in", () => {
+    const merged = attachReferences({}, { image_url_end: ["b"], image_url_start: ["a"] }, urls, slots);
+
+    expect(merged.image_urls).toEqual(["https://files/start.png", "https://files/end.png"]);
+    // The slot names are ours; they must not reach the provider as fields.
+    expect(merged.image_url_start).toBeUndefined();
+    expect(merged.image_url_end).toBeUndefined();
+  });
+
+  it("sends a lone start frame as a one-element array rather than a hole", () => {
+    const merged = attachReferences({}, { image_url_start: ["a"] }, urls, slots);
+
+    expect(merged.image_urls).toEqual(["https://files/start.png"]);
+  });
+
+  /* Validation refuses an end without a start, so this is the case that should
+     be impossible — which is exactly why it must not serialise as
+     `[null, "…"]`, where the provider reads a first frame that is not there. */
+  it("never leaves a null in the array if an end frame somehow arrives alone", () => {
+    const merged = attachReferences({}, { image_url_end: ["b"] }, urls, slots);
+
+    expect(merged.image_urls).toEqual(["https://files/end.png"]);
+  });
+
+  it("leaves an ordinary slot writing its own key", () => {
+    const merged = attachReferences({}, { first_frame_url: ["a"] }, urls, [{ key: "first_frame_url", max: 1 }]);
+
+    expect(merged.first_frame_url).toBe("https://files/start.png");
   });
 });

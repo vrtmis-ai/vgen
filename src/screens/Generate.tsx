@@ -9,7 +9,7 @@ import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
 import { ControlField, RefUpload, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
-import { isVideoUrl, promptDir } from "../lib/format";
+import { isVideoUrl, labelDir, promptDir } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { generationErrorMessage, validateGenerationInput } from "../features/generation/validation";
 
@@ -317,7 +317,12 @@ export default function Generate({
         {/* prompt */}
         {wantsPrompt && (
           <div className="flex flex-col gap-2.5">
-            <div className="flex items-center justify-between">
+            {/* The row follows the field. `dir="auto"` on the textarea below
+                moves the text to the other edge as soon as a Latin character is
+                typed, and this caption stayed behind — a box with symmetric
+                padding that still read as misaligned, because its own label had
+                parted company with it. */}
+            <div className="flex items-center justify-between" dir={labelDir(prompt)}>
               <SectionLabel>{t("g_prompt")}</SectionLabel>
               {/* The count only appears near the ceiling — Wan 2.5 stops at 800,
                 so on that model it matters; on a 20000 one it never shows. */}

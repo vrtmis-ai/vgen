@@ -26,6 +26,16 @@ interface Navigation {
   setTab: (key: NavKey) => void;
   goBack: () => void;
   /**
+   * The wordmark: back to the landing page from anywhere.
+   *
+   * It used to open the Explore tab, which is a destination inside the app
+   * rather than the front of the site. Pressing a logo is how people ask to
+   * start over, and on the page they asked to start over from, the honest
+   * answer is the top of it — so an already-there press scrolls instead of
+   * pushing a history entry that changes nothing.
+   */
+  goHome: () => void;
+  /**
    * `fromGenerationId` carries one of the account's own finished generations in
    * as the new one's opening frame — this is "to video".
    *
@@ -69,6 +79,10 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       tab: navKeyFromPath(pathname) ?? "video",
       setTab: (key) => router.push(navPath(key)),
       goBack,
+      goHome: () => {
+        if (pathname === "/") window.scrollTo({ top: 0, behavior: "smooth" });
+        else router.push("/");
+      },
       openModel: (familyId, prompt, fromGenerationId) => {
         const query = new URLSearchParams();
         if (prompt) query.set("prompt", prompt);

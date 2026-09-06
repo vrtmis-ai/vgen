@@ -533,7 +533,11 @@ export default function Auth({ mode }: { mode: AuthMode }) {
 
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-12">
         <div className="w-full max-w-[400px]">
-          <div className="mb-10 flex flex-col items-center text-center">
+          {/* The wordmark is the way back out. It was two inert spans, so the
+              only exit from this screen was a text link below the form — which
+              is hidden during the code step, leaving somebody mid-OTP with no
+              way back to the site except the browser's own button. */}
+          <a href="/" aria-label={BRAND.name} className="mb-10 flex flex-col items-center text-center">
             <span
               className="text-[18px] font-light tracking-[0.34em]"
               style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
@@ -548,7 +552,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
             >
               {BRAND.tagline}
             </span>
-          </div>
+          </a>
 
           <AnimatePresence mode="wait">
             <motion.div key={codeSent ? "code" : "credentials"} {...step} transition={transition} className="grid gap-7">
