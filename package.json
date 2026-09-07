@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "next dev -p 5180",
     "infra:up": "docker compose up -d --wait",
-    "dev:stack": "npm run infra:up && pnpm db:migrate && pnpm db:seed && pnpm --parallel --filter vgen-web --filter @vgen/api --filter @vgen/worker dev",
+    "dev:stack": "npm run infra:up && pnpm db:migrate && pnpm db:seed && pnpm --include-workspace-root --parallel --filter vgen-web --filter @vgen/api --filter @vgen/worker dev",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.scripts.json --noEmit && tsc -p tsconfig.e2e.json --noEmit",
     "build": "next build && tsc -p tsconfig.scripts.json --noEmit && tsc -p tsconfig.e2e.json --noEmit",
     "start": "next start -p 5180",
