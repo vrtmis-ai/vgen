@@ -202,6 +202,43 @@ export class PostgresCommunitySubmissions {
 
     return { outcome: "shared", post: SharedPostSchema.parse({ id: row.id, status: row.status }) };
   }
+  /**
+   * Somebody says a published post should not be there.
+   *
+   * Reporting does NOT hide anything. A report that un-publishes on its own is
+   * a heckler's veto with a single click, and the first use anybody finds for
+   * one is aiming it at a competitor. What it does is put the post in front of
+   * a person, who already has `takeDown` to act with.
+   *
+   * One per person per post, enforced by the table. Without that the count
+   * measures how determined one reporter is rather than how many people
+   * objected — and the queue is sorted by exactly that number.
+   *
+   * A repeat is not an error: the second press of a button is a person who is
+   * not sure the first one worked.
+   */
+  async report(input: {
+    postId: string;
+    reporterId: string;
+    category: string;
+    note?: string | undefined;
+  }): Promise<"recorded" | "already" | "no_such_post"> {
+    const [post] = await this.sql<{ id: string }[]>`
+      select id from posts where id = ${input.postId} and deleted_at is null and status = 'approved'
+    `;
+    // Only a published post can be reported. A pending one is already in front
+    // of a moderator, and saying "no such post" about somebody else's draft is
+    // the same answer as saying nothing about it.
+    if (!post) return "no_such_post";
+
+    const [row] = await this.sql<{ id: string }[]>`
+      insert into post_reports (post_id, reporter_id, category, note)
+      values (${input.postId}, ${input.reporterId}, ${input.category}, ${input.note ?? null})
+      on conflict (post_id, reporter_id) do nothing
+      returning id
+    `;
+    return row ? "recorded" : "already";
+  }
 }
 
 /**
@@ -275,6 +312,104 @@ export class PostgresCommunityModeration {
         rejection_reason = ${approving ? null : (reason ?? null)},
         updated_at = now()
       where id = ${postId} and status = 'pending' and deleted_at is null
+      returning status
+    `;
+    return row ?? null;
+  }
+
+  /**
+   * Take an already-published post down.
+   *
+   * `decide()` deliberately matches `status = 'pending'`, which is right for a
+   * queue and leaves a real gap behind it: once a post is approved there was no
+   * way to un-publish it through any route. `posts.deleted_at` has existed
+   * since 0001 and every read in this file already respects it -- nothing ever
+   * set it. Complying with a takedown meant a hand-written UPDATE against
+   * production, which is not a process anybody should be running under time
+   * pressure.
+   *
+   * Soft, like every other removal here: the row is the record that the post
+   * existed and was taken down, which is the thing an order asks you to
+   * evidence. The reason is kept in the same column a rejection uses, because
+   * to a reader they are the same question -- why is this not visible.
+   *
+   * Answers null for a post that is already gone, so a second call is a no-op
+   * rather than a second audit entry claiming a second takedown.
+   */
+  /**
+   * Posts people have complained about, busiest first.
+   *
+   * A read over `post_reports` rather than a second status on `posts`:
+   * flipping an approved post back to 'pending' would un-publish it, which is
+   * the veto again by another name.
+   */
+  async reportedPosts(
+    limit = 50,
+  ): Promise<
+    { postId: string; caption: string; prompt: string; author: string; reports: number; categories: string[]; firstReportedAt: number }[]
+  > {
+    const rows = await this.sql<
+      {
+        post_id: string;
+        caption: string | null;
+        prompt: string | null;
+        author: string | null;
+        reports: string;
+        categories: string[];
+        first_reported_at: Date;
+      }[]
+    >`
+      select
+        report.post_id,
+        post.caption,
+        job.params ->> 'prompt' as prompt,
+        author.display_name as author,
+        count(*)::text as reports,
+        array_agg(distinct report.category) as categories,
+        min(report.created_at) as first_reported_at
+      from post_reports report
+      join posts post on post.id = report.post_id and post.deleted_at is null
+      left join jobs job on job.id = post.job_id
+      left join users author on author.id = post.author_user_id
+      where report.resolved_at is null
+      group by report.post_id, post.caption, job.params, author.display_name
+      order by count(*) desc, min(report.created_at)
+      limit ${Math.max(1, Math.min(200, Math.trunc(limit)))}
+    `;
+    return rows.map((row) => ({
+      postId: row.post_id,
+      caption: row.caption ?? "",
+      prompt: row.prompt ?? "",
+      author: row.author ?? "",
+      reports: Number(row.reports),
+      categories: row.categories,
+      firstReportedAt: row.first_reported_at.getTime(),
+    }));
+  }
+
+  /**
+   * Mark every open report on a post as looked at.
+   *
+   * Whatever was decided. A report read and dismissed is resolved just as much
+   * as one acted on — the outcome lives in `audit_log` and in whether the post
+   * is still visible, not here. Leaving dismissed reports open would mean the
+   * queue only ever grows.
+   */
+  async resolveReports(postId: string, resolvedBy: string): Promise<number> {
+    const rows = await this.sql`
+      update post_reports set resolved_at = now(), resolved_by = ${resolvedBy}
+      where post_id = ${postId} and resolved_at is null
+    `;
+    return rows.count;
+  }
+
+  async takeDown(postId: string, reason: string): Promise<{ status: string } | null> {
+    const [row] = await this.sql<{ status: string }[]>`
+      update posts set
+        deleted_at = now(),
+        rejection_reason = ${reason},
+        updated_at = now()
+      where id = ${postId} and deleted_at is null
       returning status
     `;
     return row ?? null;

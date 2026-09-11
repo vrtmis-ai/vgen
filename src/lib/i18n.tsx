@@ -180,6 +180,7 @@ const dict = {
     lp_footer_terms: "شرایط استفاده",
     lp_footer_privacy: "حریم خصوصی",
     lp_footer_refund: "قوانین سکه و بازگشت",
+    lp_footer_cookies: "کوکی‌ها",
     lp_footer_rights: "همهٔ حقوق محفوظ است.",
     // auth (the sign-in screen). The previous block described an email
     // one-time-code flow that no route ever served: OTP is sent to a PHONE, and
@@ -655,6 +656,7 @@ const dict = {
     lp_footer_terms: "Terms of use",
     lp_footer_privacy: "Privacy",
     lp_footer_refund: "Coins and refunds",
+    lp_footer_cookies: "Cookies",
     lp_footer_rights: "All rights reserved.",
     auth_signin_title: "Sign in to DEEV",
     auth_signup_title: "Create an account",

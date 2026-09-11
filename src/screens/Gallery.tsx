@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { ImagesSquare, CircleNotch, WarningCircle, Trash } from "@phosphor-icons/react";
+import { AssetViewer, downloadAsset, viewerAsset, type ViewerAsset } from "../components/AssetViewer";
+import { useAppServices } from "../runtime/AppServices";
 import { displayAspect, type Generation } from "../lib/gallery";
 import type { ModelKind } from "../data/models";
 import { GenerationMedia } from "../components/GenerationMedia";
@@ -184,17 +186,33 @@ const FILTERS: { key: Filter; label: string }[] = [
 export default function Gallery({
   gens,
   onOpen,
+  onOpenModel,
+  onRegenerate,
   onRemove,
   onBrowse,
 }: {
   gens: Generation[];
   onOpen: (g: Generation) => void;
+  onOpenModel: (familyId: string, prompt?: string, fromGenerationId?: string) => void;
+  onRegenerate: (familyId: string, generationId: string) => void;
   onRemove: (g: Generation) => void;
   onBrowse: () => void;
 }) {
   const { t, n } = useI18n();
+  const services = useAppServices();
   const [filter, setFilter] = useState<Filter>("all");
+  const [viewing, setViewing] = useState<ViewerAsset | null>(null);
   const view = useViewMode("gallery", { mode: "grid", density: 1 });
+
+  /* A finished generation opens the panel; anything else opens the result page.
+     The panel is built around a file — its size, its model, and the four things
+     you can do next with it — and a job that produced no file has none of that
+     to show. The result page is the one that can say why it failed and offer to
+     try again, so that is where a failure still goes.
+
+     This wall used to send every card to the result page, which meant the same
+     picture offered a download in the studio and nothing in كارهای من. */
+  const open = (gen: Generation) => (gen.status === "done" && gen.outputUrl ? setViewing(viewerAsset(gen)) : onOpen(gen));
 
   const count = (f: Filter) =>
     f === "all"
@@ -270,9 +288,25 @@ export default function Gallery({
            The density stepper drives the column count directly. */
         <div className="[column-fill:_balance] gap-3" style={{ columnCount: view.mode === "list" ? 1 : view.cols }}>
           {shown.map((g, i) => (
-            <GenCard key={g.id} g={g} i={i} onOpen={() => onOpen(g)} onRemove={() => onRemove(g)} list={view.mode === "list"} />
+            <GenCard key={g.id} g={g} i={i} onOpen={() => open(g)} onRemove={() => onRemove(g)} list={view.mode === "list"} />
           ))}
         </div>
+      )}
+
+      {viewing && (
+        <AssetViewer
+          asset={viewing}
+          onClose={() => setViewing(null)}
+          onOpenModel={(id, prompt, from) => {
+            setViewing(null);
+            onOpenModel(id, prompt, from);
+          }}
+          onRegenerate={(a) => {
+            setViewing(null);
+            onRegenerate(a.familyId, a.id);
+          }}
+          onDownload={(a) => downloadAsset(services.generation.downloadUrl, a)}
+        />
       )}
     </div>
   );

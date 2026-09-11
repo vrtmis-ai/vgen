@@ -6,7 +6,7 @@ import { useNavigation } from "../../../../../src/runtime/providers/NavigationPr
 
 export default function StudioImagePage() {
   const { gens, requestGeneration } = useGenerations();
-  const { openModel } = useNavigation();
+  const { openModel, regenerate } = useNavigation();
 
   return (
     <StudioImage
@@ -15,6 +15,7 @@ export default function StudioImagePage() {
         requestGeneration(family.id, prompt, input, variant, { preferUnlimited, refs })
       }
       onOpenModel={openModel}
+      onRegenerate={regenerate}
     />
   );
 }

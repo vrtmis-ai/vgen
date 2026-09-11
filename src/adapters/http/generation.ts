@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AppServices } from "../../runtime/AppServices";
-import { GenerationJobSchema, GenerationQuoteSchema } from "../../runtime/contracts/generation";
+import { GenerationJobSchema, GenerationQuoteSchema, JobReferencesSchema } from "../../runtime/contracts/generation";
 import type { HttpClient } from "./client";
 
 /**
@@ -86,6 +86,13 @@ export function createHttpGenerationService(client: HttpClient, baseUrl: string)
        without this layer doing anything. */
     downloadUrl(jobId, index = 0) {
       return `${baseUrl.replace(/\/+$/, "")}/generation/jobs/${encodeURIComponent(jobId)}/outputs/${index}/download`;
+    },
+    async references(jobId, options) {
+      const { references } = await client.request(`/generation/jobs/${encodeURIComponent(jobId)}/references`, {
+        schema: JobReferencesSchema,
+        signal: options?.signal,
+      });
+      return references;
     },
     async remove(jobId, options) {
       await client.request(`/generation/jobs/${encodeURIComponent(jobId)}`, {

@@ -1,4 +1,4 @@
-import { ModeratePostRequestSchema, PendingPostsSchema, type PendingPosts } from "@vgen/contracts";
+import { ModeratePostRequestSchema, PendingPostsSchema, TakeDownPostRequestSchema, type PendingPosts } from "@vgen/contracts";
 import type { FastifyInstance } from "fastify";
 import type { AdminGuard } from "./admin";
 
@@ -6,6 +6,13 @@ export interface AdminCommunityDependencies {
   moderation: {
     listPending(limit?: number): Promise<PendingPosts>;
     decide(postId: string, decision: "approve" | "reject", reason?: string): Promise<{ status: string } | null>;
+    takeDown(postId: string, reason: string): Promise<{ status: string } | null>;
+    reportedPosts(
+      limit?: number,
+    ): Promise<
+      { postId: string; caption: string; prompt: string; author: string; reports: number; categories: string[]; firstReportedAt: number }[]
+    >;
+    resolveReports(postId: string, resolvedBy: string): Promise<number>;
   };
 }
 
@@ -52,5 +59,82 @@ export function registerAdminCommunityRoutes(app: FastifyInstance, dependencies:
     });
 
     return reply.send({ id, status: decided.status });
+  });
+
+  /**
+   * What people have complained about, busiest first.
+   *
+   * A read over the reports rather than a second status on the post: flipping
+   * an approved post back to 'pending' would un-publish it on somebody's say-so,
+   * which is a heckler's veto by another name. Nothing here is hidden until a
+   * person decides it should be.
+   */
+  app.get("/api/v1/admin/community/reports", async (request, reply) => {
+    const session = await guard.require(request, reply, "community.read");
+    if (!session) return;
+    return reply.send({ reported: await moderation.reportedPosts() });
+  });
+
+  /**
+   * Mark the open reports on a post as looked at.
+   *
+   * Whatever was decided. A report read and dismissed is resolved as much as
+   * one acted on — the outcome lives in this audit entry and in whether the
+   * post is still visible. Without this the queue only ever grows, and a queue
+   * that only grows stops being read.
+   */
+  app.post("/api/v1/admin/community/reports/:id/resolve", async (request, reply) => {
+    const session = await guard.require(request, reply, "community.write");
+    if (!session) return;
+    const { id } = request.params as { id: string };
+    const resolved = await moderation.resolveReports(id, session.userId);
+    if (resolved === 0) {
+      return reply.code(404).send({ error: { code: "no_open_reports", message: "There is nothing open on that post." } });
+    }
+    await guard.audit(request, session, {
+      action: "community.reports.resolved",
+      targetType: "post",
+      targetId: id,
+      after: { resolved },
+    });
+    return reply.send({ id, resolved });
+  });
+
+  /**
+   * Pull a published post down.
+   *
+   * The queue above only moves posts out of `pending`, which is correct for a
+   * queue and left the gap this closes: an approved post could not be
+   * un-published through any route, so complying with a takedown order meant a
+   * hand-written UPDATE against production. That is not a thing to be doing for
+   * the first time while a deadline runs.
+   *
+   * A reason is required rather than optional. A removal with no recorded
+   * ground is indistinguishable from an accident six months later, and this is
+   * the one action here whose justification somebody may have to produce.
+   */
+  app.delete("/api/v1/admin/community/posts/:id", { bodyLimit: 4 * 1024 }, async (request, reply) => {
+    const session = await guard.require(request, reply, "community.write");
+    if (!session) return;
+
+    const { id } = request.params as { id: string };
+    const body = TakeDownPostRequestSchema.parse(request.body ?? {});
+    const removed = await moderation.takeDown(id, body.reason);
+
+    // Already gone reads the same as never existed, and both mean the screen
+    // that issued this is out of date.
+    if (!removed) {
+      return reply.code(404).send({ error: { code: "not_found", message: "That post is not published." } });
+    }
+
+    await guard.audit(request, session, {
+      action: "community.post.takedown",
+      targetType: "post",
+      targetId: id,
+      before: { status: removed.status, visible: true },
+      after: { visible: false, reason: body.reason },
+    });
+
+    return reply.send({ id, visible: false });
   });
 }

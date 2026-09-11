@@ -4,9 +4,9 @@ import { variantRefs, type Family, type Variant } from "../data/models";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { addRefFiles, slotAccept, type InputMap, type RefMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
-import { displayAspect, type Generation } from "../lib/gallery";
+import { type Generation } from "../lib/gallery";
 import { CoinMark } from "../components/chrome";
-import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
+import { AssetViewer, downloadAsset, viewerAsset, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
@@ -151,10 +151,12 @@ export default function StudioImage({
   gens,
   onGenerate,
   onOpenModel,
+  onRegenerate,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean, refs: RefMap) => void;
-  onOpenModel: (familyId: string, prompt?: string) => void;
+  onOpenModel: (familyId: string, prompt?: string, fromGenerationId?: string) => void;
+  onRegenerate: (familyId: string, generationId: string) => void;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -247,22 +249,10 @@ export default function StudioImage({
      account did not make — a promise on arrival, and a gallery over the one
      screen that is supposed to be a workbench. An empty canvas is the correct
      first state, not a hole to be papered over; see the empty branch below. */
-  const wall: ViewerAsset[] = finished.map((g) => {
-    // What arrived, not what was ordered — the same correction the result page
-    // makes. The row heights here are computed from these ratios, so a 9:16
-    // request answered at 768×1344 laid out a hair short of its own picture.
-    const shape = displayAspect(g);
-    return {
-      id: g.id,
-      ...(g.jobId ? { jobId: g.jobId } : {}),
-      url: g.outputUrl ?? art(g.id),
-      prompt: g.prompt,
-      familyId: g.familyId,
-      w: shape.w,
-      h: shape.h,
-      createdAt: g.createdAt,
-    };
-  });
+  // Shared with كارهای من, which opens the same panel over the same rows. The
+  // two had drifted: this one corrected the frame to the size that came back
+  // while the gallery still used the size that was asked for.
+  const wall: ViewerAsset[] = finished.map((g) => viewerAsset(g, art(g.id)));
 
   /* Mixed ratios on purpose: the wall is only worth a justified layout if the
      items actually differ, and the seeded stand-ins were all one shape. Real
@@ -307,26 +297,7 @@ export default function StudioImage({
     ...shaped.map((t, i) => ({ ...t, name: names[i]! })),
   ];
 
-  /* Through the API, not straight at the file — the same fix the result page
-     got, which is why this stayed broken here: `download` on an anchor is
-     honoured only for same-origin URLs, and an output URL is signed against the
-     object store's host. The attribute was ignored and the browser did the
-     other thing it knows how to do with a picture — showed it, in a tab.
-
-     The route answers 302 to the same object signed to arrive as an
-     attachment, with the name and extension decided from the stored mime type.
-     A demo generation has no job behind it and its URL is already local to the
-     page, so there the attribute works and is all there is. */
-  const download = (a: ViewerAsset) => {
-    const el = document.createElement("a");
-    if (a.jobId) el.href = services.generation.downloadUrl(a.jobId);
-    else {
-      el.href = a.url;
-      el.download = `vgen-${a.id}.jpg`;
-    }
-    el.rel = "noopener";
-    el.click();
-  };
+  const download = (a: ViewerAsset) => downloadAsset(services.generation.downloadUrl, a);
 
   return (
     // @container is required, not decorative: ViewControls asks `@xl` whether
@@ -467,9 +438,13 @@ export default function StudioImage({
         <AssetViewer
           asset={viewing}
           onClose={() => setViewing(null)}
-          onOpenModel={(id, prompt) => {
+          onOpenModel={(id, prompt, from) => {
             setViewing(null);
-            onOpenModel(id, prompt);
+            onOpenModel(id, prompt, from);
+          }}
+          onRegenerate={(a) => {
+            setViewing(null);
+            onRegenerate(a.familyId, a.id);
           }}
           onDownload={download}
         />

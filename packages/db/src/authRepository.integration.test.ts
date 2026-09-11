@@ -447,3 +447,54 @@ describe("abuse signals", () => {
     });
   });
 });
+
+/* The undertaking the owner signs to eNamad should be backed by one the user
+   signed to DEEV. Recorded on the one insert every signup path runs through, so
+   a route added later cannot forget to. */
+describe("recording what the user agreed to", () => {
+  it("stores the version and the moment when a signup carries one", async () => {
+    await inRollback(sql, async (tx) => {
+      const code = await usableInvite(tx, "terms-1");
+      const user = await auth(tx).signInWithPhone(phone("90"), { inviteCode: code, termsVersion: "2026-09-09" });
+
+      const [row] = await tx<{ terms_version: string | null; terms_accepted_at: Date | null }[]>`
+        select terms_version, terms_accepted_at from users where id = ${user.id}
+      `;
+      // The version is the half that means something a year later: a boolean
+      // answers "did they agree" and not "to what".
+      expect(row?.terms_version).toBe("2026-09-09");
+      expect(row?.terms_accepted_at).toBeInstanceOf(Date);
+    });
+  });
+
+  it("records nothing at all when the caller says nothing", async () => {
+    await inRollback(sql, async (tx) => {
+      const code = await usableInvite(tx, "terms-2");
+      const user = await auth(tx).signInWithPhone(phone("91"), { inviteCode: code });
+
+      const [row] = await tx<{ terms_version: string | null; terms_accepted_at: Date | null }[]>`
+        select terms_version, terms_accepted_at from users where id = ${user.id}
+      `;
+      // Backfilling a consent nobody gave would be a lie in the one column
+      // whose whole purpose is to be true.
+      expect(row?.terms_version).toBeNull();
+      expect(row?.terms_accepted_at).toBeNull();
+    });
+  });
+
+  it("does not restate the agreement when the same person signs in again", async () => {
+    await inRollback(sql, async (tx) => {
+      const code = await usableInvite(tx, "terms-3");
+      const first = await auth(tx).signInWithPhone(phone("92"), { inviteCode: code, termsVersion: "2026-09-09" });
+      const again = await auth(tx).signInWithPhone(phone("92"), { termsVersion: "2099-01-01" });
+
+      expect(again.id).toBe(first.id);
+      const [row] = await tx<{ terms_version: string | null }[]>`
+        select terms_version from users where id = ${first.id}
+      `;
+      // Signing in is not agreeing to something new. A version bump has to be
+      // accepted, not absorbed by opening the app.
+      expect(row?.terms_version).toBe("2026-09-09");
+    });
+  });
+});

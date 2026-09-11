@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { defaultInput, variantControls, type Variant } from "../../data/models";
+import { variantControls, type Variant } from "../../data/models";
 import type { InputMap, RefMap } from "../../components/controls";
 import { loadGenerations, saveGenerations, uid, type GenStatus, type Generation } from "../../lib/gallery";
 import { currentAspect } from "../../features/generation/aspect";
@@ -76,7 +76,6 @@ interface Generations {
   ) => Promise<StartedGeneration | null>;
   /** Fire-and-forget start used by the studio docks, which have no result to await. */
   requestGeneration: (familyId: string, prompt: string, input: InputMap, variant: Variant, options?: GenerationRequestOptions) => void;
-  regenerate: (previous: Generation) => Promise<void>;
   /**
    * Take one generation out of the account's history, here and on the server.
    *
@@ -364,23 +363,6 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
     [navigation, startGeneration],
   );
 
-  const regenerate = useCallback(
-    async (previous: Generation) => {
-      const family = families.find((candidate) => candidate.id === previous.familyId);
-      const variant = family?.variants.find((candidate) => candidate.id === previous.variantId);
-      if (!family || !variant) return;
-      // No options: a regeneration repeats the prompt and the controls, not the
-      // attachments, and it leaves the free-pipe decision to the server exactly
-      // as the original did.
-      const started = await startGeneration(family.id, previous.prompt, defaultInput(variantControls(family, variant)), variant);
-      if (!started) return;
-      // replace-in-place: back from the new result returns to where the user
-      // was before the previous result, not to a chain of stale results
-      navigation.openResult(started.generation.id, { replace: true });
-    },
-    [families, navigation, startGeneration],
-  );
-
   const removeGeneration = useCallback(
     async (id: string) => {
       const generation = gens.find((candidate) => candidate.id === id);
@@ -406,8 +388,8 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<Generations>(
-    () => ({ gens, hydrated, startGeneration, requestGeneration, regenerate, removeGeneration, markDone }),
-    [gens, hydrated, markDone, regenerate, removeGeneration, requestGeneration, startGeneration],
+    () => ({ gens, hydrated, startGeneration, requestGeneration, removeGeneration, markDone }),
+    [gens, hydrated, markDone, removeGeneration, requestGeneration, startGeneration],
   );
 
   if (operationError) {

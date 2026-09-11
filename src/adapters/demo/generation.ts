@@ -94,6 +94,10 @@ export function createDemoGenerationAdapters(now: () => number): {
         variantId: storedQuote.request.variantId,
         status: "queued",
         coins: storedQuote.quote.coins,
+        // What the form sent, so "generate again" restores the same settings
+        // here too. The demo uploads nothing, so there are no references.
+        params: { ...storedQuote.request.input, prompt: storedQuote.request.prompt },
+        referenceAssetIds: {},
         prompt: storedQuote.request.prompt,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -118,6 +122,14 @@ export function createDemoGenerationAdapters(now: () => number): {
     // output itself keeps the button honest in demo mode.
     downloadUrl(jobId, index = 0) {
       return jobs.get(jobId)?.job.outputs[index]?.url ?? "";
+    },
+
+    // Demo generations are made from a form that is still on screen, and
+    // nothing here uploads a reference anywhere, so there is nothing to hand
+    // back. "Generate again" in demo mode carries the model, the prompt and
+    // the settings, which is everything a demo generation had.
+    async references() {
+      return [];
     },
 
     // A hard delete here, where the server's is soft: the map is the demo's

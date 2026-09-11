@@ -20,6 +20,8 @@ export * from "./generationRepository";
 export * from "./jobRunnerRepository";
 export * from "./analyticsRepository";
 export * from "./bansRepository";
+export * from "./promptPolicyRepository";
+export * from "./planGrantsRepository";
 export * from "./modelRoutesRepository";
 export * from "./galleryRepository";
 export * from "./assetsRepository";

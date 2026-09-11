@@ -10,6 +10,7 @@ import { registerPlansRoute, type CustomerPlansApplication } from "./routes/plan
 import { registerCampaignRoute, type CustomerCampaignApplication } from "./routes/campaigns";
 import { registerPaymentRoutes, type CheckoutApplication } from "./routes/payments";
 import { registerWalletRoute, type CustomerWalletApplication } from "./routes/wallet";
+import { permissivePromptGuard, type PromptGuardApplication } from "./promptGuard";
 import { registerGenerationJobsRoute, type GenerationJobsApplication } from "./routes/jobs";
 import { registerGenerationQuotesRoute, type GenerationQuotesApplication } from "./routes/quotes";
 import { registerGalleryRoute } from "./routes/gallery";
@@ -49,6 +50,16 @@ export interface ApiDependencies {
   generationQuotes: GenerationQuotesApplication;
   generationLibrary: GenerationLibraryApplication;
   assetUploads: AssetUploadApplication;
+  /**
+   * Reads the prompt before it reaches a provider.
+   *
+   * Optional so that a test app, and a deployment that has written no rules,
+   * both behave the way they did before this existed. It defaults to the
+   * permissive guard rather than to a strict one on purpose: the mechanism
+   * ships before the list, and a program-invented blocklist reads as policy
+   * while being nobody's.
+   */
+  promptGuard?: PromptGuardApplication;
 }
 
 export interface ApiOptions {
@@ -118,8 +129,9 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   registerPaymentRoutes(app, dependencies.customerSession, dependencies.checkout);
   registerWalletRoute(app, dependencies.customerSession, dependencies.customerWallet);
   registerFrontendTelemetryRoute(app, dependencies.frontendTelemetry, options.telemetryRateLimit, options.telemetryRateLimiter);
-  registerGenerationQuotesRoute(app, dependencies.customerSession, dependencies.generationQuotes);
-  registerGenerationJobsRoute(app, dependencies.customerSession, dependencies.generationJobs, dependencies.generationLibrary);
+  const promptGuard = dependencies.promptGuard ?? permissivePromptGuard;
+  registerGenerationQuotesRoute(app, dependencies.customerSession, dependencies.generationQuotes, promptGuard);
+  registerGenerationJobsRoute(app, dependencies.customerSession, dependencies.generationJobs, dependencies.generationLibrary, promptGuard);
   registerGalleryRoute(app, dependencies.customerSession, dependencies.generationLibrary);
   registerAssetUploadRoute(app, dependencies.customerSession, dependencies.assetUploads);
 

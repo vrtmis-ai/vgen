@@ -13,7 +13,7 @@ import type { ContentSnapshot } from "./contracts/content";
 import type { CommunityFeed } from "./contracts/community";
 import type { GalleryPage, GalleryQuery } from "./contracts/gallery";
 import type { Plan } from "./contracts/plans";
-import type { CreateGenerationRequest, GenerationJob, GenerationQuote, QuoteGenerationRequest } from "./contracts/generation";
+import type { CreateGenerationRequest, GenerationJob, GenerationQuote, JobReference, QuoteGenerationRequest } from "./contracts/generation";
 import type { UploadedAsset } from "./contracts/assets";
 import type { CheckoutOrder, CreateCheckoutOrderInput } from "./contracts/payment";
 import type { Session } from "./contracts/session";
@@ -61,6 +61,14 @@ export interface AppServices {
   /** What people published. Approved posts only — the route decides, not a screen. */
   community: {
     list(options?: RequestOptions): Promise<CommunityFeed>;
+    /**
+     * Say a published post should not be there.
+     *
+     * Hides nothing on its own — it puts the post in front of a moderator, who
+     * has a takedown route. A report that un-published would be a veto anyone
+     * could exercise with one click.
+     */
+    report(postId: string, input: { category: string; note?: string | undefined }, options?: RequestOptions): Promise<void>;
   };
   catalog: {
     list(options?: RequestOptions): Promise<CatalogSnapshot>;
@@ -105,6 +113,15 @@ export interface AppServices {
      * in memory.
      */
     downloadUrl(jobId: string, index?: number): string;
+    /**
+     * The files a past generation was run against, so it can be run again with
+     * them rather than without them.
+     *
+     * Asked for per generation, when somebody presses "generate again" — not
+     * carried on the job, which would sign every reference of every gallery row
+     * to serve a button pressed on one.
+     */
+    references(jobId: string, options?: RequestOptions): Promise<JobReference[]>;
     /**
      * Take a finished generation off the account's wall.
      *

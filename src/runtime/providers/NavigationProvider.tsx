@@ -45,6 +45,20 @@ interface Navigation {
    * several hundred characters that expire.
    */
   openModel: (familyId: string, prompt?: string, fromGenerationId?: string) => void;
+  /**
+   * Run one of the account's own generations again, as it was run.
+   *
+   * The opposite direction to `openModel`'s `fromGenerationId`, which takes a
+   * generation's *output* and makes it the next one's input. This restores its
+   * *inputs* — the variant, the settings and the files — so "generate again"
+   * produces another of the same thing rather than the same prompt at whatever
+   * the form happens to default to.
+   *
+   * The id travels and the rest is looked up, for the reason `from` is an id:
+   * the settings would be a query string of unbounded length and the file URLs
+   * expire within the hour.
+   */
+  regenerate: (familyId: string, generationId: string) => void;
   openWallet: () => void;
   openProfile: () => void;
   openResult: (generationId: string, options?: { instant?: boolean; replace?: boolean }) => void;
@@ -89,6 +103,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         if (fromGenerationId) query.set("from", fromGenerationId);
         router.push(`/generate/${encodeURIComponent(familyId)}${query.size ? `?${query.toString()}` : ""}`);
       },
+      regenerate: (familyId, generationId) =>
+        router.push(`/generate/${encodeURIComponent(familyId)}?again=${encodeURIComponent(generationId)}`),
       openWallet: () => router.push("/plans"),
       openProfile: () => router.push("/profile"),
       openResult: (generationId, options) => {

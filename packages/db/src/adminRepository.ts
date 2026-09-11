@@ -55,6 +55,44 @@ export function grantsPermission(held: readonly string[], required: string): boo
   return false;
 }
 
+/**
+ * Whether one person may hand another exactly this set.
+ *
+ * The whole of privilege escalation, in one line: you cannot give away what
+ * you do not have. An admin holding `community.*` can appoint a moderator with
+ * `community.read`, or with `community.*`, and cannot appoint anyone with
+ * `users.write` or with `*`.
+ *
+ * Note what it does *not* try to be clever about. `community.read` does not
+ * entitle you to grant `community.*`, because the wildcard is a larger claim
+ * than the thing you hold — `grantsPermission` answers that correctly by
+ * comparing the strings rather than by reasoning about hierarchies, and this
+ * inherits the property. Somebody who wants to delegate a section has to hold
+ * the section.
+ *
+ * An empty set is grantable by anyone: it is a role with nothing turned on,
+ * which is a real thing to want when appointing somebody before deciding what
+ * they will do.
+ */
+export function permissionsWithin(granterHolds: readonly string[], requested: readonly string[]): boolean {
+  return requested.every((permission) => grantsPermission(granterHolds, permission));
+}
+
+/** Somebody holding a platform role, and what that actually lets them do. */
+export interface StaffMember {
+  userId: string;
+  email: string | null;
+  roleCode: string;
+  roleName: string;
+  /** Resolved: their own set where they have one, the role's where they do not. */
+  permissions: string[];
+  /** True when the set above is theirs rather than the role's. */
+  isCustom: boolean;
+  hasMfa: boolean;
+  grantedAt: number;
+  grantedByEmail: string | null;
+}
+
 /** One open staff session, as the Security section lists it. Never a token — the table holds only a hash. */
 export interface AdminSessionSummary {
   id: string;
@@ -102,7 +140,17 @@ export class PostgresAdminRepository {
       from users u
       join user_roles ur on ur.user_id = u.id and ur.role_code <> 'user'
       join roles r on r.code = ur.role_code
-      left join lateral jsonb_array_elements_text(r.permissions) p(value) on true
+      -- The person's own set when they have one, the role's otherwise.
+      --
+      -- Before this the role was the only answer available, so the four seeded
+      -- roles were the four possible admins and 'admin' holds ["*"]. Handing
+      -- somebody the moderation queue and nothing else meant inventing a role
+      -- for them, and there was no route to do even that.
+      --
+      -- NULL keeps the old meaning exactly, which is what makes this a
+      -- widening rather than a change: every row that existed before this
+      -- column did resolves the way it always did.
+      left join lateral jsonb_array_elements_text(coalesce(ur.permissions, r.permissions)) p(value) on true
       where u.id = ${userId} and u.status = 'active' and u.deleted_at is null
       group by u.id, u.email
     `;
@@ -339,11 +387,126 @@ export class PostgresAdminRepository {
     return rows.map((row) => ({ userId: row.user_id, email: row.email, roles: row.roles }));
   }
 
-  /** Bootstrapping only — there is no route for this. The first admin is made by hand. */
+  /** Bootstrapping only — the first admin is made by hand, by scripts/create-admin.ts. */
   async grantRole(userId: string, roleCode: string, grantedBy: string | null): Promise<void> {
     await this.sql`
       insert into user_roles (user_id, role_code, granted_by) values (${userId}, ${roleCode}, ${grantedBy})
       on conflict (user_id, role_code) do nothing
     `;
+  }
+
+  // ----------------------------------------------------------------- staff
+
+  /**
+   * Everyone holding a platform role, with what they can actually do.
+   *
+   * `permissions` is the resolved set — the person's own where they have one,
+   * the role's where they do not — because that is the question being asked.
+   * `isCustom` says which of the two it came from, so a screen can show
+   * "moderator" and "moderator, narrowed" as different things.
+   */
+  async listStaff(): Promise<StaffMember[]> {
+    const rows = await this.sql<
+      {
+        user_id: string;
+        email: string | null;
+        role_code: string;
+        role_name: string;
+        permissions: string[];
+        is_custom: boolean;
+        has_mfa: boolean;
+        granted_at: Date;
+        granted_by_email: string | null;
+      }[]
+    >`
+      select
+        ur.user_id,
+        u.email,
+        ur.role_code,
+        r.name as role_name,
+        coalesce(
+          (select array_agg(value order by value) from jsonb_array_elements_text(coalesce(ur.permissions, r.permissions))),
+          '{}'::text[]
+        ) as permissions,
+        ur.permissions is not null as is_custom,
+        exists (select 1 from mfa_credentials m where m.user_id = ur.user_id and m.confirmed_at is not null) as has_mfa,
+        ur.granted_at,
+        granter.email as granted_by_email
+      from user_roles ur
+      join users u on u.id = ur.user_id
+      join roles r on r.code = ur.role_code
+      left join users granter on granter.id = ur.granted_by
+      where ur.role_code <> 'user' and u.deleted_at is null
+      order by ur.granted_at desc
+    `;
+    return rows.map((row) => ({
+      userId: row.user_id,
+      email: row.email,
+      roleCode: row.role_code,
+      roleName: row.role_name,
+      permissions: row.permissions,
+      isCustom: row.is_custom,
+      hasMfa: row.has_mfa,
+      grantedAt: row.granted_at.getTime(),
+      grantedByEmail: row.granted_by_email,
+    }));
+  }
+
+  /** One staff member, or null for somebody who holds no platform role. */
+  async staffMember(userId: string): Promise<StaffMember | null> {
+    return (await this.listStaff()).find((member) => member.userId === userId) ?? null;
+  }
+
+  /**
+   * Give somebody a role, optionally narrowed to a set of permissions.
+   *
+   * `permissions` of null means "whatever the role says", which is how every
+   * row created before this column existed behaves. An array pins it.
+   *
+   * The subset rule is NOT enforced here. It belongs one layer up, where the
+   * granter's own set is known — a repository that took both sets would be
+   * inventing an authorisation model in the wrong place, and one the routes
+   * could forget to use.
+   */
+  async upsertStaff(input: { userId: string; roleCode: string; permissions: readonly string[] | null; grantedBy: string }): Promise<void> {
+    const permissions = input.permissions === null ? null : this.sql.json([...input.permissions]);
+    await this.sql`
+      insert into user_roles (user_id, role_code, granted_by, permissions)
+      values (${input.userId}, ${input.roleCode}, ${input.grantedBy}, ${permissions})
+      on conflict (user_id, role_code) do update
+        set permissions = excluded.permissions, granted_by = excluded.granted_by, granted_at = now()
+    `;
+  }
+
+  /**
+   * Take a platform role away.
+   *
+   * The user row stays: somebody who leaves is still the author of every audit
+   * entry they wrote, and deleting the account would orphan them. What goes is
+   * the ability to act.
+   */
+  async revokeStaff(userId: string, roleCode: string): Promise<boolean> {
+    const rows = await this.sql`
+      delete from user_roles where user_id = ${userId} and role_code = ${roleCode} and role_code <> 'user'
+    `;
+    return rows.count > 0;
+  }
+
+  /** The roles a new member of staff can be given, with what each one implies. */
+  async roles(): Promise<{ code: string; name: string; permissions: string[] }[]> {
+    const rows = await this.sql<{ code: string; name: string; permissions: string[] }[]>`
+      select code, name,
+             coalesce((select array_agg(value order by value) from jsonb_array_elements_text(permissions)), '{}'::text[]) as permissions
+      from roles where code <> 'user' order by code
+    `;
+    return rows.map((row) => ({ code: row.code, name: row.name, permissions: row.permissions }));
+  }
+
+  /** Find a person by email, so staff are appointed by the address they already sign in with. */
+  async findUserByEmail(email: string): Promise<{ id: string; email: string | null } | null> {
+    const [row] = await this.sql<{ id: string; email: string | null }[]>`
+      select id, email from users where email = ${email} and deleted_at is null and status = 'active'
+    `;
+    return row ?? null;
   }
 }

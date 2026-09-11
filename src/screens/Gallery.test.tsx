@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../lib/i18n";
 import type { Generation } from "../lib/gallery";
+import { AppServicesProvider } from "../runtime/AppServices";
+import { createDemoServices } from "../adapters/demo/demoServices";
+import { createDemoCatalogService } from "../adapters/demo/catalog";
+import { CatalogProvider } from "../features/catalog/CatalogProvider";
 import Gallery from "./Gallery";
 
 /* ---------------------------------------------------------------------------
@@ -44,12 +48,27 @@ const failed: Generation = {
   createdAt: 2,
 };
 
-function show(gens: Generation[], onRemove = vi.fn()) {
+const catalog = await createDemoCatalogService(() => 0).list();
+
+/** A generation with a file behind it, which is what opens the panel. */
+const finished: Generation = { ...base, outputUrl: "blob:the-file", outW: 1920, outH: 1080 };
+
+function mount(gens: Generation[], handlers: Partial<Parameters<typeof Gallery>[0]> = {}) {
+  const props = { onOpen: vi.fn(), onOpenModel: vi.fn(), onRegenerate: vi.fn(), onRemove: vi.fn(), onBrowse: vi.fn(), ...handlers };
   render(
-    <LanguageProvider initialLang="fa">
-      <Gallery gens={gens} onOpen={vi.fn()} onRemove={onRemove} onBrowse={vi.fn()} />
-    </LanguageProvider>,
+    <AppServicesProvider services={createDemoServices()}>
+      <LanguageProvider initialLang="fa">
+        <CatalogProvider families={catalog.families}>
+          <Gallery gens={gens} {...props} />
+        </CatalogProvider>
+      </LanguageProvider>
+    </AppServicesProvider>,
   );
+  return props;
+}
+
+function show(gens: Generation[], onRemove = vi.fn()) {
+  mount(gens, { onRemove });
   return onRemove;
 }
 
@@ -78,5 +97,38 @@ describe("a refused generation on the wall", () => {
 
     expect(screen.queryByRole("button", { name: "حذف از کارهای من" })).not.toBeInTheDocument();
     expect(screen.queryByText("سکه‌ها برگشت")).not.toBeInTheDocument();
+  });
+
+  /* The wall used to send every card to the result page, so the same picture
+     offered a download, a reference and a replay in the studio and none of them
+     here. It is the same file either way. */
+  it("opens the same panel the studio does", async () => {
+    const { onOpen } = mount([finished]);
+
+    await userEvent.click(screen.getByRole("button", { name: /a small red boat/ }));
+
+    expect(screen.getByRole("dialog", { name: "نمایش دارایی" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /دانلود/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /دوباره بساز/ })).toBeInTheDocument();
+    // The result page is for the ones with nothing to show.
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("sends a job with no file to the result page, which can say why", async () => {
+    const { onOpen } = mount([failed]);
+
+    await userEvent.click(screen.getByRole("button", { name: /a small red boat/ }));
+
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("replays a generation by its own id and model", async () => {
+    const { onRegenerate } = mount([finished]);
+
+    await userEvent.click(screen.getByRole("button", { name: /a small red boat/ }));
+    await userEvent.click(screen.getByRole("button", { name: /دوباره بساز/ }));
+
+    expect(onRegenerate).toHaveBeenCalledWith("seedance", "g1");
   });
 });

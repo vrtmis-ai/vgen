@@ -665,6 +665,19 @@ const FOOTER_LINKS: { group: TKey; items: { label: TKey; href: string }[] }[] = 
       { label: "lp_footer_terms", href: "/terms" },
       { label: "lp_footer_privacy", href: "/privacy" },
       { label: "lp_footer_refund", href: "/coins" },
+      { label: "lp_footer_cookies", href: "/cookies" },
+    ],
+  },
+  /* The company column. These three links were the reason this list needed
+     revisiting at all: the legal column above pointed at /terms, /privacy and
+     /coins, and none of those pages existed — so the footer of the landing
+     page served three 404s to anybody who clicked it, which is exactly what a
+     reviewer does first. */
+  {
+    group: "lp_footer_company",
+    items: [
+      { label: "lp_footer_company", href: "/about" },
+      { label: "lp_footer_contact", href: "/contact" },
     ],
   },
 ];

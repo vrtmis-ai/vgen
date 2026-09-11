@@ -45,11 +45,40 @@ export interface StartFrame {
   kind: "image" | "video" | "audio";
 }
 
+/**
+ * A file this form arrives holding, and the slot it goes in.
+ *
+ * Two things produce these and they differ in who chooses the slot. "To video"
+ * hands over one finished output and the slot is inferred from its media kind,
+ * because the user picked a model, not a field. "Generate again" replays a past
+ * generation, where the slot is a fact about what actually ran — a first frame
+ * that comes back as a last frame is a different generation.
+ */
+export interface CarriedRef {
+  slot: string;
+  assetId: string;
+  url: string;
+  kind: "image" | "video" | "audio" | "document";
+  /** What the tile says it is, under the thumbnail. */
+  label: string;
+}
+
+/** Everything a past generation needs to run again exactly as it ran. */
+export interface Reuse {
+  /** The generation being replayed. Identity, so it is applied once and not per render. */
+  jobId: string;
+  variantId: string;
+  /** The submitted settings, prompt already taken out. */
+  input: InputMap;
+  references: CarriedRef[];
+}
+
 export default function Generate({
   family,
   initialVariantId,
   initialPrompt,
   startFrom,
+  reuse,
   onBack,
   onGenerate,
 }: {
@@ -65,6 +94,15 @@ export default function Generate({
    * variant can be changed after arriving here.
    */
   startFrom?: StartFrame | undefined;
+  /**
+   * "Generate again": a past generation of this account's, to be run as it was.
+   *
+   * Distinct from `startFrom`, which turns an *output* into the next input.
+   * This restores the original *inputs* — the variant, the settings and the
+   * files it ran against — so the second run is the same order as the first
+   * rather than the same prompt at whatever the form currently defaults to.
+   */
+  reuse?: Reuse | undefined;
   onBack: () => void;
   onGenerate: (
     prompt: string,
@@ -83,6 +121,25 @@ export default function Generate({
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<GenerationReceipt | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  /* Applied in an effect and not in the state initialisers above, for the same
+     reason `startFrom` is derived per render: the generations list hydrates
+     after first paint, so on a cold load of this URL the first render has no
+     `reuse` at all and an initialiser would latch that emptiness for good.
+
+     Keyed by the job so it applies exactly once — after that the controls
+     belong to the user, and re-applying would fight them every render.
+
+     Merged over the variant's defaults rather than replacing them: a control
+     the original job never set should keep its default, not go missing. */
+  const appliedReuse = useRef<string | null>(null);
+  useEffect(() => {
+    if (!reuse || appliedReuse.current === reuse.jobId) return;
+    appliedReuse.current = reuse.jobId;
+    const original = family.variants.find((candidate) => candidate.id === reuse.variantId);
+    if (original) setVariant(original);
+    setInput((current) => ({ ...current, ...reuse.input }));
+  }, [family, reuse]);
 
   // Object URLs are process-wide; without this every picked image leaks until reload.
   const liveRefs = useRef<RefMap>(refImages);
@@ -124,10 +181,25 @@ export default function Generate({
 
      Dismissable, because arriving with an attachment you did not ask for and
      cannot remove is worse than arriving with none. */
-  const [dismissed, setDismissed] = useState(false);
-  const carried = dismissed ? null : (startFrom ?? null);
-  const carriedSlot = carried ? refs.find((slot) => (slot.media ?? "image") === carried.kind) : undefined;
-  const assetRefs: Record<string, string[]> = carried && carriedSlot ? { [carriedSlot.key]: [carried.assetId] } : {};
+  /* Dismissal is by asset rather than a single flag, now that more than one
+     file can arrive: replaying a first-and-last-frame generation carries two,
+     and one boolean would drop both to remove either. */
+  const [dismissed, setDismissed] = useState<readonly string[]>([]);
+
+  /* "To video" hands over one output and lets the slot be inferred from its
+     media kind — the user chose a model, not a field, and the slot names differ
+     per variant. "Generate again" already knows the slot, because it is
+     replaying what actually ran, and a first frame that comes back as a last
+     frame is a different generation. */
+  const startFrameSlot = startFrom ? refs.find((slot) => (slot.media ?? "image") === startFrom.kind) : undefined;
+  const carriedRefs: CarriedRef[] = (
+    startFrom && startFrameSlot
+      ? [{ slot: startFrameSlot.key, assetId: startFrom.assetId, url: startFrom.url, kind: startFrom.kind, label: "فریم شروع" }]
+      : (reuse?.references ?? [])
+  ).filter((reference) => !dismissed.includes(reference.assetId) && refs.some((slot) => slot.key === reference.slot));
+
+  const assetRefs: Record<string, string[]> = {};
+  for (const reference of carriedRefs) (assetRefs[reference.slot] ??= []).push(reference.assetId);
 
   // Some models (image-to-video) are rejected outright without their input image.
   // Blocking here is cheaper than letting the provider 422 a paid job.
@@ -248,6 +320,9 @@ export default function Generate({
                   <button
                     key={v.id}
                     onClick={() => selectVariant(v)}
+                    // Which one is chosen was carried by the fill colour alone,
+                    // so a screen reader heard a row of buttons with no state.
+                    aria-pressed={on}
                     className="flex shrink-0 flex-col items-center gap-1 rounded-2xl border px-4 py-2.5 transition-colors active:scale-95"
                     style={
                       on
@@ -282,32 +357,35 @@ export default function Generate({
                 images={refImages[slot.key] ?? []}
                 onChange={(imgs) => setRefImages((p) => ({ ...p, [slot.key]: imgs }))}
                 leading={
-                  /* The carried frame is one of this slot's inputs, so it is a
-                     tile in the same row — first, because it arrived first.
-                     There are no bytes behind it to hand RefUpload: the file is
-                     already ours and travels as an id. */
-                  carriedSlot?.key === slot.key && carried ? (
-                    <div
-                      className="relative size-[84px] overflow-hidden rounded-2xl border border-line bg-card2"
-                      title="از کارهای خودت — فریم شروع"
-                    >
-                      {carried.kind === "video" ? (
-                        <video src={carried.url} muted playsInline preload="metadata" className="size-full object-cover" />
-                      ) : (
-                        <img src={carried.url} alt="" className="size-full object-cover" />
-                      )}
-                      <button
-                        onClick={() => setDismissed(true)}
-                        aria-label="حذف فریم شروع"
-                        className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-bg/70 backdrop-blur-sm"
+                  /* Carried files are inputs to this slot, so they are tiles in
+                     the same row — first, because they arrived first. There are
+                     no bytes behind them to hand RefUpload: the files are
+                     already ours and travel as ids. */
+                  carriedRefs
+                    .filter((reference) => reference.slot === slot.key)
+                    .map((reference) => (
+                      <div
+                        key={reference.assetId}
+                        className="relative size-[84px] overflow-hidden rounded-2xl border border-line bg-card2"
+                        title={`از کارهای خودت — ${reference.label}`}
                       >
-                        <X size={13} weight="bold" />
-                      </button>
-                      <span className="absolute inset-x-0 bottom-0 bg-bg/70 py-0.5 text-center text-[9.5px] text-ink2 backdrop-blur-sm">
-                        فریم شروع
-                      </span>
-                    </div>
-                  ) : null
+                        {reference.kind === "video" ? (
+                          <video src={reference.url} muted playsInline preload="metadata" className="size-full object-cover" />
+                        ) : (
+                          <img src={reference.url} alt="" className="size-full object-cover" />
+                        )}
+                        <button
+                          onClick={() => setDismissed((current) => [...current, reference.assetId])}
+                          aria-label={`حذف ${reference.label}`}
+                          className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-bg/70 backdrop-blur-sm"
+                        >
+                          <X size={13} weight="bold" />
+                        </button>
+                        <span className="absolute inset-x-0 bottom-0 bg-bg/70 py-0.5 text-center text-[9.5px] text-ink2 backdrop-blur-sm">
+                          {reference.label}
+                        </span>
+                      </div>
+                    ))
                 }
               />
             ))}

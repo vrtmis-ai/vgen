@@ -5,6 +5,7 @@ import { clearAdminCookie, readAdminToken, setAdminCookie, type CookieOptions } 
 import { registerAdminAnalyticsRoutes, type AdminAnalyticsDependencies } from "./adminAnalytics";
 import { registerAdminCatalogRoutes, type AdminCatalogDependencies } from "./adminCatalog";
 import { registerAdminCommunityRoutes, type AdminCommunityDependencies } from "./adminCommunity";
+import { registerAdminStaffRoutes, type AdminStaffDependencies } from "./adminStaff";
 
 export interface AdminDependencies {
   admin: PostgresAdminRepository;
@@ -28,6 +29,11 @@ export interface AdminDependencies {
    * absent.
    */
   community?: AdminCommunityDependencies | undefined;
+  /**
+   * Appointing staff and deciding what each of them may do. Optional like the
+   * three above, and for the same reason: absent beats half-answering.
+   */
+  staff?: AdminStaffDependencies | undefined;
   /** Reused so staff prove who they are the same way customers do, before the second factor. */
   verifyPassword(email: string, password: string): Promise<{ id: string; emailNormalized: string }>;
 }
@@ -152,6 +158,7 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
   if (dependencies.catalog) registerAdminCatalogRoutes(app, dependencies.catalog, { require, audit });
   if (dependencies.analytics) registerAdminAnalyticsRoutes(app, dependencies.analytics, { require, audit });
   if (dependencies.community) registerAdminCommunityRoutes(app, dependencies.community, { require, audit });
+  if (dependencies.staff) registerAdminStaffRoutes(app, dependencies.staff, { require, audit });
 
   // ------------------------------------------------------------ signing in
 

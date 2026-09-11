@@ -1,4 +1,10 @@
-import { LoginWithPasswordSchema, RegisterWithPasswordSchema, StartPhoneVerificationSchema, VerifyPhoneSchema } from "@vgen/contracts";
+import {
+  LoginWithPasswordSchema,
+  RegisterWithPasswordSchema,
+  StartPhoneVerificationSchema,
+  TERMS_VERSION,
+  VerifyPhoneSchema,
+} from "@vgen/contracts";
 import { normalizeIranianPhone } from "@vgen/core";
 import { AuthError, type PostgresAuthRepository } from "@vgen/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -128,6 +134,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
         ...(body.deviceFingerprint ? { deviceFingerprint: body.deviceFingerprint } : {}),
         ip: request.ip,
         userAgent: request.headers["user-agent"],
+        termsVersion: TERMS_VERSION,
       });
       await auth.recordLoginAttempt({ identifier: phone, userId: user.id, method: "otp", succeeded: true, ip: request.ip });
       await startSession(reply, request, user.id);
@@ -160,6 +167,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
         ...(body.deviceFingerprint ? { deviceFingerprint: body.deviceFingerprint } : {}),
         ip: request.ip,
         userAgent: request.headers["user-agent"],
+        termsVersion: TERMS_VERSION,
       });
       await startSession(reply, request, user.id);
       return reply.code(201).send({ status: "authed", host: "web", user });
@@ -259,6 +267,11 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
         const user = await auth.signInWithOAuth(provider, profile.subject, profile.email, profile.displayName, {
           ip: request.ip,
           userAgent: request.headers["user-agent"],
+          // Recorded on every path that can create an account, not only the
+          // form with the words next to it. The column is written by the one
+          // insert underneath all three, and only ever on creation -- signing
+          // in again does not restate an agreement.
+          termsVersion: TERMS_VERSION,
         });
         await auth.recordLoginAttempt({
           identifier: profile.email ?? profile.subject,

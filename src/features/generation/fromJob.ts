@@ -21,11 +21,12 @@ export function generationFromJob(job: GenerationJob, families: readonly Family[
   const output = job.outputs[0];
   const kind = output?.kind === "video" || output?.kind === "audio" ? output.kind : (family?.kind ?? "image");
 
-  /* The requested aspect is not on the wire — it lives in the job's params,
-     which the gallery does not return. It barely matters: every finished row
-     has a measured size below, and this only shapes the placeholder box for a
-     row that has no file yet. A square for stills and 16:9 for motion is the
-     shape each is usually asked for. */
+  /* The measured size wins wherever there is one, and every finished row has
+     one. This only shapes the placeholder box for a row with no file yet, where
+     a square for stills and 16:9 for motion is the shape each is usually asked
+     for. The requested aspect does now arrive in `job.params` — it is carried
+     below for "generate again" rather than read here, because what a frame
+     should look like is a question the bytes answer better than the order did. */
   const [w, h] = output?.width && output.height ? [output.width, output.height] : kind === "image" ? [1, 1] : [16, 9];
 
   const status: GenStatus =
@@ -48,6 +49,8 @@ export function generationFromJob(job: GenerationJob, families: readonly Family[
     grad: family?.grad ?? "var(--vg-surface)",
     kind,
     prompt: job.prompt,
+    params: job.params,
+    ...(Object.keys(job.referenceAssetIds).length > 0 ? { refAssetIds: job.referenceAssetIds } : {}),
     w,
     h,
     ...(output?.width && output.height ? { outW: output.width, outH: output.height } : {}),
