@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDemoServices } from "../adapters/demo/demoServices";
+import { appQueryKeys } from "../features/session/useSession";
 import { LanguageProvider } from "../lib/i18n";
 import { ApiError } from "../runtime/apiError";
 import { AppServicesProvider, type AppServices } from "../runtime/AppServices";
@@ -36,8 +37,10 @@ beforeEach(() => {
 // default 1s waitFor window would be a coin flip on a loaded machine.
 const LANDED = { timeout: 3000 };
 
-function renderAuth(services: AppServices, mode: AuthMode = "signin") {
+/** Session loaded first, as the app shell has it by the time this screen mounts: it decides whether the phone form exists. */
+async function renderAuth(services: AppServices, mode: AuthMode = "signin") {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  await queryClient.prefetchQuery({ queryKey: appQueryKeys.session, queryFn: () => services.session.getCurrent() });
   render(
     <QueryClientProvider client={queryClient}>
       <LanguageProvider initialLang="en">
@@ -58,7 +61,7 @@ async function typeCode(user: ReturnType<typeof userEvent.setup>, code: string) 
 describe("the sign-in screen", () => {
   it("asks for the invite code only once the server says it needs one", async () => {
     const user = userEvent.setup();
-    renderAuth(createDemoServices({ startAnonymous: true }));
+    await renderAuth(createDemoServices({ startAnonymous: true }));
 
     await user.type(screen.getByLabelText("Mobile number"), "09123456789");
     await user.click(screen.getByRole("button", { name: "Send code" }));
@@ -81,7 +84,7 @@ describe("the sign-in screen", () => {
     window.history.replaceState(null, "", "/signup?invite=DEEV-EARLY");
     const user = userEvent.setup();
     try {
-      renderAuth(createDemoServices({ startAnonymous: true }), "signup");
+      await renderAuth(createDemoServices({ startAnonymous: true }), "signup");
       await user.click(screen.getByRole("button", { name: /email/i }));
 
       expect(await screen.findByLabelText("Invite code")).toHaveValue("DEEV-EARLY");
@@ -94,7 +97,7 @@ describe("the sign-in screen", () => {
     const user = userEvent.setup();
     const services = createDemoServices({ startAnonymous: true });
     const verifyPhone = vi.spyOn(services.auth, "verifyPhone");
-    renderAuth(services);
+    await renderAuth(services);
 
     await user.type(screen.getByLabelText("Mobile number"), "09123456789");
     await user.click(screen.getByRole("button", { name: "Send code" }));
@@ -108,7 +111,7 @@ describe("the sign-in screen", () => {
 
   it("keeps the verify button shut until all six boxes are filled", async () => {
     const user = userEvent.setup();
-    renderAuth(createDemoServices({ startAnonymous: true }));
+    await renderAuth(createDemoServices({ startAnonymous: true }));
 
     await user.type(screen.getByLabelText("Mobile number"), "09123456789");
     await user.click(screen.getByRole("button", { name: "Send code" }));
@@ -122,7 +125,7 @@ describe("the sign-in screen", () => {
 
   it("fills the whole row from one paste, the way a code arrives", async () => {
     const user = userEvent.setup();
-    renderAuth(createDemoServices({ startAnonymous: true }));
+    await renderAuth(createDemoServices({ startAnonymous: true }));
 
     await user.type(screen.getByLabelText("Mobile number"), "09123456789");
     await user.click(screen.getByRole("button", { name: "Send code" }));
@@ -136,7 +139,7 @@ describe("the sign-in screen", () => {
 
   it("reports a rejected password as a credentials failure, not an invite one", async () => {
     const user = userEvent.setup();
-    renderAuth(createDemoServices({ startAnonymous: true }));
+    await renderAuth(createDemoServices({ startAnonymous: true }));
 
     await user.click(screen.getByRole("button", { name: "Use email instead" }));
     await user.type(screen.getByLabelText("Email"), "someone@deev.local");
@@ -149,7 +152,7 @@ describe("the sign-in screen", () => {
 
   it("reports a taken address on the sign-up route", async () => {
     const user = userEvent.setup();
-    renderAuth(createDemoServices({ startAnonymous: true }), "signup");
+    await renderAuth(createDemoServices({ startAnonymous: true }), "signup");
 
     await user.click(screen.getByRole("button", { name: "Use email instead" }));
     await user.type(screen.getByLabelText("Email"), "taken@deev.local");
@@ -160,7 +163,7 @@ describe("the sign-in screen", () => {
   });
 
   it("sends a visitor who is already signed in back to the app", async () => {
-    renderAuth(createDemoServices());
+    await renderAuth(createDemoServices());
 
     await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/"), LANDED);
   });
@@ -169,7 +172,7 @@ describe("the sign-in screen", () => {
     const user = userEvent.setup();
     const services = createDemoServices({ startAnonymous: true });
     const startProviderSignIn = vi.spyOn(services.auth, "startProviderSignIn");
-    renderAuth(services);
+    await renderAuth(services);
 
     // `find`, not `get`: the buttons appear only once the session has said
     // which providers this server has. Before that there is nothing true to
@@ -182,7 +185,7 @@ describe("the sign-in screen", () => {
 
   it("draws each provider's own mark, in its own colours", async () => {
     const services = createDemoServices({ startAnonymous: true });
-    renderAuth(services);
+    await renderAuth(services);
 
     const google = await screen.findByRole("button", { name: "Continue with Google" });
     const microsoft = await screen.findByRole("button", { name: "Continue with Microsoft" });
@@ -206,8 +209,13 @@ describe("the sign-in screen", () => {
     const services = createDemoServices({ startAnonymous: true });
     // A deployment with Google credentials and no Microsoft ones — the exact
     // asymmetry that used to send half the visitors into a 404.
-    vi.spyOn(services.session, "getCurrent").mockResolvedValue({ status: "anonymous", host: "web", authProviders: ["google"] });
-    renderAuth(services);
+    vi.spyOn(services.session, "getCurrent").mockResolvedValue({
+      status: "anonymous",
+      host: "web",
+      authProviders: ["google"],
+      phoneSignIn: true,
+    });
+    await renderAuth(services);
 
     expect(await screen.findByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Continue with Microsoft" })).not.toBeInTheDocument();
@@ -215,13 +223,23 @@ describe("the sign-in screen", () => {
 
   it("hides the whole social block when the server offers nothing", async () => {
     const services = createDemoServices({ startAnonymous: true });
-    vi.spyOn(services.session, "getCurrent").mockResolvedValue({ status: "anonymous", host: "web", authProviders: [] });
-    renderAuth(services);
+    vi.spyOn(services.session, "getCurrent").mockResolvedValue({ status: "anonymous", host: "web", authProviders: [], phoneSignIn: true });
+    await renderAuth(services);
 
     // The phone form is the proof the screen rendered at all, so an empty
     // social block is what is being asserted rather than an empty screen.
     expect(await screen.findByRole("button", { name: "Send code" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Continue with/ })).not.toBeInTheDocument();
+  });
+
+  it("offers only email when the server has no SMS gateway", async () => {
+    const services = createDemoServices({ startAnonymous: true });
+    vi.spyOn(services.session, "getCurrent").mockResolvedValue({ status: "anonymous", host: "web", authProviders: [], phoneSignIn: false });
+    await renderAuth(services, "signup");
+
+    expect(await screen.findByLabelText("Email")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send code" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /phone/i })).not.toBeInTheDocument();
   });
 
   it("says how long to wait when the server tells it", async () => {
@@ -230,7 +248,7 @@ describe("the sign-in screen", () => {
     vi.spyOn(services.auth, "login").mockRejectedValue(
       new ApiError({ code: "rate_limited", message: "slow down", status: 429, retryAfterMs: 90_000 }),
     );
-    renderAuth(services);
+    await renderAuth(services);
 
     await user.click(screen.getByRole("button", { name: "Use email instead" }));
     await user.type(screen.getByLabelText("Email"), "someone@deev.local");
@@ -246,7 +264,7 @@ describe("the sign-in screen", () => {
     const user = userEvent.setup();
     const services = createDemoServices({ startAnonymous: true });
     vi.spyOn(services.auth, "login").mockRejectedValue(new ApiError({ code: "account_suspended", message: "suspended", status: 403 }));
-    renderAuth(services);
+    await renderAuth(services);
 
     await user.click(screen.getByRole("button", { name: "Use email instead" }));
     await user.type(screen.getByLabelText("Email"), "someone@deev.local");
@@ -294,7 +312,7 @@ describe("the code's minute", () => {
 
   async function sendCode() {
     const user = userEvent.setup();
-    renderAuth(createDemoServices({ startAnonymous: true }));
+    await renderAuth(createDemoServices({ startAnonymous: true }));
     await user.type(screen.getByLabelText("Mobile number"), "09123456789");
     await user.click(screen.getByRole("button", { name: "Send code" }));
     await screen.findByLabelText("Digit 1 of 6", undefined, TICK);

@@ -292,7 +292,7 @@ export function useStaffMutations(api: AdminApi) {
   const refresh = () => queryClient.invalidateQueries({ queryKey: adminKeys.staff });
   return {
     appoint: useMutation({
-      mutationFn: (input: { email: string; roleCode: string; permissions?: string[] | undefined }) => api.appointStaff(input),
+      mutationFn: (input: Parameters<AdminApi["appointStaff"]>[0]) => api.appointStaff(input),
       onSuccess: refresh,
     }),
     setPermissions: useMutation({

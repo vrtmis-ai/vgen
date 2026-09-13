@@ -1,4 +1,13 @@
-import { generateSessionToken, generateTotpSecret, hashToken, openSecret, sealSecret, totpEnrolmentUri, verifyTotp } from "@vgen/core";
+import {
+  generateSessionToken,
+  generateTotpSecret,
+  hashPassword,
+  hashToken,
+  openSecret,
+  sealSecret,
+  totpEnrolmentUri,
+  verifyTotp,
+} from "@vgen/core";
 import { randomBytes } from "node:crypto";
 import type { Sql } from "postgres";
 import { atomically } from "./transaction";
@@ -134,7 +143,8 @@ export class PostgresAdminRepository {
     const [row] = await this.sql<{ email: string | null; roles: string[]; permissions: string[]; has_mfa: boolean }[]>`
       select
         u.email,
-        array_agg(ur.role_code order by ur.role_code)                          as roles,
+        -- distinct: the permissions join below yields one row per permission.
+        array_agg(distinct ur.role_code order by ur.role_code)                 as roles,
         coalesce(jsonb_agg(distinct p.value) filter (where p.value is not null), '[]'::jsonb) as permissions,
         exists (select 1 from mfa_credentials m where m.user_id = u.id and m.confirmed_at is not null) as has_mfa
       from users u
@@ -476,6 +486,65 @@ export class PostgresAdminRepository {
       on conflict (user_id, role_code) do update
         set permissions = excluded.permissions, granted_by = excluded.granted_by, granted_at = now()
     `;
+  }
+
+  /**
+   * Appoint somebody, making their account first when they have none.
+   *
+   * This is how staff get in while signup is invite-only: staff make staff, so
+   * no invite is needed or spent. One transaction, so a refused write leaves no
+   * account behind.
+   *
+   * Returns a TOTP secret when the person had no confirmed second factor,
+   * because /admin refuses a password without one and there is no enrolment
+   * screen. It exists in readable form only in this return value.
+   */
+  async appointStaff(input: {
+    existingUserId: string | null;
+    email: string;
+    /** Required to create an account; ignored for an existing one. */
+    password: string | null;
+    roleCode: string;
+    permissions: readonly string[] | null;
+    grantedBy: string;
+  }): Promise<{ userId: string; totp: { secret: string; uri: string } | null }> {
+    const passwordHash = input.existingUserId === null && input.password !== null ? await hashPassword(input.password) : null;
+
+    return (await atomically(this.sql)(async (tx) => {
+      let userId = input.existingUserId;
+      if (userId === null) {
+        if (passwordHash === null) throw new Error("A new staff account needs a password");
+        const [account] = await tx<{ id: string }[]>`insert into accounts (kind) values ('personal') returning id`;
+        const [user] = await tx<{ id: string }[]>`
+          insert into users (email, email_verified_at, password_hash, display_name, locale, personal_account_id)
+          values (${input.email}, now(), ${passwordHash}, 'Staff', 'fa', ${account!.id})
+          returning id
+        `;
+        await tx`update accounts set owner_user_id = ${user!.id} where id = ${account!.id}`;
+        userId = user!.id;
+      }
+
+      const permissions = input.permissions === null ? null : tx.json([...input.permissions]);
+      await tx`
+        insert into user_roles (user_id, role_code, granted_by, permissions)
+        values (${userId}, ${input.roleCode}, ${input.grantedBy}, ${permissions})
+        on conflict (user_id, role_code) do update
+          set permissions = excluded.permissions, granted_by = excluded.granted_by, granted_at = now()
+      `;
+
+      const [factor] = await tx`
+        select 1 from mfa_credentials where user_id = ${userId} and kind = 'totp' and confirmed_at is not null limit 1
+      `;
+      if (factor) return { userId, totp: null };
+
+      const secret = generateTotpSecret();
+      await tx`
+        insert into mfa_credentials (user_id, kind, secret_ref, label, confirmed_at)
+        values (${userId}, 'totp', ${sealSecret(secret, this.sealingKey)}, 'default', now())
+        on conflict (user_id, kind, label) do update set secret_ref = excluded.secret_ref, confirmed_at = now()
+      `;
+      return { userId, totp: { secret, uri: totpEnrolmentUri(secret, input.email) } };
+    })) as { userId: string; totp: { secret: string; uri: string } | null };
   }
 
   /**

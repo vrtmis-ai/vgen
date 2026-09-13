@@ -801,7 +801,7 @@ describe("customer session", () => {
 
     expect(response.statusCode).toBe(200);
     // No auth options at all, so no provider has routes and none is offered.
-    expect(response.json()).toEqual({ status: "anonymous", host: "web", authProviders: [] });
+    expect(response.json()).toEqual({ status: "anonymous", host: "web", authProviders: [], phoneSignIn: false });
     await app.close();
   });
 
@@ -870,6 +870,8 @@ describe("customer session", () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/session" });
 
     expect(response.json().authProviders).toEqual(["google"]);
+    // An SMS gateway was handed in, so the phone form is offered too.
+    expect(response.json().phoneSignIn).toBe(true);
     // And the claim is true: the offered one answers, the unoffered one does not.
     expect((await app.inject({ method: "GET", url: "/api/v1/auth/google" })).statusCode).toBe(302);
     expect((await app.inject({ method: "GET", url: "/api/v1/auth/microsoft" })).statusCode).toBe(404);

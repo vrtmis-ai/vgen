@@ -369,6 +369,10 @@ const StaffRolesSchema = z.object({
 });
 
 const StaffOneSchema = z.object({ staff: StaffMemberSchema.nullable() });
+/** The second-factor key for somebody who had none, returned once by the appointment. */
+const StaffTotpSchema = z.object({ secret: z.string(), uri: z.string() });
+const StaffAppointedSchema = StaffOneSchema.extend({ totp: StaffTotpSchema.nullable() });
+export type StaffTotp = z.infer<typeof StaffTotpSchema>;
 
 export const StaffPlanSchema = z.object({
   subscriptionId: z.string(),
@@ -430,7 +434,13 @@ export interface AdminApi {
 
   listStaff(): Promise<{ staff: StaffMember[]; grantable: string[] }>;
   listStaffRoles(): Promise<{ roles: { code: string; name: string; permissions: string[] }[]; grantable: string[] }>;
-  appointStaff(input: { email: string; roleCode: string; permissions?: string[] | undefined }): Promise<void>;
+  /** `password` creates the account for an address nobody uses yet. */
+  appointStaff(input: {
+    email: string;
+    roleCode: string;
+    permissions?: string[] | undefined;
+    password?: string | undefined;
+  }): Promise<StaffTotp | null>;
   /** Null hands the role's own set back; an array pins this person's. */
   setStaffPermissions(userId: string, permissions: string[] | null): Promise<void>;
   revokeStaff(userId: string): Promise<void>;
@@ -534,16 +544,17 @@ export function createAdminApi(client: HttpClient): AdminApi {
 
     listStaff: () => client.request("/admin/staff", { schema: StaffListSchema }),
     listStaffRoles: () => client.request("/admin/staff/roles", { schema: StaffRolesSchema }),
-    appointStaff: async (input) => {
-      await client.request("/admin/staff", {
-        method: "POST",
-        // Omitted rather than sent as null: the server reads an absent field as
-        // "inherit the role", which is a different instruction from an empty
-        // array — that one would mean a member of staff who can do nothing.
-        body: input.permissions ? input : { email: input.email, roleCode: input.roleCode },
-        schema: StaffOneSchema,
-      });
-    },
+    appointStaff: async ({ email, roleCode, permissions, password }) =>
+      (
+        await client.request("/admin/staff", {
+          method: "POST",
+          // Omitted rather than sent as null: the server reads an absent field as
+          // "inherit the role", which is a different instruction from an empty
+          // array — that one would mean a member of staff who can do nothing.
+          body: { email, roleCode, ...(permissions ? { permissions } : {}), ...(password ? { password } : {}) },
+          schema: StaffAppointedSchema,
+        })
+      ).totp,
     setStaffPermissions: async (userId, permissions) => {
       await client.request(`/admin/staff/${userId}`, { method: "PATCH", body: { permissions }, schema: StaffOneSchema });
     },

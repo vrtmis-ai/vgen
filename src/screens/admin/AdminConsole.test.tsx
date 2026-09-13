@@ -259,7 +259,7 @@ function stubApi(): AdminApi {
     setEarlyAccess: vi.fn(async (value: boolean) => value),
     listStaff: vi.fn(async () => ({ staff: [], grantable: ["*"] })),
     listStaffRoles: vi.fn(async () => ({ roles: [], grantable: ["*"] })),
-    appointStaff: vi.fn(async () => {}),
+    appointStaff: vi.fn(async () => null),
     setStaffPermissions: vi.fn(async () => {}),
     revokeStaff: vi.fn(async () => {}),
     getStaffPlan: vi.fn(async () => null),
@@ -985,6 +985,22 @@ describe("the staff section", () => {
     // "inherit the role", which is a different instruction from an empty array
     // — that one would appoint somebody who can do nothing.
     await waitFor(() => expect(api.appointStaff).toHaveBeenCalledWith({ email: "new@deev.test", roleCode: "moderator" }));
+  });
+
+  it("creates a staff account with a password and shows its second-factor key once", async () => {
+    const user = await openStaff([MEMBER], ["*"]);
+    vi.mocked(api.appointStaff).mockResolvedValueOnce({
+      secret: "JBSWY3DPEHPK3PXP",
+      uri: "otpauth://totp/DEEV:new?secret=JBSWY3DPEHPK3PXP",
+    });
+
+    await user.type(await screen.findByPlaceholderText("ایمیل"), "new@deev.test");
+    await user.type(screen.getByLabelText("رمز عبور برای حساب تازه"), "a-long-password");
+    await user.selectOptions(screen.getByRole("combobox"), "moderator");
+    await user.click(screen.getByRole("button", { name: "افزودن" }));
+
+    expect(await screen.findByText("JBSWY3DPEHPK3PXP")).toBeInTheDocument();
+    expect(api.appointStaff).toHaveBeenCalledWith({ email: "new@deev.test", roleCode: "moderator", password: "a-long-password" });
   });
 
   it("says what a granted plan actually is", async () => {

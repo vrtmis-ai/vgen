@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { CalendarCheck, CaretDown, Check, DeviceMobile, Gift, ImageSquare, VideoCamera } from "@phosphor-icons/react";
+import { CalendarCheck, CaretDown, Check, Gift, ImageSquare, VideoCamera } from "@phosphor-icons/react";
 import type { Family } from "../data/models";
 import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import type { CommunityPost } from "../runtime/contracts/community";
@@ -622,13 +622,8 @@ function Closing({ onSignIn }: { onSignIn: () => void }) {
               boxShadow: "0 0 48px rgb(var(--vg-primary-rgb) / 0.35)",
             }}
           >
-            {/* Phone, not email — and the line underneath is why.
-                "No password, one verification and you are in" is true of the OTP
-                route and false of the email one, which takes a password of at
-                least ten characters. This button used to promise passwordless
-                email sign-in, which no route has ever served; harmless while it
-                went nowhere, and a contradiction the moment /signin existed. */}
-            <DeviceMobile size={17} weight="bold" />
+            {/* Names no method: phone sign-in exists only where an SMS gateway
+                does, and this page cannot promise a door the server may not have. */}
             {t("lp_phone")}
           </button>
         </div>

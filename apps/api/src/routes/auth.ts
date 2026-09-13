@@ -56,7 +56,17 @@ export interface AuthRouteOptions {
 
 export interface AuthDependencies {
   auth: PostgresAuthRepository;
-  sms: SmsSender;
+  /**
+   * Absent when no SMS gateway is configured, and then phone sign-in does not
+   * exist: the session says so, the screen offers email instead, and the OTP
+   * routes answer 404. That is production until eNamad clears, because an
+   * Iranian gateway will not send OTP templates for a site without it.
+   */
+  sms?: SmsSender | undefined;
+}
+
+function phoneUnavailable(reply: FastifyReply) {
+  return reply.code(404).send({ error: { code: "phone_unavailable", message: "Phone sign-in is not available yet." } });
 }
 
 const STATUS_BY_CODE: Record<AuthError["code"], number> = {
@@ -93,6 +103,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
   // ------------------------------------------------------------------ phone
 
   app.post("/api/v1/auth/otp/start", { bodyLimit: 4 * 1024 }, async (request, reply) => {
+    if (!sms) return phoneUnavailable(reply);
     const body = StartPhoneVerificationSchema.parse(request.body);
     const phone = normalizeIranianPhone(body.phone);
     if (!phone) {
@@ -139,6 +150,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
   });
 
   app.post("/api/v1/auth/otp/verify", { bodyLimit: 4 * 1024 }, async (request, reply) => {
+    if (!sms) return phoneUnavailable(reply);
     const body = VerifyPhoneSchema.parse(request.body);
     const phone = normalizeIranianPhone(body.phone);
     if (!phone) {

@@ -41,6 +41,10 @@ function appFor(
 ) {
   const audit = vi.fn(async () => {});
   const upsertStaff = vi.fn(async () => {});
+  const appointStaff = vi.fn(async (input: { existingUserId: string | null }) => ({
+    userId: input.existingUserId ?? "new-1",
+    totp: input.existingUserId ? null : { secret: "JBSWY3DPEHPK3PXP", uri: "otpauth://totp/DEEV:x?secret=JBSWY3DPEHPK3PXP" },
+  }));
   const revokeStaff = vi.fn(async () => true);
   const grant = vi.fn(async () => ({ outcome: "granted", grant: { coins: 500, endsAt: 1 } }) as never);
   const revoke = vi.fn(async () => ({ outcome: "revoked" as const, coinsWithdrawn: 5 }));
@@ -65,6 +69,7 @@ function appFor(
         listStaff: vi.fn(async () => members as never),
         staffMember: vi.fn(async (userId: string) => (members.find((m) => m.userId === userId) ?? null) as never),
         upsertStaff,
+        appointStaff,
         revokeStaff,
         roles: vi.fn(async () => [
           { code: "admin", name: "Administrator", permissions: ["*"] },
@@ -77,7 +82,7 @@ function appFor(
     },
     guard as never,
   );
-  return { app, audit, upsertStaff, revokeStaff, grant, revoke };
+  return { app, audit, upsertStaff, appointStaff, revokeStaff, grant, revoke };
 }
 
 const appoint = (app: FastifyInstance, payload: unknown) =>
@@ -85,72 +90,109 @@ const appoint = (app: FastifyInstance, payload: unknown) =>
 
 describe("appointing staff", () => {
   it("gives somebody a role narrowed to a chosen set", async () => {
-    const { app, upsertStaff, audit } = appFor(OWNER, []);
+    const { app, appointStaff, audit } = appFor(OWNER, []);
 
     const response = await appoint(app, { email: "new@example.test", roleCode: "moderator", permissions: ["community.read"] });
 
     expect(response.statusCode).toBe(201);
-    expect(upsertStaff).toHaveBeenCalledWith(
+    expect(appointStaff).toHaveBeenCalledWith(
       expect.objectContaining({ roleCode: "moderator", permissions: ["community.read"], grantedBy: "owner-1" }),
     );
     expect(audit).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ action: "staff.appointed" }));
   });
 
   it("inherits the role's own set when none is given", async () => {
-    const { app, upsertStaff } = appFor(OWNER, []);
+    const { app, appointStaff } = appFor(OWNER, []);
 
     await appoint(app, { email: "new@example.test", roleCode: "moderator" });
 
     // Null, not a copy of the role's array: the row then tracks the role if
     // the role changes, which is what every pre-existing staff row does.
-    expect(upsertStaff).toHaveBeenCalledWith(expect.objectContaining({ permissions: null }));
+    expect(appointStaff).toHaveBeenCalledWith(expect.objectContaining({ permissions: null }));
   });
 
   /* Rule 1. */
   it("refuses to grant a permission the appointer does not hold", async () => {
-    const { app, upsertStaff } = appFor(MODERATOR, []);
+    const { app, appointStaff } = appFor(MODERATOR, []);
 
     const response = await appoint(app, { email: "new@example.test", roleCode: "moderator", permissions: ["users.write"] });
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ error: { code: "beyond_your_own" } });
-    expect(upsertStaff).not.toHaveBeenCalled();
+    expect(appointStaff).not.toHaveBeenCalled();
   });
 
   /* Rule 1 again, by the back door: naming a role whose own set exceeds yours
      grants exactly the same access as listing its permissions out. */
   it("refuses a role whose permissions exceed the appointer's", async () => {
-    const { app, upsertStaff } = appFor(MODERATOR, []);
+    const { app, appointStaff } = appFor(MODERATOR, []);
 
     const response = await appoint(app, { email: "new@example.test", roleCode: "admin" });
 
     expect(response.statusCode).toBe(403);
-    expect(upsertStaff).not.toHaveBeenCalled();
+    expect(appointStaff).not.toHaveBeenCalled();
   });
 
   it("lets an admin delegate exactly what they hold", async () => {
-    const { app, upsertStaff } = appFor(MODERATOR, []);
+    const { app, appointStaff } = appFor(MODERATOR, []);
 
     const response = await appoint(app, { email: "new@example.test", roleCode: "moderator", permissions: ["community.read"] });
 
     expect(response.statusCode).toBe(201);
-    expect(upsertStaff).toHaveBeenCalled();
+    expect(appointStaff).toHaveBeenCalled();
   });
 
-  it("refuses an address nobody signs in with, rather than creating an account", async () => {
-    const { app, upsertStaff } = appFor(OWNER, [], null);
+  it("refuses an address nobody signs in with when no password is given", async () => {
+    const { app, appointStaff } = appFor(OWNER, [], null);
 
     const response = await appoint(app, { email: "stranger@example.test", roleCode: "moderator" });
 
-    // Staff come through the same door as everyone else. A route that could
-    // mint accounts would be a second, quieter signup path.
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ error: { code: "no_such_user" } });
-    expect(upsertStaff).not.toHaveBeenCalled();
+    expect(appointStaff).not.toHaveBeenCalled();
+  });
+
+  /* Staff are made by staff while signup is invite-only. */
+  it("creates the account, with no invite, when a password is given for a new address", async () => {
+    const { app, appointStaff, audit } = appFor(OWNER, [], null);
+
+    const response = await appoint(app, { email: "new@example.test", roleCode: "moderator", password: "a-long-password" });
+
+    expect(response.statusCode).toBe(201);
+    expect(appointStaff).toHaveBeenCalledWith(
+      expect.objectContaining({ existingUserId: null, email: "new@example.test", password: "a-long-password" }),
+    );
+    // The second-factor key goes back once, since /admin refuses a password alone.
+    expect(response.json().totp.secret).toBe("JBSWY3DPEHPK3PXP");
+    // And never into the audit log.
+    const recorded = JSON.stringify((audit.mock.calls as unknown[][]).map((call) => call[2]));
+    expect(recorded).toContain("accountCreated");
+    expect(recorded).not.toContain("JBSWY3DPEHPK3PXP");
+    expect(recorded).not.toContain("a-long-password");
+  });
+
+  /* Otherwise staff.write would be a way to take over any customer's account. */
+  it("refuses a password for an address that already has an account", async () => {
+    const { app, appointStaff } = appFor(OWNER, []);
+
+    const response = await appoint(app, { email: "target@example.test", roleCode: "moderator", password: "a-long-password" });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ error: { code: "account_exists" } });
+    expect(appointStaff).not.toHaveBeenCalled();
+  });
+
+  it("refuses a password too short to be one", async () => {
+    const { app, appointStaff } = appFor(OWNER, [], null);
+
+    const response = await appoint(app, { email: "new@example.test", roleCode: "moderator", password: "short" });
+
+    expect(response.statusCode).toBe(400);
+    expect(appointStaff).not.toHaveBeenCalled();
   });
 
   it("rejects a permission string that is not one", async () => {
-    const { app, upsertStaff } = appFor(OWNER, []);
+    const { app, appointStaff } = appFor(OWNER, []);
 
     // The field is compared against every admin route in the system. A
     // language rich enough to be interesting is one where a typo grants more
@@ -158,7 +200,7 @@ describe("appointing staff", () => {
     const response = await appoint(app, { email: "new@example.test", roleCode: "moderator", permissions: ["../../etc/passwd"] });
 
     expect(response.statusCode).toBe(400);
-    expect(upsertStaff).not.toHaveBeenCalled();
+    expect(appointStaff).not.toHaveBeenCalled();
   });
 });
 

@@ -30,6 +30,14 @@ export interface AdminStaffDependencies {
     listStaff(): Promise<StaffMember[]>;
     staffMember(userId: string): Promise<StaffMember | null>;
     upsertStaff(input: { userId: string; roleCode: string; permissions: readonly string[] | null; grantedBy: string }): Promise<void>;
+    appointStaff(input: {
+      existingUserId: string | null;
+      email: string;
+      password: string | null;
+      roleCode: string;
+      permissions: readonly string[] | null;
+      grantedBy: string;
+    }): Promise<{ userId: string; totp: { secret: string; uri: string } | null }>;
     revokeStaff(userId: string, roleCode: string): Promise<boolean>;
     roles(): Promise<{ code: string; name: string; permissions: string[] }[]>;
     findUserByEmail(email: string): Promise<{ id: string; email: string | null } | null>;
@@ -71,6 +79,8 @@ const AppointSchema = z
      * created before this route existed does. An array narrows it.
      */
     permissions: z.array(PermissionSchema).max(64).optional(),
+    /** Only for an address with no account yet, which this creates. */
+    password: z.string().min(10).max(512).optional(),
   })
   .strict();
 
@@ -122,11 +132,17 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
   });
 
   /**
-   * Appoint somebody who already has an account.
+   * Appoint somebody, by email — creating their account when a password is
+   * given for an address nobody uses yet.
    *
-   * By email rather than by id, and never by creating the account here: staff
-   * sign in through the same door as everyone else, and a route that could
-   * mint accounts would be a second, quieter signup path.
+   * Staff are made by staff, not through signup, so they need no invite. That
+   * is a second way to mint accounts, which is why it sits behind
+   * `staff.write` and cannot make a customer: every account it creates holds a
+   * role. A password for an address that already has an account is refused
+   * rather than applied, or this would be a way to take over anyone's account.
+   *
+   * The response carries the new second-factor key when the person had none,
+   * once. /admin refuses a password alone.
    */
   app.post("/api/v1/admin/staff", { bodyLimit: 8 * 1024 }, async (request, reply) => {
     const session = await guard.require(request, reply, "staff.write");
@@ -134,10 +150,17 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
 
     const body = AppointSchema.parse(request.body);
     const user = await staff.findUserByEmail(body.email);
-    if (!user) {
-      return reply.code(404).send({ error: { code: "no_such_user", message: "Nobody signs in with that address." } });
+    if (!user && !body.password) {
+      return reply
+        .code(404)
+        .send({ error: { code: "no_such_user", message: "Nobody signs in with that address. Give a password to create their account." } });
     }
-    if (user.id === session.userId) {
+    if (user && body.password) {
+      return reply
+        .code(409)
+        .send({ error: { code: "account_exists", message: "That address already has an account. Appoint it without a password." } });
+    }
+    if (user?.id === session.userId) {
       return reply.code(409).send({ error: { code: "self", message: "You cannot change your own access." } });
     }
 
@@ -153,25 +176,36 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
       return reply.code(403).send({ error: { code: "beyond_your_own", message: "You cannot grant access you do not hold." } });
     }
 
-    const existing = await staff.staffMember(user.id);
+    const existing = user ? await staff.staffMember(user.id) : null;
     if (existing) {
       const refusal = mayAct(session.permissions, session.userId, existing);
       if (refusal) return reply.code(403).send({ error: { code: "outranked", message: refusal } });
     }
 
-    await staff.upsertStaff({
-      userId: user.id,
-      roleCode: body.roleCode,
-      permissions: body.permissions ?? null,
-      grantedBy: session.userId,
-    });
+    let appointed: Awaited<ReturnType<typeof staff.appointStaff>>;
+    try {
+      appointed = await staff.appointStaff({
+        existingUserId: user?.id ?? null,
+        email: body.email,
+        password: body.password ?? null,
+        roleCode: body.roleCode,
+        permissions: body.permissions ?? null,
+        grantedBy: session.userId,
+      });
+    } catch (error) {
+      // A suspended or deleted account still holds its address.
+      if ((error as { code?: string }).code === "23505") {
+        return reply.code(409).send({ error: { code: "account_exists", message: "That address already belongs to an account." } });
+      }
+      throw error;
+    }
     await guard.audit(request, session, {
       action: "staff.appointed",
       targetType: "user",
-      targetId: user.id,
-      after: { roleCode: body.roleCode, permissions: effective },
+      targetId: appointed.userId,
+      after: { roleCode: body.roleCode, permissions: effective, accountCreated: !user, secondFactorIssued: appointed.totp !== null },
     });
-    return reply.code(201).send({ staff: await staff.staffMember(user.id) });
+    return reply.code(201).send({ staff: await staff.staffMember(appointed.userId), totp: appointed.totp });
   });
 
   /** Narrow or widen what one member of staff can do. */

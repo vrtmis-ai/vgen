@@ -38,7 +38,7 @@ import { sealingKeyFrom } from "@vgen/core";
 import { createAuthRateLimiters } from "./auth/rateLimits";
 import { GoogleOAuth } from "./auth/googleOAuth";
 import { MicrosoftOAuth } from "./auth/microsoftOAuth";
-import { ConsoleSmsSender, KavenegarSmsSender, type SmsSender } from "./auth/sms";
+import { KavenegarSmsSender, type SmsSender } from "./auth/sms";
 import { createApp } from "./createApp";
 import { createPromptGuard } from "./promptGuard";
 
@@ -128,12 +128,11 @@ const microsoft =
 
 const kavenegarKey = process.env.KAVENEGAR_API_KEY?.trim();
 const kavenegarTemplate = process.env.KAVENEGAR_TEMPLATE?.trim();
-// ConsoleSmsSender refuses to construct in production, so a deploy that forgets
-// the gateway fails at boot instead of printing customers' codes into the logs.
-const sms: SmsSender =
-  kavenegarKey && kavenegarTemplate
-    ? new KavenegarSmsSender({ apiKey: kavenegarKey, template: kavenegarTemplate })
-    : new ConsoleSmsSender();
+// No gateway, no phone sign-in — in every environment, so what you see locally
+// is what production shows. Kavenegar needs eNamad before it will send OTP
+// templates; set both variables once it does and the phone option appears.
+const sms: SmsSender | undefined =
+  kavenegarKey && kavenegarTemplate ? new KavenegarSmsSender({ apiKey: kavenegarKey, template: kavenegarTemplate }) : undefined;
 
 // Seals TOTP secrets at rest, so `mfa_credentials.secret_ref` is a blob that
 // is useless without a key held outside the database.

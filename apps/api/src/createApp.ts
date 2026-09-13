@@ -120,7 +120,7 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   // whose credentials are unset has no endpoint, and now no button either.
   const authOptions = options.auth?.options;
   const authProviders = authOptions ? OAuthProviderSchema.options.filter((provider) => authOptions[provider]) : [];
-  registerCustomerSessionRoute(app, dependencies.customerSession, authProviders);
+  registerCustomerSessionRoute(app, dependencies.customerSession, authProviders, Boolean(options.auth?.dependencies.sms));
   registerCatalogRoute(app, dependencies.customerCatalog);
   registerContentRoute(app, dependencies.customerContent);
   registerCommunityRoutes(app, dependencies.customerSession, dependencies.customerCommunity, dependencies.communitySubmissions);

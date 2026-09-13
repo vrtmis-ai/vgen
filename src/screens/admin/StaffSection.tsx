@@ -1,7 +1,16 @@
 import { useState, type FormEvent } from "react";
-import type { AdminApi, StaffMember } from "../../features/admin/adminApi";
+import type { AdminApi, StaffMember, StaffTotp } from "../../features/admin/adminApi";
 import { useStaff, useStaffMutations, useStaffRoles } from "../../features/admin/useAdmin";
+import { ApiError } from "../../runtime/apiError";
 import { Cell, Muted, Table, when } from "./primitives";
+
+function appointFailure(error: unknown): string {
+  const code = error instanceof ApiError ? error.code : null;
+  if (code === "no_such_user") return "این ایمیل حسابی ندارد. برای ساختن حساب، رمز عبور هم بده.";
+  if (code === "account_exists") return "این ایمیل از قبل حساب دارد. رمز را خالی بگذار؛ رمز حساب کسی را از اینجا نمی‌شود عوض کرد.";
+  if (code === "validation_failed") return "رمز عبور باید دست‌کم ۱۰ نویسه باشد.";
+  return "انجام نشد. شاید دسترسی خواسته‌شده بیشتر از توست.";
+}
 
 /**
  * Who is staff, and what each of them can do.
@@ -251,19 +260,31 @@ function Appoint({ api, grantable, mutations }: { api: AdminApi; grantable: stri
   const [email, setEmail] = useState("");
   const [roleCode, setRoleCode] = useState("");
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [password, setPassword] = useState("");
+  // Shown once: the server keeps the key only sealed.
+  const [issued, setIssued] = useState<{ email: string; totp: StaffTotp } | null>(null);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!email.trim() || !roleCode) return;
+    const address = email.trim();
+    setIssued(null);
     mutations.appoint.mutate(
-      // No permissions chosen means "inherit the role", which is what every
-      // staff row created before this screen existed does. Sending [] instead
-      // would appoint somebody who can do nothing.
-      permissions.length > 0 ? { email: email.trim(), roleCode, permissions } : { email: email.trim(), roleCode },
       {
-        onSuccess: () => {
+        email: address,
+        roleCode,
+        // No permissions chosen means "inherit the role", which is what every
+        // staff row created before this screen existed does. Sending [] instead
+        // would appoint somebody who can do nothing.
+        permissions: permissions.length > 0 ? permissions : undefined,
+        password: password || undefined,
+      },
+      {
+        onSuccess: (totp) => {
           setEmail("");
+          setPassword("");
           setPermissions([]);
+          if (totp) setIssued({ email: address, totp });
         },
       },
     );
@@ -273,7 +294,8 @@ function Appoint({ api, grantable, mutations }: { api: AdminApi; grantable: stri
     <section>
       <Heading>افزودن هم‌تیمی</Heading>
       <Muted>
-        باید از قبل حساب داشته باشد و با همان ایمیل وارد شود. اینجا حساب ساخته نمی‌شود — ورود کارکنان از همان دری است که مشتری‌ها می‌آیند.
+        کارکنان کد دعوت لازم ندارند. اگر این ایمیل هنوز حساب ندارد، یک رمز عبور (دست‌کم ۱۰ نویسه) بده تا حسابش همین‌جا ساخته شود. اگر حساب
+        دارد، رمز را خالی بگذار.
       </Muted>
       <form onSubmit={submit} className="mt-3 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -282,8 +304,21 @@ function Appoint({ api, grantable, mutations }: { api: AdminApi; grantable: stri
             onChange={(event) => setEmail(event.target.value)}
             type="email"
             placeholder="ایمیل"
+            aria-label="ایمیل"
             className="vg-field-pad h-9 w-[240px] rounded-lg text-[13px]"
             style={{ background: "var(--vg-surface)", color: "var(--vg-text)" }}
+          />
+          <input
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            type="password"
+            autoComplete="new-password"
+            minLength={10}
+            placeholder="رمز عبور — فقط برای حساب تازه"
+            aria-label="رمز عبور برای حساب تازه"
+            className="vg-field-pad h-9 w-[240px] rounded-lg text-[13px]"
+            style={{ background: "var(--vg-surface)", color: "var(--vg-text)" }}
+            dir="ltr"
           />
           <select
             value={roleCode}
@@ -323,8 +358,32 @@ function Appoint({ api, grantable, mutations }: { api: AdminApi; grantable: stri
           ))}
         </div>
         <Muted>هیچ‌کدام را انتخاب نکنی، همان دسترسی‌های خودِ نقش را می‌گیرد.</Muted>
-        {mutations.appoint.error && <Muted>انجام نشد. شاید این ایمیل حسابی ندارد، یا دسترسی خواسته‌شده بیشتر از توست.</Muted>}
+        {mutations.appoint.error && <Muted>{appointFailure(mutations.appoint.error)}</Muted>}
       </form>
+      {issued && (
+        <div
+          role="status"
+          className="mt-3 rounded-lg p-3 text-[12.5px] leading-[1.9]"
+          style={{ background: "var(--vg-surface)", color: "var(--vg-text)" }}
+        >
+          <p>
+            کلید ورود دومرحله‌ای <bdi>{issued.email}</bdi> — همین حالا به خودش بده تا در Google Authenticator (یا هر برنامه‌ی مشابه) وارد
+            کند. دوباره نمایش داده نمی‌شود.
+          </p>
+          <p className="mt-1 select-all font-mono text-[13px]" dir="ltr">
+            {issued.totp.secret}
+          </p>
+          <p className="mt-1">
+            روی گوشی، این پیوند برنامه را باز می‌کند:{" "}
+            <a href={issued.totp.uri} className="underline" dir="ltr">
+              افزودن به برنامه
+            </a>
+          </p>
+          <p className="mt-1" style={{ color: "var(--vg-text-muted)" }}>
+            بعد با ایمیل و رمز در /admin وارد می‌شود و کد شش‌رقمی برنامه را می‌زند.
+          </p>
+        </div>
+      )}
     </section>
   );
 }

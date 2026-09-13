@@ -95,9 +95,9 @@ Who, if anyone, is signed in, and how anyone could sign in. Never 401s —
 anonymous is a normal answer.
 
 ```jsonc
-{ "status": "anonymous", "host": "web", "authProviders": ["google"] }
+{ "status": "anonymous", "host": "web", "authProviders": ["google"], "phoneSignIn": false }
 // or
-{ "status": "authed", "host": "web", "authProviders": ["google", "microsoft"],
+{ "status": "authed", "host": "web", "authProviders": ["google", "microsoft"], "phoneSignIn": true,
   "user": { "id": "…", "methods": ["email"], "emailNormalized": "a@b.c",
             "displayName": "…", "locale": "fa", "isTeam": false } }
 ```
@@ -124,10 +124,18 @@ follow:
 - **It is on the anonymous arm too**, which is the arm that matters — the only
   people who need it are the ones who have not signed in.
 
-Locally neither is configured, so the list is `[]` and the sign-in screen shows
-phone and email only. That is correct, not a bug: **neither Google nor Microsoft
-is dependably reachable from Iran without a VPN**, so phone OTP is the route
-most people will take regardless.
+Locally neither is configured, so the list is `[]`. That is correct, not a bug:
+**neither Google nor Microsoft is dependably reachable from Iran without a VPN**,
+so phone OTP is the route most people will take once it exists.
+
+**`phoneSignIn` is the same rule for the phone form.** It is true only when
+`KAVENEGAR_API_KEY` and `KAVENEGAR_TEMPLATE` are both set. Without them the
+screen offers email and password only, and `POST /auth/otp/start` and
+`/auth/otp/verify` answer `404 phone_unavailable`. That is every environment
+until eNamad clears, because Kavenegar will not send OTP templates for a site
+without it. There is no console fallback any more, so local matches production.
+Phone signup is also the only thing that grants the 12-coin trial; until it is
+back, give invitees coins through the invite code's gift.
 
 ### `GET /catalog`
 
@@ -961,10 +969,19 @@ not offer what will be refused; it is never the control.
    first two permit narrowing your own set, and the result is a console nobody
    can get back into.
 
-Appointment is **by email, and never creates an account** — staff sign in
-through the same door as everyone else, and a route that could mint accounts
-would be a second, quieter signup path. An unknown address is **404**
-`no_such_user`.
+Appointment is **by email, and creates the account when given a `password`**
+(10–512 characters) for an address nobody uses yet. Staff are made by staff, so
+they need no invite code while signup is invite-only. An unknown address
+without a password is **404** `no_such_user`. A password for an address that
+already has an account, active or not, is **409** `account_exists` rather than
+applied: otherwise `staff.write` would be a way to take over anyone's account.
+
+The 201 carries `totp: { secret, uri }` when the person had no confirmed second
+factor, and `null` otherwise. `/admin` refuses a password alone, so this is how
+a new member of staff gets in: hand them the key once, and they add it to an
+authenticator app. It is stored only sealed and never written to the audit log,
+which records `accountCreated` and `secondFactorIssued` instead. Appointing an
+existing member of staff who has no factor issues one the same way.
 
 A permission string must match `^(\*|[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*(\.\*)?)$`.
 The field is compared against every admin route in the system, and a language

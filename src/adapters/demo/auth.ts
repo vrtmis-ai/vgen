@@ -52,7 +52,7 @@ const DEMO_USER: AccountUser = {
  */
 const DEMO_AUTH_PROVIDERS = ["google", "microsoft"] as const;
 
-const ANONYMOUS: Session = { status: "anonymous", host: "web", authProviders: [...DEMO_AUTH_PROVIDERS] };
+const ANONYMOUS: Session = { status: "anonymous", host: "web", authProviders: [...DEMO_AUTH_PROVIDERS], phoneSignIn: true };
 
 export interface DemoAuthState {
   /** Shared with the demo session service, so signing in changes what it reports. */
@@ -62,7 +62,7 @@ export interface DemoAuthState {
 
 export function createDemoAuthState(startAuthed: boolean): DemoAuthState {
   let session: Session = startAuthed
-    ? { status: "authed", host: "web", user: DEMO_USER, authProviders: [...DEMO_AUTH_PROVIDERS] }
+    ? { status: "authed", host: "web", user: DEMO_USER, authProviders: [...DEMO_AUTH_PROVIDERS], phoneSignIn: true }
     : ANONYMOUS;
   return {
     current: () => session,
@@ -78,6 +78,7 @@ function authedAs(email?: string): Session {
     host: "web",
     user: email ? { ...DEMO_USER, emailNormalized: email } : DEMO_USER,
     authProviders: [...DEMO_AUTH_PROVIDERS],
+    phoneSignIn: true,
   };
 }
 

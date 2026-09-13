@@ -52,6 +52,7 @@ function build(
     limiters?: AuthRateLimiters;
     google?: Parameters<typeof registerAuthRoutes>[2]["google"];
     microsoft?: Parameters<typeof registerAuthRoutes>[2]["microsoft"];
+    withoutSms?: boolean;
   } = {},
 ) {
   const auth = overrides.auth ?? authDouble();
@@ -59,7 +60,7 @@ function build(
   registerErrorHandling(app);
   registerAuthRoutes(
     app,
-    { auth: auth as never, sms: { sendVerificationCode: vi.fn(async () => undefined) } },
+    { auth: auth as never, sms: overrides.withoutSms ? undefined : { sendVerificationCode: vi.fn(async () => undefined) } },
     {
       cookie: { secure: true },
       limiters: overrides.limiters ?? openLimiters(),
@@ -77,6 +78,19 @@ const cookieOf = (response: { headers: Record<string, unknown> }) => {
 };
 
 describe("requesting a code", () => {
+  it("does not exist without an SMS gateway", async () => {
+    const { app, auth } = build({ withoutSms: true });
+
+    const start = await app.inject({ method: "POST", url: "/api/v1/auth/otp/start", payload: { phone: "09121234567" } });
+    const verify = await app.inject({ method: "POST", url: "/api/v1/auth/otp/verify", payload: { phone: "09121234567", code: "123456" } });
+
+    expect([start.statusCode, verify.statusCode]).toEqual([404, 404]);
+    expect(start.json().error.code).toBe("phone_unavailable");
+    expect(auth.startPhoneVerification).not.toHaveBeenCalled();
+    expect(auth.signInWithPhoneCode).not.toHaveBeenCalled();
+    await app.close();
+  });
+
   it("normalises every way an Iranian number is written before using it", async () => {
     const { app, auth } = build();
 

@@ -361,7 +361,11 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const offered = session.data?.status === "loading" ? [] : (session.data?.authProviders ?? []);
   const providers = PROVIDERS.filter((provider) => offered.includes(provider.id));
 
-  const [method, setMethod] = useState<Method>("phone");
+  // Phone only where the server has an SMS gateway to send the code with.
+  // Without one the form would take a number and then fail to text it.
+  const phoneOffered = session.data?.status !== "loading" && session.data?.phoneSignIn === true;
+  const [chosenMethod, setMethod] = useState<Method>("phone");
+  const method: Method = phoneOffered ? chosenMethod : "email";
 
   const [phone, setPhone] = useState("");
   const [digits, setDigits] = useState<string[]>(emptyCode);
@@ -769,17 +773,19 @@ export default function Auth({ mode }: { mode: AuthMode }) {
           {/* A quiet line rather than a segmented control: two credentials,
                   one of which most people here will never use, and a box round
                   them would give the choice more weight than the form. */}
-          <button
-            type="button"
-            className="vg-ease hover:text-[color:var(--vg-text)]"
-            style={{ color: "var(--vg-text-secondary)" }}
-            onClick={() => {
-              setMethod(method === "phone" ? "email" : "phone");
-              setFailure(null);
-            }}
-          >
-            {t(method === "phone" ? "auth_use_email" : "auth_use_phone")}
-          </button>
+          {phoneOffered && (
+            <button
+              type="button"
+              className="vg-ease hover:text-[color:var(--vg-text)]"
+              style={{ color: "var(--vg-text-secondary)" }}
+              onClick={() => {
+                setMethod(method === "phone" ? "email" : "phone");
+                setFailure(null);
+              }}
+            >
+              {t(method === "phone" ? "auth_use_email" : "auth_use_phone")}
+            </button>
+          )}
 
           <button
             type="button"
