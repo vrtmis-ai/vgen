@@ -13,7 +13,9 @@ import { useCreateGeneration, useGalleryHistory, useGenerationJobs } from "../..
 import { SystemState } from "../../components/SystemState";
 import { ApiError } from "../../adapters/http/client";
 import type { GenerationQuote } from "../contracts/generation";
+import { appQueryKeys } from "../../features/session/useSession";
 import { useAppServices } from "../AppServices";
+import { useIsVisitor } from "./SessionProvider";
 import { useNavigation } from "./NavigationProvider";
 
 interface StartedGeneration {
@@ -100,6 +102,7 @@ const GenerationsContext = createContext<Generations | null>(null);
  */
 export function GenerationsProvider({ children }: { children: ReactNode }) {
   const families = useCatalogFamilies();
+  const visitor = useIsVisitor();
   const services = useAppServices();
   const navigation = useNavigation();
   const createGeneration = useCreateGeneration();
@@ -131,7 +134,13 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
      downstream (the wall, a deep-linked result, the profile count, "to video")
      keeps reading one collection. What this browser started and the server has
      not answered about yet survives the fold; see `mergeGenerations`. */
-  const history = useGalleryHistory(hydrated);
+  /* Both conditions, and the second one is the fix. This asked as soon as
+     localStorage had been read, which is true for a visitor too — so every
+     anonymous page load fired `GET /gallery` and collected a pair of 401s (a
+     pair, because the query retries once). `useGalleryHistory`'s own comment
+     already said it was gated "because an anonymous visitor has no history and
+     the route would answer 401"; `hydrated` was simply the wrong boolean. */
+  const history = useGalleryHistory(hydrated && !visitor);
   const historyItems = history.data?.items;
   useEffect(() => {
     if (!historyItems) return;
@@ -190,6 +199,27 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   // one. A job is queued, running, or over — and the outputs arriving is what
   // marks the end, which is why they are part of the key.
   const jobStateKey = jobQueries.jobs.map((job) => `${job.id}:${job.status}:${job.outputs.length}`).join("|");
+
+  /* The coin counter, whenever a job moves.
+   *
+   * Credit moves twice per generation — a hold when it is submitted, a capture
+   * or a release when it settles — and nothing was telling the wallet query
+   * about either. `["wallet"]` was invalidated in exactly one place, on sign-in
+   * (`useAuth`), so the balance in the header was whatever it had been when the
+   * tab was opened: spend 1.3 coins on an image and the number kept saying what
+   * it said before, until a full reload. `staleTime` is 15s, so even a refocus
+   * inside that window did not correct it.
+   *
+   * Keyed on `jobStateKey`, which is the one string that already changes on
+   * every transition this cares about, so a generation costs a handful of
+   * `GET /wallet` calls and no polling at all. Deliberately not narrowed to
+   * terminal states: the hold is the first thing a customer sees leave their
+   * balance, and it happens on the first poll rather than at the end. */
+  useEffect(() => {
+    if (!jobStateKey) return;
+    void queryClient.invalidateQueries({ queryKey: appQueryKeys.wallet });
+  }, [jobStateKey, queryClient]);
+
   useEffect(() => {
     if (!jobStateKey) return;
     const byId = new Map(jobQueries.jobs.map((job) => [job.id, job]));
