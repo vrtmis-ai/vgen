@@ -331,6 +331,174 @@
       "isOffered": true
     },
     {
+      "variantId": "gpt-image-2-5-flare",
+      "externalModelId": "gpt-image-2-5-flare-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 6,
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-flare",
+      "externalModelId": "gpt-image-2-5-flare-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 10,
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-flare",
+      "externalModelId": "gpt-image-2-5-flare-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst",
+      "externalModelId": "gpt-image-2-5-sunburst-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 6,
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst",
+      "externalModelId": "gpt-image-2-5-sunburst-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 10,
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst",
+      "externalModelId": "gpt-image-2-5-sunburst-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-flare-edit",
+      "externalModelId": "gpt-image-2-5-flare-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 6,
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-flare-edit",
+      "externalModelId": "gpt-image-2-5-flare-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 10,
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-flare-edit",
+      "externalModelId": "gpt-image-2-5-flare-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst-edit",
+      "externalModelId": "gpt-image-2-5-sunburst-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 6,
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst-edit",
+      "externalModelId": "gpt-image-2-5-sunburst-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 10,
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst-edit",
+      "externalModelId": "gpt-image-2-5-sunburst-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "grok-image",
       "externalModelId": "grok-imagine/text-to-image",
       "featureCode": "image_generate",

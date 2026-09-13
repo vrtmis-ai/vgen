@@ -479,6 +479,379 @@
       ],
       "variants": [
         {
+          "id": "gpt-image-2-5-flare",
+          "featureCode": "image_generate",
+          "label": "۲٫۵ Flare",
+          "badge": "جدید",
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "auto",
+                  "label": "خودکار",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "3:2",
+                  "label": "3:2",
+                  "w": 3,
+                  "h": 2
+                },
+                {
+                  "value": "2:3",
+                  "label": "2:3",
+                  "w": 2,
+                  "h": 3
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "auto"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "1K",
+                  "label": "1K"
+                },
+                {
+                  "value": "2K",
+                  "label": "2K"
+                },
+                {
+                  "value": "4K",
+                  "label": "4K"
+                }
+              ],
+              "def": "1K"
+            }
+          ]
+        },
+        {
+          "id": "gpt-image-2-5-flare-edit",
+          "featureCode": "image_edit",
+          "label": "۲٫۵ Flare ویرایش",
+          "refs": [
+            {
+              "key": "input_urls",
+              "label": "تصاویر ورودی",
+              "max": 16,
+              "required": true
+            }
+          ],
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "auto",
+                  "label": "خودکار",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "3:2",
+                  "label": "3:2",
+                  "w": 3,
+                  "h": 2
+                },
+                {
+                  "value": "2:3",
+                  "label": "2:3",
+                  "w": 2,
+                  "h": 3
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "auto"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "1K",
+                  "label": "1K"
+                },
+                {
+                  "value": "2K",
+                  "label": "2K"
+                },
+                {
+                  "value": "4K",
+                  "label": "4K"
+                }
+              ],
+              "def": "1K"
+            }
+          ]
+        },
+        {
+          "id": "gpt-image-2-5-sunburst",
+          "featureCode": "image_generate",
+          "label": "۲٫۵ Sunburst",
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "auto",
+                  "label": "خودکار",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "3:2",
+                  "label": "3:2",
+                  "w": 3,
+                  "h": 2
+                },
+                {
+                  "value": "2:3",
+                  "label": "2:3",
+                  "w": 2,
+                  "h": 3
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "auto"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "1K",
+                  "label": "1K"
+                },
+                {
+                  "value": "2K",
+                  "label": "2K"
+                },
+                {
+                  "value": "4K",
+                  "label": "4K"
+                }
+              ],
+              "def": "1K"
+            }
+          ]
+        },
+        {
+          "id": "gpt-image-2-5-sunburst-edit",
+          "featureCode": "image_edit",
+          "label": "۲٫۵ Sunburst ویرایش",
+          "refs": [
+            {
+              "key": "input_urls",
+              "label": "تصاویر ورودی",
+              "max": 16,
+              "required": true
+            }
+          ],
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "auto",
+                  "label": "خودکار",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "3:2",
+                  "label": "3:2",
+                  "w": 3,
+                  "h": 2
+                },
+                {
+                  "value": "2:3",
+                  "label": "2:3",
+                  "w": 2,
+                  "h": 3
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "auto"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "1K",
+                  "label": "1K"
+                },
+                {
+                  "value": "2K",
+                  "label": "2K"
+                },
+                {
+                  "value": "4K",
+                  "label": "4K"
+                }
+              ],
+              "def": "1K"
+            }
+          ]
+        },
+        {
           "id": "gpt-image-2",
           "featureCode": "image_generate",
           "label": "نسخه ۲"

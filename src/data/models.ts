@@ -220,6 +220,44 @@ const QUALITY = (def: string, vals: string[]): Control => ({
   options: vals.map((v) => ({ value: v, label: v === "4k" ? "4K" : v })),
 });
 
+/**
+ * GPT Image 2.5's schema, shared by Flare and Sunburst.
+ *
+ * Not the family's, because 2.5 is not 2: it dropped 5:4 and 4:5, and added
+ * 27:16, 16:27, 9:8 and 8:9 — which KIE serves at 1K only. Those four are left
+ * out rather than offered, because a `Control` cannot express "this ratio caps
+ * the resolution", so listing them would put a 2K request on the screen that
+ * the provider refuses after the hold is taken.
+ *
+ * One array for both variants: Flare and Sunburst differ in latency and polish,
+ * not in what may be asked of them.
+ */
+const gptImage25Controls: Control[] = [
+  {
+    kind: "aspect",
+    key: "aspect_ratio",
+    label: "نسبت تصویر",
+    def: "auto",
+    options: [ratios.auto, ratios.sq, ratios.l32, ratios.p23, ratios.l43, ratios.p34, ratios.l169, ratios.p916, ratios.l219],
+  },
+  QUALITY("1K", ["1K", "2K", "4K"]),
+];
+
+/**
+ * What the 2.5 edit endpoints take, and the reason they are separate variants.
+ *
+ * KIE splits GPT Image 2.5 into two endpoints per model — `-text-to-image` and
+ * `-image-to-image` — and a variant is one endpoint, because a variant is also
+ * one row in `provider_models` and one set of price rows. `upstream.json` has a
+ * `modelWithRefs` field that was meant to let one variant switch endpoints when
+ * a file is attached; nothing has ever read it (see the audit note there), so
+ * the pair is modelled the way every other split endpoint in this catalogue is.
+ *
+ * `required`, because `input_urls` is Required in KIE's schema: without it the
+ * job is refused after the hold is taken. 16 is their `maxItems`.
+ */
+const gptImage25Refs: RefSlot[] = [{ key: "input_urls", label: "تصاویر ورودی", max: 16, required: true }];
+
 // Seedance variants share one schema; only the available resolutions differ (from the price table).
 function seedanceControls(res: string[]): Control[] {
   return [
@@ -457,6 +495,26 @@ export const FAMILIES: Family[] = [
       QUALITY("1K", ["1K", "2K", "4K"]),
     ],
     variants: [
+      /* 2.5 leads the family: same price as 2 at every resolution (6/10/16 KIE
+         credits for 1K/2K/4K), lower latency, and OpenAI's current image model.
+         Flare first because it is the one to reach for — Sunburst is the same
+         schema and the same cost, tuned for polish over speed. */
+      { id: "gpt-image-2-5-flare", featureCode: "image_generate", label: "۲٫۵ Flare", badge: "جدید", controls: gptImage25Controls },
+      {
+        id: "gpt-image-2-5-flare-edit",
+        featureCode: "image_edit",
+        label: "۲٫۵ Flare ویرایش",
+        controls: gptImage25Controls,
+        refs: gptImage25Refs,
+      },
+      { id: "gpt-image-2-5-sunburst", featureCode: "image_generate", label: "۲٫۵ Sunburst", controls: gptImage25Controls },
+      {
+        id: "gpt-image-2-5-sunburst-edit",
+        featureCode: "image_edit",
+        label: "۲٫۵ Sunburst ویرایش",
+        controls: gptImage25Controls,
+        refs: gptImage25Refs,
+      },
       { id: "gpt-image-2", featureCode: "image_generate", label: "نسخه ۲" },
       {
         id: "gpt-image-1-5",
