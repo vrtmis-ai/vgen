@@ -1,0 +1,306 @@
+{
+  "fetchedAt": "2026-09-12",
+  "source": "https://docs.kie.ai/llms.txt",
+  "models": [
+    {
+      "model": "bytedance/seedance-1.5-pro",
+      "title": "Bytedance Seedance 1.5 Pro",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/bytedance/seedance-1-5-pro.md"
+    },
+    {
+      "model": "bytedance/seedance-2",
+      "title": "bytedance-seedance-2",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/bytedance/seedance-2.md"
+    },
+    {
+      "model": "bytedance/seedance-2-5",
+      "title": "Bytedance Seedance 2.5",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/bytedance/seedance-2-5.md"
+    },
+    {
+      "model": "bytedance/seedance-2-fast",
+      "title": "Bytedance Seedance 2.0 Fast",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/bytedance/seedance-2-fast.md"
+    },
+    {
+      "model": "bytedance/seedance-2-mini",
+      "title": "Bytedance Seedance 2.0 Mini",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/bytedance/seedance-2-mini.md"
+    },
+    {
+      "model": "elevenlabs/text-to-speech-multilingual-v2",
+      "title": "elevenlabs/text-to-speech-multilingual-v2",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/elevenlabs/text-to-speech-multilingual-v2.md"
+    },
+    {
+      "model": "elevenlabs/text-to-speech-turbo-2-5",
+      "title": "elevenlabs/text-to-speech-turbo-2-5",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/elevenlabs/text-to-speech-turbo-2-5.md"
+    },
+    {
+      "model": "flux-2/flex-text-to-image",
+      "title": "Flux-2 - Text to Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/flux2/flex-text-to-image.md"
+    },
+    {
+      "model": "flux-2/pro-text-to-image",
+      "title": "Flux-2 - Pro Text to Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/flux2/pro-text-to-image.md"
+    },
+    {
+      "model": "gemini-omni-video",
+      "title": "Gemini Omni Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/gemini-omni-video.md"
+    },
+    {
+      "model": "google/imagen4",
+      "title": "Google - imagen4",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/google/imagen4.md"
+    },
+    {
+      "model": "google/imagen4-fast",
+      "title": "Google - imagen4-fast",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/google/imagen4-fast.md"
+    },
+    {
+      "model": "google/imagen4-ultra",
+      "title": "Google - imagen4-ultra",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/google/imagen4-ultra.md"
+    },
+    {
+      "model": "gpt-image-2-5-flare-image-to-image",
+      "title": "GPT Image 2.5 Flare - Image To Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/gpt/gpt-image-2-5-flare-image-to-image.md"
+    },
+    {
+      "model": "gpt-image-2-5-flare-text-to-image",
+      "title": "GPT Image 2.5 Flare - Text to Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/gpt/gpt-image-2-5-flare-text-to-image.md"
+    },
+    {
+      "model": "gpt-image-2-5-sunburst-image-to-image",
+      "title": "GPT Image 2.5 Sunburst - Image To Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/gpt/gpt-image-2-5-sunburst-image-to-image.md"
+    },
+    {
+      "model": "gpt-image-2-5-sunburst-text-to-image",
+      "title": "GPT Image 2.5 Sunburst - Text to Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/gpt/gpt-image-2-5-sunburst-text-to-image.md"
+    },
+    {
+      "model": "gpt-image-2-text-to-image",
+      "title": "GPT Image-2 - Text to Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/gpt/gpt-image-2-text-to-image.md"
+    },
+    {
+      "model": "gpt-image/1.5-text-to-image",
+      "title": "GPT Image-1.5 - Text to Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/gpt-image/1-5-text-to-image.md"
+    },
+    {
+      "model": "grok-imagine/text-to-image",
+      "title": "Grok Imagine - Text to Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/grok-imagine/text-to-image.md"
+    },
+    {
+      "model": "hailuo/2-3-image-to-video-pro",
+      "title": "Hailuo 2.3 Pro Image to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/hailuo/2-3-image-to-video-pro.md"
+    },
+    {
+      "model": "hailuo/2-3-image-to-video-standard",
+      "title": "Hailuo 2.3 Standard Image to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/hailuo/2-3-image-to-video-standard.md"
+    },
+    {
+      "model": "ideogram/v3-text-to-image",
+      "title": "Ideogram V3 Text to Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/ideogram/v3-text-to-image.md"
+    },
+    {
+      "model": "kling-2.6/image-to-video",
+      "title": "Kling 2.6 Image to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/kling/image-to-video.md"
+    },
+    {
+      "model": "kling-2.6/motion-control",
+      "title": "Kling 2.6 motion-control",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/kling/motion-control.md"
+    },
+    {
+      "model": "kling-2.6/text-to-video",
+      "title": "Kling 2.6 Text to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/kling/text-to-video.md"
+    },
+    {
+      "model": "kling-3.0/motion-control",
+      "title": "Kling-3.0 motion-control",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/kling/motion-control-v3.md"
+    },
+    {
+      "model": "kling-3.0/video",
+      "title": "Kling 3.0",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/kling/kling-3-0.md"
+    },
+    {
+      "model": "kling/v2-5-turbo-text-to-video-pro",
+      "title": "Kling - V2.5 Turbo Text to Video Pro",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/kling/v25-turbo-text-to-video-pro.md"
+    },
+    {
+      "model": "kling/v3-turbo-image-to-video",
+      "title": "Kling - V3 Turbo Image to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/kling/v3-turbo-image-to-video.md"
+    },
+    {
+      "model": "kling/v3-turbo-text-to-video",
+      "title": "Kling - V3 Turbo Text to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/kling/v3-turbo-text-to-video.md"
+    },
+    {
+      "model": "minimax-h3/text-to-video",
+      "title": "MiniMax H3 Text-to-Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/minimax-h3/text-to-video.md"
+    },
+    {
+      "model": "nano-banana-2",
+      "title": "Google - Nano Banana 2",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/google/nanobanana2.md"
+    },
+    {
+      "model": "nano-banana-pro",
+      "title": "Google - Nano Banana Pro",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/google/pro-image-to-image.md"
+    },
+    {
+      "model": "qwen/text-to-image",
+      "title": "Qwen - Text to Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/qwen/text-to-image.md"
+    },
+    {
+      "model": "recraft/crisp-upscale",
+      "title": "Recraft - Crisp Upscale",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/recraft/crisp-upscale.md"
+    },
+    {
+      "model": "recraft/remove-background",
+      "title": "Recraft - Remove Background",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/recraft/remove-background.md"
+    },
+    {
+      "model": "seedream/4.5-text-to-image",
+      "title": "Seedream4.5 - Text to Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/seedream/4-5-text-to-image.md"
+    },
+    {
+      "model": "seedream/5-lite-text-to-image",
+      "title": "Seedream5.0 Lite - Text to Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/seedream/5-lite-text-to-image.md"
+    },
+    {
+      "model": "topaz/image-upscale",
+      "title": "Topaz - Image Upscale",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/topaz/image-upscale.md"
+    },
+    {
+      "model": "topaz/video-upscale",
+      "title": "Topaz - Video Upscale",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/topaz/video-upscale.md"
+    },
+    {
+      "model": "wan/2-5-image-to-video",
+      "title": "Wan 2.5 - Image to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/wan/2-5-image-to-video.md"
+    },
+    {
+      "model": "wan/2-5-text-to-video",
+      "title": "Wan 2.5 - Text to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/wan/2-5-text-to-video.md"
+    },
+    {
+      "model": "wan/2-6-image-to-video",
+      "title": "Wan 2.6 - Image to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/wan/2-6-image-to-video.md"
+    },
+    {
+      "model": "wan/2-6-text-to-video",
+      "title": "Wan 2.6 - Text to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/wan/2-6-text-to-video.md"
+    },
+    {
+      "model": "wan/2-7-image-to-video",
+      "title": "Wan 2.7 - Image to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/wan/2-7-image-to-video.md"
+    },
+    {
+      "model": "wan/2-7-r2v",
+      "title": "Wan 2.7 - Reference to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/wan/2-7-r2v.md"
+    },
+    {
+      "model": "wan/2-7-text-to-video",
+      "title": "Wan 2.7 - Text to Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/wan/2-7-text-to-video.md"
+    },
+    {
+      "model": "wan/2-7-videoedit",
+      "title": "Wan 2.7 - Video Edit",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/wan/2-7-videoedit.md"
+    },
+    {
+      "model": "z-image",
+      "title": "Z-Image",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/z-image/z-image.md"
+    }
+  ]
+}

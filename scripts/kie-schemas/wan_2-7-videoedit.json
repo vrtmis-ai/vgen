@@ -1,0 +1,110 @@
+{
+  "models": ["wan/2-7-videoedit"],
+  "title": "Wan 2.7 - Video Edit",
+  "docUrl": "https://docs.kie.ai/market/wan/2-7-videoedit.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Wan 2.7 - Video Edit — input",
+    "type": "object",
+    "description": "Input parameters for the video editing task.",
+    "required": ["video_url"],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "maxLength": 5000,
+        "description": "Optional text prompt describing the expected elements and visual features in the generated video. Supports Chinese and English. Maximum length: 5000 characters.",
+        "examples": ["Change the character's outfit and add the hat shown in the reference image."]
+      },
+      "negative_prompt": {
+        "type": "string",
+        "maxLength": 500,
+        "description": "Optional negative prompt describing content that should not appear in the video. Supports Chinese and English. Maximum length: 500 characters.",
+        "examples": ["low resolution, errors, worst quality, low quality, malformed, extra fingers, bad proportions"]
+      },
+      "video_url": {
+        "type": "string",
+        "format": "uri",
+        "description": "URL of the source video to edit. Required. Only one video is supported.\n\n- Formats: `mp4`, `mov`\n- Duration: `2` to `10` seconds\n- Resolution: width and height range `[240,4096]` pixels\n- Aspect ratio: `1:8` to `8:1`\n- File size: up to `100MB`\n- Supports public `http/https` URLs or temporary `oss` URLs",
+        "examples": ["https://example.com/demo/video.mp4"]
+      },
+      "reference_image": {
+        "type": "string",
+        "format": "uri",
+        "description": "Optional reference image URL for character, clothing, or style guidance.\n\n- Formats: `JPEG`, `JPG`, `PNG` (no alpha channel), `BMP`, `WEBP`\n- Resolution: width and height range `[240,8000]` pixels\n- Aspect ratio: `1:8` to `8:1`\n- Supports public `http/https` URLs or temporary `oss` URLs",
+        "examples": ["https://example.com/demo/reference.png"]
+      },
+      "resolution": {
+        "type": "string",
+        "enum": ["720p", "1080p"],
+        "default": "1080p",
+        "description": "Output video resolution tier. `1080p` costs more than `720p`. Default value: `1080p`.\n\n- `720p`: 720p\n- `1080p`: 1080p",
+        "examples": ["1080p"]
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "enum": ["16:9", "9:16", "1:1", "4:3", "3:4"],
+        "description": "Output video aspect ratio.\n\n- If omitted: the output uses an aspect ratio close to the input video\n- If provided: the output uses the specified aspect ratio\n- Available values: `16:9`, `9:16`, `1:1`, `4:3`, `3:4`",
+        "examples": ["16:9"]
+      },
+      "duration": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 10,
+        "default": 0,
+        "description": "Output video duration in seconds.\n\n- Default `0` means using the full input video duration without truncation\n- If a value is provided, the output is clipped from second `0` to the specified length\n- Valid values are `0` or any integer in `[2,10]`",
+        "examples": [0]
+      },
+      "audio_setting": {
+        "type": "string",
+        "enum": ["auto", "origin"],
+        "default": "auto",
+        "description": "Video audio setting.\n\n- `auto`: default, the model decides whether to regenerate audio based on the `prompt`\n- `origin`: force keeping the original input video audio",
+        "examples": ["auto"]
+      },
+      "prompt_extend": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether to enable prompt rewriting. When enabled, the model expands the input prompt. This usually works better for short prompts but increases processing time.",
+        "examples": [true]
+      },
+      "watermark": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether to add a watermark. The watermark is placed in the lower-right corner of the video with the fixed text \"AI generated\".",
+        "examples": [false]
+      },
+      "seed": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 2147483647,
+        "description": "Random seed. Range: `0-2147483647`. If omitted, the system generates one automatically.",
+        "examples": [0]
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    }
+  },
+  "examples": [
+    {
+      "model": "wan/2-7-videoedit",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "Change the character's outfit and add the hat shown in the reference image.",
+        "negative_prompt": "low resolution, errors, worst quality, low quality, malformed, extra fingers, bad proportions",
+        "video_url": "https://example.com/demo/video.mp4",
+        "reference_image": "https://example.com/demo/reference.png",
+        "resolution": "1080p",
+        "aspect_ratio": "16:9",
+        "duration": 0,
+        "audio_setting": "auto",
+        "prompt_extend": true,
+        "watermark": false,
+        "seed": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "models": ["wan/2-6-text-to-video"],
+  "title": "Wan 2.6 - Text to Video",
+  "docUrl": "https://docs.kie.ai/market/wan/2-6-text-to-video.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Wan 2.6 - Text to Video — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "Text prompts for video generation. Supports both Chinese and English, with a minimum of 1 characters and a maximum of 5,000 characters. (Max length: 5000 characters)",
+        "type": "string",
+        "maxLength": 5000,
+        "examples": [
+          "In a hyperrealistic ASMR video, a hand uses a knitted knife to slowly slice a burger made entirely of knitted wool. The satisfyingly crisp cut reveals a detailed cross-section of knitted meat, lettuce, and tomato slices. Captured in a close-up with a shallow depth of field, the scene is set against a stark, matte black surface. Cinematic lighting makes the surreal yarn textures shine with clear reflections. The focus is on the deliberate, satisfying motion and the unique, tactile materials."
+        ]
+      },
+      "duration": {
+        "description": "The duration of the generated video in seconds",
+        "type": "string",
+        "enum": ["5", "10", "15"],
+        "default": "5",
+        "examples": ["5"]
+      },
+      "resolution": {
+        "description": "Video resolution tier",
+        "type": "string",
+        "enum": ["720p", "1080p"],
+        "default": "1080p",
+        "examples": ["1080p"]
+      },
+      "multi_shots": {
+        "type": "boolean",
+        "default": false,
+        "description": "The multi shots parameter controls the shot composition style during AI video generation, determining whether the generated video is a single continuous shot or multiple shots with transitions."
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    },
+    "required": ["prompt"]
+  },
+  "examples": [
+    {
+      "model": "wan/2-6-text-to-video",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "In a hyperrealistic ASMR video, a hand uses a knitted knife to slowly slice a burger made entirely of knitted wool. The satisfyingly crisp cut reveals a detailed cross-section of knitted meat, lettuce, and tomato slices. Captured in a close-up with a shallow depth of field, the scene is set against a stark, matte black surface. Cinematic lighting makes the surreal yarn textures shine with clear reflections. The focus is on the deliberate, satisfying motion and the unique, tactile materials.",
+        "duration": "5",
+        "resolution": "1080p",
+        "multi_shots": false,
+        "nsfw_checker": false
+      }
+    }
+  ]
+}

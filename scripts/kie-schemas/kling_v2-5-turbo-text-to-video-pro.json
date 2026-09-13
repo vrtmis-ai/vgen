@@ -1,0 +1,65 @@
+{
+  "models": ["kling/v2-5-turbo-text-to-video-pro"],
+  "title": "Kling - V2.5 Turbo Text to Video Pro",
+  "docUrl": "https://docs.kie.ai/market/kling/v25-turbo-text-to-video-pro.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Kling - V2.5 Turbo Text to Video Pro — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "The text description of the video you want to generate (Max length: 2500 characters)",
+        "type": "string",
+        "maxLength": 2500,
+        "examples": [
+          "Real-time playback. Wide shot of a ruined city: collapsed towers, fires blazing, storm clouds with lightning. Camera drops fast from the sky over burning streets and tilted buildings. Smoke and dust fill the air. A lone hero walks out of the ruins, silhouetted by fire. Camera shifts front: his face is dirty with dust and sweat, eyes firm, a faint smile. Wind blows, debris rises. Extreme close-up: his eyes reflect the approaching enemy. Music and drums hit. Final wide shot: fire forms a blazing halo behind him — reborn in flames with epic cinematic vibe."
+        ]
+      },
+      "duration": {
+        "description": "The duration of the generated video in seconds",
+        "type": "string",
+        "enum": ["5", "10"],
+        "default": "5",
+        "examples": ["5"]
+      },
+      "aspect_ratio": {
+        "description": "The aspect ratio of the generated video frame",
+        "type": "string",
+        "enum": ["16:9", "9:16", "1:1"],
+        "default": "16:9",
+        "examples": ["16:9"]
+      },
+      "negative_prompt": {
+        "description": "Things to avoid in the generated video (Max length: 2500 characters)",
+        "type": "string",
+        "maxLength": 2500,
+        "examples": ["blur, distort, and low quality"]
+      },
+      "cfg_scale": {
+        "description": "The CFG (Classifier Free Guidance) scale is a measure of how close you want the model to stick to your prompt (Min: 0, Max: 1, Step: 0.1) (step: 0.1)",
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.5,
+        "examples": [0.5]
+      }
+    },
+    "required": ["prompt"]
+  },
+  "examples": [
+    {
+      "model": "kling/v2-5-turbo-text-to-video-pro",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "Real-time playback. Wide shot of a ruined city: collapsed towers, fires blazing, storm clouds with lightning. Camera drops fast from the sky over burning streets and tilted buildings. Smoke and dust fill the air. A lone hero walks out of the ruins, silhouetted by fire. Camera shifts front: his face is dirty with dust and sweat, eyes firm, a faint smile. Wind blows, debris rises. Extreme close-up: his eyes reflect the approaching enemy. Music and drums hit. Final wide shot: fire forms a blazing halo behind him — reborn in flames with epic cinematic vibe.",
+        "duration": "5",
+        "aspect_ratio": "16:9",
+        "negative_prompt": "blur, distort, and low quality",
+        "cfg_scale": 0.5
+      }
+    }
+  ]
+}

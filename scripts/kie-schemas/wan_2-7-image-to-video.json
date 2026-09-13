@@ -1,0 +1,80 @@
+{
+  "models": ["wan/2-7-image-to-video"],
+  "title": "Wan 2.7 - Image to Video",
+  "docUrl": "https://docs.kie.ai/market/wan/2-7-image-to-video.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Wan 2.7 - Image to Video — input",
+    "type": "object",
+    "description": "Input parameters for the image-to-video task.",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "maxLength": 5000,
+        "description": "Positive prompt. Maximum length: 5000 characters."
+      },
+      "negative_prompt": {
+        "type": "string",
+        "maxLength": 500,
+        "description": "Negative prompt. Maximum length: 500 characters."
+      },
+      "first_frame_url": {
+        "type": "string",
+        "format": "uri",
+        "description": "First frame image URL."
+      },
+      "last_frame_url": {
+        "type": "string",
+        "format": "uri",
+        "description": "Last frame image URL."
+      },
+      "first_clip_url": {
+        "type": "string",
+        "format": "uri",
+        "description": "First clip video URL, used for video continuation."
+      },
+      "driving_audio_url": {
+        "type": "string",
+        "format": "uri",
+        "description": "Driving audio URL."
+      },
+      "resolution": {
+        "type": "string",
+        "enum": ["720p", "1080p"],
+        "default": "1080p",
+        "description": "Video resolution. \n\n- `720p`: 720p\n- `1080p`: 1080p"
+      },
+      "duration": {
+        "type": "integer",
+        "minimum": 2,
+        "maximum": 15,
+        "default": 5,
+        "description": "Total output video duration in seconds.\n\n- Minimum: `2`\n- Maximum: `15`\n- Default: `5`"
+      },
+      "prompt_extend": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether to enable intelligent prompt rewriting. Default value: `true`."
+      },
+      "watermark": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether to add an AI-generated watermark. Default value: `false`."
+      },
+      "seed": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 2147483647,
+        "description": "Random seed.\n\n- Minimum: `0`\n- Maximum: `2147483647`"
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    },
+    "required": ["prompt"]
+  },
+  "examples": []
+}

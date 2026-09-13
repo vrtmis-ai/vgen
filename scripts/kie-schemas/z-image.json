@@ -1,0 +1,46 @@
+{
+  "models": ["z-image"],
+  "title": "Z-Image",
+  "docUrl": "https://docs.kie.ai/market/z-image/z-image.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Z-Image — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "A text description of the image you want to generate (Max length: 1000 characters)",
+        "type": "string",
+        "maxLength": 1000,
+        "examples": [
+          "Generate a photorealistic image of a cafe terrace in the Marais district of Paris on a Wednesday morning in March 2025. It is a crisp, cool spring morning with clear skies. Locals are drinking coffee. In sharp focus should be a young woman with a pixie cut wearing a scarf, stirring a cappuccino and looking thoughtfully to the side; the waiter and street traffic behind her are blurred. The photo should have the candid, natural morning light feel of an iPhone image."
+        ]
+      },
+      "aspect_ratio": {
+        "description": "Aspect ratio for the generated image. Select 'auto' to match the first input image ratio (requires input image).",
+        "type": "string",
+        "enum": ["1:1", "4:3", "3:4", "16:9", "9:16"],
+        "default": "1:1",
+        "examples": ["1:1"]
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    },
+    "required": ["prompt", "aspect_ratio"]
+  },
+  "examples": [
+    {
+      "model": "z-image",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "Generate a photorealistic image of a cafe terrace in the Marais district of Paris on a Wednesday morning in March 2025. It is a crisp, cool spring morning with clear skies. Locals are drinking coffee. In sharp focus should be a young woman with a pixie cut wearing a scarf, stirring a cappuccino and looking thoughtfully to the side; the waiter and street traffic behind her are blurred. The photo should have the candid, natural morning light feel of an iPhone image.",
+        "aspect_ratio": "1:1",
+        "nsfw_checker": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "models": ["kling-2.6/text-to-video"],
+  "title": "Kling 2.6 Text to Video",
+  "docUrl": "https://docs.kie.ai/market/kling/text-to-video.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Kling 2.6 Text to Video — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "Text prompt for video generation (maximum length: 1000 characters)",
+        "type": "string",
+        "maxLength": 1000,
+        "examples": [
+          "Scene: A fashion live-streaming sales setting, with clothes hanging on racks and the host's figure reflected in a full-length mirror. Lines: [African female host] turns around to showcase the hoodie's cut. [African female host, in a cheerful tone] says: \"360-degree flawless tailoring, slimming and versatile.\" She then [African female host] leans closer to the camera. [African female host, in a lively tone] says: \"Double-sided fleece fabric, $30 off immediately when you order now.\""
+        ]
+      },
+      "sound": {
+        "description": "This parameter specifies whether the generated video contains sound (boolean: true/false)",
+        "type": "boolean",
+        "examples": [false]
+      },
+      "aspect_ratio": {
+        "description": "This parameter defines the video aspect ratio",
+        "type": "string",
+        "enum": ["1:1", "16:9", "9:16"],
+        "default": "1:1",
+        "examples": ["1:1"]
+      },
+      "duration": {
+        "description": "Video duration (unit: seconds)",
+        "type": "string",
+        "enum": ["5", "10"],
+        "default": "5",
+        "examples": ["5"]
+      }
+    },
+    "required": ["prompt", "sound", "aspect_ratio", "duration"]
+  },
+  "examples": [
+    {
+      "model": "kling-2.6/text-to-video",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "Scene: A fashion live-streaming sales setting, with clothes hanging on racks and the host's figure reflected in a full-length mirror. Lines: [African female host] turns around to showcase the hoodie's cut. [African female host, in a cheerful tone] says: \"360-degree flawless tailoring, slimming and versatile.\" She then [African female host] leans closer to the camera. [African female host, in a lively tone] says: \"Double-sided fleece fabric, $30 off immediately when you order now.\"",
+        "sound": false,
+        "aspect_ratio": "1:1",
+        "duration": "5"
+      }
+    }
+  ]
+}

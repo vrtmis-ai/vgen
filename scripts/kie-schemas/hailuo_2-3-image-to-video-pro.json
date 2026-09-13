@@ -1,0 +1,59 @@
+{
+  "models": ["hailuo/2-3-image-to-video-pro"],
+  "title": "Hailuo 2.3 Pro Image to Video",
+  "docUrl": "https://docs.kie.ai/market/hailuo/2-3-image-to-video-pro.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Hailuo 2.3 Pro Image to Video — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "Text prompt describing the desired video animation (Max length: 5000 characters)",
+        "type": "string",
+        "maxLength": 5000,
+        "examples": [
+          "A graceful geisha performs a traditional Japanese dance indoors. She wears a luxurious red kimono with golden floral embroidery, white obi belt, and white tabi socks. Soft and elegant hand movements, expressive pose, sleeves flowing naturally. Scene set in a Japanese tatami room with warm ambient lighting, shoji paper sliding doors, and cherry blossom branches hanging in the foreground. Cinematic, soft depth of field, high detail fabric texture, hyper-realistic, smooth motion."
+        ]
+      },
+      "image_url": {
+        "description": "Input image to animate (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 10.0MB)",
+        "type": "string",
+        "examples": ["https://file.aiquickdraw.com/custom-page/akr/section-images/1761736831884xl56xfiw.webp"]
+      },
+      "duration": {
+        "description": "The duration of the video in seconds. 10 seconds videos are not supported for 1080p resolution.",
+        "type": "string",
+        "enum": ["6", "10"],
+        "default": "6",
+        "examples": ["6"]
+      },
+      "resolution": {
+        "description": "The resolution of the generated video.",
+        "type": "string",
+        "enum": ["768P", "1080P"],
+        "default": "768P",
+        "examples": ["768P"]
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    },
+    "required": ["prompt", "image_url"]
+  },
+  "examples": [
+    {
+      "model": "hailuo/2-3-image-to-video-pro",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "A graceful geisha performs a traditional Japanese dance indoors. She wears a luxurious red kimono with golden floral embroidery, white obi belt, and white tabi socks. Soft and elegant hand movements, expressive pose, sleeves flowing naturally. Scene set in a Japanese tatami room with warm ambient lighting, shoji paper sliding doors, and cherry blossom branches hanging in the foreground. Cinematic, soft depth of field, high detail fabric texture, hyper-realistic, smooth motion.",
+        "image_url": "https://file.aiquickdraw.com/custom-page/akr/section-images/1761736831884xl56xfiw.webp",
+        "duration": "6",
+        "resolution": "768P"
+      }
+    }
+  ]
+}

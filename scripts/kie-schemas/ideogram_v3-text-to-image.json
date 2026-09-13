@@ -1,0 +1,71 @@
+{
+  "models": ["ideogram/v3-text-to-image"],
+  "title": "Ideogram V3 Text to Image",
+  "docUrl": "https://docs.kie.ai/market/ideogram/v3-text-to-image.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Ideogram V3 Text to Image — input",
+    "type": "object",
+    "description": "Input parameters for the generation task.",
+    "required": ["prompt"],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "maxLength": 5000,
+        "description": "Description of the image to generate. Maximum length: 5000 characters.",
+        "examples": [
+          "A cinematic photograph of a tranquil lakeside at twilight, viewed from a slight elevation. In the center, a cluster of softly glowing reeds and water lilies emit a gentle golden light, their reflections shimmering on the calm surface. The elegant neon-style white text 'Kie.ai' hovers just above the water, subtly illuminated and harmonizing with the natural glow. Surrounding willows and drifting mist frame the scene, creating a serene yet magical atmosphere, with warm highlights contrasting against the cool blues of the evening sky."
+        ]
+      },
+      "rendering_speed": {
+        "type": "string",
+        "enum": ["TURBO", "BALANCED", "QUALITY"],
+        "description": "The rendering speed to use.\n\n- `TURBO`: Turbo\n- `BALANCED`: Balanced\n- `QUALITY`: Quality",
+        "examples": ["BALANCED"]
+      },
+      "style": {
+        "type": "string",
+        "enum": ["AUTO", "GENERAL", "REALISTIC", "DESIGN"],
+        "description": "The style type to generate with. Cannot be used together with `style_codes`.\n\n- `AUTO`: Auto\n- `GENERAL`: General\n- `REALISTIC`: Realistic\n- `DESIGN`: Design",
+        "examples": ["AUTO"]
+      },
+      "expand_prompt": {
+        "type": "boolean",
+        "description": "Determines whether MagicPrompt should be used to enhance the generation request.\n\n- Boolean value: `true` / `false`",
+        "examples": [true]
+      },
+      "image_size": {
+        "type": "string",
+        "enum": ["square", "square_hd", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"],
+        "description": "The resolution of the generated image.\n\n- `square`: Square\n- `square_hd`: Square HD\n- `portrait_4_3`: Portrait 3:4\n- `portrait_16_9`: Portrait 9:16\n- `landscape_4_3`: Landscape 4:3\n- `landscape_16_9`: Landscape 16:9",
+        "examples": ["square_hd"]
+      },
+      "seed": {
+        "type": "integer",
+        "description": "Seed for the random number generator."
+      },
+      "negative_prompt": {
+        "type": "string",
+        "maxLength": 5000,
+        "description": "Description of what to exclude from the generated image. If the positive prompt conflicts with the negative prompt, the positive prompt takes precedence. Maximum length: 5000 characters."
+      }
+    }
+  },
+  "examples": [
+    {
+      "model": "ideogram/v3-text-to-image",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "A cinematic photograph of a tranquil lakeside at twilight, viewed from a slight elevation. In the center, a cluster of softly glowing reeds and water lilies emit a gentle golden light, their reflections shimmering on the calm surface. The elegant neon-style white text 'Kie.ai' hovers just above the water, subtly illuminated and harmonizing with the natural glow. Surrounding willows and drifting mist frame the scene, creating a serene yet magical atmosphere, with warm highlights contrasting against the cool blues of the evening sky.",
+        "rendering_speed": "BALANCED",
+        "style": "AUTO",
+        "expand_prompt": true,
+        "image_size": "square_hd",
+        "seed": 123456,
+        "negative_prompt": "blurry, low detail, distorted anatomy, extra limbs, malformed text, watermark"
+      }
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "models": ["bytedance/seedance-2-5"],
+  "title": "Bytedance Seedance 2.5",
+  "docUrl": "https://docs.kie.ai/market/bytedance/seedance-2-5.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Bytedance Seedance 2.5 — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "The text prompt used to generate the video.. ( Max length: 30000 characters)",
+        "maxLength": 30000,
+        "examples": [
+          "A serene beach at sunset with waves gently crashing on the shore, palm trees swaying in the breeze, and seagulls flying across the orange sky"
+        ]
+      },
+      "first_frame_url": {
+        "type": "string",
+        "description": "First frame image url or asset://{assetId} \n(for example: asset://asset-20260404242101-76djj)\nCannot be used simultaneously with reference_image_urls, reference_video_urls, or reference_audio_urls."
+      },
+      "last_frame_url": {
+        "type": "string",
+        "description": "End frame image url or asset://{assetId} \n(for example: asset://asset-20260404242101-76djj)\nlast_frame_url cannot be passed alone; first_frame_url must be provided together with it."
+      },
+      "reference_image_urls": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "description": "Enter a list of image URLs or asset://{assetId} (for example: asset://asset-20260404242101-76djj).\nSingle image requirements:\nFormat: jpeg, png, webp, bmp, tiff, gif.\nAspect ratio (width/height): (0.4, 2.5)\nWidth and height (px): (300, 6000)\nSize: Single image less than 30 MB.\nMaximum number of files: The sum of the number of frames at the beginning and end must not exceed 30.\nMutually exclusive with the first/last-frame scenario;",
+        "maxItems": 30,
+        "examples": [["https://file.aiquickdraw.com/custom-page/akr/section-images/example1.png"]]
+      },
+      "reference_video_urls": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "description": "Enter a list of video URLs or asset://{assetId} (for example: asset://asset-20260404242101-76djj) .\nSingle video requirements:\nVideo format: mp4, mov.\nResolution: 480p, 720p\nDimensions:\nAspect ratio (width/height): [0.4, 2.5]\nWidth/height (px): [300, 6000]\nTotal pixels: [640×640=409600, 834×1112=927408], i.e., the product of width and height must meet the range requirement of [409600, 927408].\nSize: Single video not exceeding 200 MB.\nFrame rate (FPS): [24, 60]\nSingle video duration: [2, 30] seconds; \nMutually exclusive with the first/last-frame scenario; Total duration of reference videos must not exceed 30 seconds.",
+        "maxItems": 10
+      },
+      "reference_audio_urls": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "description": "Enter a list of audio URLs or asset://{assetId} (for example: asset://asset-20260404242101-76djj) .\nSingle audio requirements:\nFormat: wav, mp3\nSize: Single audio file size not exceeding 15 MB.\nSingle audio duration: [2, 30] seconds; \nMutually exclusive with the first/last-frame scenario; Total duration of reference videos must not exceed 30 seconds.",
+        "maxItems": 10
+      },
+      "return_last_frame": {
+        "type": "boolean",
+        "description": "Whether to return the last frame of the video. When draft=true, this parameter cannot be set to true.",
+        "default": false
+      },
+      "generate_audio": {
+        "description": "Whether to generate audio for the video.\n\n- **true**: Generate with audio (higher cost)\n- **false**: Generate without audio\n\nNote: Enabling audio will increase the generation cost",
+        "type": "boolean",
+        "default": true,
+        "examples": [false]
+      },
+      "resolution": {
+        "type": "string",
+        "description": "Video resolution - 480p for faster generation, 720p for balance.",
+        "enum": ["480p", "720p", "1080p"],
+        "default": "720p",
+        "examples": ["720p"]
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "description": "Video aspect ratio configuration. ",
+        "enum": ["1:1", "4:3", "3:4", "16:9", "9:16", "21:9", "adaptive"],
+        "default": "adaptive",
+        "examples": ["adaptive"]
+      },
+      "duration": {
+        "type": "integer",
+        "description": "Video duration in 4-30 seconds.\nSpecial values -1:\n Pass -1 for automatic duration selection — the model picks a suitable duration itself (for video-editing tasks, it matches the input video's length; for other task types, it selects within the valid range), instead of you specifying an exact value.",
+        "default": 5,
+        "examples": [5]
+      },
+      "output_format": {
+        "type": "string",
+        "description": "Video output format.",
+        "enum": ["mp4", "mov"],
+        "default": "mp4",
+        "examples": ["mp4"]
+      },
+      "web_search": {
+        "type": "boolean",
+        "description": "Enable online search."
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    }
+  },
+  "examples": []
+}

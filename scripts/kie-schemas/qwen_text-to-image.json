@@ -1,0 +1,94 @@
+{
+  "models": ["qwen/text-to-image"],
+  "title": "Qwen - Text to Image",
+  "docUrl": "https://docs.kie.ai/market/qwen/text-to-image.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Qwen - Text to Image — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "The prompt to generate the image with (Max length: 5000 characters)",
+        "type": "string",
+        "maxLength": 5000,
+        "examples": [""]
+      },
+      "image_size": {
+        "description": "The size of the generated image",
+        "type": "string",
+        "enum": ["square", "square_hd", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"],
+        "default": "square_hd",
+        "examples": ["square_hd"]
+      },
+      "num_inference_steps": {
+        "description": "The number of inference steps to perform (Min: 2, Max: 250, Step: 1) (step: 1)",
+        "type": "number",
+        "minimum": 2,
+        "maximum": 250,
+        "default": 30,
+        "examples": [30]
+      },
+      "seed": {
+        "description": "The same seed and the same prompt given to the same version of the model will output the same image every time",
+        "type": "integer"
+      },
+      "guidance_scale": {
+        "description": "The CFG (Classifier Free Guidance) scale is a measure of how close you want the model to stick to your prompt when looking for a related image to show you (Min: 0, Max: 20, Step: 0.1) (step: 0.1)",
+        "type": "number",
+        "minimum": 0,
+        "maximum": 20,
+        "default": 2.5,
+        "examples": [2.5]
+      },
+      "enable_safety_checker": {
+        "description": "The safety checker is always enabled in Playground. It can only be disabled by setting false through the API. (Boolean value (true/false))",
+        "type": "boolean",
+        "examples": [true]
+      },
+      "output_format": {
+        "description": "The format of the generated image",
+        "type": "string",
+        "enum": ["png", "jpeg"],
+        "default": "png",
+        "examples": ["png"]
+      },
+      "negative_prompt": {
+        "description": "The negative prompt for the generation (Max length: 500 characters)",
+        "type": "string",
+        "maxLength": 500,
+        "examples": [" "]
+      },
+      "acceleration": {
+        "description": "Acceleration level for image generation. Options: 'none', 'regular', 'high'. Higher acceleration increases speed. 'regular' balances speed and quality. 'high' is recommended for images without text",
+        "type": "string",
+        "enum": ["none", "regular", "high"],
+        "default": "none",
+        "examples": ["none"]
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    },
+    "required": ["prompt"]
+  },
+  "examples": [
+    {
+      "model": "qwen/text-to-image",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "",
+        "image_size": "square_hd",
+        "num_inference_steps": 30,
+        "guidance_scale": 2.5,
+        "enable_safety_checker": true,
+        "output_format": "png",
+        "negative_prompt": " ",
+        "acceleration": "none"
+      }
+    }
+  ]
+}

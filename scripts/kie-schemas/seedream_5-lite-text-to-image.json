@@ -1,0 +1,63 @@
+{
+  "models": ["seedream/5-lite-text-to-image"],
+  "title": "Seedream5.0 Lite - Text to Image",
+  "docUrl": "https://docs.kie.ai/market/seedream/5-lite-text-to-image.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Seedream5.0 Lite - Text to Image — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "A text description of the image you want to generate (Max length: 3-3000 characters)",
+        "maxLength": 3000,
+        "examples": [
+          "A full-process cafe design tool for entrepreneurs and designers. It covers core needs including store layout, functional zoning, decoration style, equipment selection, and customer group adaptation, supporting integrated planning of \"commercial attributes + aesthetic design.\" Suitable as a promotional image for a cafe design SaaS product, with a 16:9 aspect ratio."
+        ],
+        "minLength": 3
+      },
+      "aspect_ratio": {
+        "description": "Width-height ratio of the image, determining its visual form.",
+        "type": "string",
+        "enum": ["1:1", "4:3", "3:4", "16:9", "9:16", "2:3", "3:2", "21:9"],
+        "default": "1:1",
+        "examples": ["1:1"]
+      },
+      "quality": {
+        "type": "string",
+        "description": "Basic outputs 2K images, while High outputs 3K images, and Ultra outputs 4K images.",
+        "enum": ["basic", "high", "ultra"],
+        "default": "basic",
+        "examples": ["basic"]
+      },
+      "output_format": {
+        "type": "string",
+        "description": "Format of the output image",
+        "enum": ["png", "jpeg"],
+        "default": "png",
+        "examples": ["png"]
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    },
+    "required": ["prompt", "aspect_ratio", "quality"]
+  },
+  "examples": [
+    {
+      "model": "seedream/5-lite-text-to-image",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "A full-process cafe design tool for entrepreneurs and designers. It covers core needs including store layout, functional zoning, decoration style, equipment selection, and customer group adaptation, supporting integrated planning of \"commercial attributes + aesthetic design.\" Suitable as a promotional image for a cafe design SaaS product, with a 16:9 aspect ratio.",
+        "aspect_ratio": "1:1",
+        "quality": "basic",
+        "output_format": "png",
+        "nsfw_checker": false
+      }
+    }
+  ]
+}

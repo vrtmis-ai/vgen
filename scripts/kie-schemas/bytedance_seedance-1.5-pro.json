@@ -1,0 +1,85 @@
+{
+  "models": ["bytedance/seedance-1.5-pro"],
+  "title": "Bytedance Seedance 1.5 Pro",
+  "docUrl": "https://docs.kie.ai/market/bytedance/seedance-1-5-pro.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Bytedance Seedance 1.5 Pro — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "The text prompt used to generate the video. Required field. (Min length: 3, Max length: 20000 characters)",
+        "minLength": 3,
+        "maxLength": 20000,
+        "examples": [
+          "A serene beach at sunset with waves gently crashing on the shore, palm trees swaying in the breeze, and seagulls flying across the orange sky"
+        ]
+      },
+      "input_urls": {
+        "description": "URLs of input images for image-to-video generation. Optional field.\n\n- Accepts 0-2 images\n- If not provided, the model will perform text-to-video generation\n- File URLs after upload, not file content\n- Accepted types: image/jpeg, image/png, image/webp\n- Max size per image: 10.0MB",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "maxItems": 2,
+        "examples": [["https://file.aiquickdraw.com/custom-page/akr/section-images/example1.png"]]
+      },
+      "aspect_ratio": {
+        "description": "Video aspect ratio configuration. Required field.",
+        "type": "string",
+        "enum": ["1:1", "4:3", "3:4", "16:9", "9:16", "21:9"],
+        "default": "1:1",
+        "examples": ["1:1"]
+      },
+      "resolution": {
+        "description": "Video resolution - 480p for faster generation, 720p for balance, 1080p for higher quality",
+        "type": "string",
+        "enum": ["480p", "720p", "1080p"],
+        "default": "720p",
+        "examples": ["720p"]
+      },
+      "duration": {
+        "type": "number",
+        "description": "Duration of the video in seconds,Optional range 4-12 s"
+      },
+      "fixed_lens": {
+        "description": "Seedance adds dynamic camera movement. Enable this feature to lock the camera for stable, static shots.\n\n- **true**: Lock camera for static shots\n- **false**: Allow dynamic camera movement",
+        "type": "boolean",
+        "default": false,
+        "examples": [false]
+      },
+      "generate_audio": {
+        "description": "Whether to generate audio for the video.\n\n- **true**: Generate with audio (higher cost)\n- **false**: Generate without audio\n\nNote: Enabling audio will increase the generation cost",
+        "type": "boolean",
+        "default": false,
+        "examples": [false]
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    },
+    "required": ["prompt", "aspect_ratio", "duration"]
+  },
+  "examples": [
+    {
+      "model": "bytedance/seedance-1.5-pro",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "A serene beach at sunset with waves gently crashing on the shore, palm trees swaying in the breeze, and seagulls flying across the orange sky",
+        "input_urls": ["https://file.aiquickdraw.com/custom-page/akr/section-images/example1.png"],
+        "aspect_ratio": "1:1",
+        "resolution": "720p",
+        "duration": 8,
+        "fixed_lens": false,
+        "generate_audio": false,
+        "nsfw_checker": false
+      }
+    }
+  ]
+}

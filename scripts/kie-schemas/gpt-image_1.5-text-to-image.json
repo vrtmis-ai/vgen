@@ -1,0 +1,48 @@
+{
+  "models": ["gpt-image/1.5-text-to-image"],
+  "title": "GPT Image-1.5 - Text to Image",
+  "docUrl": "https://docs.kie.ai/market/gpt-image/1-5-text-to-image.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "GPT Image-1.5 - Text to Image — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "A text description of the image you want to generate",
+        "type": "string",
+        "examples": [
+          "Create a photorealistic candid photograph of an elderly sailor standing on a small fishing boat.  He has weathered skin with visible wrinkles, pores, and sun texture, and a few faded traditional sailor tattoos on his arms. He is calmly adjusting a net while his dog sits nearby on the deck. Shot like a 35mm film photograph, medium close-up at eye level, using a 50mm lens. The image should feel honest and unposed, with real skin texture, worn materials, and everyday detail. No glamorization, no heavy retouching. "
+        ]
+      },
+      "aspect_ratio": {
+        "description": "Width-height ratio of the image, determining its visual form.",
+        "type": "string",
+        "enum": ["1:1", "2:3", "3:2"],
+        "default": "1:1",
+        "examples": ["1:1"]
+      },
+      "quality": {
+        "description": "Quality: medium=balanced, high=slow/detailed.",
+        "type": "string",
+        "enum": ["medium", "high"],
+        "default": "medium",
+        "examples": ["medium"]
+      }
+    },
+    "required": ["prompt", "aspect_ratio", "quality"]
+  },
+  "examples": [
+    {
+      "model": "gpt-image/1.5-text-to-image",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "Create a photorealistic candid photograph of an elderly sailor standing on a small fishing boat.  He has weathered skin with visible wrinkles, pores, and sun texture, and a few faded traditional sailor tattoos on his arms. He is calmly adjusting a net while his dog sits nearby on the deck. Shot like a 35mm film photograph, medium close-up at eye level, using a 50mm lens. The image should feel honest and unposed, with real skin texture, worn materials, and everyday detail. No glamorization, no heavy retouching. ",
+        "aspect_ratio": "1:1",
+        "quality": "medium"
+      }
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "models": ["kling-2.6/image-to-video"],
+  "title": "Kling 2.6 Image to Video",
+  "docUrl": "https://docs.kie.ai/market/kling/image-to-video.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-12",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Kling 2.6 Image to Video — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "Text prompt for video generation (maximum length: 1000 characters)",
+        "type": "string",
+        "maxLength": 1000,
+        "examples": [
+          "In a bright rehearsal room, sunlight streams through the windows, and a standing microphone is placed in the center of the room. [Campus band female lead singer] stands in front of the microphone with her eyes closed, and other members stand around her. [Campus band female lead singer, singing loudly] Lead vocal: \"I will do my best to heal you, with all my heart and soul...\" The background is a cappella harmonies, and the camera slowly pans around the band members."
+        ]
+      },
+      "image_urls": {
+        "description": "Image URLs for video generation. (Uploaded file URLs, not file content; supported types: image/jpeg, image/png; maximum file size: 10.0MB)",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "maxItems": 1,
+        "examples": [["https://static.aiquickdraw.com/tools/example/1764851002741_i0lEiI8I.png"]]
+      },
+      "sound": {
+        "description": "This parameter specifies whether the generated video contains sound (boolean: true/false)",
+        "type": "boolean",
+        "examples": [false]
+      },
+      "duration": {
+        "description": "Video duration (unit: seconds)",
+        "type": "string",
+        "enum": ["5", "10"],
+        "default": "5",
+        "examples": ["5"]
+      }
+    },
+    "required": ["prompt", "image_urls", "sound", "duration"]
+  },
+  "examples": [
+    {
+      "model": "kling-2.6/image-to-video",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "In a bright rehearsal room, sunlight streams through the windows, and a standing microphone is placed in the center of the room. [Campus band female lead singer] stands in front of the microphone with her eyes closed, and other members stand around her. [Campus band female lead singer, singing loudly] Lead vocal: \"I will do my best to heal you, with all my heart and soul...\" The background is a cappella harmonies, and the camera slowly pans around the band members.",
+        "image_urls": ["https://static.aiquickdraw.com/tools/example/1764851002741_i0lEiI8I.png"],
+        "sound": false,
+        "duration": "5"
+      }
+    }
+  ]
+}
