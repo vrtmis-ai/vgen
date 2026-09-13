@@ -15,6 +15,7 @@ import type { NavKey } from "@/components/TopBar";
 import { BRAND } from "@/data/brand";
 import { useCatalogFamilies } from "@/features/catalog/CatalogProvider";
 import { effectiveUsd, toman } from "@/data/plans";
+import { useTomanPerUsd } from "@/features/plans/PlansProvider";
 import type { Family } from "@/data/models";
 import type { Plan } from "@/runtime/contracts/plans";
 import { useI18n, type TKey } from "@/lib/i18n";
@@ -112,6 +113,10 @@ export function HeroSection({
 }) {
   const ENTRY_PLAN = entryPlan(plans);
   const { t, n, lang } = useI18n();
+  // Same branch that supplies `families` below also supplies the ladder and
+  // the day's exchange rate. The hero quotes a Toman price, and that rate
+  // moves — it cannot come from a constant in the bundle.
+  const tomanPerUsd = useTomanPerUsd();
   const rtl = lang === "fa";
   // The anonymous `/` branch in app/(app)/layout.tsx wraps this in
   // CatalogProvider, so the same document every other reader on the page uses is
@@ -183,7 +188,7 @@ export function HeroSection({
                   {ENTRY_PLAN ? (
                     <a href="#plans" className="duration-150 hover:text-[color:var(--vg-text-secondary)]">
                       {t("lp_hero_from")
-                        .replace("{n}", n(toman(effectiveUsd(ENTRY_PLAN, false))))
+                        .replace("{n}", n(toman(effectiveUsd(ENTRY_PLAN, false), tomanPerUsd)))
                         .replace("{c}", n(ENTRY_PLAN.coinsPerTerm))}
                     </a>
                   ) : (

@@ -16,6 +16,7 @@ import {
 } from "../data/plans";
 import type { Plan } from "../runtime/contracts/plans";
 import { HeroSection } from "../components/blocks/hero-section-5";
+import { useTomanPerUsd } from "../features/plans/PlansProvider";
 import { FeaturesBento } from "../components/blocks/bento-features";
 import { ModelMark } from "../components/ModelMark";
 import { isVideoUrl } from "../lib/format";
@@ -402,6 +403,7 @@ function LandingPlanEstimates({ plan, compact = false }: { plan: Plan; compact?:
 
 function LandingPlanPrice({ plan, cycle }: { plan: Plan; cycle: PlanCycle }) {
   const { t, n, lang } = useI18n();
+  const rate = useTomanPerUsd();
   const annual = cycle === "annual" && plan.annualUsdPerMonth != null;
   const perMonth = effectiveUsd(plan, annual);
   const total = annualTotalUsd(plan);
@@ -412,12 +414,12 @@ function LandingPlanPrice({ plan, cycle }: { plan: Plan; cycle: PlanCycle }) {
     <>
       {annual && off > 0 && (
         <div className="mb-1 text-[10.5px] text-ink3">
-          <s>{n(toman(effectiveUsd(plan, false)))}</s> · {pct}
+          <s>{n(toman(effectiveUsd(plan, false), rate))}</s> · {pct}
           {n(off)} {t("pl_save")}
         </div>
       )}
       <div className="flex items-baseline gap-1.5">
-        <span className="font-display text-[22px] font-semibold leading-none tabular-nums">{n(toman(perMonth))}</span>
+        <span className="font-display text-[22px] font-semibold leading-none tabular-nums">{n(toman(perMonth, rate))}</span>
         <span className="text-[11px] text-ink2">
           {t("w_toman")} {t("pl_per_month")}
         </span>
@@ -425,7 +427,7 @@ function LandingPlanPrice({ plan, cycle }: { plan: Plan; cycle: PlanCycle }) {
       {annual && total != null && (
         <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink2">
           <CalendarCheck size={12} weight="fill" className="shrink-0 text-accent" />
-          {t("pl_today")}: {n(toman(total))} {t("w_toman")} ({t("pl_billed_annual")})
+          {t("pl_today")}: {n(toman(total, rate))} {t("w_toman")} ({t("pl_billed_annual")})
         </div>
       )}
       {cycle === "annual" && plan.annualUsdPerMonth == null && <div className="mt-1 text-[10.5px] text-ink3">{t("pl_monthly_only")}</div>}

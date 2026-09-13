@@ -29,7 +29,7 @@ function healthyDependencies(): ApiDependencies {
     customerSession: {
       getCurrent: vi.fn(async () => ({ status: "anonymous" as const, host: "web" as const })),
     },
-    customerPlans: { list: vi.fn(async () => []) },
+    customerPlans: { list: vi.fn(async () => ({ plans: [], tomanPerUsd: 235_000 })) },
     customerCampaigns: { getActive: vi.fn(async () => null) },
     checkout: { createOrder: vi.fn(async () => ({ outcome: "unknown_plan" }) as CreateOrderOutcome) },
     customerWallet: {
@@ -960,29 +960,37 @@ describe("customer wallet", () => {
 describe("the plan ladder", () => {
   it("serves the plans a card is rendered from", async () => {
     const dependencies = healthyDependencies();
-    dependencies.customerPlans.list = vi.fn(async () => [
-      {
-        code: "pro",
-        name: "Pro",
-        tier: 2 as const,
-        coinsPerTerm: 1100,
-        baseCoins: 1000,
-        bonusCoins: 100,
-        termDays: 30,
-        monthlyUsd: 49,
-        annualUsdPerMonth: 39,
-        group: "main" as const,
-        tag: "popular" as const,
-        popular: true,
-        maxConcurrentJobs: 4,
-      },
-    ]);
+    dependencies.customerPlans.list = vi.fn(async () => ({
+      tomanPerUsd: 235_000,
+      plans: [
+        {
+          code: "pro",
+          name: "Pro",
+          tier: 2 as const,
+          coinsPerTerm: 1100,
+          baseCoins: 1000,
+          bonusCoins: 100,
+          termDays: 30,
+          monthlyUsd: 49,
+          annualUsdPerMonth: 39,
+          group: "main" as const,
+          tag: "popular" as const,
+          popular: true,
+          maxConcurrentJobs: 4,
+        },
+      ],
+    }));
     const app = createApp(dependencies, { corsOrigin: "https://deev.test" });
 
     const response = await app.inject({ method: "GET", url: "/api/v1/plans" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ plans: [expect.objectContaining({ code: "pro", coinsPerTerm: 1100 })] });
+    // The rate rides along with the ladder: the cards price in Toman, and the
+    // number they multiply by changes daily.
+    expect(response.json()).toEqual({
+      plans: [expect.objectContaining({ code: "pro", coinsPerTerm: 1100 })],
+      tomanPerUsd: 235_000,
+    });
     await app.close();
   });
 

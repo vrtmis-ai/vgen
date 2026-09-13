@@ -128,6 +128,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   // The ladder gates the landing page too, not just the app: it prices two plans
   // for a visitor who has no session yet, so there is nothing to paint until it lands.
   if (!plansQuery.data || !contentQuery.data || !catalogQuery.data) return <AppLoading />;
+  // The ladder and the day's exchange rate arrive together, because a price
+  // card needs both to say what a plan costs. See PlansProvider.
+  const { plans, tomanPerUsd } = plansQuery.data;
   /* The landing page is what `/` shows a visitor, and only `/`. Every other
      route renders the product itself, signed in or not: somebody deciding
      whether to pay for this should be able to open the studios, read the
@@ -141,21 +144,22 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const visiting = session.status === "anonymous";
   if (visiting && pathname === "/")
     return (
-      <CatalogProvider families={catalogQuery.data.families}>
-        <ContentProvider content={contentQuery.data}>
-          <OAuthFailureNotice />
-          <SiteBanner plans={plansQuery.data} onSeePlans={() => router.push("/plans")} />
-          {/* `posts` is not gated above with plans and content: an empty showcase
-              strip is a much smaller failure than a landing page that refuses to
-              paint until other people's posts have loaded. */}
-          <Landing
-            plans={plansQuery.data}
-            posts={communityQuery.data?.posts ?? []}
-            onSignIn={authActions.signIn}
-            onSignUp={authActions.signUp}
-          />
-        </ContentProvider>
-      </CatalogProvider>
+      /* PlansProvider here as well as in AuthedTree, because the landing page
+         prices two plans and the hero quotes the cheapest — in Toman, at a rate
+         that changes daily and therefore cannot be a constant the bundle
+         carries. This branch returns before AuthedTree ever mounts. */
+      <PlansProvider plans={plans} tomanPerUsd={tomanPerUsd}>
+        <CatalogProvider families={catalogQuery.data.families}>
+          <ContentProvider content={contentQuery.data}>
+            <OAuthFailureNotice />
+            <SiteBanner plans={plans} onSeePlans={() => router.push("/plans")} />
+            {/* `posts` is not gated above with plans and content: an empty showcase
+                strip is a much smaller failure than a landing page that refuses to
+                paint until other people's posts have loaded. */}
+            <Landing plans={plans} posts={communityQuery.data?.posts ?? []} onSignIn={authActions.signIn} onSignUp={authActions.signUp} />
+          </ContentProvider>
+        </CatalogProvider>
+      </PlansProvider>
     );
   /* A visitor has no wallet to wait for. Only an account does. */
   if (!visiting && !walletQuery.data) return <AppLoading />;
@@ -173,13 +177,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <NavigationProvider>
       {/* Above AuthedTree, so it lands above the TopBar the nav layout renders
           inside it. Both bars read --vg-banner-height to make room. */}
-      <SiteBanner plans={plansQuery.data} onSeePlans={() => router.push("/plans")} />
+      <SiteBanner plans={plans} onSeePlans={() => router.push("/plans")} />
       <AuthedTree
         user={session.status === "authed" ? session.user : null}
         wallet={walletQuery.data ?? null}
         families={catalogQuery.data.families}
         content={contentQuery.data}
-        plans={plansQuery.data}
+        plans={plans}
+        tomanPerUsd={tomanPerUsd}
         authActions={authActions}
       >
         {children}
@@ -200,6 +205,7 @@ function AuthedTree({
   families,
   content,
   plans,
+  tomanPerUsd,
   authActions,
   children,
 }: {
@@ -208,6 +214,7 @@ function AuthedTree({
   families: CatalogSnapshot["families"];
   content: ContentSnapshot;
   plans: readonly Plan[];
+  tomanPerUsd: number;
   authActions: AuthActions;
   children: ReactNode;
 }) {
@@ -218,7 +225,7 @@ function AuthedTree({
       {/* PlansProvider wraps AccessProvider rather than sitting beside it: the
           gate asks the ladder which plan unlocks a family, so the ladder has to
           be above it. */}
-      <PlansProvider plans={plans}>
+      <PlansProvider plans={plans} tomanPerUsd={tomanPerUsd}>
         {/* `planId` stays null until something sells one; the tier beside it is
             the server's, so a granted or withdrawn plan still unlocks what the
             quote endpoint would actually run. This was hardcoded to tier 1 for

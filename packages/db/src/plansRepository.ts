@@ -1,6 +1,7 @@
-import type { Plan } from "@vgen/contracts";
+import type { Plan, PlansResponse } from "@vgen/contracts";
 import { microCreditsToCoins } from "@vgen/core";
 import type { Sql } from "postgres";
+import { liveRate } from "./fxRepository";
 import { PublicDocument, fingerprintOf } from "./publicDocument";
 
 /**
@@ -74,24 +75,40 @@ export class PostgresPlansRepository {
         select count(*)::text as n, max(updated_at) as newest
         from plans where is_active and is_public
       `;
-      return fingerprintOf(row?.n ?? "0", row?.newest);
+      // The live exchange rate is part of this document now, so it is part of
+      // the fingerprint. Its `valid_from` alone would do — the table is
+      // effective-dated, so a new rate is always a new row with a new stamp —
+      // but the rate itself is in there as the same belt-and-braces the count
+      // above is: a fingerprint that cannot see a change serves a stale price.
+      const [fx] = await this.sql<{ rate: string; valid_from: Date }[]>`
+        select rate, valid_from from fx_rates
+        where base_currency = 'USD' and quote_currency = 'IRR' and valid_to is null
+        limit 1
+      `;
+      return fingerprintOf(`${row?.n ?? "0"}/${fx?.rate ?? "none"}`, row?.newest, fx?.valid_from);
     },
     () => this.build(),
   );
 
   /** Everything on sale, in the order the cards are meant to read. */
-  async list(): Promise<Plan[]> {
+  async list(): Promise<PlansResponse> {
     return this.document.get();
   }
 
-  private async build(): Promise<Plan[]> {
+  private async build(): Promise<PlansResponse> {
     const rows = await this.sql<PlanRow[]>`
       select ${this.sql.unsafe(SELECT_COLUMNS)}
       from plans
       where is_active and is_public
       order by sort_order asc
     `;
-    return rows.map(toPlan);
+    const fx = await liveRate(this.sql);
+    // A ladder with no rate cannot be priced, and serving it anyway would put
+    // plan cards on screen showing a Toman figure derived from nothing. The
+    // seeder guarantees a row exists; this is what says so out loud when it
+    // does not, rather than three screens rendering NaN.
+    if (fx === null) throw new Error("no live USD/IRR rate in fx_rates; run pnpm plans:publish");
+    return { plans: rows.map(toPlan), tomanPerUsd: fx.rialPerUsd / 10 };
   }
 
   /**

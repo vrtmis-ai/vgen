@@ -1,5 +1,6 @@
 import type { AppServices } from "../../runtime/AppServices";
 import { PLAN_LADDER } from "../../data/planLadder";
+import { SEED_TOMAN_PER_USD } from "../../data/plans";
 
 /**
  * The ladder demo mode serves — the database's own export, not the seed file
@@ -14,5 +15,8 @@ import { PLAN_LADDER } from "../../data/planLadder";
  * Regenerate with `pnpm plans:publish && pnpm plans:snapshot`.
  */
 export function createDemoPlansService(): AppServices["plans"] {
-  return { list: async () => PLAN_LADDER };
+  // Demo mode has no `fx_rates` to read, so it quotes the seed rate — the same
+  // number an unseeded database would start from. Prices here are illustrative
+  // and nothing in this mode reaches a gateway.
+  return { list: async () => ({ plans: PLAN_LADDER, tomanPerUsd: SEED_TOMAN_PER_USD }) };
 }

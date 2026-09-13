@@ -999,12 +999,13 @@ see what a plan costs before they have an account to see it with.
       "maxConcurrentJobs": 4,
     },
   ],
+  "tomanPerUsd": 235854,
 }
 ```
 
-Schema: `PlanSchema` in `packages/contracts/src/plans.ts`, mirrored for the
-browser in `src/runtime/contracts/plans.ts`. Ordered the way the cards are meant
-to read — do not sort it.
+Schema: `PlansResponseSchema` in `packages/contracts/src/plans.ts`, mirrored for
+the browser in `src/runtime/contracts/plans.ts`. Ordered the way the cards are
+meant to read — do not sort it.
 
 **This is what the UI reads.** `AppServices.plans.list()` fetches it once, the
 app shell puts it in `PlansProvider`, and the plans screen, the landing page's
@@ -1015,11 +1016,21 @@ in CI — so a screen built without a backend is built against the real payload.
 `plans.rows.json` beside it is the seeder's _input_; both are generated, so
 **do not hand-edit either.**
 
-Five things worth knowing:
+Six things worth knowing:
 
 - **Prices are USD.** The coin economy pivots on USD, so the Toman figure a
   customer sees is a conversion applied at the edge and a rate change moves one
   number instead of every plan row.
+- **`tomanPerUsd` is that rate, and it changes daily.** It is the live
+  `fx_rates` row (`USD`→`IRR`) over ten, and it is served here rather than
+  compiled into the bundle because the screens apply it to figures the server
+  cannot precompute — a campaign discount depends on the account asking. It is
+  always a whole number, so the price a card rounds to the nearest thousand
+  Toman and the price `POST /payments/orders` reserves round identically.
+  Serving the ladder without it is a 500: a plan card with no rate renders NaN
+  into a price. The worker fetches it from the market once a day — see
+  `apps/worker/src/fxRefresh.ts` — so this document changes value daily and the
+  memoised `PublicDocument` fingerprint includes the rate for that reason.
 - **`annualUsdPerMonth: null` is not the same as "same as monthly".** Null means
   the plan has no annual option and the toggle should not appear; an equal price
   would mean a discount of zero.
@@ -1123,11 +1134,15 @@ would expire in thirty days.
 
 **The rate comes from `fx_rates`** (`USD`→`IRR`, the row with `valid_to IS
 NULL`), and with none published the route answers 503 rather than falling back
-to a constant compiled into the server. Note the coupling: the browser still
-holds `TOMAN_PER_USD` in `src/data/plans.ts` to render the figure on the sheet.
-They agree today. If they ever drift, the sheet's own cross-check fires and
-refuses to send anyone to a gateway — safe, and completely broken until the two
-are reconciled. Move both together.
+to a constant compiled into the server. The browser prices the sheet from the
+same row: `GET /plans` serves it as `tomanPerUsd` and `toman()` takes it as an
+argument. It used to be a constant in `src/data/plans.ts`, set by hand in
+2026-07 and 28% below the market by September — every card quoted a price the
+gateway would not have charged, and the sheet's cross-check would have fired on
+each one. The remaining coupling is the rounding: both sides round to the
+nearest thousand Toman, so `tomanFor()` here and `toman()` there must keep
+rounding the same way, and the served rate is a whole number of Toman so that
+they can.
 
 | Outcome            | Status | Meaning                                                                                                           |
 | ------------------ | ------ | ----------------------------------------------------------------------------------------------------------------- |

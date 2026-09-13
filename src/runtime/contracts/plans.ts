@@ -45,8 +45,24 @@ export const PlanSchema = z.object({
  */
 export const PlanListSchema = z.object({ plans: z.array(PlanSchema).min(1) });
 
+/**
+ * What one dollar costs in Toman right now.
+ *
+ * Served beside the ladder rather than baked into each row, because it is one
+ * fact about today and not a property of a plan — and because the screens
+ * apply it to figures the server cannot precompute, like a campaign discount
+ * that depends on the account asking.
+ *
+ * The database stores Rial; this is that over ten, kept a whole number so the
+ * price this rounds to and the price the checkout reserves round the same way.
+ */
+export const PlansResponseSchema = PlanListSchema.extend({
+  tomanPerUsd: z.number().positive(),
+});
+
 export type Plan = z.infer<typeof PlanSchema>;
 export type PlanList = z.infer<typeof PlanListSchema>;
+export type PlansResponse = z.infer<typeof PlansResponseSchema>;
 
 /** Access tier a plan grants. Families declare the minimum tier that unlocks them. */
 export type Tier = Plan["tier"];

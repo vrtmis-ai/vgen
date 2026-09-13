@@ -12,7 +12,7 @@ import type { CatalogSnapshot } from "./contracts/catalog";
 import type { ContentSnapshot } from "./contracts/content";
 import type { CommunityFeed } from "./contracts/community";
 import type { GalleryPage, GalleryQuery } from "./contracts/gallery";
-import type { Plan } from "./contracts/plans";
+import type { PlansResponse } from "./contracts/plans";
 import type { CreateGenerationRequest, GenerationJob, GenerationQuote, JobReference, QuoteGenerationRequest } from "./contracts/generation";
 import type { UploadedAsset } from "./contracts/assets";
 import type { CheckoutOrder, CreateCheckoutOrderInput } from "./contracts/payment";
@@ -79,7 +79,7 @@ export interface AppServices {
    * to see it with, so the landing page asks for this while anonymous.
    */
   plans: {
-    list(options?: RequestOptions): Promise<Plan[]>;
+    list(options?: RequestOptions): Promise<PlansResponse>;
   };
   wallet: {
     getCurrent(options?: RequestOptions): Promise<Wallet>;

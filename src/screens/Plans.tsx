@@ -50,7 +50,7 @@ import {
   type Plan,
   type PricingAccount,
 } from "../data/plans";
-import { usePlanLadder } from "../features/plans/PlansProvider";
+import { usePlanLadder, useTomanPerUsd } from "../features/plans/PlansProvider";
 import { CoinMark } from "../components/chrome";
 import { useActiveCampaign } from "../features/session/useSession";
 import { useAppServices } from "../runtime/AppServices";
@@ -442,6 +442,7 @@ function FestivalBanner({ onSeePlans }: { onSeePlans: () => void }) {
 
 /** Price block — the one place monthly/annual actually diverges. */
 function Price({ plan, cycle, account }: { plan: Plan; cycle: Cycle; account?: PricingAccount | undefined }) {
+  const rate = useTomanPerUsd();
   const { t, n, lang } = useI18n();
   const pct = lang === "fa" ? "٪" : "%";
   const annual = cycle === "annual" && plan.annualUsdPerMonth != null;
@@ -457,7 +458,7 @@ function Price({ plan, cycle, account }: { plan: Plan; cycle: Cycle; account?: P
     <>
       {annual && off > 0 && (
         <div className="mb-1 text-[10.5px] text-ink3">
-          <s>{n(toman(effectiveUsd(plan, false, account)))}</s> · {pct}
+          <s>{n(toman(effectiveUsd(plan, false, account), rate))}</s> · {pct}
           {n(off)} {t("pl_save")}
         </div>
       )}
@@ -467,18 +468,18 @@ function Price({ plan, cycle, account }: { plan: Plan; cycle: Cycle; account?: P
           being findable. And on the monthly cycle there is no "equivalent"
           about it: that wording only means something next to an annual total. */}
       <div className="flex items-baseline gap-1.5">
-        <span className="font-display text-[24px] font-semibold leading-none tabular-nums">{n(toman(perMonth))}</span>
+        <span className="font-display text-[24px] font-semibold leading-none tabular-nums">{n(toman(perMonth, rate))}</span>
         <span className="text-[11.5px] text-ink2">{t("w_toman")}</span>
       </div>
       <div className="mt-0.5 text-[10.5px] text-ink3">{t(annual ? "pl_per_month_equiv" : "pl_per_month")}</div>
       {annual && total != null && (
         <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink2">
           <CalendarCheck size={12} weight="fill" className="shrink-0 text-accent" />
-          {t("pl_today")}: {n(toman(total))} {t("w_toman")} ({t("pl_billed_annual")})
+          {t("pl_today")}: {n(toman(total, rate))} {t("w_toman")} ({t("pl_billed_annual")})
         </div>
       )}
       {annualSaving > 0 && (
-        <div className="mt-1 text-[10.5px] font-medium text-reward">{t("pl_save_amount").replace("{n}", n(toman(annualSaving)))}</div>
+        <div className="mt-1 text-[10.5px] font-medium text-reward">{t("pl_save_amount").replace("{n}", n(toman(annualSaving, rate)))}</div>
       )}
       {cycle === "annual" && plan.annualUsdPerMonth == null && <div className="mt-1 text-[10.5px] text-ink3">{t("pl_monthly_only")}</div>}
     </>
@@ -708,7 +709,7 @@ function CheckoutSheet({
   const monthlyPrice = effectiveUsd(plan, annual, account);
   const total = annual ? annualTotalUsd(plan, account) : monthlyPrice;
   const [state, setState] = useState<CheckoutState>({ status: "review" });
-  const shownAmount = toman(total ?? monthlyPrice);
+  const shownAmount = toman(total ?? monthlyPrice, useTomanPerUsd());
   const busy = state.status === "submitting" || state.status === "redirecting";
 
   /**
