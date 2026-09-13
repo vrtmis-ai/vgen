@@ -68,7 +68,7 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
       });
     },
 
-    async startProviderSignIn(provider) {
+    async startProviderSignIn(provider, inviteCode) {
       /* The one call here that is not a request.
          `client.request` would be wrong twice over: the browser has to *arrive*
          at the provider carrying the HttpOnly state cookie the API sets on this
@@ -78,7 +78,8 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
          `assign` rather than `replace`: the back button should bring someone who
          changed their mind back to the sign-in screen, not to whatever preceded
          it. */
-      globalThis.location.assign(`${baseUrl.replace(/\/+$/, "")}/auth/${provider}`);
+      const invite = inviteCode ? `?invite=${encodeURIComponent(inviteCode)}` : "";
+      globalThis.location.assign(`${baseUrl.replace(/\/+$/, "")}/auth/${provider}${invite}`);
     },
 
     async logout(options) {

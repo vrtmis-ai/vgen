@@ -77,6 +77,19 @@ describe("the sign-in screen", () => {
     await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/"), LANDED);
   });
 
+  it("arrives from the invite page with the code already in its field", async () => {
+    window.history.replaceState(null, "", "/signup?invite=DEEV-EARLY");
+    const user = userEvent.setup();
+    try {
+      renderAuth(createDemoServices({ startAnonymous: true }), "signup");
+      await user.click(screen.getByRole("button", { name: /email/i }));
+
+      expect(await screen.findByLabelText("Invite code")).toHaveValue("DEEV-EARLY");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   it("sends a code typed in Persian digits as the digits the contract accepts", async () => {
     const user = userEvent.setup();
     const services = createDemoServices({ startAnonymous: true });
@@ -164,7 +177,7 @@ describe("the sign-in screen", () => {
     await user.click(await screen.findByRole("button", { name: "Continue with Microsoft" }));
 
     // The id, not the label — in production this becomes a path segment.
-    await waitFor(() => expect(startProviderSignIn).toHaveBeenCalledWith("microsoft"));
+    await waitFor(() => expect(startProviderSignIn).toHaveBeenCalledWith("microsoft", undefined));
   });
 
   it("draws each provider's own mark, in its own colours", async () => {

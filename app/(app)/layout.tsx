@@ -14,6 +14,7 @@ import { useCatalog, useCommunityFeed, useContent, usePlans, useSession, useWall
 import { AccessProvider } from "../../src/lib/access";
 import { useOnlineStatus } from "../../src/lib/useOnlineStatus";
 import Landing from "../../src/screens/Landing";
+import EarlyAccess from "../../src/screens/EarlyAccess";
 import { useAuth } from "../../src/features/session/useAuth";
 import { createAuthActions, type AuthActions } from "../../src/runtime/providers/authActions";
 import { GenerationsProvider } from "../../src/runtime/providers/GenerationsProvider";
@@ -142,6 +143,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
      in the URL and no other trace — so the notice belongs on this branch, not
      inside the landing page's own markup. */
   const visiting = session.status === "anonymous";
+  /* Early access closes all of the above. While signup needs an invite, a
+     visitor gets the page that says so on every route here, not only `/`: the
+     studios behind a landing page are the product the invite is for. Signing in
+     is not gated — /signin and /signup live outside this layout, as do the
+     legal pages. An admin switching `early_access` off opens the landing page
+     and the browse-before-you-pay routes with no deploy. */
+  if (visiting && contentQuery.data.flags.earlyAccess) return <EarlyAccess />;
   if (visiting && pathname === "/")
     return (
       /* PlansProvider here as well as in AuthedTree, because the landing page

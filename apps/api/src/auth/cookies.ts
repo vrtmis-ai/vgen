@@ -2,6 +2,8 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 
 export const SESSION_COOKIE = "deev_session";
 export const OAUTH_STATE_COOKIE = "deev_oauth_state";
+/** An invite code carried across a provider round trip, beside the state. */
+export const OAUTH_INVITE_COOKIE = "deev_oauth_invite";
 /**
  * Staff sessions ride a different cookie from customer ones, so a stolen
  * customer session is never accidentally an admin session and revoking one
@@ -77,6 +79,17 @@ export function setOAuthStateCookie(reply: FastifyReply, state: string, options:
 
 export function clearOAuthStateCookie(reply: FastifyReply, options: CookieOptions): void {
   appendCookie(reply, serialize(OAUTH_STATE_COOKIE, "", new Date(0), options));
+}
+
+/**
+ * Same lifetime as the state, for the same reason. Not a secret (the person
+ * typed it) but HttpOnly anyway, since nothing in the page needs to read it.
+ * Null clears it, so an old attempt's code cannot ride along on a later
+ * sign-in that did not ask for one.
+ */
+export function setOAuthInviteCookie(reply: FastifyReply, code: string | null, options: CookieOptions): void {
+  const expires = code ? new Date(Date.now() + 10 * 60_000) : new Date(0);
+  appendCookie(reply, serialize(OAUTH_INVITE_COOKIE, code ?? "", expires, options));
 }
 
 /**

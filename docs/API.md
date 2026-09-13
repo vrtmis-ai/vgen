@@ -200,7 +200,7 @@ ElevenLabs voice list. Seven collections that were TypeScript arrays under
 {
   "version": "content-…",
   "publishedAt": 1234567890,
-  "flags": { "siteBanner": true },
+  "flags": { "siteBanner": true, "earlyAccess": true },
   "presets": [],
   "fragments": [],
   "skills": [],
@@ -251,6 +251,13 @@ vanish — worse than either state.
   `site_banner.changed`. `GET /admin/site-banner` reads it under the same
   permission — there is no `flags.read`, and inventing one for a value already
   public on this route would be ceremony.
+- **`earlyAccess` is `feature_flags.early_access`**, the same row signup reads,
+  and it defaults to `true` the way signup does. While it is on, the app layout
+  shows a visitor who is not signed in the invite page on every route instead of
+  the product; `/signin`, `/signup` and the legal pages sit outside that layout
+  and stay reachable. Toggled at `PATCH /admin/early-access`. It is in this
+  document's fingerprint, so the switch reaches the next request rather than the
+  next content publish. Demo mode supplies `false`.
 - **It is not in `content.snapshot.json`.** A flag is a runtime switch whose
   value at export time says nothing about its value now, so freezing one into a
   fixture would only mislead. Demo mode supplies `true`, the same default the
@@ -409,6 +416,8 @@ Things a UI needs to know about these:
   spellings of one number must not become two accounts.
 - **Early access is on.** Signup without an invite code answers
   `403 invite_required`. A bad or revoked code answers `400 invite_invalid`.
+  Signing in to an existing account never needs one. The invite page hands a
+  code to `/signup?invite=<code>`, which arrives with the field filled in.
 - **The free trial is keyed on phone.** An email signup through a 20-coin invite
   has 20 coins, not 32 — the 12-coin trial only comes with the phone route.
   This is deliberate, not a missing grant.
@@ -419,11 +428,16 @@ Things a UI needs to know about these:
   fail CORS and drop the cookie that makes the callback safe. The provider
   returns the browser to `WEB_ORIGIN` with the session cookie already set, so
   the screen's job afterwards is simply to refetch the session.
+- **An invite rides a social sign-in as `?invite=<code>`** on `/auth/google` or
+  `/auth/microsoft`. It is held in an HttpOnly cookie beside the state for the
+  ten minutes the provider round trip may take, handed to the same gated signup
+  the other routes use, and cleared on the way back. A start without `invite`
+  clears any earlier one.
 - **A failed social sign-in comes back as `?auth=<code>` on the landing page**,
   not as a JSON error — there is no response to read when the browser is
   mid-redirect. Expect `oauth_failed`, `invite_required`, `invite_invalid` or
-  `account_suspended`, and `failed` for a CSRF-state mismatch. Nothing in the UI
-  reads this yet.
+  `account_suspended`, and `failed` for a CSRF-state mismatch.
+  `OAuthFailureNotice` reads it on the landing page and on the invite page.
 - **Neither provider is reachable from Iran without a VPN**, so treat them as
   secondary next to the phone route rather than the prominent option, and expect
   both to be absent in most deployments — a provider without credentials has no

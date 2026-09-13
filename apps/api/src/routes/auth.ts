@@ -1,4 +1,5 @@
 import {
+  InviteCodeSchema,
   LoginWithPasswordSchema,
   RegisterWithPasswordSchema,
   StartPhoneVerificationSchema,
@@ -9,11 +10,13 @@ import { normalizeIranianPhone } from "@vgen/core";
 import { AuthError, type PostgresAuthRepository } from "@vgen/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
+  OAUTH_INVITE_COOKIE,
   OAUTH_STATE_COOKIE,
   clearOAuthStateCookie,
   clearSessionCookie,
   readCookie,
   readSessionToken,
+  setOAuthInviteCookie,
   setOAuthStateCookie,
   setSessionCookie,
   type CookieOptions,
@@ -240,16 +243,23 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
   ] as const) {
     if (!client) continue;
 
-    app.get(`/api/v1/auth/${provider}`, async (_request, reply) => {
+    app.get(`/api/v1/auth/${provider}`, async (request, reply) => {
       const { url, state } = client.createAuthorizationUrl();
       setOAuthStateCookie(reply, state, cookie);
+      // An invitee choosing a provider instead of a phone number. The browser
+      // leaves for the provider here, so the code waits in a cookie and the
+      // callback hands it to the same gated signup the other routes use.
+      const invite = InviteCodeSchema.safeParse((request.query as { invite?: unknown }).invite);
+      setOAuthInviteCookie(reply, invite.success ? invite.data : null, cookie);
       return reply.redirect(url, 302);
     });
 
     app.get(`/api/v1/auth/${provider}/callback`, async (request, reply) => {
       const query = request.query as { code?: string; state?: string; error?: string };
       const expected = readCookie(request, OAUTH_STATE_COOKIE);
+      const inviteCode = readCookie(request, OAUTH_INVITE_COOKIE);
       clearOAuthStateCookie(reply, cookie);
+      setOAuthInviteCookie(reply, null, cookie);
 
       // The state check comes first, before the code is worth anything: without
       // it an attacker completes a login into their own account inside someone
@@ -265,6 +275,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
         // address and creating a new one, so it must not be filled in from
         // somewhere else to make the flow tidier.
         const user = await auth.signInWithOAuth(provider, profile.subject, profile.email, profile.displayName, {
+          ...(inviteCode ? { inviteCode } : {}),
           ip: request.ip,
           userAgent: request.headers["user-agent"],
           // Recorded on every path that can create an account, not only the

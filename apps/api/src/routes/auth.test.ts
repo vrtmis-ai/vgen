@@ -383,6 +383,45 @@ describe("Google sign-in", () => {
   });
 });
 
+describe("an invite carried through a provider", () => {
+  const google = {
+    createAuthorizationUrl: () => ({ url: "https://accounts.google.com/o/oauth2/v2/auth?x=1", state: "state-abc" }),
+    exchangeCode: vi.fn(async () => ({ subject: "google-1", email: "person@example.com", emailVerified: true, displayName: "P" })),
+  };
+
+  it("keeps the code in a cookie while the browser is at the provider", async () => {
+    const { app } = build({ google: google as never });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/auth/google?invite=EARLY-1" });
+
+    expect(cookieOf(response)).toContain("deev_oauth_invite=EARLY-1");
+    await app.close();
+  });
+
+  it("clears any earlier code when this attempt carries none", async () => {
+    const { app } = build({ google: google as never });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/auth/google" });
+
+    expect(cookieOf(response)).toContain("deev_oauth_invite=;");
+    await app.close();
+  });
+
+  it("hands the code to the gated signup on the way back, then drops it", async () => {
+    const { app, auth } = build({ google: google as never });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/google/callback?code=abc&state=state-abc",
+      headers: { cookie: "deev_oauth_state=state-abc; deev_oauth_invite=EARLY-1" },
+    });
+
+    expect(auth.signInWithOAuth.mock.calls[0]?.[4]).toMatchObject({ inviteCode: "EARLY-1" });
+    expect(cookieOf(response)).toContain("deev_oauth_invite=;");
+    await app.close();
+  });
+});
+
 describe("Microsoft sign-in", () => {
   const microsoft = {
     createAuthorizationUrl: () => ({

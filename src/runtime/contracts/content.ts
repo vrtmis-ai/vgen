@@ -164,6 +164,12 @@ export const ContentSnapshotSchema = z.object({
      * its welcome costs a click on the dismiss button.
      */
     siteBanner: z.boolean(),
+    /**
+     * Whether signup still needs an invite code. While it does, a visitor who
+     * is not signed in gets the invite page instead of the product. Absent
+     * reads as on, the same way the signup gate reads it.
+     */
+    earlyAccess: z.boolean(),
   }),
   presets: z.array(PresetSchema),
   fragments: z.array(PromptFragmentSchema),

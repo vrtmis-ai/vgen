@@ -212,10 +212,10 @@ function Countdown({ template, value }: { template: string; value: string }) {
   );
 }
 
-const PILL = "vg-ease w-full rounded-full border py-3.5 text-center text-[15px] outline-none";
+export const PILL = "vg-ease w-full rounded-full border py-3.5 text-center text-[15px] outline-none";
 
 /** The pill input, with its submit arrow tucked inside the trailing end. */
-function PillField({
+export function PillField({
   label,
   error,
   hint,
@@ -375,6 +375,18 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const [failure, setFailure] = useState<Failure | null>(null);
   const [leaving, setLeaving] = useState(false);
 
+  /* The invite page sends a code here as `?invite=`. Read once from `window`,
+     for the reason OAuthFailureNotice gives: `useSearchParams` would put a
+     prerender bailout on the route for a value only a client navigation sets.
+     The field is shown filled rather than hidden, so a typo is visible before
+     the server has to refuse it. */
+  useEffect(() => {
+    const code = new URL(window.location.href).searchParams.get("invite")?.trim();
+    if (!code) return;
+    setInvite(code);
+    setInviteNeeded(true);
+  }, []);
+
   /** Digits in the reader's own script. A clock is the only number this screen prints. */
   const localDigits = (value: string) => (lang === "fa" ? faNum(value) : value);
 
@@ -508,6 +520,296 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   );
 
   return (
+    <AuthScene leaving={leaving}>
+      <AnimatePresence mode="wait">
+        <motion.div key={codeSent ? "code" : "credentials"} {...step} transition={transition} className="grid gap-7">
+          <div className="text-center">
+            <h1
+              className="text-[clamp(2rem,7vw,2.6rem)] font-extrabold leading-[1.18]"
+              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+            >
+              {codeSent ? t("auth_code_label") : t(mode === "signin" ? "auth_signin_title" : "auth_signup_title")}
+            </h1>
+            <p className="mt-2 text-[15px] font-light leading-[1.9]" style={{ color: "var(--vg-text-muted)" }}>
+              {codeSent ? t("auth_code_sent") : t(mode === "signin" ? "auth_signin_sub" : "auth_signup_sub")}
+            </p>
+          </div>
+
+          {codeSent ? (
+            <form
+              className="grid gap-5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitCode();
+              }}
+            >
+              <CodeBoxes
+                digits={digits}
+                onDigits={setDigits}
+                groupLabel={t("auth_code_label")}
+                digitLabel={(index) => t("auth_code_digit").replace("{n}", lang === "fa" ? faNum(index + 1) : String(index + 1))}
+                describedBy={undefined}
+                disabled={pending || codeRefused}
+              />
+
+              {/* One line, three things to say, in the one place someone is
+                      looking while they wait for a text.
+
+                      Newest true thing wins, and the order matters. A failure
+                      resending cannot fix comes first, because "get a new code"
+                      is bad advice when the next one will be refused too. Expiry
+                      comes next — it outranks an ordinary failure because it
+                      happened *after* it: a stale "that code is not right" while
+                      the boxes sit disabled tells someone to correct something
+                      they can no longer type into. Then the failure itself, and
+                      failing all of that, the clock: a hint while there is time,
+                      amber inside the last ten seconds, because "0:47" and "0:06"
+                      are not the same news.
+
+                      Running out is not an error the server reported, it is
+                      something this screen observed, so nothing sets `failure` and
+                      the message has to come from the clock.
+
+                      `role="alert"` on everything except the live countdown,
+                      which would interrupt a screen reader once a second all the
+                      way down. */}
+              {onCode &&
+                (terminalFailure ? (
+                  <p role="alert" className="text-center text-[12.5px] leading-[1.7]" style={{ color: "var(--vg-danger)" }}>
+                    {failureText}
+                  </p>
+                ) : codeExpired ? (
+                  <p role="alert" className="text-center text-[12.5px] leading-[1.7]" style={{ color: "var(--vg-danger)" }}>
+                    {t("auth_code_expired")}
+                  </p>
+                ) : failureText ? (
+                  <p role="alert" className="text-center text-[12.5px] leading-[1.7]" style={{ color: "var(--vg-danger)" }}>
+                    {failure?.amount ? <Countdown template={t(failure.key)} value={localDigits(failure.amount)} /> : failureText}
+                  </p>
+                ) : (
+                  <p
+                    className="text-center text-[12.5px] leading-[1.7]"
+                    style={{ color: secondsLeft <= 10 ? "var(--vg-warning)" : "var(--vg-text-faint)" }}
+                  >
+                    <Countdown template={t("auth_code_expires_in")} value={localDigits(clock(secondsLeft))} />
+                  </p>
+                ))}
+
+              {inviteField}
+
+              <button
+                type="submit"
+                disabled={pending || !codeComplete || codeRefused}
+                className={submitPill}
+                style={submitStyle(pending || !codeComplete || codeRefused)}
+              >
+                {verifyPhone.isPending ? t("auth_verifying") : t("auth_verify")}
+              </button>
+
+              <div className="flex items-center justify-between gap-3 px-1 text-[12.5px]">
+                <button
+                  type="button"
+                  className="vg-ease hover:text-[color:var(--vg-text)]"
+                  style={{ color: "var(--vg-text-faint)" }}
+                  onClick={() => {
+                    setSentAt(null);
+                    setServerExpiresAt(null);
+                    setFailure(null);
+                  }}
+                >
+                  {t("auth_change_phone")}
+                </button>
+                <button
+                  type="button"
+                  disabled={secondsLeft > 0 || pending}
+                  className="vg-ease"
+                  /* Once the code is dead this is the only way forward, so it
+                         stops being a quiet accent link and takes the weight the
+                         submit button just gave up. */
+                  style={{
+                    color: secondsLeft > 0 ? "var(--vg-text-faint)" : "var(--vg-accent)",
+                    fontWeight: codeRefused ? 700 : 400,
+                  }}
+                  onClick={() => void requestCode()}
+                >
+                  {secondsLeft > 0 ? (
+                    <Countdown template={t("auth_resend_in")} value={localDigits(clock(secondsLeft))} />
+                  ) : (
+                    t("auth_resend")
+                  )}
+                </button>
+              </div>
+            </form>
+          ) : method === "phone" ? (
+            <form
+              className="grid gap-5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void requestCode();
+              }}
+            >
+              {/* Gated like the other two steps. It was showing whatever the
+                      last failure was regardless of which form produced it. */}
+              <PillField label={t("auth_phone_label")} hint={t("auth_phone_hint")} error={onPhoneForm ? failureText : undefined}>
+                {({ id, describedBy }) => (
+                  <input
+                    id={id}
+                    aria-describedby={describedBy}
+                    className={`${PILL} focus:border-accent`}
+                    style={pillStyle}
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="0912 345 6789"
+                    dir="ltr"
+                    required
+                  />
+                )}
+              </PillField>
+
+              <button type="submit" disabled={pending} className={submitPill} style={submitStyle(pending)}>
+                {startPhoneVerification.isPending ? t("auth_sending") : t("auth_send_code")}
+              </button>
+            </form>
+          ) : (
+            <form className="grid gap-5" onSubmit={submitEmail}>
+              <PillField label={t("auth_email_label")}>
+                {({ id, describedBy }) => (
+                  <input
+                    id={id}
+                    aria-describedby={describedBy}
+                    className={`${PILL} focus:border-accent`}
+                    style={pillStyle}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    type="email"
+                    autoComplete="email"
+                    dir="ltr"
+                    required
+                  />
+                )}
+              </PillField>
+
+              <PillField
+                label={t("auth_password_label")}
+                hint={mode === "signup" ? t("auth_password_hint") : undefined}
+                error={onEmailForm ? failureText : undefined}
+              >
+                {({ id, describedBy }) => (
+                  <input
+                    id={id}
+                    aria-describedby={describedBy}
+                    className={`${PILL} focus:border-accent`}
+                    style={pillStyle}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    type="password"
+                    // Only the sign-up form states the floor. `login` accepts
+                    // min(1) on purpose, so that the password rules are not
+                    // leaked to someone guessing at an existing account.
+                    minLength={mode === "signup" ? 10 : undefined}
+                    autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                    dir="ltr"
+                    required
+                  />
+                )}
+              </PillField>
+
+              {inviteField}
+
+              <button type="submit" disabled={pending} className={submitPill} style={submitStyle(pending)}>
+                {pending ? t("auth_working") : t(mode === "signin" ? "auth_signin_submit" : "auth_signup_submit")}
+              </button>
+            </form>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      {!codeSent && providers.length > 0 && (
+        <>
+          {/* An additional door, not the main one — and the layout has to say
+                  so. Neither provider is dependably reachable from Iran without a
+                  VPN, so giving these the accent fill would point most visitors
+                  at the one route that will hang for them. Outline, below the
+                  form, under a rule that reads as "or, if you can". */}
+          <div className="mt-8 flex items-center gap-3" aria-hidden>
+            <hr className="min-w-0 flex-1" style={{ borderColor: "var(--vg-border-subtle)" }} />
+            <span className="text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+              {t("auth_or")}
+            </span>
+            <hr className="min-w-0 flex-1" style={{ borderColor: "var(--vg-border-subtle)" }} />
+          </div>
+
+          <div className="mt-5 grid gap-2.5">
+            {providers.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                disabled={startProviderSignIn.isPending}
+                onClick={() =>
+                  void run("email", () => startProviderSignIn.mutateAsync({ provider: id, inviteCode: invite.trim() || undefined }))
+                }
+                className="vg-ease flex w-full items-center justify-center gap-2.5 rounded-full border py-3 text-[13.5px] font-semibold disabled:opacity-60"
+                style={{ borderColor: "var(--vg-border)", background: "rgb(255 255 255 / 0.02)", color: "var(--vg-text-secondary)" }}
+              >
+                <AuthProviderMark provider={id} size={18} />
+                {t(label)}
+              </button>
+            ))}
+            <p className="px-1 text-center text-[11.5px] leading-[1.7]" style={{ color: "var(--vg-text-faint)" }}>
+              {t("auth_provider_note")}
+            </p>
+          </div>
+        </>
+      )}
+
+      {!codeSent && (
+        <div className="mt-8 flex flex-col items-center gap-4 text-[12.5px]">
+          {/* A quiet line rather than a segmented control: two credentials,
+                  one of which most people here will never use, and a box round
+                  them would give the choice more weight than the form. */}
+          <button
+            type="button"
+            className="vg-ease hover:text-[color:var(--vg-text)]"
+            style={{ color: "var(--vg-text-secondary)" }}
+            onClick={() => {
+              setMethod(method === "phone" ? "email" : "phone");
+              setFailure(null);
+            }}
+          >
+            {t(method === "phone" ? "auth_use_email" : "auth_use_phone")}
+          </button>
+
+          <button
+            type="button"
+            className="vg-ease hover:text-[color:var(--vg-text)]"
+            style={{ color: "var(--vg-accent)" }}
+            onClick={() => router.push(mode === "signin" ? SIGN_UP_PATH : SIGN_IN_PATH)}
+          >
+            {t(mode === "signin" ? "auth_to_signup" : "auth_to_signin")}
+          </button>
+
+          <a
+            href="/"
+            className="vg-ease inline-flex items-center gap-1.5 hover:text-[color:var(--vg-text-secondary)]"
+            style={{ color: "var(--vg-text-faint)" }}
+          >
+            {/* Back points the way back, which under RTL is rightward — the
+                    opposite of the landing hero's arrow, whose button means
+                    "start" and so points the way forward. */}
+            <ArrowLeft size={13} weight="bold" className="rtl:-scale-x-100" />
+            {t("auth_back_home")}
+          </a>
+        </div>
+      )}
+    </AuthScene>
+  );
+}
+
+/** The dot field, the well of black behind the type, and the wordmark home. Shared with the invite page. */
+export function AuthScene({ leaving = false, children }: { leaving?: boolean; children: ReactNode }) {
+  return (
     <main className="relative flex min-h-[100dvh] flex-col overflow-hidden" style={{ background: "var(--vg-canvas)" }}>
       {/* The scene. The field wakes on arrival and collapses on the way out. */}
       <div className="absolute inset-0 z-0">
@@ -553,287 +855,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
               {BRAND.tagline}
             </span>
           </a>
-
-          <AnimatePresence mode="wait">
-            <motion.div key={codeSent ? "code" : "credentials"} {...step} transition={transition} className="grid gap-7">
-              <div className="text-center">
-                <h1
-                  className="text-[clamp(2rem,7vw,2.6rem)] font-extrabold leading-[1.18]"
-                  style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-                >
-                  {codeSent ? t("auth_code_label") : t(mode === "signin" ? "auth_signin_title" : "auth_signup_title")}
-                </h1>
-                <p className="mt-2 text-[15px] font-light leading-[1.9]" style={{ color: "var(--vg-text-muted)" }}>
-                  {codeSent ? t("auth_code_sent") : t(mode === "signin" ? "auth_signin_sub" : "auth_signup_sub")}
-                </p>
-              </div>
-
-              {codeSent ? (
-                <form
-                  className="grid gap-5"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    submitCode();
-                  }}
-                >
-                  <CodeBoxes
-                    digits={digits}
-                    onDigits={setDigits}
-                    groupLabel={t("auth_code_label")}
-                    digitLabel={(index) => t("auth_code_digit").replace("{n}", lang === "fa" ? faNum(index + 1) : String(index + 1))}
-                    describedBy={undefined}
-                    disabled={pending || codeRefused}
-                  />
-
-                  {/* One line, three things to say, in the one place someone is
-                      looking while they wait for a text.
-
-                      Newest true thing wins, and the order matters. A failure
-                      resending cannot fix comes first, because "get a new code"
-                      is bad advice when the next one will be refused too. Expiry
-                      comes next — it outranks an ordinary failure because it
-                      happened *after* it: a stale "that code is not right" while
-                      the boxes sit disabled tells someone to correct something
-                      they can no longer type into. Then the failure itself, and
-                      failing all of that, the clock: a hint while there is time,
-                      amber inside the last ten seconds, because "0:47" and "0:06"
-                      are not the same news.
-
-                      Running out is not an error the server reported, it is
-                      something this screen observed, so nothing sets `failure` and
-                      the message has to come from the clock.
-
-                      `role="alert"` on everything except the live countdown,
-                      which would interrupt a screen reader once a second all the
-                      way down. */}
-                  {onCode &&
-                    (terminalFailure ? (
-                      <p role="alert" className="text-center text-[12.5px] leading-[1.7]" style={{ color: "var(--vg-danger)" }}>
-                        {failureText}
-                      </p>
-                    ) : codeExpired ? (
-                      <p role="alert" className="text-center text-[12.5px] leading-[1.7]" style={{ color: "var(--vg-danger)" }}>
-                        {t("auth_code_expired")}
-                      </p>
-                    ) : failureText ? (
-                      <p role="alert" className="text-center text-[12.5px] leading-[1.7]" style={{ color: "var(--vg-danger)" }}>
-                        {failure?.amount ? <Countdown template={t(failure.key)} value={localDigits(failure.amount)} /> : failureText}
-                      </p>
-                    ) : (
-                      <p
-                        className="text-center text-[12.5px] leading-[1.7]"
-                        style={{ color: secondsLeft <= 10 ? "var(--vg-warning)" : "var(--vg-text-faint)" }}
-                      >
-                        <Countdown template={t("auth_code_expires_in")} value={localDigits(clock(secondsLeft))} />
-                      </p>
-                    ))}
-
-                  {inviteField}
-
-                  <button
-                    type="submit"
-                    disabled={pending || !codeComplete || codeRefused}
-                    className={submitPill}
-                    style={submitStyle(pending || !codeComplete || codeRefused)}
-                  >
-                    {verifyPhone.isPending ? t("auth_verifying") : t("auth_verify")}
-                  </button>
-
-                  <div className="flex items-center justify-between gap-3 px-1 text-[12.5px]">
-                    <button
-                      type="button"
-                      className="vg-ease hover:text-[color:var(--vg-text)]"
-                      style={{ color: "var(--vg-text-faint)" }}
-                      onClick={() => {
-                        setSentAt(null);
-                        setServerExpiresAt(null);
-                        setFailure(null);
-                      }}
-                    >
-                      {t("auth_change_phone")}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={secondsLeft > 0 || pending}
-                      className="vg-ease"
-                      /* Once the code is dead this is the only way forward, so it
-                         stops being a quiet accent link and takes the weight the
-                         submit button just gave up. */
-                      style={{
-                        color: secondsLeft > 0 ? "var(--vg-text-faint)" : "var(--vg-accent)",
-                        fontWeight: codeRefused ? 700 : 400,
-                      }}
-                      onClick={() => void requestCode()}
-                    >
-                      {secondsLeft > 0 ? (
-                        <Countdown template={t("auth_resend_in")} value={localDigits(clock(secondsLeft))} />
-                      ) : (
-                        t("auth_resend")
-                      )}
-                    </button>
-                  </div>
-                </form>
-              ) : method === "phone" ? (
-                <form
-                  className="grid gap-5"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void requestCode();
-                  }}
-                >
-                  {/* Gated like the other two steps. It was showing whatever the
-                      last failure was regardless of which form produced it. */}
-                  <PillField label={t("auth_phone_label")} hint={t("auth_phone_hint")} error={onPhoneForm ? failureText : undefined}>
-                    {({ id, describedBy }) => (
-                      <input
-                        id={id}
-                        aria-describedby={describedBy}
-                        className={`${PILL} focus:border-accent`}
-                        style={pillStyle}
-                        value={phone}
-                        onChange={(event) => setPhone(event.target.value)}
-                        inputMode="tel"
-                        autoComplete="tel"
-                        placeholder="0912 345 6789"
-                        dir="ltr"
-                        required
-                      />
-                    )}
-                  </PillField>
-
-                  <button type="submit" disabled={pending} className={submitPill} style={submitStyle(pending)}>
-                    {startPhoneVerification.isPending ? t("auth_sending") : t("auth_send_code")}
-                  </button>
-                </form>
-              ) : (
-                <form className="grid gap-5" onSubmit={submitEmail}>
-                  <PillField label={t("auth_email_label")}>
-                    {({ id, describedBy }) => (
-                      <input
-                        id={id}
-                        aria-describedby={describedBy}
-                        className={`${PILL} focus:border-accent`}
-                        style={pillStyle}
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        type="email"
-                        autoComplete="email"
-                        dir="ltr"
-                        required
-                      />
-                    )}
-                  </PillField>
-
-                  <PillField
-                    label={t("auth_password_label")}
-                    hint={mode === "signup" ? t("auth_password_hint") : undefined}
-                    error={onEmailForm ? failureText : undefined}
-                  >
-                    {({ id, describedBy }) => (
-                      <input
-                        id={id}
-                        aria-describedby={describedBy}
-                        className={`${PILL} focus:border-accent`}
-                        style={pillStyle}
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        type="password"
-                        // Only the sign-up form states the floor. `login` accepts
-                        // min(1) on purpose, so that the password rules are not
-                        // leaked to someone guessing at an existing account.
-                        minLength={mode === "signup" ? 10 : undefined}
-                        autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                        dir="ltr"
-                        required
-                      />
-                    )}
-                  </PillField>
-
-                  {inviteField}
-
-                  <button type="submit" disabled={pending} className={submitPill} style={submitStyle(pending)}>
-                    {pending ? t("auth_working") : t(mode === "signin" ? "auth_signin_submit" : "auth_signup_submit")}
-                  </button>
-                </form>
-              )}
-            </motion.div>
-          </AnimatePresence>
-
-          {!codeSent && providers.length > 0 && (
-            <>
-              {/* An additional door, not the main one — and the layout has to say
-                  so. Neither provider is dependably reachable from Iran without a
-                  VPN, so giving these the accent fill would point most visitors
-                  at the one route that will hang for them. Outline, below the
-                  form, under a rule that reads as "or, if you can". */}
-              <div className="mt-8 flex items-center gap-3" aria-hidden>
-                <hr className="min-w-0 flex-1" style={{ borderColor: "var(--vg-border-subtle)" }} />
-                <span className="text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
-                  {t("auth_or")}
-                </span>
-                <hr className="min-w-0 flex-1" style={{ borderColor: "var(--vg-border-subtle)" }} />
-              </div>
-
-              <div className="mt-5 grid gap-2.5">
-                {providers.map(({ id, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    disabled={startProviderSignIn.isPending}
-                    onClick={() => void run("email", () => startProviderSignIn.mutateAsync(id))}
-                    className="vg-ease flex w-full items-center justify-center gap-2.5 rounded-full border py-3 text-[13.5px] font-semibold disabled:opacity-60"
-                    style={{ borderColor: "var(--vg-border)", background: "rgb(255 255 255 / 0.02)", color: "var(--vg-text-secondary)" }}
-                  >
-                    <AuthProviderMark provider={id} size={18} />
-                    {t(label)}
-                  </button>
-                ))}
-                <p className="px-1 text-center text-[11.5px] leading-[1.7]" style={{ color: "var(--vg-text-faint)" }}>
-                  {t("auth_provider_note")}
-                </p>
-              </div>
-            </>
-          )}
-
-          {!codeSent && (
-            <div className="mt-8 flex flex-col items-center gap-4 text-[12.5px]">
-              {/* A quiet line rather than a segmented control: two credentials,
-                  one of which most people here will never use, and a box round
-                  them would give the choice more weight than the form. */}
-              <button
-                type="button"
-                className="vg-ease hover:text-[color:var(--vg-text)]"
-                style={{ color: "var(--vg-text-secondary)" }}
-                onClick={() => {
-                  setMethod(method === "phone" ? "email" : "phone");
-                  setFailure(null);
-                }}
-              >
-                {t(method === "phone" ? "auth_use_email" : "auth_use_phone")}
-              </button>
-
-              <button
-                type="button"
-                className="vg-ease hover:text-[color:var(--vg-text)]"
-                style={{ color: "var(--vg-accent)" }}
-                onClick={() => router.push(mode === "signin" ? SIGN_UP_PATH : SIGN_IN_PATH)}
-              >
-                {t(mode === "signin" ? "auth_to_signup" : "auth_to_signin")}
-              </button>
-
-              <a
-                href="/"
-                className="vg-ease inline-flex items-center gap-1.5 hover:text-[color:var(--vg-text-secondary)]"
-                style={{ color: "var(--vg-text-faint)" }}
-              >
-                {/* Back points the way back, which under RTL is rightward — the
-                    opposite of the landing hero's arrow, whose button means
-                    "start" and so points the way forward. */}
-                <ArrowLeft size={13} weight="bold" className="rtl:-scale-x-100" />
-                {t("auth_back_home")}
-              </a>
-            </div>
-          )}
+          {children}
         </div>
       </div>
     </main>

@@ -50,7 +50,7 @@ export async function mockApi(page: Page, scenario: ApiScenario = {}): Promise<v
   // a fixture that forgets it paints the "content failed to load" screen and
   // every landing assertion fails at once — which is exactly what it did.
   await page.route("**/api/v1/content", (route) =>
-    json(route, { version: "e2e-v1", publishedAt: 1, flags: { siteBanner: true }, ...contentPayload }),
+    json(route, { version: "e2e-v1", publishedAt: 1, flags: { siteBanner: true, earlyAccess: false }, ...contentPayload }),
   );
   await page.route("**/api/v1/community", (route) => json(route, communityPayload));
   await page.route("**/api/v1/wallet", (route) => json(route, { spendable: 1000, grants: [] }));

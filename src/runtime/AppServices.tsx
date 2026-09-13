@@ -47,7 +47,7 @@ export interface AppServices {
      * both fails CORS and drops that cookie. Failures come back as
      * `?auth=<code>` on the landing page rather than as a rejected promise.
      */
-    startProviderSignIn(provider: OAuthProvider, options?: RequestOptions): Promise<void>;
+    startProviderSignIn(provider: OAuthProvider, inviteCode?: string, options?: RequestOptions): Promise<void>;
     logout(options?: RequestOptions): Promise<void>;
   };
   /**
