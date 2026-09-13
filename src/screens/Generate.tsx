@@ -313,7 +313,12 @@ export default function Generate({
                 ({n(family.variants.length)} {t("g_versions")})
               </span>
             </div>
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 no-scrollbar">
+            {/* Wraps rather than scrolls. It was a horizontal scroller with the
+                scrollbar hidden, which is the worst of both: the overflow is
+                real but nothing on screen says so, so a family with six
+                variants showed four and looked clipped. Every option here has
+                to be reachable without knowing it can be dragged. */}
+            <div className="-mx-1 flex flex-wrap gap-2 px-1">
               {family.variants.map((v) => {
                 const on = v.id === variant.id;
                 return (
