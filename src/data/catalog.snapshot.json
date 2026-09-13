@@ -1914,13 +1914,6 @@
           "key": "sound",
           "label": "تولید صدا",
           "def": false
-        },
-        {
-          "advanced": true,
-          "kind": "toggle",
-          "key": "multi_shots",
-          "label": "چندنما (روایت چندبخشی)",
-          "def": false
         }
       ],
       "variants": [
@@ -1934,13 +1927,7 @@
           "featureCode": "video_generate",
           "label": "۳٫۰ Turbo",
           "badge": "سریع",
-          "refs": [
-            {
-              "key": "image_urls",
-              "label": "تصویر ورودی (اختیاری)",
-              "max": 1
-            }
-          ],
+          "refs": null,
           "controls": [
             {
               "kind": "aspect",
@@ -1997,16 +1984,53 @@
           ]
         },
         {
-          "id": "kling-2-6",
-          "featureCode": "video_generate",
-          "label": "۲٫۶",
+          "id": "kling-3-turbo-i2v",
+          "featureCode": "image_to_video",
+          "label": "۳٫۰ Turbo تصویر",
+          "badge": "سریع",
           "refs": [
             {
               "key": "image_urls",
-              "label": "تصویر ورودی (اختیاری)",
-              "max": 1
+              "label": "تصویر ورودی (الزامی)",
+              "max": 1,
+              "maxMb": 10,
+              "required": true
             }
           ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 3,
+              "max": 15,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            }
+          ]
+        },
+        {
+          "id": "kling-2-6",
+          "featureCode": "video_generate",
+          "label": "۲٫۶",
+          "refs": null,
           "controls": [
             {
               "kind": "aspect",
@@ -2034,6 +2058,44 @@
               ],
               "def": "16:9"
             },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "5",
+                  "label": "۵ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                }
+              ],
+              "def": "5"
+            },
+            {
+              "kind": "toggle",
+              "key": "sound",
+              "label": "تولید صدا",
+              "def": false
+            }
+          ]
+        },
+        {
+          "id": "kling-2-6-i2v",
+          "featureCode": "image_to_video",
+          "label": "۲٫۶ تصویر",
+          "refs": [
+            {
+              "key": "image_urls",
+              "label": "تصویر ورودی (الزامی)",
+              "max": 1,
+              "maxMb": 10,
+              "required": true
+            }
+          ],
+          "controls": [
             {
               "kind": "segment",
               "key": "duration",
@@ -2176,21 +2238,7 @@
           "id": "kling-2-5-turbo",
           "featureCode": "video_generate",
           "label": "۲٫۵ Turbo",
-          "refs": [
-            {
-              "group": "frame",
-              "key": "image_url",
-              "label": "فریم شروع (اختیاری)",
-              "max": 1
-            },
-            {
-              "group": "frame",
-              "key": "tail_image_url",
-              "label": "فریم پایان",
-              "max": 1,
-              "requires": "image_url"
-            }
-          ],
+          "refs": null,
           "controls": [
             {
               "kind": "aspect",
@@ -2252,6 +2300,64 @@
               "def": 0.5
             }
           ]
+        },
+        {
+          "id": "kling-2-5-turbo-i2v",
+          "featureCode": "image_to_video",
+          "label": "۲٫۵ Turbo تصویر",
+          "refs": [
+            {
+              "group": "frame",
+              "key": "image_url",
+              "label": "فریم شروع (الزامی)",
+              "max": 1,
+              "maxMb": 10,
+              "required": true
+            },
+            {
+              "group": "frame",
+              "key": "tail_image_url",
+              "label": "فریم پایان (اختیاری)",
+              "max": 1,
+              "maxMb": 10,
+              "requires": "image_url"
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "5",
+                  "label": "۵ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                }
+              ],
+              "def": "5"
+            },
+            {
+              "advanced": true,
+              "kind": "text",
+              "key": "negative_prompt",
+              "label": "پرامپت منفی",
+              "placeholder": "چه چیزی نباشد…"
+            },
+            {
+              "advanced": true,
+              "kind": "slider",
+              "key": "cfg_scale",
+              "label": "پایبندی به پرامپت",
+              "min": 0,
+              "max": 1,
+              "step": 0.1,
+              "def": 0.5
+            }
+          ]
         }
       ]
     },
@@ -2264,28 +2370,6 @@
       "blurb": "یک مدل برای همه‌چیز: متن، عکس یا مرجع به ویدیوی ۲K با صدای همگام",
       "badge": "جدید",
       "grad": "linear-gradient(135deg,#f7734b,#f74b9b)",
-      "refs": [
-        {
-          "key": "reference_image_urls",
-          "label": "تصاویر مرجع / سوژه (اختیاری)",
-          "max": 9,
-          "maxMb": 30
-        },
-        {
-          "key": "reference_video_urls",
-          "label": "ویدیوی مرجع برای حرکت (اختیاری)",
-          "max": 3,
-          "media": "video",
-          "maxMb": 50
-        },
-        {
-          "key": "reference_audio_urls",
-          "label": "صدای مرجع (اختیاری)",
-          "max": 3,
-          "media": "audio",
-          "maxMb": 15
-        }
-      ],
       "maxPrompt": 5000,
       "controls": [
         {
@@ -2338,8 +2422,8 @@
           "label": "کیفیت",
           "options": [
             {
-              "value": "768p",
-              "label": "768p"
+              "value": "768P",
+              "label": "768P"
             },
             {
               "value": "2K",
@@ -2352,7 +2436,7 @@
           "kind": "slider",
           "key": "duration",
           "label": "مدت",
-          "min": 5,
+          "min": 4,
           "max": 15,
           "step": 1,
           "def": 5,
@@ -2365,6 +2449,78 @@
           "featureCode": "video_generate",
           "label": "H3",
           "badge": "جدید"
+        },
+        {
+          "id": "minimax-h3-i2v",
+          "featureCode": "image_to_video",
+          "label": "H3 تصویر",
+          "refs": [
+            {
+              "group": "frame",
+              "key": "first_frame_url",
+              "label": "فریم شروع (الزامی)",
+              "max": 1,
+              "maxMb": 20,
+              "required": true
+            },
+            {
+              "group": "frame",
+              "key": "last_frame_url",
+              "label": "فریم پایان (اختیاری)",
+              "max": 1,
+              "maxMb": 20,
+              "requires": "first_frame_url"
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "768P",
+                  "label": "768P"
+                },
+                {
+                  "value": "2K",
+                  "label": "2K"
+                }
+              ],
+              "def": "2K"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 4,
+              "max": 15,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            }
+          ]
+        },
+        {
+          "id": "minimax-h3-ref",
+          "featureCode": "image_to_video",
+          "label": "H3 مرجع",
+          "refs": [
+            {
+              "key": "reference_image_urls",
+              "label": "تصاویر مرجع / سوژه (الزامی)",
+              "max": 5,
+              "maxMb": 30,
+              "required": true
+            },
+            {
+              "key": "reference_audio_urls",
+              "label": "صدای مرجع (اختیاری)",
+              "max": 3,
+              "media": "audio",
+              "maxMb": 15
+            }
+          ]
         }
       ]
     },
@@ -2458,12 +2614,67 @@
           "id": "wan-2-5",
           "featureCode": "video_generate",
           "maxPrompt": 800,
-          "label": "۲٫۵",
+          "label": "۲٫۵"
+        },
+        {
+          "id": "wan-2-5-i2v",
+          "featureCode": "image_to_video",
+          "maxPrompt": 800,
+          "label": "۲٫۵ تصویر",
           "refs": [
             {
               "key": "image_url",
-              "label": "تصویر ورودی (اختیاری)",
-              "max": 1
+              "label": "تصویر ورودی (الزامی)",
+              "max": 1,
+              "required": true
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "5",
+                  "label": "۵ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                }
+              ],
+              "def": "5"
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "enable_prompt_expansion",
+              "label": "گسترش خودکار پرامپت",
+              "def": false
+            },
+            {
+              "advanced": true,
+              "kind": "text",
+              "key": "negative_prompt",
+              "label": "پرامپت منفی",
+              "placeholder": "چه چیزی نباشد…"
             }
           ]
         },
@@ -2471,11 +2682,63 @@
           "id": "wan-2-6",
           "featureCode": "video_generate",
           "label": "۲٫۶",
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "1080p"
+            },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "5",
+                  "label": "۵ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                },
+                {
+                  "value": "15",
+                  "label": "۱۵ ثانیه"
+                }
+              ],
+              "def": "5"
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "multi_shots",
+              "label": "چندنما (روایت چندبخشی)",
+              "def": false
+            }
+          ]
+        },
+        {
+          "id": "wan-2-6-i2v",
+          "featureCode": "image_to_video",
+          "label": "۲٫۶ تصویر",
           "refs": [
             {
               "key": "image_urls",
-              "label": "تصویر ورودی (اختیاری)",
-              "max": 1
+              "label": "تصویر ورودی (الزامی)",
+              "max": 1,
+              "maxMb": 10,
+              "required": true
             }
           ],
           "controls": [
@@ -2528,37 +2791,6 @@
           "id": "wan-2-7",
           "featureCode": "video_generate",
           "label": "۲٫۷",
-          "refs": [
-            {
-              "group": "frame",
-              "key": "first_frame_url",
-              "label": "فریم شروع (اختیاری)",
-              "max": 1,
-              "maxMb": 30
-            },
-            {
-              "group": "frame",
-              "key": "last_frame_url",
-              "label": "فریم پایان (اختیاری)",
-              "max": 1,
-              "maxMb": 30
-            },
-            {
-              "group": "frame",
-              "key": "first_clip_url",
-              "label": "کلیپ شروع (اختیاری)",
-              "max": 1,
-              "media": "video",
-              "maxMb": 30
-            },
-            {
-              "key": "driving_audio_url",
-              "label": "صدای هدایت‌گر (اختیاری)",
-              "max": 1,
-              "media": "audio",
-              "maxMb": 50
-            }
-          ],
           "controls": [
             {
               "kind": "aspect",
@@ -2598,6 +2830,85 @@
               ],
               "def": "16:9"
             },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "1080p"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 2,
+              "max": 15,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            },
+            {
+              "advanced": true,
+              "kind": "text",
+              "key": "negative_prompt",
+              "label": "پرامپت منفی",
+              "placeholder": "چه چیزی نباشد…"
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "prompt_extend",
+              "label": "گسترش خودکار پرامپت",
+              "def": true
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "watermark",
+              "label": "واترمارک",
+              "def": false
+            }
+          ]
+        },
+        {
+          "id": "wan-2-7-i2v",
+          "featureCode": "image_to_video",
+          "label": "۲٫۷ تصویر",
+          "refs": [
+            {
+              "group": "frame",
+              "key": "first_frame_url",
+              "label": "فریم شروع (الزامی)",
+              "max": 1,
+              "maxMb": 30,
+              "required": true
+            },
+            {
+              "group": "frame",
+              "key": "last_frame_url",
+              "label": "فریم پایان (اختیاری)",
+              "max": 1,
+              "maxMb": 30,
+              "requires": "first_frame_url"
+            },
+            {
+              "key": "driving_audio_url",
+              "label": "صدای هدایت‌گر (اختیاری)",
+              "max": 1,
+              "media": "audio",
+              "maxMb": 50
+            }
+          ],
+          "controls": [
             {
               "kind": "segment",
               "key": "resolution",
@@ -3488,10 +3799,6 @@
             {
               "value": "4",
               "label": "۴ برابر"
-            },
-            {
-              "value": "8",
-              "label": "۸ برابر"
             }
           ],
           "def": "2"

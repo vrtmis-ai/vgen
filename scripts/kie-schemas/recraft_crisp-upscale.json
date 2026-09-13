@@ -3,7 +3,7 @@
   "title": "Recraft - Crisp Upscale",
   "docUrl": "https://docs.kie.ai/market/recraft/crisp-upscale.md",
   "endpoint": "/api/v1/jobs/createTask",
-  "fetchedAt": "2026-09-12",
+  "fetchedAt": "2026-09-13",
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Recraft - Crisp Upscale — input",

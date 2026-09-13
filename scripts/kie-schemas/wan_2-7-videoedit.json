@@ -3,7 +3,7 @@
   "title": "Wan 2.7 - Video Edit",
   "docUrl": "https://docs.kie.ai/market/wan/2-7-videoedit.md",
   "endpoint": "/api/v1/jobs/createTask",
-  "fetchedAt": "2026-09-12",
+  "fetchedAt": "2026-09-13",
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Wan 2.7 - Video Edit — input",
@@ -28,12 +28,6 @@
         "format": "uri",
         "description": "URL of the source video to edit. Required. Only one video is supported.\n\n- Formats: `mp4`, `mov`\n- Duration: `2` to `10` seconds\n- Resolution: width and height range `[240,4096]` pixels\n- Aspect ratio: `1:8` to `8:1`\n- File size: up to `100MB`\n- Supports public `http/https` URLs or temporary `oss` URLs",
         "examples": ["https://example.com/demo/video.mp4"]
-      },
-      "reference_image": {
-        "type": "string",
-        "format": "uri",
-        "description": "Optional reference image URL for character, clothing, or style guidance.\n\n- Formats: `JPEG`, `JPG`, `PNG` (no alpha channel), `BMP`, `WEBP`\n- Resolution: width and height range `[240,8000]` pixels\n- Aspect ratio: `1:8` to `8:1`\n- Supports public `http/https` URLs or temporary `oss` URLs",
-        "examples": ["https://example.com/demo/reference.png"]
       },
       "resolution": {
         "type": "string",
@@ -82,9 +76,11 @@
         "description": "Random seed. Range: `0-2147483647`. If omitted, the system generates one automatically.",
         "examples": [0]
       },
-      "nsfw_checker": {
-        "type": "boolean",
-        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      "reference_image": {
+        "type": "string",
+        "format": "uri",
+        "description": "Optional reference image URL for character, clothing, or style guidance.\n\n- Formats: `JPEG`, `JPG`, `PNG` (no alpha channel), `BMP`, `WEBP`\n- Resolution: width and height range `[240,8000]` pixels\n- Aspect ratio: `1:8` to `8:1`\n- Supports public `http/https` URLs or temporary `oss` URLs",
+        "examples": ["https://example.com/demo/reference.png"]
       }
     }
   },

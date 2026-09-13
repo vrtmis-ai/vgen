@@ -633,6 +633,16 @@
       "isOffered": true
     },
     {
+      "variantId": "kling-2-5-turbo-i2v",
+      "featureCode": "image_to_video",
+      "selector": {},
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 1680000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "kling-2-6-motion",
       "featureCode": "image_to_video",
       "selector": {
@@ -709,6 +719,30 @@
       "isOffered": true
     },
     {
+      "variantId": "kling-2-6-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "sound": "false"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 2200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-2-6-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "sound": "true"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 4400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "kling-3-motion",
       "featureCode": "image_to_video",
       "selector": {
@@ -775,6 +809,30 @@
     {
       "variantId": "kling-3-turbo",
       "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 3600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-turbo-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 4500000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-turbo-i2v",
+      "featureCode": "image_to_video",
       "selector": {
         "resolution": "720p"
       },
@@ -870,7 +928,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 5200000,
+      "microCredits": 2600000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -878,11 +936,59 @@
       "variantId": "minimax-h3",
       "featureCode": "video_generate",
       "selector": {
-        "resolution": "768p"
+        "resolution": "768P"
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 3200000,
+      "microCredits": 1600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "minimax-h3-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 2600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "minimax-h3-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "768P"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 1600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "minimax-h3-ref",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 2600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "minimax-h3-ref",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "768P"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 1600000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1231,18 +1337,6 @@
       "isOffered": true
     },
     {
-      "variantId": "topaz-image-upscale",
-      "featureCode": "image_edit",
-      "selector": {
-        "upscale_factor": "8"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 8000000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
       "variantId": "topaz-video-upscale",
       "featureCode": "video_edit",
       "selector": {
@@ -1411,6 +1505,30 @@
       "isOffered": true
     },
     {
+      "variantId": "wan-2-5-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 4000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-5-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 2400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "wan-2-6",
       "featureCode": "video_generate",
       "selector": {
@@ -1489,6 +1607,84 @@
       "isOffered": true
     },
     {
+      "variantId": "wan-2-6-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "10",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 41900000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "10",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 28000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "15",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 63000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "15",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 42000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "5",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 20900000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "5",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 14000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "wan-2-7-r2v",
       "featureCode": "image_to_video",
       "selector": {
@@ -1551,6 +1747,30 @@
     {
       "variantId": "wan-2-7",
       "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-i2v",
+      "featureCode": "image_to_video",
       "selector": {
         "resolution": "720p"
       },

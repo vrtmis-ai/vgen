@@ -3,7 +3,7 @@
   "title": "Wan 2.5 - Text to Video",
   "docUrl": "https://docs.kie.ai/market/wan/2-5-text-to-video.md",
   "endpoint": "/api/v1/jobs/createTask",
-  "fetchedAt": "2026-09-12",
+  "fetchedAt": "2026-09-13",
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Wan 2.5 - Text to Video — input",
@@ -50,10 +50,6 @@
       "seed": {
         "type": "integer",
         "description": "Random seed for reproducibility. If omitted, a random seed is chosen."
-      },
-      "nsfw_checker": {
-        "type": "boolean",
-        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
       }
     }
   },

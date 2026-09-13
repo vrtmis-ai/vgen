@@ -22,18 +22,41 @@
  * Apidog's `x-apidog-*` vendor keys come out, everything else is already JSON
  * Schema.
  */
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { format, resolveConfig } from "prettier";
 import { parse as parseYaml } from "yaml";
 import { FAMILIES } from "../src/data/models";
-import { upstreamModel, upstreamModelWithRefs } from "./upstream";
+import upstream from "../src/data/upstream.json" with { type: "json" };
+import { kieRequestBody } from "../packages/adapters/src/providers/kie";
+import { upstreamModel } from "./upstream";
 
 const INDEX_URL = "https://docs.kie.ai/llms.txt";
 const OUT_DIR = fileURLToPath(new URL("./kie-schemas/", import.meta.url));
 
-/** The endpoint the KIE adapter posts every job to. See `packages/adapters/src/providers/kie.ts`. */
-const UNIFIED_ENDPOINT = "/api/v1/jobs/createTask";
+/** The endpoints the KIE adapter posts to. See `packages/adapters/src/providers/kie.ts`. */
+const ADAPTER_ENDPOINTS = new Set(["/api/v1/jobs/createTask", "/api/v1/veo/generate"]);
+
+/**
+ * Pages the index no longer lists but whose endpoint is still live and still
+ * the only way to reach something we sell. Veo's three tiers are one of them:
+ * the marketplace `veo-3-1` has no field that picks a tier.
+ */
+const UNLISTED_PAGES: DocPage[] = [
+  { title: "Generate Veo3.1 Video (legacy endpoint)", url: "https://docs.kie.ai/old-model/veo3-api/generate-veo-3-video.md" },
+];
+
+/**
+ * Documented as required, known not to be, with the reason. Printed on every
+ * run rather than hidden, so a claim nobody has verified stays visible.
+ *
+ * KIE's required lists are generated, and not always true: the Veo 3.1 page
+ * marks `watermark` and a deprecated `enable_fallback` as required.
+ */
+const ACCEPTED: Record<string, string> = {
+  "kling-3:multi_prompt":
+    "its own description says it takes effect only when multi_shots is true, and the adapter always sends multi_shots false. Unverified against the live API: a Kling 3 job costs too much to spend on the question.",
+};
 
 /** Apidog's editor metadata. Real schema keywords never start with `x-`. */
 const isVendorKey = (key: string) => key.startsWith("x-");
@@ -77,7 +100,7 @@ interface ModelSchema {
  */
 async function findModelPages(): Promise<DocPage[]> {
   const text = await fetchText(INDEX_URL);
-  const pages = new Map<string, DocPage>();
+  const pages = new Map<string, DocPage>(UNLISTED_PAGES.map((page) => [page.url, page]));
   for (const line of text.split("\n")) {
     const match = /^-\s+.*?\[([^\]]+)\]\((https:\/\/docs\.kie\.ai\/[^)]+\.md)\)/.exec(line);
     if (!match) continue;
@@ -134,7 +157,10 @@ function clean(node: unknown): unknown {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
     if (isVendorKey(key)) continue;
-    out[key] = clean(value);
+    // Trimmed because the pages have typos in their own keys — Seedance 2 Fast
+    // documents "reference_video_urls " with a trailing space — and the API
+    // does not accept the space any more than we send it.
+    out[key.trim()] = clean(value);
   }
   return out;
 }
@@ -173,6 +199,15 @@ function modelsOf(properties: Record<string, unknown>, example: Record<string, u
   return [...new Set(found.filter((value): value is string => typeof value === "string" && value.length > 0))];
 }
 
+function parseLoosely(text: string): Record<string, unknown> {
+  try {
+    return asRecord(JSON.parse(text));
+  } catch {
+    const model = /"model"\s*:\s*"([^"]+)"/.exec(text)?.[1];
+    return model ? { model } : {};
+  }
+}
+
 function extract(page: DocPage, markdown: string): ModelSchema | null {
   const spec = openApiOf(markdown);
   if (!spec) return null;
@@ -185,8 +220,15 @@ function extract(page: DocPage, markdown: string): ModelSchema | null {
   const body = asRecord(json.schema);
   const properties = asRecord(body.properties);
 
-  const example = asRecord(json.example);
-  const input = asRecord(properties.input);
+  // Some pages give the example as a string, and not always a parseable one:
+  // Kling 2.5 Turbo image-to-video's reads `"input": {image`. The model id is
+  // still the one thing in it worth having, so it is read out with a pattern.
+  const rawExample = json.example;
+  const example = typeof rawExample === "string" ? parseLoosely(rawExample) : asRecord(rawExample);
+  // The legacy endpoints take the settings flat in the body, beside `model`,
+  // rather than nested under `input`.
+  const flat = Object.fromEntries(Object.entries(properties).filter(([key]) => key !== "model" && key !== "callBackUrl"));
+  const input = properties.input ? asRecord(properties.input) : { type: "object", properties: flat, required: body.required ?? [] };
   return {
     models: modelsOf(properties, example),
     title: page.title,
@@ -255,6 +297,8 @@ function loadSaved(): ModelSchema[] {
  * a parameter it knows, is every option value inside its enum, and is every
  * required field something we actually send.
  */
+const accepted: string[] = [];
+
 function audit(schemas: ModelSchema[]): string[] {
   const byModel = new Map(schemas.flatMap((schema) => schema.models.map((model) => [model, schema] as const)));
   const problems: string[] = [];
@@ -273,14 +317,21 @@ function audit(schemas: ModelSchema[]): string[] {
         problems.push(`${variant.id}: "${model}" is not in any documented page — retired, renamed, or never existed`);
         continue;
       }
-      if (schema.endpoint !== UNIFIED_ENDPOINT) {
-        problems.push(`${variant.id}: "${model}" is documented on ${schema.endpoint}, but the adapter only posts to ${UNIFIED_ENDPOINT}`);
+      if (!schema.endpoint || !ADAPTER_ENDPOINTS.has(schema.endpoint)) {
+        problems.push(`${variant.id}: "${model}" is documented on ${schema.endpoint}, which the adapter does not post to`);
       }
 
       const props = asRecord(asRecord(schema.input).properties);
       const required = new Set((asRecord(schema.input).required as string[] | undefined) ?? []);
       const controls = variant.controls ?? family.controls ?? [];
-      const refs = variant.refs ?? family.refs ?? [];
+      // `null` on a variant means "no slots", not "inherit" — the worker reads it
+      // the same way.
+      const refs = (variant.refs === undefined ? family.refs : variant.refs) ?? [];
+      /** A setting as it leaves the adapter: renamed, retyped, flattened. */
+      const sentAs = (params: Record<string, string | number | boolean>) => {
+        const body = kieRequestBody(model, params);
+        return asRecord(body.input ?? body);
+      };
 
       for (const control of controls) {
         const spec = props[control.key];
@@ -291,17 +342,32 @@ function audit(schemas: ModelSchema[]): string[] {
         const enumValues = asRecord(spec).enum as unknown[] | undefined;
         if (!enumValues || !("options" in control)) continue;
         for (const option of control.options) {
-          if (!enumValues.includes(option.value)) {
+          if (!enumValues.includes(sentAs({ [control.key]: option.value })[control.key])) {
             problems.push(`${variant.id}: ${control.key}="${option.value}" is not in ${model}'s enum`);
           }
         }
       }
 
+      // A file lands under its slot key, or under `sends.key` when two slots
+      // share one positional array. The worker posts every job to `model`, so
+      // that is the schema a reference has to fit — a slot that only exists on
+      // a sibling image-to-video endpoint reaches a model that ignores it.
+      const refKeys = refs.map((ref) => ref.sends?.key ?? ref.key);
+      for (const key of new Set(refKeys)) {
+        if (!props[key]) problems.push(`${variant.id}: reference slot "${key}" is not a parameter of ${model}`);
+      }
+
       // `prompt` is sent by every submission and is not a control; refs cover
-      // the file inputs. Anything else required is a field nothing fills.
-      const sent = new Set([...controls.map((c) => c.key), ...refs.map((r) => r.key), "prompt"]);
+      // the file inputs. Passed through the adapter's own renames, so this
+      // checks what actually goes out rather than what the catalogue calls it.
+      const sent = new Set(
+        Object.keys(sentAs(Object.fromEntries([...controls.map((c) => c.key), ...refKeys, "prompt"].map((key) => [key, ""])))),
+      );
       for (const field of required) {
-        if (!sent.has(field)) problems.push(`${variant.id}: ${model} requires "${field}", which nothing sends`);
+        if (sent.has(field)) continue;
+        const reason = ACCEPTED[`${variant.id}:${field}`];
+        if (reason) accepted.push(`${variant.id}: ${model} marks "${field}" required — ${reason}`);
+        else problems.push(`${variant.id}: ${model} requires "${field}", which nothing sends`);
       }
     }
   }
@@ -319,20 +385,20 @@ if (checkOnly) {
   if (saved.length === 0) throw new Error("no saved schemas — run pnpm kie:schemas first");
   report(saved, `${saved.length} saved schemas`);
 } else {
-  const wanted = new Set<string>();
-  if (!all) {
-    for (const family of FAMILIES) {
-      for (const variant of family.variants) {
-        try {
-          wanted.add(upstreamModel(variant.id));
-        } catch {
-          /* reported by the audit, not a reason to skip the crawl */
-        }
-        const withRefs = upstreamModelWithRefs(variant.id);
-        if (withRefs) wanted.add(withRefs);
-      }
-    }
-  }
+  // Every endpoint upstream.json names, not only the ones a variant reaches
+  // today: an endpoint is added there first and wired to a variant after, and
+  // its schema is what the variant's controls are written from.
+  const wanted = new Set<string>(
+    all
+      ? []
+      : Object.entries(upstream)
+          .filter(([key]) => !key.startsWith("$"))
+          .map(([, entry]) => (entry as { model: string }).model),
+  );
+
+  // Cleared, so a model we stopped routing to does not linger as a schema the
+  // audit still trusts.
+  rmSync(OUT_DIR, { recursive: true, force: true });
 
   const pages = await findModelPages();
   console.log(`index lists ${pages.length} documented pages`);
@@ -377,6 +443,7 @@ if (checkOnly) {
 
 function report(schemas: ModelSchema[], what: string): void {
   const problems = audit(schemas);
+  for (const line of accepted) console.log(`\naccepted: ${line}`);
   if (problems.length === 0) {
     console.log(`\nthe catalogue agrees with ${what} — every parameter, enum value and required field ✅`);
     process.exit(0);

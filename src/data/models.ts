@@ -258,6 +258,130 @@ const gptImage25Controls: Control[] = [
  */
 const gptImage25Refs: RefSlot[] = [{ key: "input_urls", label: "تصاویر ورودی", max: 16, required: true }];
 
+/** Kling 3 Turbo's, minus aspect_ratio, which only its text model has. */
+const klingTurboControls: Control[] = [
+  {
+    kind: "segment",
+    key: "resolution",
+    label: "کیفیت",
+    def: "720p",
+    options: [
+      { value: "720p", label: "720p" },
+      { value: "1080p", label: "1080p" },
+    ],
+  },
+  { kind: "slider", key: "duration", label: "مدت", min: 3, max: 15, step: 1, def: 5, unit: "ثانیه" },
+];
+
+/** Kling 2.6's, minus aspect_ratio, which only its text model has. */
+const kling26Controls: Control[] = [
+  {
+    kind: "segment",
+    key: "duration",
+    label: "مدت",
+    def: "5",
+    options: [
+      { value: "5", label: "۵ ثانیه" },
+      { value: "10", label: "۱۰ ثانیه" },
+    ],
+  },
+  { kind: "toggle", key: "sound", label: "تولید صدا", def: false },
+];
+
+/** Kling 2.5 Turbo's, minus aspect_ratio, which only its text model has. */
+const kling25TurboControls: Control[] = [
+  {
+    kind: "segment",
+    key: "duration",
+    label: "مدت",
+    def: "5",
+    options: [
+      { value: "5", label: "۵ ثانیه" },
+      { value: "10", label: "۱۰ ثانیه" },
+    ],
+  },
+  { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
+  { kind: "slider", key: "cfg_scale", label: "پایبندی به پرامپت", min: 0, max: 1, step: 0.1, def: 0.5, advanced: true },
+];
+
+/* Wan's three schemas. Each version names its fields differently, and each
+   image model drops the aspect field its text model has — see the variants. */
+const wan25Controls: Control[] = [
+  {
+    kind: "aspect",
+    key: "aspect_ratio",
+    label: "نسبت تصویر",
+    def: "16:9",
+    options: [ratios.l169, ratios.p916, ratios.sq],
+  },
+  {
+    kind: "segment",
+    key: "resolution",
+    label: "کیفیت",
+    def: "720p",
+    options: [
+      { value: "720p", label: "720p" },
+      { value: "1080p", label: "1080p" },
+    ],
+  },
+  {
+    kind: "segment",
+    key: "duration",
+    label: "مدت",
+    def: "5",
+    options: [
+      { value: "5", label: "۵ ثانیه" },
+      { value: "10", label: "۱۰ ثانیه" },
+    ],
+  },
+  { kind: "toggle", key: "enable_prompt_expansion", label: "گسترش خودکار پرامپت", def: false, advanced: true },
+  { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
+];
+
+const wan26Controls: Control[] = [
+  {
+    kind: "segment",
+    key: "resolution",
+    label: "کیفیت",
+    def: "1080p",
+    options: [
+      { value: "720p", label: "720p" },
+      { value: "1080p", label: "1080p" },
+    ],
+  },
+  {
+    kind: "segment",
+    key: "duration",
+    label: "مدت",
+    def: "5",
+    options: [
+      { value: "5", label: "۵ ثانیه" },
+      { value: "10", label: "۱۰ ثانیه" },
+      { value: "15", label: "۱۵ ثانیه" },
+    ],
+  },
+  { kind: "toggle", key: "multi_shots", label: "چندنما (روایت چندبخشی)", def: false, advanced: true },
+];
+
+/** Everything 2.7 takes except `ratio`, which its image model does not. */
+const wan27Controls: Control[] = [
+  {
+    kind: "segment",
+    key: "resolution",
+    label: "کیفیت",
+    def: "1080p",
+    options: [
+      { value: "720p", label: "720p" },
+      { value: "1080p", label: "1080p" },
+    ],
+  },
+  { kind: "slider", key: "duration", label: "مدت", min: 2, max: 15, step: 1, def: 5, unit: "ثانیه" },
+  { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
+  // API default is true; kept on to match, but now visible and switchable.
+  { kind: "toggle", key: "prompt_extend", label: "گسترش خودکار پرامپت", def: true, advanced: true },
+  { kind: "toggle", key: "watermark", label: "واترمارک", def: false, advanced: true },
+];
+
 // Seedance variants share one schema; only the available resolutions differ (from the price table).
 function seedanceControls(res: string[]): Control[] {
   return [
@@ -828,65 +952,62 @@ export const FAMILIES: Family[] = [
           { value: "4K", label: "4K" },
         ],
       },
-      // There is no top-level duration or prompt on this model — both are
-      // serialised into the `shots` JSON string ({"prompt": …, "duration": …}).
-      // The control stays because duration still drives the per-second price and
-      // the backend needs the value to build `shots`.
+      // Top-level `duration` and `prompt`, as strings "3"–"15". The model used to
+      // take both inside a `shots` JSON string; its schema no longer does.
       { kind: "slider", key: "duration", label: "مدت", min: 3, max: 15, step: 1, def: 5, unit: "ثانیه", asString: true },
       // API default is true, and sound doubles the price, so it must always be
       // sent explicitly rather than left out.
       { kind: "toggle", key: "sound", label: "تولید صدا", def: false },
-      { kind: "toggle", key: "multi_shots", label: "چندنما (روایت چندبخشی)", def: false, advanced: true },
+      // No multi_shots toggle. Turned on, the model reads its shots from
+      // `multi_prompt` — an array of {prompt, duration} this screen has no way
+      // to build — so the switch could only ever send a job that fails.
     ],
     variants: [
       { id: "kling-3", featureCode: "video_generate", label: "۳٫۰" },
       {
         // Turbo exposes neither sound nor multi_shots, and tops out at 1080p, so
-        // it can't inherit the family controls. aspect_ratio exists on the
-        // text-to-video model only — with an input image the frame comes from the
-        // image, so the backend must drop aspect_ratio when it calls image-to-video.
+        // it can't inherit the family controls.
+        //
+        // Text only. KIE serves Turbo's image-to-video as a separate model, and
+        // this variant used to carry an upload slot that went to the text one,
+        // which ignored the file. The image endpoint is `kling-3-turbo-i2v`.
         id: "kling-3-turbo",
         featureCode: "video_generate",
         label: "۳٫۰ Turbo",
         badge: "سریع",
-        refs: [{ key: "image_urls", label: "تصویر ورودی (اختیاری)", max: 1 }],
+        refs: null,
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
-          {
-            kind: "segment",
-            key: "resolution",
-            label: "کیفیت",
-            def: "720p",
-            options: [
-              { value: "720p", label: "720p" },
-              { value: "1080p", label: "1080p" },
-            ],
-          },
-          { kind: "slider", key: "duration", label: "مدت", min: 3, max: 15, step: 1, def: 5, unit: "ثانیه" },
+          ...klingTurboControls,
         ],
       },
       {
+        // No aspect_ratio: the frame follows the image.
+        id: "kling-3-turbo-i2v",
+        featureCode: "image_to_video",
+        label: "۳٫۰ Turbo تصویر",
+        badge: "سریع",
+        refs: [{ key: "image_urls", label: "تصویر ورودی (الزامی)", max: 1, required: true, maxMb: 10 }],
+        controls: klingTurboControls,
+      },
+      {
+        // Text only; the image model is `kling-2-6-i2v`. It takes one source
+        // image rather than the family's start/end pair, and no aspect_ratio.
         id: "kling-2-6",
         featureCode: "video_generate",
         label: "۲٫۶",
-        // Not the family slot: 2.6 takes one source image, not a start/end frame
-        // pair. Its image-to-video model also drops aspect_ratio — the frame comes
-        // from the image — so the backend must omit that field when an image is set.
-        refs: [{ key: "image_urls", label: "تصویر ورودی (اختیاری)", max: 1 }],
+        refs: null,
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
-          {
-            kind: "segment",
-            key: "duration",
-            label: "مدت",
-            def: "5",
-            options: [
-              { value: "5", label: "۵ ثانیه" },
-              { value: "10", label: "۱۰ ثانیه" },
-            ],
-          },
-          { kind: "toggle", key: "sound", label: "تولید صدا", def: false },
+          ...kling26Controls,
         ],
+      },
+      {
+        id: "kling-2-6-i2v",
+        featureCode: "image_to_video",
+        label: "۲٫۶ تصویر",
+        refs: [{ key: "image_urls", label: "تصویر ورودی (الزامی)", max: 1, required: true, maxMb: 10 }],
+        controls: kling26Controls,
       },
       {
         // Motion transfer: the character comes from the image, the movement from
@@ -917,28 +1038,24 @@ export const FAMILIES: Family[] = [
         id: "kling-2-5-turbo",
         featureCode: "video_generate",
         label: "۲٫۵ Turbo",
-        // The image-to-video model names its frames separately — image_url and
-        // tail_image_url — instead of one image_urls array, and drops
-        // aspect_ratio, which follows the start frame.
-        refs: [
-          { key: "image_url", group: "frame" as const, label: "فریم شروع (اختیاری)", max: 1 },
-          { key: "tail_image_url", group: "frame" as const, label: "فریم پایان", max: 1, requires: "image_url" },
-        ],
+        refs: null,
         controls: [
           { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916, ratios.sq] },
-          {
-            kind: "segment",
-            key: "duration",
-            label: "مدت",
-            def: "5",
-            options: [
-              { value: "5", label: "۵ ثانیه" },
-              { value: "10", label: "۱۰ ثانیه" },
-            ],
-          },
-          { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
-          { kind: "slider", key: "cfg_scale", label: "پایبندی به پرامپت", min: 0, max: 1, step: 0.1, def: 0.5, advanced: true },
+          ...kling25TurboControls,
         ],
+      },
+      {
+        // The image model names its frames separately — image_url and
+        // tail_image_url — instead of one image_urls array, and has no
+        // aspect_ratio, which follows the start frame.
+        id: "kling-2-5-turbo-i2v",
+        featureCode: "image_to_video",
+        label: "۲٫۵ Turbo تصویر",
+        refs: [
+          { key: "image_url", group: "frame" as const, label: "فریم شروع (الزامی)", max: 1, required: true, maxMb: 10 },
+          { key: "tail_image_url", group: "frame" as const, label: "فریم پایان (اختیاری)", max: 1, requires: "image_url", maxMb: 10 },
+        ],
+        controls: kling25TurboControls,
       },
     ],
   },
@@ -967,11 +1084,6 @@ export const FAMILIES: Family[] = [
     blurb: "یک مدل برای همه‌چیز: متن، عکس یا مرجع به ویدیوی ۲K با صدای همگام",
     badge: "جدید",
     grad: "linear-gradient(135deg,#f7734b,#f74b9b)",
-    refs: [
-      { key: "reference_image_urls", label: "تصاویر مرجع / سوژه (اختیاری)", max: 9, maxMb: 30 },
-      { key: "reference_video_urls", label: "ویدیوی مرجع برای حرکت (اختیاری)", max: 3, media: "video", maxMb: 50 },
-      { key: "reference_audio_urls", label: "صدای مرجع (اختیاری)", max: 3, media: "audio", maxMb: 15 },
-    ],
     controls: [
       {
         kind: "aspect",
@@ -980,15 +1092,44 @@ export const FAMILIES: Family[] = [
         def: "16:9",
         options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34, ratios.l219],
       },
-      QUALITY("2K", ["768p", "2K"]),
-      // 5–15s, per the model's own schema. No 4s floor like Seedance.
-      { kind: "slider", key: "duration", label: "مدت", min: 5, max: 15, step: 1, def: 5, unit: "ثانیه" },
+      // `768P`, capital P, is the enum. `768p` was sent for months.
+      QUALITY("2K", ["768P", "2K"]),
+      { kind: "slider", key: "duration", label: "مدت", min: 4, max: 15, step: 1, def: 5, unit: "ثانیه" },
     ],
+    /* Three variants, because KIE serves three models. It prices them the same,
+       and this was one variant for that reason — which sent every attached
+       reference to the text-to-video model, whose schema has no field for any
+       of them. */
     variants: [
-      // One variant: KIE prices text-to-video, image-to-video and
-      // reference-to-video identically, so splitting them would be three rows
-      // of the same number.
       { id: "minimax-h3", featureCode: "video_generate", label: "H3", badge: "جدید" },
+      {
+        // Either frame alone is accepted upstream; the start is required here
+        // because a slot cannot say "one of these two".
+        id: "minimax-h3-i2v",
+        featureCode: "image_to_video",
+        label: "H3 تصویر",
+        refs: [
+          { key: "first_frame_url", group: "frame" as const, label: "فریم شروع (الزامی)", max: 1, required: true, maxMb: 20 },
+          { key: "last_frame_url", group: "frame" as const, label: "فریم پایان (اختیاری)", max: 1, requires: "first_frame_url", maxMb: 20 },
+        ],
+        controls: [
+          QUALITY("2K", ["768P", "2K"]),
+          { kind: "slider", key: "duration", label: "مدت", min: 4, max: 15, step: 1, def: 5, unit: "ثانیه" },
+        ],
+      },
+      {
+        // Five images, not the nine KIE takes: the first five are free and each
+        // one after costs 4 credits, which no price row here charges for.
+        // Reference video is left out for the same reason — it is billed by
+        // its own duration, and nothing prices that.
+        id: "minimax-h3-ref",
+        featureCode: "image_to_video",
+        label: "H3 مرجع",
+        refs: [
+          { key: "reference_image_urls", label: "تصاویر مرجع / سوژه (الزامی)", max: 5, required: true, maxMb: 30 },
+          { key: "reference_audio_urls", label: "صدای مرجع (اختیاری)", max: 3, media: "audio", maxMb: 15 },
+        ],
+      },
     ],
   },
   {
@@ -1002,96 +1143,47 @@ export const FAMILIES: Family[] = [
     badge: "ارزان",
     grad: "linear-gradient(135deg,#ff5db1,#7b4dff)",
     cover: "https://file.aiquickdraw.com/custom-page/akr/section-images/1758796495606nze1vzkk.mp4",
-    controls: [
-      {
-        kind: "aspect",
-        key: "aspect_ratio",
-        label: "نسبت تصویر",
-        def: "16:9",
-        options: [ratios.l169, ratios.p916, ratios.sq],
-      },
-      {
-        kind: "segment",
-        key: "resolution",
-        label: "کیفیت",
-        def: "720p",
-        options: [
-          { value: "720p", label: "720p" },
-          { value: "1080p", label: "1080p" },
-        ],
-      },
-      {
-        kind: "segment",
-        key: "duration",
-        label: "مدت",
-        def: "5",
-        options: [
-          { value: "5", label: "۵ ثانیه" },
-          { value: "10", label: "۱۰ ثانیه" },
-        ],
-      },
-      { kind: "toggle", key: "enable_prompt_expansion", label: "گسترش خودکار پرامپت", def: false, advanced: true },
-      { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
-    ],
+    controls: wan25Controls,
     variants: [
       {
         // The family controls above are 2.5's: aspect_ratio and
         // enable_prompt_expansion really are its field names, unlike 2.6 (which
         // has neither) and 2.7 (which calls them ratio and prompt_extend).
-        // Its image model names the slot image_url — singular, one string — and
-        // has no aspect_ratio; the frame follows the image.
         id: "wan-2-5",
         featureCode: "video_generate",
         maxPrompt: 800, // tightest in the catalog — a detailed prompt passes it easily
         label: "۲٫۵",
-        refs: [{ key: "image_url", label: "تصویر ورودی (اختیاری)", max: 1 }],
       },
       {
+        // Its image model names the slot image_url — singular, one string — and
+        // has no aspect_ratio; the frame follows the image.
+        id: "wan-2-5-i2v",
+        featureCode: "image_to_video",
+        maxPrompt: 800,
+        label: "۲٫۵ تصویر",
+        refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
+        controls: wan25Controls.filter((control) => control.key !== "aspect_ratio"),
+      },
+      {
+        // 2.6 has no aspect/ratio field and no negative_prompt, unlike 2.7 — so it
+        // must not inherit the family controls.
         id: "wan-2-6",
         featureCode: "video_generate",
         label: "۲٫۶",
-        // 2.6 has no aspect/ratio field and no negative_prompt, unlike 2.7 — so it
-        // must not inherit the family controls. It had no upload slot at all,
-        // which left its image-to-video model unreachable.
-        refs: [{ key: "image_urls", label: "تصویر ورودی (اختیاری)", max: 1 }],
-        controls: [
-          {
-            kind: "segment",
-            key: "resolution",
-            label: "کیفیت",
-            def: "1080p",
-            options: [
-              { value: "720p", label: "720p" },
-              { value: "1080p", label: "1080p" },
-            ],
-          },
-          {
-            kind: "segment",
-            key: "duration",
-            label: "مدت",
-            def: "5",
-            options: [
-              { value: "5", label: "۵ ثانیه" },
-              { value: "10", label: "۱۰ ثانیه" },
-              { value: "15", label: "۱۵ ثانیه" },
-            ],
-          },
-          { kind: "toggle", key: "multi_shots", label: "چندنما (روایت چندبخشی)", def: false, advanced: true },
-        ],
+        controls: wan26Controls,
       },
       {
+        id: "wan-2-6-i2v",
+        featureCode: "image_to_video",
+        label: "۲٫۶ تصویر",
+        refs: [{ key: "image_urls", label: "تصویر ورودی (الزامی)", max: 1, required: true, maxMb: 10 }],
+        controls: wan26Controls,
+      },
+      {
+        // Note the field is `ratio` here, not `aspect_ratio` as everywhere else.
         id: "wan-2-7",
         featureCode: "video_generate",
         label: "۲٫۷",
-        // Note the field is `ratio` here, not `aspect_ratio` as everywhere else,
-        // and the image-to-video model drops it entirely — the frame follows the
-        // first image.
-        refs: [
-          { key: "first_frame_url", group: "frame" as const, label: "فریم شروع (اختیاری)", max: 1, maxMb: 30 },
-          { key: "last_frame_url", group: "frame" as const, label: "فریم پایان (اختیاری)", max: 1, maxMb: 30 },
-          { key: "first_clip_url", group: "frame" as const, label: "کلیپ شروع (اختیاری)", max: 1, media: "video", maxMb: 30 },
-          { key: "driving_audio_url", label: "صدای هدایت‌گر (اختیاری)", max: 1, media: "audio", maxMb: 50 },
-        ],
         controls: [
           {
             kind: "aspect",
@@ -1100,22 +1192,23 @@ export const FAMILIES: Family[] = [
             def: "16:9",
             options: [ratios.l169, ratios.p916, ratios.sq, ratios.l43, ratios.p34],
           },
-          {
-            kind: "segment",
-            key: "resolution",
-            label: "کیفیت",
-            def: "1080p",
-            options: [
-              { value: "720p", label: "720p" },
-              { value: "1080p", label: "1080p" },
-            ],
-          },
-          { kind: "slider", key: "duration", label: "مدت", min: 2, max: 15, step: 1, def: 5, unit: "ثانیه" },
-          { kind: "text", key: "negative_prompt", label: "پرامپت منفی", placeholder: "چه چیزی نباشد…", advanced: true },
-          // API default is true; kept on to match, but now visible and switchable.
-          { kind: "toggle", key: "prompt_extend", label: "گسترش خودکار پرامپت", def: true, advanced: true },
-          { kind: "toggle", key: "watermark", label: "واترمارک", def: false, advanced: true },
+          ...wan27Controls,
         ],
+      },
+      {
+        // The image model has no ratio — the frame follows the first image.
+        // KIE also takes a first clip in place of a first frame, to continue a
+        // video. Not offered: a slot cannot say "one of these two", and the
+        // frame is what people come here for.
+        id: "wan-2-7-i2v",
+        featureCode: "image_to_video",
+        label: "۲٫۷ تصویر",
+        refs: [
+          { key: "first_frame_url", group: "frame" as const, label: "فریم شروع (الزامی)", max: 1, required: true, maxMb: 30 },
+          { key: "last_frame_url", group: "frame" as const, label: "فریم پایان (اختیاری)", max: 1, requires: "first_frame_url", maxMb: 30 },
+          { key: "driving_audio_url", label: "صدای هدایت‌گر (اختیاری)", max: 1, media: "audio", maxMb: 50 },
+        ],
+        controls: wan27Controls,
       },
       {
         // Edits an uploaded video. Priced per second of the *output*, and
@@ -1376,7 +1469,8 @@ export const FAMILIES: Family[] = [
   {
     // Billed per 1000 characters of input, so unlike everything else here the
     // price comes from the prompt's length rather than the settings.
-    // The API field is `text`, not `prompt` — the backend has to rename it.
+    // The API field is `text`, not `prompt`. The KIE adapter renames it on the
+    // way out; `jobs.params` keeps `prompt`, which the gallery reads.
     id: "elevenlabs",
     name: "ElevenLabs",
     vendor: "ElevenLabs",
@@ -1436,10 +1530,9 @@ export const FAMILIES: Family[] = [
     noPrompt: true,
     refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
     controls: [
-      // The API takes 1/2/4/8 but the rate table is keyed 2K/4K/8K, with nothing
-      // for 1x — so 1x is left out rather than sold at a made-up price. Which
-      // factor lands in which tier is inferred from the numbers lining up;
-      // confirm against a real job's creditsConsumed before it matters.
+      // The schema's enum is 1/2/4. 8x was offered here and priced, and KIE
+      // refuses it. 1x is left out rather than sold at a made-up price: the rate
+      // table is keyed 2K/4K/8K with nothing for it.
       {
         kind: "segment",
         key: "upscale_factor",
@@ -1448,7 +1541,6 @@ export const FAMILIES: Family[] = [
         options: [
           { value: "2", label: "۲ برابر" },
           { value: "4", label: "۴ برابر" },
-          { value: "8", label: "۸ برابر" },
         ],
       },
     ],

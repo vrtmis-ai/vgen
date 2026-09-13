@@ -3,7 +3,7 @@
   "title": "Bytedance Seedance 2.0 Fast",
   "docUrl": "https://docs.kie.ai/market/bytedance/seedance-2-fast.md",
   "endpoint": "/api/v1/jobs/createTask",
-  "fetchedAt": "2026-09-12",
+  "fetchedAt": "2026-09-13",
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Bytedance Seedance 2.0 Fast — input",
@@ -37,7 +37,7 @@
         "maxItems": 9,
         "examples": [["https://file.aiquickdraw.com/custom-page/akr/section-images/example1.png"]]
       },
-      "reference_video_urls ": {
+      "reference_video_urls": {
         "type": "array",
         "items": {
           "type": "string",

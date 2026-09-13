@@ -3,7 +3,7 @@
   "title": "Flux-2 - Pro Text to Image",
   "docUrl": "https://docs.kie.ai/market/flux2/pro-text-to-image.md",
   "endpoint": "/api/v1/jobs/createTask",
-  "fetchedAt": "2026-09-12",
+  "fetchedAt": "2026-09-13",
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Flux-2 - Pro Text to Image — input",

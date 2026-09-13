@@ -3,7 +3,7 @@
   "title": "Bytedance Seedance 2.0 Mini",
   "docUrl": "https://docs.kie.ai/market/bytedance/seedance-2-mini.md",
   "endpoint": "/api/v1/jobs/createTask",
-  "fetchedAt": "2026-09-12",
+  "fetchedAt": "2026-09-13",
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Bytedance Seedance 2.0 Mini — input",

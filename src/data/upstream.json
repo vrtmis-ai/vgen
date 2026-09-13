@@ -12,9 +12,12 @@
     "own id, and the price and the job both key off that. Only the seeders need",
     "the mapping, and seeders run on our machines.",
     "",
-    "`modelWithRefs` is the separate entry point some models have for the",
-    "image-to-X case; same price either way, so it selects an endpoint and",
-    "nothing else."
+    "One variant, one endpoint. KIE splits text-to-video and image-to-video",
+    "into separate models, and this file used to carry the second as",
+    "`modelWithRefs` on the first. Nothing ever read it, so for two months an",
+    "attached frame was posted to a text-to-video model that ignored it. Each",
+    "image endpoint is now its own `-i2v` variant; `pnpm kie:schemas` fails if a",
+    "reference slot is not a parameter of the model it is sent to."
   ],
   "nano-banana-pro": {
     "model": "nano-banana-pro"
@@ -89,12 +92,16 @@
     "model": "kling-3.0/video"
   },
   "kling-3-turbo": {
-    "model": "kling/v3-turbo-text-to-video",
-    "modelWithRefs": "kling/v3-turbo-image-to-video"
+    "model": "kling/v3-turbo-text-to-video"
+  },
+  "kling-3-turbo-i2v": {
+    "model": "kling/v3-turbo-image-to-video"
   },
   "kling-2-6": {
-    "model": "kling-2.6/text-to-video",
-    "modelWithRefs": "kling-2.6/image-to-video"
+    "model": "kling-2.6/text-to-video"
+  },
+  "kling-2-6-i2v": {
+    "model": "kling-2.6/image-to-video"
   },
   "kling-3-motion": {
     "model": "kling-3.0/motion-control"
@@ -103,23 +110,37 @@
     "model": "kling-2.6/motion-control"
   },
   "kling-2-5-turbo": {
-    "model": "kling/v2-5-turbo-text-to-video-pro",
-    "modelWithRefs": "kling/v2-5-turbo-image-to-video-pro"
+    "model": "kling/v2-5-turbo-text-to-video-pro"
+  },
+  "kling-2-5-turbo-i2v": {
+    "model": "kling/v2-5-turbo-image-to-video-pro"
   },
   "minimax-h3": {
     "model": "minimax-h3/text-to-video"
   },
+  "minimax-h3-i2v": {
+    "model": "minimax-h3/image-to-video"
+  },
+  "minimax-h3-ref": {
+    "model": "minimax-h3/reference-to-video"
+  },
   "wan-2-5": {
-    "model": "wan/2-5-text-to-video",
-    "modelWithRefs": "wan/2-5-image-to-video"
+    "model": "wan/2-5-text-to-video"
+  },
+  "wan-2-5-i2v": {
+    "model": "wan/2-5-image-to-video"
   },
   "wan-2-6": {
-    "model": "wan/2-6-text-to-video",
-    "modelWithRefs": "wan/2-6-image-to-video"
+    "model": "wan/2-6-text-to-video"
+  },
+  "wan-2-6-i2v": {
+    "model": "wan/2-6-image-to-video"
   },
   "wan-2-7": {
-    "model": "wan/2-7-text-to-video",
-    "modelWithRefs": "wan/2-7-image-to-video"
+    "model": "wan/2-7-text-to-video"
+  },
+  "wan-2-7-i2v": {
+    "model": "wan/2-7-image-to-video"
   },
   "wan-2-7-videoedit": {
     "model": "wan/2-7-videoedit"

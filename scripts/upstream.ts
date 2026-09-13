@@ -8,7 +8,7 @@
  */
 import upstream from "../src/data/upstream.json" with { type: "json" };
 
-const UPSTREAM = upstream as unknown as Record<string, { model: string; modelWithRefs?: string }>;
+const UPSTREAM = upstream as unknown as Record<string, { model: string }>;
 
 export function upstreamModel(variantId: string): string {
   const entry = UPSTREAM[variantId];
@@ -16,8 +16,4 @@ export function upstreamModel(variantId: string): string {
   // wrong id here is a 404 the customer pays for.
   if (!entry) throw new Error(`No upstream endpoint for variant "${variantId}". Add it to src/data/upstream.json.`);
   return entry.model;
-}
-
-export function upstreamModelWithRefs(variantId: string): string | undefined {
-  return UPSTREAM[variantId]?.modelWithRefs;
 }

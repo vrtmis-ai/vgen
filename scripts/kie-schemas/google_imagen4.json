@@ -3,7 +3,7 @@
   "title": "Google - imagen4",
   "docUrl": "https://docs.kie.ai/market/google/imagen4.md",
   "endpoint": "/api/v1/jobs/createTask",
-  "fetchedAt": "2026-09-12",
+  "fetchedAt": "2026-09-13",
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Google - imagen4 — input",

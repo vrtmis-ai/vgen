@@ -3,7 +3,7 @@
   "title": "Wan 2.6 - Image to Video",
   "docUrl": "https://docs.kie.ai/market/wan/2-6-image-to-video.md",
   "endpoint": "/api/v1/jobs/createTask",
-  "fetchedAt": "2026-09-12",
+  "fetchedAt": "2026-09-13",
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Wan 2.6 - Image to Video — input",

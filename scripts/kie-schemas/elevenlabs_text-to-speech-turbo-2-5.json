@@ -3,7 +3,7 @@
   "title": "elevenlabs/text-to-speech-turbo-2-5",
   "docUrl": "https://docs.kie.ai/market/elevenlabs/text-to-speech-turbo-2-5.md",
   "endpoint": "/api/v1/jobs/createTask",
-  "fetchedAt": "2026-09-12",
+  "fetchedAt": "2026-09-13",
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "elevenlabs/text-to-speech-turbo-2-5 — input",

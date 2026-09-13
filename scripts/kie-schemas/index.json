@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-09-12",
+  "fetchedAt": "2026-09-13",
   "source": "https://docs.kie.ai/llms.txt",
   "models": [
     {
@@ -171,6 +171,18 @@
       "docUrl": "https://docs.kie.ai/market/kling/kling-3-0.md"
     },
     {
+      "model": "kling/v2-1-master-image-to-video",
+      "title": "Kling - V2.5 Turbo Image to Video Pro",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/kling/v25-turbo-image-to-video-pro.md"
+    },
+    {
+      "model": "kling/v2-5-turbo-image-to-video-pro",
+      "title": "Kling - V2.5 Turbo Image to Video Pro",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/kling/v25-turbo-image-to-video-pro.md"
+    },
+    {
       "model": "kling/v2-5-turbo-text-to-video-pro",
       "title": "Kling - V2.5 Turbo Text to Video Pro",
       "endpoint": "/api/v1/jobs/createTask",
@@ -187,6 +199,18 @@
       "title": "Kling - V3 Turbo Text to Video",
       "endpoint": "/api/v1/jobs/createTask",
       "docUrl": "https://docs.kie.ai/market/kling/v3-turbo-text-to-video.md"
+    },
+    {
+      "model": "minimax-h3/image-to-video",
+      "title": "MiniMax H3 Image-to-Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/minimax-h3/image-to-video.md"
+    },
+    {
+      "model": "minimax-h3/reference-to-video",
+      "title": "MiniMax H3 Reference-to-Video",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/minimax-h3/reference-to-video.md"
     },
     {
       "model": "minimax-h3/text-to-video",
@@ -247,6 +271,24 @@
       "title": "Topaz - Video Upscale",
       "endpoint": "/api/v1/jobs/createTask",
       "docUrl": "https://docs.kie.ai/market/topaz/video-upscale.md"
+    },
+    {
+      "model": "veo3",
+      "title": "Generate Veo3.1 Video (legacy endpoint)",
+      "endpoint": "/api/v1/veo/generate",
+      "docUrl": "https://docs.kie.ai/old-model/veo3-api/generate-veo-3-video.md"
+    },
+    {
+      "model": "veo3_fast",
+      "title": "Generate Veo3.1 Video (legacy endpoint)",
+      "endpoint": "/api/v1/veo/generate",
+      "docUrl": "https://docs.kie.ai/old-model/veo3-api/generate-veo-3-video.md"
+    },
+    {
+      "model": "veo3_lite",
+      "title": "Generate Veo3.1 Video (legacy endpoint)",
+      "endpoint": "/api/v1/veo/generate",
+      "docUrl": "https://docs.kie.ai/old-model/veo3-api/generate-veo-3-video.md"
     },
     {
       "model": "wan/2-5-image-to-video",

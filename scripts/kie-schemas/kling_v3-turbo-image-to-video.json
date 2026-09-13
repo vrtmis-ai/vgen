@@ -3,7 +3,7 @@
   "title": "Kling - V3 Turbo Image to Video",
   "docUrl": "https://docs.kie.ai/market/kling/v3-turbo-image-to-video.md",
   "endpoint": "/api/v1/jobs/createTask",
-  "fetchedAt": "2026-09-12",
+  "fetchedAt": "2026-09-13",
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Kling - V3 Turbo Image to Video — input",
