@@ -244,6 +244,13 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     if (!client) continue;
 
     app.get(`/api/v1/auth/${provider}`, async (request, reply) => {
+      // Both halves spend the login budget. Auth routes are exempt from the
+      // global limiter, and the callback can create an account. A navigation
+      // cannot show a JSON 429, so the refusal lands where every other failed
+      // provider sign-in does.
+      if ((await limiters.loginPerIp.consume(request.ip)) !== null) {
+        return reply.redirect(`${options.webOrigin}/?auth=oauth_failed`, 302);
+      }
       const { url, state } = client.createAuthorizationUrl();
       setOAuthStateCookie(reply, state, cookie);
       // An invitee choosing a provider instead of a phone number. The browser
@@ -255,6 +262,9 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     });
 
     app.get(`/api/v1/auth/${provider}/callback`, async (request, reply) => {
+      if ((await limiters.loginPerIp.consume(request.ip)) !== null) {
+        return reply.redirect(`${options.webOrigin}/?auth=oauth_failed`, 302);
+      }
       const query = request.query as { code?: string; state?: string; error?: string };
       const expected = readCookie(request, OAUTH_STATE_COOKIE);
       const inviteCode = readCookie(request, OAUTH_INVITE_COOKIE);

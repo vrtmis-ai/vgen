@@ -433,6 +433,9 @@ Things a UI needs to know about these:
   ten minutes the provider round trip may take, handed to the same gated signup
   the other routes use, and cleared on the way back. A start without `invite`
   clears any earlier one.
+- **Both provider routes spend the per-IP login budget** (50 per 15 minutes).
+  Over it, the browser is sent to `?auth=oauth_failed` rather than a JSON 429 it
+  could not render mid-navigation.
 - **A failed social sign-in comes back as `?auth=<code>` on the landing page**,
   not as a JSON error — there is no response to read when the browser is
   mid-redirect. Expect `oauth_failed`, `invite_required`, `invite_invalid` or

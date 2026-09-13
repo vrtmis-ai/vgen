@@ -389,6 +389,18 @@ describe("an invite carried through a provider", () => {
     exchangeCode: vi.fn(async () => ({ subject: "google-1", email: "person@example.com", emailVerified: true, displayName: "P" })),
   };
 
+  it("sends a rate-limited provider sign-in back to the site instead of to the provider", async () => {
+    const limiters = openLimiters();
+    limiters.loginPerIp = { consume: vi.fn(async () => 30) };
+    const { app } = build({ google: google as never, limiters });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/auth/google?invite=EARLY-1" });
+
+    expect(response.headers.location).toBe("https://deev.test/?auth=oauth_failed");
+    expect(cookieOf(response)).not.toContain("deev_oauth_invite=EARLY-1");
+    await app.close();
+  });
+
   it("keeps the code in a cookie while the browser is at the provider", async () => {
     const { app } = build({ google: google as never });
 
