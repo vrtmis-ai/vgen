@@ -396,15 +396,16 @@ Still stubs on purpose: `signIn` and `signUp` in
 and they warn rather than navigate because the screen they should open does not
 exist yet. Point them at it when you build it. `signOut` is live.
 
-| Route                                              |                                                                                  |
-| -------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `POST /auth/otp/start`                             | `{ phone }` → `202 { sent: true, expiresAt }`. The route most Iranian users take |
-| `POST /auth/otp/verify`                            | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie              |
-| `POST /auth/register`                              | `{ email, password, inviteCode?, deviceFingerprint? }` → `201`                   |
-| `POST /auth/login`                                 | `{ email, password }` → `200`                                                    |
-| `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                |
-| `GET /auth/google` · `/auth/google/callback`       | Registered only when Google credentials are configured                           |
-| `GET /auth/microsoft` · `/auth/microsoft/callback` | Registered only when Microsoft credentials are configured                        |
+| Route                                              |                                                                                   |
+| -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `POST /auth/otp/start`                             | `{ phone }` → `202 { sent: true, expiresAt }`. The route most Iranian users take  |
+| `POST /auth/otp/verify`                            | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie               |
+| `POST /auth/register`                              | `{ email, password, inviteCode?, deviceFingerprint? }` → `201`                    |
+| `POST /auth/invite/check`                          | `{ code }` → `200 { valid }`, one boolean for every refusal; 20 per 15 min per IP |
+| `POST /auth/login`                                 | `{ email, password }` → `200`                                                     |
+| `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                 |
+| `GET /auth/google` · `/auth/google/callback`       | Registered only when Google credentials are configured                            |
+| `GET /auth/microsoft` · `/auth/microsoft/callback` | Registered only when Microsoft credentials are configured                         |
 
 Schemas: `packages/contracts/src/auth.ts`. They are `.strict()`, so an extra key
 is a `validation_failed`, not an ignored field.
@@ -415,7 +416,14 @@ Things a UI needs to know about these:
   Persian digits — and normalised server-side. Do not pre-format them; two
   spellings of one number must not become two accounts.
 - **Early access is on.** Signup without an invite code answers
-  `403 invite_required`. A bad or revoked code answers `400 invite_invalid`.
+  `403 invite_required`. A bad or revoked code answers `400 invite_invalid`,
+  with the same message whichever rule refused it — unknown, revoked, expired,
+  not started and used up are indistinguishable from outside.
+- **The invite page asks `POST /auth/invite/check` first**, so a mistyped code
+  is refused before anyone reaches a phone number. It is a hint, not the gate:
+  signup checks the code again in the transaction that creates the account, so
+  a code that runs out between the two is still refused. A failed signup does
+  not spend a seat.
   Signing in to an existing account never needs one. The invite page hands a
   code to `/signup?invite=<code>`, which arrives with the field filled in.
 - **The free trial is keyed on phone.** An email signup through a 20-coin invite
@@ -489,6 +497,15 @@ confirmed to someone probing for it.
 
 `/api/v1/admin/*` — invite and discount CRUD, per-code usage and spend, the
 early-access switch, and **providers and model routing**.
+
+**Every new invite code needs a cap and an expiry.** `POST /admin/invites`
+refuses a body without `maxRedemptions` or with an `expiresAt` that is not in
+the future. `PATCH /admin/invites/:id` (`invites.write`) changes `label`,
+`maxRedemptions` and `expiresAt` and nothing else; a past `expiresAt` closes the
+code at once, and a cap below the number of people already admitted answers
+`409 limit_below_used`. Each edit is audited as `invite.updated` with before and
+after. The list carries `expiresAt`, `startsAt`, `maxRedemptions` and
+`redemptionCount`, and `isUsable` now also respects `starts_at` (migration 0031).
 
 **The panel is at `/admin`** (`src/screens/admin/`), outside the `(app)` route
 group because that group's layout gates on a _customer_ session and will not

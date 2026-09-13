@@ -19,6 +19,7 @@ const openLimiters = (): AuthRateLimiters => ({
   otpVerifyPerPhone: allow(),
   loginPerAccount: allow(),
   loginPerIp: allow(),
+  inviteCheckPerIp: allow(),
 });
 
 function authDouble() {
@@ -40,6 +41,7 @@ function authDouble() {
       expiresAt: new Date(Date.now() + 86_400_000),
     })),
     revokeSession: vi.fn(async () => undefined),
+    isInviteUsable: vi.fn(async (code: string) => code === "LIVE-CODE"),
     recordLoginAttempt: vi.fn(async () => undefined),
   };
 }
@@ -379,6 +381,43 @@ describe("Google sign-in", () => {
     const cookie = cookieOf(response);
     expect(cookie).toContain("deev_oauth_state=;");
     expect(cookie).toContain("deev_session=tok-abc");
+    await app.close();
+  });
+});
+
+describe("checking an invite code from the invite page", () => {
+  it("answers one boolean, the same shape for every refusal", async () => {
+    const { app, auth } = build();
+
+    const live = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "LIVE-CODE" } });
+    const dead = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "made-up" } });
+
+    expect([live.statusCode, live.json()]).toEqual([200, { valid: true }]);
+    expect([dead.statusCode, dead.json()]).toEqual([200, { valid: false }]);
+    expect(auth.isInviteUsable).toHaveBeenCalledTimes(2);
+    await app.close();
+  });
+
+  it("refuses a malformed body before touching the database", async () => {
+    const { app, auth } = build();
+
+    const tooShort = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "x" } });
+    const extra = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "LIVE-CODE", admin: true } });
+
+    expect([tooShort.statusCode, extra.statusCode]).toEqual([400, 400]);
+    expect(auth.isInviteUsable).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("stops answering once an IP has asked too often", async () => {
+    const limiters = openLimiters();
+    limiters.inviteCheckPerIp = { consume: vi.fn(async () => 600) };
+    const { app, auth } = build({ limiters });
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "LIVE-CODE" } });
+
+    expect(response.statusCode).toBe(429);
+    expect(auth.isInviteUsable).not.toHaveBeenCalled();
     await app.close();
   });
 });

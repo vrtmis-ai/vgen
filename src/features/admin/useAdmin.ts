@@ -9,6 +9,7 @@ import {
   type AdminUsersQuery,
   type AnalyticsWindow,
   type CreateInviteInput,
+  type UpdateInviteInput,
   type CreatePromoInput,
 } from "./adminApi";
 import type { AdminProviderCreate, AdminRouteInput, AdminServingModelCreate, AdminSessionState } from "../../runtime/contracts/admin";
@@ -242,6 +243,10 @@ export function useInviteMutations(api: AdminApi) {
   const refresh = () => queryClient.invalidateQueries({ queryKey: adminKeys.invites });
   return {
     create: useMutation({ mutationFn: (input: CreateInviteInput) => api.createInvite(input), onSuccess: refresh }),
+    update: useMutation({
+      mutationFn: ({ id, input }: { id: string; input: UpdateInviteInput }) => api.updateInvite(id, input),
+      onSuccess: refresh,
+    }),
     remove: useMutation({ mutationFn: (id: string) => api.removeInvite(id), onSuccess: refresh }),
   };
 }

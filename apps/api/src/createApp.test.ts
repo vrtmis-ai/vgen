@@ -854,6 +854,7 @@ describe("customer session", () => {
             otpVerifyPerPhone: allow(),
             loginPerAccount: allow(),
             loginPerIp: allow(),
+            inviteCheckPerIp: allow(),
           },
           webOrigin: "https://deev.test",
           // Google configured, Microsoft not — which is the asymmetry the

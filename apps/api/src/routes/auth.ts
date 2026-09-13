@@ -1,4 +1,5 @@
 import {
+  CheckInviteSchema,
   InviteCodeSchema,
   LoginWithPasswordSchema,
   RegisterWithPasswordSchema,
@@ -41,6 +42,7 @@ export interface AuthRateLimiters {
   otpVerifyPerPhone: AuthRateLimiter;
   loginPerAccount: AuthRateLimiter;
   loginPerIp: AuthRateLimiter;
+  inviteCheckPerIp: AuthRateLimiter;
 }
 
 export interface AuthRouteOptions {
@@ -116,6 +118,24 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     // Says only that a code was sent, never whether the number has an account —
     // otherwise this endpoint is a membership oracle for any phone number.
     return reply.code(202).send({ sent: true, expiresAt: expiresAt.getTime() });
+  });
+
+  /**
+   * Whether an invite code would admit someone now, for the invite page to ask
+   * before sending a visitor on to signup.
+   *
+   * Not the gate. Signup checks the code again inside the transaction that
+   * creates the account, so a yes here that has gone stale by then — the last
+   * seat taken, the code revoked — is still refused where it matters.
+   *
+   * 200 either way, with one boolean. Unknown, revoked, expired, not started
+   * and used up are all `false`: which one is the admin console's business.
+   */
+  app.post("/api/v1/auth/invite/check", { bodyLimit: 1024 }, async (request, reply) => {
+    const wait = await limiters.inviteCheckPerIp.consume(request.ip);
+    if (wait !== null) return tooMany(reply, wait);
+    const body = CheckInviteSchema.parse(request.body);
+    return reply.code(200).send({ valid: await auth.isInviteUsable(body.code) });
   });
 
   app.post("/api/v1/auth/otp/verify", { bodyLimit: 4 * 1024 }, async (request, reply) => {

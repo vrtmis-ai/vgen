@@ -164,6 +164,9 @@ function stubApi(): AdminApi {
     clearRoutes: vi.fn(async () => undefined),
     listInvites: vi.fn(async () => []),
     createInvite: vi.fn(async () => []),
+    updateInvite: vi.fn(async () => {
+      throw new Error("not used here");
+    }),
     removeInvite: vi.fn(async () => "deleted" as const),
     listPromos: vi.fn(async () => []),
     createPromo: vi.fn(async () => undefined),

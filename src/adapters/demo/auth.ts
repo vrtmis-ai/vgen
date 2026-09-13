@@ -133,6 +133,12 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
       return session;
     },
 
+    async checkInvite(code) {
+      // The same rule `requireInvite` applies, so demo mode refuses the code
+      // at the door that it would refuse at signup.
+      return code.trim().length >= 3 && code.trim().toUpperCase() !== "INVALID";
+    },
+
     async startProviderSignIn(provider) {
       /* Signs you in rather than navigating.
          In production this hands the browser to Google or Microsoft and the page

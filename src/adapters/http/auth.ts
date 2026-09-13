@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AppServices } from "../../runtime/AppServices";
-import { AuthedSessionSchema, PhoneVerificationStartedSchema } from "../../runtime/contracts/auth";
+import { AuthedSessionSchema, InviteCheckResultSchema, PhoneVerificationStartedSchema } from "../../runtime/contracts/auth";
 import type { HttpClient } from "./client";
 
 /** `undefined` is what readJson() yields for the empty 204 body logout returns. */
@@ -66,6 +66,16 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
         schema: AuthedSessionSchema,
         signal: options?.signal,
       });
+    },
+
+    async checkInvite(code, options) {
+      const result = await client.request("/auth/invite/check", {
+        method: "POST",
+        body: { code },
+        schema: InviteCheckResultSchema,
+        signal: options?.signal,
+      });
+      return result.valid;
     },
 
     async startProviderSignIn(provider, inviteCode) {

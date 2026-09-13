@@ -24,6 +24,9 @@ import { z } from "zod";
  */
 export const InviteCodeSchema = z.string().trim().min(3).max(64);
 
+export const CheckInviteSchema = z.object({ code: InviteCodeSchema }).strict();
+export const InviteCheckResultSchema = z.object({ valid: z.boolean() });
+
 /**
  * Accepted as typed, in any of the forms an Iranian number is written in —
  * 0912…, +98912…, 98912…, and Persian digits. Normalisation to E.164 happens

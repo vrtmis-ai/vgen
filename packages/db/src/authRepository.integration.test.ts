@@ -498,3 +498,51 @@ describe("recording what the user agreed to", () => {
     });
   });
 });
+
+describe("asking whether an invite code works, without spending it", () => {
+  it("says yes to a live code however it was typed, and spends nothing", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      const invite = await access.createInvite({ code: "door-open", maxRedemptions: 1, expiresAt: new Date(Date.now() + 86_400_000) });
+
+      expect(await auth(tx).isInviteUsable("  DOOR-OPEN ")).toBe(true);
+      expect(await access.getInvite(invite.id)).toMatchObject({ redemptionCount: 0, isUsable: true });
+    });
+  });
+
+  it("says no to every code redeem_invite() would refuse", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      const hour = 3_600_000;
+      await access.createInvite({ code: "expired", maxRedemptions: 5, expiresAt: new Date(Date.now() - hour) });
+      const revoked = await access.createInvite({ code: "revoked", maxRedemptions: 5, expiresAt: new Date(Date.now() + hour) });
+      await access.revokeInvite(revoked.id, null);
+      await access.createInvite({ code: "used-up", maxRedemptions: 1, expiresAt: new Date(Date.now() + hour) });
+      const joiner = await auth(tx).signInWithPhone(phone("90"), { inviteCode: "used-up" });
+      expect(joiner.id).toBeTruthy();
+      await tx`insert into invite_codes (code, max_redemptions, starts_at) values ('not-yet', 5, now() + interval '1 day')`;
+
+      for (const code of ["expired", "revoked", "used-up", "not-yet", "never-issued"]) {
+        expect(await auth(tx).isInviteUsable(code), code).toBe(false);
+      }
+    });
+  });
+
+  it("closes a single-use code the moment its one account is created", async () => {
+    await inRollback(sql, async (tx) => {
+      await new PostgresAccessRepository(tx).createInvite({
+        code: "one-seat",
+        maxRedemptions: 1,
+        expiresAt: new Date(Date.now() + 86_400_000),
+      });
+      await auth(tx).registerWithPassword("first@example.test", "correct-horse-9", { inviteCode: "one-seat" });
+
+      expect(await auth(tx).isInviteUsable("one-seat")).toBe(false);
+      await expect(
+        auth(tx).registerWithPassword("second@example.test", "correct-horse-9", { inviteCode: "one-seat" }),
+      ).rejects.toMatchObject({
+        code: "invite_invalid",
+      });
+    });
+  });
+});

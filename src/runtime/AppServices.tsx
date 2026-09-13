@@ -39,6 +39,12 @@ export interface AppServices {
     register(input: RegisterInput, options?: RequestOptions): Promise<Session>;
     login(input: LoginInput, options?: RequestOptions): Promise<Session>;
     /**
+     * Whether an invite code would admit someone right now. A hint for the
+     * invite page, not the gate: signup checks the code again as it creates
+     * the account.
+     */
+    checkInvite(code: string, options?: RequestOptions): Promise<boolean>;
+    /**
      * Hands the browser to an identity provider.
      *
      * Unlike every other call here this is a *navigation*, not a request, and in

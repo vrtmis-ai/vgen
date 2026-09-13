@@ -4,17 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { OAuthFailureNotice } from "../components/OAuthFailureNotice";
 import { useI18n, type TKey } from "../lib/i18n";
+import { ApiError } from "../runtime/apiError";
+import { useAppServices } from "../runtime/AppServices";
 import { SIGN_IN_PATH, SIGN_UP_PATH } from "../runtime/providers/authActions";
 import { AuthScene, PILL, PillField } from "./Auth";
 
 /* What a visitor who is not signed in sees while `early_access` is on, on every
    route the app layout serves.
 
-   The code is not checked here. Signup checks it, inside the same transaction
-   that creates the account, and a second public endpoint answering "is this a
-   real code" would be an oracle for guessing them. So this page only carries
-   the code to /signup, where the field arrives filled in and a bad code is
-   refused on that field.
+   The code is checked here before anyone is sent on, because a page that
+   waves every string through reads as accepting it — and on the phone route
+   the refusal would only come after an SMS had been sent. The check is a hint,
+   not the gate: signup checks the code again inside the transaction that
+   creates the account. It answers only yes or no, and is limited per IP, so it
+   cannot be used to find codes by guessing.
 
    The legal pages stay one click away. They live outside the app layout, so the
    gate never covers them, and eNamad's reviewer has to be able to reach them
@@ -31,7 +34,33 @@ const LEGAL: { label: TKey; href: string }[] = [
 export default function EarlyAccess() {
   const { t } = useI18n();
   const router = useRouter();
+  const services = useAppServices();
   const [code, setCode] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [failure, setFailure] = useState<TKey | null>(null);
+
+  const submit = async () => {
+    const trimmed = code.trim();
+    setFailure(null);
+    setChecking(true);
+    try {
+      if (await services.auth.checkInvite(trimmed)) {
+        router.push(`${SIGN_UP_PATH}?invite=${encodeURIComponent(trimmed)}`);
+        return;
+      }
+      setFailure("ea_invalid");
+    } catch (error) {
+      setFailure(
+        error instanceof ApiError && error.code === "rate_limited"
+          ? "auth_err_rate_limited"
+          : error instanceof ApiError && error.code === "validation_failed"
+            ? "ea_invalid"
+            : "auth_err_generic",
+      );
+    } finally {
+      setChecking(false);
+    }
+  };
 
   return (
     <AuthScene>
@@ -54,10 +83,10 @@ export default function EarlyAccess() {
           className="grid gap-5"
           onSubmit={(event) => {
             event.preventDefault();
-            router.push(`${SIGN_UP_PATH}?invite=${encodeURIComponent(code.trim())}`);
+            void submit();
           }}
         >
-          <PillField label={t("auth_invite_label")}>
+          <PillField label={t("auth_invite_label")} error={failure ? t(failure) : undefined}>
             {({ id, describedBy }) => (
               <input
                 id={id}
@@ -65,7 +94,10 @@ export default function EarlyAccess() {
                 className={`${PILL} focus:border-accent`}
                 style={{ borderColor: "var(--vg-border)", background: "rgb(255 255 255 / 0.02)", color: "var(--vg-text)" }}
                 value={code}
-                onChange={(event) => setCode(event.target.value)}
+                onChange={(event) => {
+                  setCode(event.target.value);
+                  setFailure(null);
+                }}
                 autoComplete="off"
                 dir="ltr"
                 required
@@ -74,15 +106,15 @@ export default function EarlyAccess() {
           </PillField>
           <button
             type="submit"
-            disabled={!code.trim()}
+            disabled={!code.trim() || checking}
             className="vg-ease w-full rounded-full py-3.5 text-[15px] font-bold enabled:active:scale-[0.99] disabled:cursor-default"
             style={
-              code.trim()
+              code.trim() && !checking
                 ? { background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }
                 : { background: "var(--vg-surface-raised)", color: "var(--vg-text-faint)" }
             }
           >
-            {t("ea_submit")}
+            {checking ? t("ea_checking") : t("ea_submit")}
           </button>
         </form>
       </div>

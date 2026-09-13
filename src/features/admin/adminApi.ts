@@ -68,6 +68,8 @@ const InviteSchema = z
     coinsSpent: z.number(),
     coinsRemaining: z.number(),
     createdAt: z.number(),
+    expiresAt: z.number().nullable(),
+    startsAt: z.number(),
   })
   .loose();
 
@@ -303,6 +305,7 @@ const InvitesResponseSchema = z.object({ invites: z.array(InviteSchema) });
 const PromosResponseSchema = z.object({ promos: z.array(PromoSchema) });
 const EarlyAccessSchema = z.object({ enabled: z.boolean() });
 const OutcomeSchema = z.object({ outcome: z.enum(["deleted", "revoked"]) }).loose();
+const InviteResponseSchema = z.object({ invite: InviteSchema });
 
 export type AdminInvite = z.infer<typeof InviteSchema>;
 export type AdminPromo = z.infer<typeof PromoSchema>;
@@ -312,8 +315,18 @@ export interface CreateInviteInput {
   label?: string;
   grantCoins?: number;
   grantExpiresDays?: number;
-  maxRedemptions?: number;
+  /** Required: how many people the code may admit. */
+  maxRedemptions: number;
+  /** Required: when the code stops working. Sent as an ISO string. */
+  expiresAt: string;
   count?: number;
+}
+
+/** Absent fields are left as they are. A past `expiresAt` closes the code now. */
+export interface UpdateInviteInput {
+  label?: string;
+  maxRedemptions?: number;
+  expiresAt?: string;
 }
 
 export interface CreatePromoInput {
@@ -394,6 +407,7 @@ export interface AdminApi {
 
   listInvites(): Promise<AdminInvite[]>;
   createInvite(input: CreateInviteInput): Promise<AdminInvite[]>;
+  updateInvite(id: string, input: UpdateInviteInput): Promise<AdminInvite>;
   removeInvite(id: string): Promise<"deleted" | "revoked">;
 
   listPromos(): Promise<AdminPromo[]>;
@@ -475,6 +489,8 @@ export function createAdminApi(client: HttpClient): AdminApi {
     listInvites: async () => (await client.request("/admin/invites", { schema: InvitesResponseSchema })).invites,
     createInvite: async (input) =>
       (await client.request("/admin/invites", { method: "POST", body: input, schema: InvitesResponseSchema })).invites,
+    updateInvite: async (id, input) =>
+      (await client.request(`/admin/invites/${id}`, { method: "PATCH", body: input, schema: InviteResponseSchema })).invite,
     removeInvite: async (id) => (await client.request(`/admin/invites/${id}`, { method: "DELETE", schema: OutcomeSchema })).outcome,
 
     listPromos: async () => (await client.request("/admin/promos", { schema: PromosResponseSchema })).promos,

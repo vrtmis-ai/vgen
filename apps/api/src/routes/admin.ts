@@ -1,4 +1,10 @@
-import { grantsPermission, type AdminSession, type PostgresAccessRepository, type PostgresAdminRepository } from "@vgen/db";
+import {
+  grantsPermission,
+  InviteLimitError,
+  type AdminSession,
+  type PostgresAccessRepository,
+  type PostgresAdminRepository,
+} from "@vgen/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { clearAdminCookie, readAdminToken, setAdminCookie, type CookieOptions } from "../auth/cookies";
@@ -73,10 +79,12 @@ const CreateInviteSchema = z
     code: z.string().trim().min(3).max(64).optional(),
     label: z.string().trim().max(200).optional(),
     kind: z.enum(["campaign", "user"]).optional(),
-    maxRedemptions: z.number().int().positive().max(1_000_000).optional(),
+    // Required. A code with no cap and no end date admits anyone who ever
+    // sees it, forever, which is not what an invitation is.
+    maxRedemptions: z.number().int().positive().max(1_000_000),
     grantCoins: z.number().int().nonnegative().max(100_000).optional(),
     grantExpiresDays: z.number().int().positive().max(3650).optional(),
-    expiresAt: z.coerce.date().optional(),
+    expiresAt: z.coerce.date().refine((date) => date.getTime() > Date.now(), { message: "The expiry date must be in the future" }),
     notes: z.string().trim().max(2000).optional(),
     /** Generates this many random codes instead of one. Custom codes cannot be batched. */
     count: z.number().int().min(1).max(500).optional(),
@@ -85,6 +93,15 @@ const CreateInviteSchema = z
   .refine((value) => !(value.count && value.count > 1 && value.code), {
     message: "A batch cannot share one custom code",
   });
+
+const UpdateInviteSchema = z
+  .object({
+    label: z.string().trim().max(200).optional(),
+    maxRedemptions: z.number().int().positive().max(1_000_000).optional(),
+    // A past date is allowed here: it is how a code is closed early.
+    expiresAt: z.coerce.date().optional(),
+  })
+  .strict();
 
 const CreatePromoSchema = z
   .object({
@@ -333,6 +350,29 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
       after: created.map((invite) => ({ id: invite.id, code: invite.code, grantCoins: invite.grantCoins })),
     });
     return reply.code(201).send({ invites: created });
+  });
+
+  app.patch("/api/v1/admin/invites/:id", { bodyLimit: 4 * 1024 }, async (request, reply) => {
+    const session = await require(request, reply, "invites.write");
+    if (!session) return reply;
+    const { id } = request.params as { id: string };
+    const body = UpdateInviteSchema.parse(request.body);
+
+    const before = await access.getInvite(id);
+    if (!before) return reply.code(404).send({ error: { code: "not_found", message: "No such invite code." } });
+
+    try {
+      const after = await access.updateInvite(id, body);
+      await audit(request, session, { action: "invite.updated", targetType: "invite_code", targetId: id, before, after });
+      return reply.send({ invite: after });
+    } catch (error) {
+      if (error instanceof InviteLimitError) {
+        return reply.code(409).send({
+          error: { code: "limit_below_used", message: `This code has already admitted ${error.redemptionCount} people.` },
+        });
+      }
+      throw error;
+    }
   });
 
   app.delete("/api/v1/admin/invites/:id", async (request, reply) => {

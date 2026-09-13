@@ -10,6 +10,7 @@ const services = {
     verifyPhone: vi.fn(),
     register: vi.fn(),
     login: vi.fn(),
+    checkInvite: vi.fn(),
     startProviderSignIn: vi.fn(),
     logout: vi.fn(),
   },
