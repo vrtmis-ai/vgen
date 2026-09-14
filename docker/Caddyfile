@@ -32,6 +32,9 @@
 	# makes the session cookie same-site and the CORS preflight moot. WEB_ORIGIN
 	# and API_PUBLIC_URL are both this address for the same reason.
 	handle /api/* {
+		# Nothing here may be cached by a CDN in front: /session alone would hand
+		# one visitor's identity to the next. `?` leaves a route's own header.
+		header ?Cache-Control "no-store"
 		reverse_proxy api:5181
 	}
 
