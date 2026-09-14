@@ -45,6 +45,27 @@
 }
 
 # ---------------------------------------------------------------------------
+#  eNamad's domain check, over plain http.
+#
+#  Its checker reported "nothing there" while a browser saw both proofs: plain
+#  http answers with a redirect, which it does not follow, and https refuses a
+#  handshake without SNI. So the verification file alone is served over http,
+#  and everything else on that port is still sent to https.
+#
+#  Unset, VERIFY_HTTP_ADDRESS names a host that cannot exist and this block is
+#  inert. Set it to http://<the site's host>.
+# ---------------------------------------------------------------------------
+{$VERIFY_HTTP_ADDRESS:http://verify.invalid} {
+	handle /38669407.txt {
+		reverse_proxy web:5180
+	}
+
+	handle {
+		redir https://{host}{uri} 308
+	}
+}
+
+# ---------------------------------------------------------------------------
 #  The object store, on its own hostname.
 #
 #  It has to be publicly reachable, which the code did not always assume and
