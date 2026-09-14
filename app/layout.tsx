@@ -46,6 +46,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             runtime: it is slow from Iran, and a blocked stylesheet dropped the
             whole UI to a system font part-way through loading. */}
         <style>{"html,body{background:#0e1012}"}</style>
+        {/* eNamad's domain check reads this from the homepage's first HTML
+            response. Written in the head directly rather than through
+            `metadata`, which Next may stream in after the head. The empty
+            public/38669407.txt is the same check's other accepted proof. */}
+        <meta name="enamad" content="38669407" />
         {/* Start the DNS+TCP+TLS chain for the runtime third-party origins during
             parse instead of serially after it. On a high-latency connection the
             handshakes, not the bytes, are the expensive part.
