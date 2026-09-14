@@ -9,7 +9,8 @@ import { dirFor, LANG_COOKIE, parseLang } from "../src/lib/lang";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "DEEV",
+  // ponytail: eNamad's title check, temporary. Back to "DEEV" once the domain is verified.
+  title: "38669407",
   icons: { icon: "/favicon.svg" },
 };
 

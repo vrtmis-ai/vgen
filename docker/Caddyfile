@@ -25,6 +25,8 @@
 
 {$SITE_ADDRESS} {
 	encode zstd gzip
+	# ponytail: access log while eNamad verification is failing; remove once it passes.
+	log
 
 	# The API and the app share one origin, which is not laziness — it is what
 	# makes the session cookie same-site and the CORS preflight moot. WEB_ORIGIN
@@ -56,7 +58,12 @@
 #  inert. Set it to http://<the site's host>.
 # ---------------------------------------------------------------------------
 {$VERIFY_HTTP_ADDRESS:http://verify.invalid} {
-	handle /38669407.txt {
+	# Who the checker is and what it asks for, while verification is failing.
+	log
+
+	# The homepage too: the meta tag and page title proofs are read from it.
+	@proof path /38669407.txt /
+	handle @proof {
 		reverse_proxy web:5180
 	}
 
