@@ -204,6 +204,8 @@ services:
       FILES_ADDRESS: ${FILES_ADDRESS:?set FILES_ADDRESS, e.g. https://files.deev.ir}
       # Optional: the http address eNamad's checker fetches its file from. See the Caddyfile.
       VERIFY_HTTP_ADDRESS: ${VERIFY_HTTP_ADDRESS:-http://verify.invalid}
+      # Optional: https://www.<site host>, redirected to the bare host.
+      WWW_ADDRESS: ${WWW_ADDRESS:-http://www.verify.invalid}
     volumes:
       - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
       # Certificates. Losing this volume means re-issuing on every restart, and

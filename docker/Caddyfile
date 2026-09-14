@@ -55,7 +55,7 @@
 #  and everything else on that port is still sent to https.
 #
 #  Unset, VERIFY_HTTP_ADDRESS names a host that cannot exist and this block is
-#  inert. Set it to http://<the site's host>.
+#  inert. Set it to http://<site host>, http://www.<site host>.
 # ---------------------------------------------------------------------------
 {$VERIFY_HTTP_ADDRESS:http://verify.invalid} {
 	# Who the checker is and what it asks for, while verification is failing.
@@ -69,6 +69,21 @@
 
 	handle {
 		redir https://{host}{uri} 308
+	}
+}
+
+# www had a DNS record and no certificate, so https on it failed outright and
+# never reached a log. It now carries the file and sends the rest to the bare
+# host. Unset, WWW_ADDRESS is inert like the block above.
+{$WWW_ADDRESS:http://www.verify.invalid} {
+	log
+
+	handle /38669407.txt {
+		reverse_proxy web:5180
+	}
+
+	handle {
+		redir https://{labels.1}.{labels.0}{uri} 308
 	}
 }
 
