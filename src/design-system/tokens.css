@@ -474,6 +474,21 @@
 html {
   background-color: var(--vg-canvas);
   -webkit-text-size-adjust: 100%;
+  /* WCAG 2.2 AA 2.4.11, Focus Not Obscured.
+
+     Every create surface ends in a bar pinned to the bottom of the viewport —
+     the dock's "بساز" in the video and audio studios, the whole prompt bar in
+     the image one. Tabbing to a control near the foot of the page scrolled it
+     to the bottom edge, which is exactly where that bar sits: measured on a
+     375x812 viewport, the video dock's footer is 90px tall and it covered the
+     aspect-ratio and quality selects *completely* when they took focus. A
+     keyboard user could reach a control they could not see.
+
+     Scroll padding is the remedy the criterion points at — it tells the scroll
+     container to stop short, so focus lands above the bar instead of under it.
+     6rem clears the 90px bar with room for the line that appears beneath it
+     when a combination carries no price. */
+  scroll-padding-block-end: 6rem;
 }
 
 body {
