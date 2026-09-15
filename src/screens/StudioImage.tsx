@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Plus, Minus, Sparkle, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock, X, SpeakerHigh } from "@phosphor-icons/react";
 import { variantRefs, type Family, type Variant } from "../data/models";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
-import { addRefFiles, slotAccept, type InputMap, type RefMap } from "../components/controls";
+import { addRefFiles, moveRefFile, slotAccept, type InputMap, type RefMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
 import { displayAspect, type Generation } from "../lib/gallery";
 import { CoinMark } from "../components/chrome";
@@ -13,7 +13,7 @@ import { JustifiedRows } from "../components/JustifiedRows";
 import { ModelChip } from "../components/ModelPicker";
 import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
 import { unlimitedFit } from "../lib/unlimited";
-import { promptDir } from "../lib/format";
+import { faNum, promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { useAppServices } from "../runtime/AppServices";
@@ -196,6 +196,10 @@ export default function StudioImage({
   const needsFile = slot?.required === true && picked.length === 0;
   const pickRef = useRef<HTMLInputElement>(null);
   const [tooBig, setTooBig] = useState<string | null>(null);
+  /* Which tile is being carried. The row is the model's input array and its
+     order is the order the provider receives, so "these two are the wrong way
+     round" is a real thing to want to fix. */
+  const [dragAt, setDragAt] = useState<number | null>(null);
 
   /* Files belong to the model that asked for them.
      Switching model has to drop them — the next model's slot has a different
@@ -218,6 +222,12 @@ export default function StudioImage({
     const next = await addRefFiles(slot, picked, files);
     setTooBig(next.rejected);
     setRefs({ [slot.key]: next.files });
+  }
+
+  function reorder(from: number, to: number) {
+    if (!slot) return;
+    const next = moveRefFile(picked, from, to);
+    if (next !== picked) setRefs({ [slot.key]: next });
   }
 
   function dropFile(index: number) {
@@ -489,10 +499,41 @@ export default function StudioImage({
               {slot && (
                 <div className="flex shrink-0 items-center gap-2">
                   {picked.map((file, index) => (
+                    /* Draggable, and arrow-movable with the keyboard — dragging
+                       is a pointer gesture and cannot be the only way to do
+                       this. In RTL the row runs right to left, so ArrowRight is
+                       the way back through it and ArrowLeft the way on. */
                     <span
                       key={file.url}
-                      className="relative grid size-8 place-items-center overflow-hidden rounded-[10px]"
-                      style={{ background: "var(--vg-surface-raised)" }}
+                      role="listitem"
+                      tabIndex={0}
+                      aria-label={`${slot.label} ${faNum(index + 1)} — برای جابه‌جایی از کلیدهای جهت‌دار استفاده کنید`}
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("application/x-deev-ref", String(index));
+                        setDragAt(index);
+                      }}
+                      onDragEnd={() => setDragAt(null)}
+                      onDragOver={(event) => {
+                        if (dragAt === null) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={(event) => {
+                        if (dragAt === null) return;
+                        event.preventDefault();
+                        reorder(dragAt, index);
+                        setDragAt(null);
+                      }}
+                      onKeyDown={(event) => {
+                        const to = event.key === "ArrowRight" ? index - 1 : event.key === "ArrowLeft" ? index + 1 : null;
+                        if (to === null) return;
+                        event.preventDefault();
+                        reorder(index, to);
+                      }}
+                      className="vg-tile relative grid size-8 cursor-grab place-items-center overflow-hidden rounded-[10px] active:cursor-grabbing"
+                      style={{ background: "var(--vg-surface-raised)", opacity: dragAt === index ? 0.35 : 1 }}
                     >
                       {(slot.media ?? "image") === "image" && <img src={file.url} alt="" className="size-full object-cover" />}
                       {slot.media === "video" && (

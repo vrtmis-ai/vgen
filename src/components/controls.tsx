@@ -374,6 +374,22 @@ export async function addRefFiles(slot: RefSlot, held: RefFile[], picked: File[]
 }
 
 /**
+ * One file moved to another position in the same slot.
+ *
+ * Both create surfaces let a reference be dragged into a different place in
+ * the row, so the rule lives with `addRefFiles` rather than in either of them.
+ * Out-of-range indices return the list untouched: a drop that lands nowhere is
+ * a no-op, not a crash.
+ */
+export function moveRefFile(files: RefFile[], from: number, to: number): RefFile[] {
+  if (from === to || from < 0 || to < 0 || from >= files.length || to >= files.length) return files;
+  const next = [...files];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved!);
+  return next;
+}
+
+/**
  * Reference / input file slot. Fully controlled — the owner holds the files so
  * they can actually reach the generation request (they used to die in local state).
  */
@@ -399,6 +415,10 @@ export function RefUpload({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [rejected, setRejected] = useState<string | null>(null);
+  /* Which tile is being carried. A slot holds up to nine files and hands them
+     to the provider in this order, so "these two are the wrong way round" is a
+     real thing to want to fix — here as well as in the create dock. */
+  const [dragAt, setDragAt] = useState<number | null>(null);
   const media: SlotMedia = slot.media ?? "image";
 
   async function pick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -412,6 +432,11 @@ export function RefUpload({
     const next = await addRefFiles(slot, images, picked);
     setRejected(next.rejected);
     onChange(next.files);
+  }
+
+  function reorder(from: number, to: number) {
+    const next = moveRefFile(images, from, to);
+    if (next !== images) onChange(next);
   }
 
   function remove(i: number) {
@@ -430,7 +455,42 @@ export function RefUpload({
       <div className="flex flex-wrap gap-2.5">
         {leading}
         {images.map((f, i) => (
-          <div key={f.url} className="relative h-[84px] w-[84px] overflow-hidden rounded-2xl border border-line bg-card2">
+          /* Draggable, and arrow-movable with the keyboard — dragging is a
+             pointer gesture and must never be the only way to do something.
+             The row runs right to left, so ArrowRight is the way back through
+             it and ArrowLeft the way on. */
+          <div
+            key={f.url}
+            role="listitem"
+            tabIndex={0}
+            aria-label={`${slot.label} ${faNum(i + 1)} — برای جابه‌جایی از کلیدهای جهت‌دار استفاده کنید`}
+            draggable
+            onDragStart={(event) => {
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("application/x-deev-ref", String(i));
+              setDragAt(i);
+            }}
+            onDragEnd={() => setDragAt(null)}
+            onDragOver={(event) => {
+              if (dragAt === null) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={(event) => {
+              if (dragAt === null) return;
+              event.preventDefault();
+              reorder(dragAt, i);
+              setDragAt(null);
+            }}
+            onKeyDown={(event) => {
+              const to = event.key === "ArrowRight" ? i - 1 : event.key === "ArrowLeft" ? i + 1 : null;
+              if (to === null) return;
+              event.preventDefault();
+              reorder(i, to);
+            }}
+            className="vg-tile relative h-[84px] w-[84px] overflow-hidden rounded-2xl border border-line bg-card2"
+            style={{ opacity: dragAt === i ? 0.35 : 1 }}
+          >
             {media === "image" && <img src={f.url} alt="" className="h-full w-full object-cover" />}
             {media === "video" && <video src={f.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />}
             {media === "audio" && (

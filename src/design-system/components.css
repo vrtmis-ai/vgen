@@ -480,6 +480,111 @@
   color: var(--vg-accent-deep);
 }
 
+/* A reference's name — `@Image1`, `@Video3`.
+
+   Always the mono face and always left to right, whatever the page direction:
+   this is a token the prompt is going to contain verbatim, not a word. The
+   isolation is what stops the `@` from jumping to the far end of the chip when
+   it sits in Persian prose.
+
+   `.vg-numeric` is the neighbouring idea but the wrong one here — it drops to
+   the UI face under `:lang(fa)`, because a Persian numeral has no business
+   being monospaced. A tag is not a numeral.
+   ------------------------------------------------------------------------ */
+.vg-tag {
+  font-family: var(--vg-font-mono);
+  font-size: 10.5px;
+  letter-spacing: -0.01em;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* The reference tile.
+
+   Hovering veils the picture and raises its controls. The picture is the thing
+   being acted on, so softening it is what says the buttons belong to *this*
+   file rather than floating over the row. 2px of blur: enough to push it
+   behind them, not enough to stop you recognising the shot.
+
+   A coarse pointer has no hover to wait for and no way to look before
+   touching, so there the controls are simply there and nothing is blurred.
+
+   The part label (start / end) is not in here. It is information, not a
+   control, and it stays legible whether or not the pointer is over the tile.
+   ------------------------------------------------------------------------ */
+.vg-tile__media {
+  transition: filter var(--vg-dur) var(--vg-ease);
+}
+.vg-tile__veil {
+  opacity: 0;
+  transition: opacity var(--vg-dur-fast) var(--vg-ease);
+}
+@media (hover: hover) {
+  .vg-tile:hover .vg-tile__media,
+  .vg-tile:focus-within .vg-tile__media {
+    filter: blur(2px);
+  }
+  .vg-tile:hover .vg-tile__veil,
+  .vg-tile:focus-within .vg-tile__veil {
+    opacity: 1;
+  }
+}
+@media (hover: none) {
+  .vg-tile__veil {
+    opacity: 1;
+  }
+}
+/* Dragging. The tile being carried fades; the one it would land on takes the
+   accent ring, so the swap is legible before the mouse goes up. */
+.vg-tile[data-dragging="true"] {
+  opacity: 0.35;
+}
+.vg-tile[data-over="true"] {
+  box-shadow: inset 0 0 0 2px var(--vg-primary);
+}
+.vg-tile[draggable="true"] {
+  cursor: grab;
+}
+.vg-tile[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* The create panel's select.
+
+   A control that belongs with the chips beside it rather than with the form
+   fields it is technically one of: the platform's own select paints a border
+   and a caret that are both heavier than anything else in a 342px column. So
+   the border is transparent until hover and the caret is drawn in.
+
+   `appearance: none` removes the native caret; the background image replaces
+   it, and its side has to flip by hand because background-position has no
+   logical form. Taken from the workflow-studio prototype's `.msel` — 28px at
+   radius 7 there, 32px here, because this one is a primary control on a phone
+   and 28 is under the tap target.
+   ------------------------------------------------------------------------ */
+.vg-msel {
+  padding-inline: 22px;
+  background-color: var(--vg-surface-overlay);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M6 9.5l6 6 6-6' stroke='%238c919b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 11px;
+  border: 1px solid transparent;
+  color: var(--vg-text);
+  transition: border-color var(--vg-dur-fast) var(--vg-ease);
+}
+[dir="rtl"] .vg-msel {
+  background-position: left 7px center;
+}
+.vg-msel:hover {
+  border-color: var(--vg-border-strong);
+}
+/* The popup is drawn by the OS; only its colours are ours to set. */
+.vg-msel option {
+  background: var(--vg-surface-raised);
+  color: var(--vg-text);
+}
+
 /* Segmented control — aspect ratio, duration, quality. */
 .vg-segmented {
   display: flex;

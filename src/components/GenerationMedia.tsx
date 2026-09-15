@@ -62,6 +62,6 @@ export function GenerationMedia({
       playsInline
     />
   ) : (
-    <img src={gen.outputUrl} alt={gen.prompt || ""} className={className} />
+    <img src={gen.outputUrl} alt={gen.prompt || ""} className={className} loading="lazy" decoding="async" />
   );
 }

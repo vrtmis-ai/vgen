@@ -70,7 +70,7 @@ function OutputCard({ gen }: { gen: Generation }) {
         (isVideoUrl(url) ? (
           <video src={url} muted loop playsInline className="absolute inset-0 size-full object-cover" />
         ) : (
-          <img src={url} alt={gen.prompt} onError={onError} className="absolute inset-0 size-full object-cover" />
+          <img src={url} alt={gen.prompt} loading="lazy" onError={onError} className="absolute inset-0 size-full object-cover" />
         ))}
 
       {running && (
@@ -152,7 +152,11 @@ export default function Studio({
   return (
     // The panel is a flex sibling of the canvas rather than a fixed overlay, so
     // it can simply stack above the canvas below `md` with no second layout.
-    <div className="flex flex-col md:flex-row md:items-start">
+    /* `vg-grain` is fixed by design — it belongs to the page, not to this
+       element — so it grains the dock as well as the canvas. That is the
+       prototype's arrangement too: its noise layer sits on the stage, and the
+       nodes are on the stage. */
+    <div className="vg-grain flex flex-col md:flex-row md:items-start">
       {/* See StudioImage. The visible heading below belongs to the empty state
           only, so once there is history this page had no h1 at all. */}
       <h1 className="sr-only">{kind === "video" ? "ساخت ویدیو" : "ساخت"}</h1>
@@ -161,7 +165,11 @@ export default function Studio({
       <main
         // @container so the header's view controls size against this canvas
         // rather than the viewport — see ViewControls and StudioAudio.
-        className="@container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
+        /* The canvas is a lit ground, not a hole. `vg-canvas-field` puts the
+           dot grid and the brand wash behind it — see index.css. Empty is the
+           state this screen opens in, and an empty dark rectangle reads as a
+           thing that failed to load. */
+        className="vg-canvas-field @container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
         style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}
       >
         {/* Their canvas heads with two pill tabs on the leading side and the
@@ -182,7 +190,7 @@ export default function Studio({
                 key={k}
                 onClick={() => setCanvasTab(k)}
                 aria-pressed={canvasTab === k}
-                className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
+                className="flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold transition-colors"
                 style={{
                   background: canvasTab === k ? "var(--vg-surface-overlay)" : "transparent",
                   color: canvasTab === k ? "var(--vg-text)" : "var(--vg-text-muted)",
@@ -244,7 +252,7 @@ export default function Studio({
                     }}
                   >
                     {step.art ? (
-                      <img src={step.art} alt="" className="size-full object-cover" />
+                      <img src={step.art} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
                     ) : (
                       <step.Icon size={26} weight="light" style={{ color: "var(--vg-text-muted)" }} />
                     )}
@@ -296,7 +304,7 @@ export default function Studio({
                         (g.kind === "video" ? (
                           <video src={g.outputUrl} muted loop playsInline className="absolute inset-0 size-full object-cover" />
                         ) : (
-                          <img src={g.outputUrl} alt="" className="absolute inset-0 size-full object-cover" />
+                          <img src={g.outputUrl} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
                         ))}
                       {g.status === "running" && (
                         <span className="absolute inset-0 grid place-items-center" style={{ background: "rgba(0,0,0,0.45)" }}>

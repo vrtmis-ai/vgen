@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { CaretLeft, Lock, Sparkle, PencilSimple } from "@phosphor-icons/react";
 import { type Family, type Variant, variantRefs } from "../data/models";
-import { isImageSlot, pairsImages, refGroups, slotsInGroup } from "../lib/refSlots";
-import { RefUpload, type InputMap, type RefMap } from "./controls";
+import { type InputMap, type RefMap } from "./controls";
+import { RefBox } from "./RefBox";
+import { allTags, insertTag, refTags, tagUsed } from "../lib/refTags";
 import { useCreateState, valueLabel, rangeOf } from "../lib/useCreateState";
 import { ModelPicker } from "./ModelPicker";
 import { PresetPicker } from "./PresetPicker";
@@ -41,19 +42,97 @@ import { useImageFallback } from "../lib/useImageFallback";
 /* chipControls / valueLabel / sliderSteps live in lib/useCreateState — this file
    had its own copies, which is the usual way two surfaces drift apart. */
 
-/**
- * The panel's one surface primitive. Everything in the stack is one of these.
- *
- * Measured off their panel: radius 12 on `rgba(255,255,255,0.05)` with no
- * border. It was an opaque `--vg-surface` behind a hairline here, which reads
- * heavier — a wash lifts off the panel without drawing a second edge around
- * something the panel background already separates.
- */
-export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+/* ---------------------------------------------------------------------------
+   The instrument surface.
+
+   The dock used to be a stack of borderless washes separated by 8px of gap.
+   Nothing in it was subordinate to anything else, so the eye had no entry
+   point — measured on the video dock that is a cover, three upload boxes, a
+   prompt, a pill, a row, a slider and two selects, all at the same weight.
+
+   These four pieces are the workflow-studio prototype's node anatomy, on this
+   product's tokens: one surface with a hairline *ring* (a box-shadow, so it
+   costs no layout box), a head that names the thing, and blocks divided by
+   hairlines rather than by air. The prototype's numbers, kept: radius 11, head
+   52px, a 24px icon tile at radius 7, 12.5px semibold over 10.5px, chips 10.5px
+   at radius 5.
+   --------------------------------------------------------------------------- */
+export const PANEL_RING = "0 0 0 1px var(--vg-border), 0 18px 40px -22px rgb(0 0 0 / 0.92)";
+
+export function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`rounded-xl ${className}`} style={{ background: "rgba(255,255,255,0.05)" }}>
+    <div className="overflow-hidden rounded-[11px]" style={{ background: "var(--vg-surface)", boxShadow: PANEL_RING }}>
       {children}
     </div>
+  );
+}
+
+/** A block inside a Panel. Every one carries its own leading rule, so the head
+ *  needs no trailing one and two blocks never stack two hairlines. */
+export function Section({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={className} style={{ borderBlockStart: "1px solid var(--vg-border-subtle)" }}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * The head: a tinted icon tile, the subject, and what will run it underneath.
+ *
+ * The gradient is a top light rather than a fill — it ends at transparent, so
+ * the head reads as the lit face of the surface instead of a second colour.
+ */
+export function PanelHead({
+  icon,
+  title,
+  sub,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  sub?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div
+      className="flex h-[52px] items-center gap-2 px-2.5"
+      style={{ background: "linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(255 255 255 / 0))" }}
+    >
+      <span
+        className="grid size-6 shrink-0 place-items-center rounded-[7px]"
+        style={{ background: "var(--vg-primary-a14)", color: "var(--vg-primary-soft)" }}
+      >
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-px leading-[1.25]">
+        <b className="truncate text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
+          {title}
+        </b>
+        {sub ? (
+          <span className="truncate text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+            {sub}
+          </span>
+        ) : null}
+      </span>
+      {action}
+    </div>
+  );
+}
+
+/** A read-out, not a control. `numeric` sends it through the mono/isolated
+ *  treatment, which is what "16:9" and "720p" need inside Persian prose. */
+export function Chip({ children, live = false, numeric = false }: { children: React.ReactNode; live?: boolean; numeric?: boolean }) {
+  return (
+    <span
+      className={`rounded-[5px] px-2 py-1 text-[10.5px] ${numeric ? "vg-numeric" : ""}`}
+      style={{
+        background: live ? "var(--vg-primary-a18)" : "var(--vg-surface-overlay)",
+        color: live ? "var(--vg-primary-soft)" : "var(--vg-text-secondary)",
+      }}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -61,7 +140,10 @@ export function Card({ children, className = "" }: { children: React.ReactNode; 
 export function PanelShell({ children }: { children: React.ReactNode }) {
   return (
     <aside
-      className="flex w-full shrink-0 flex-col md:sticky md:top-11 md:max-h-[calc(100dvh-2.75rem)] md:w-[var(--vg-form-panel)] md:self-start md:overflow-y-auto"
+      /* `md:scroll-pb-24` for the same reason `html` carries scroll padding —
+         above `md` this column is its own scroll container, so the page-level
+         rule does not reach it and the footer would cover focus here instead. */
+      className="flex w-full shrink-0 flex-col md:sticky md:top-11 md:max-h-[calc(100dvh-2.75rem)] md:w-[var(--vg-form-panel)] md:self-start md:overflow-y-auto md:scroll-pb-24"
       style={{ background: "var(--vg-deep)" }}
     >
       {children}
@@ -122,23 +204,31 @@ function RowSelect({ label, value, accent, onClick }: { label: string; value: st
 }
 
 /**
- * The cover card shows the PRESET, with the model as its subtitle — the
- * reference reads "GENERAL" over "Seedance 2.0", not the model twice.
+ * The cover, and nothing else.
  *
- * That split is the whole point of the card: the big word is the look you
- * picked, and "تغییر" changes the look. The model lives in its own row below
- * and has its own picker.
+ * It used to carry the preset's name in 15px extrabold lime over the picture,
+ * with the model under it. Both have moved into the panel head, for two
+ * reasons. The name over artwork was legible only because of a 78% scrim —
+ * eight tenths of the picture darkened so four words could sit on it. And it
+ * put the panel's subject in the middle of the column instead of at the top of
+ * it, which is the reason the dock had no entry point.
+ *
+ * Lime leaving here matters on its own: `index.css` holds that two accent
+ * elements on one screen means one of them is wrong, and this was the second
+ * one, competing with the button that actually spends money.
+ *
+ * Full-bleed: it sits inside the panel now, so a radius and a border here would
+ * draw a second edge one pixel inside the panel's own.
  */
-function PresetCard({ family, preset, onChange }: { family: Family; preset: Preset | null; onChange: () => void }) {
+function PresetCover({ family, preset, onChange }: { family: Family; preset: Preset | null; onChange: () => void }) {
   const [failed, onError] = useImageFallback();
   const cover = preset ? `https://picsum.photos/seed/${preset.seed}/480/300` : family.cover;
   return (
-    <div
-      className="relative aspect-[16/10] overflow-hidden rounded-xl"
-      style={{ background: family.grad, border: "1px solid var(--vg-border-subtle)" }}
-    >
+    <div className="relative aspect-[16/10] overflow-hidden" style={{ background: family.grad }}>
       {cover && !failed && <img src={cover} alt="" onError={onError} className="absolute inset-0 size-full object-cover" />}
-      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78), transparent 62%)" }} />
+      {/* A quarter of the frame, not four fifths: nothing sits on the picture
+          now except one button in the corner. */}
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.35), transparent 40%)" }} />
       <button
         onClick={onChange}
         aria-label="تغییر افکت"
@@ -148,14 +238,6 @@ function PresetCard({ family, preset, onChange }: { family: Family; preset: Pres
         <PencilSimple size={11} weight="bold" />
         تغییر
       </button>
-      <div className="absolute bottom-2.5 px-3" style={{ insetInlineStart: 0 }}>
-        <p className="text-[15px] font-extrabold leading-tight" style={{ color: "var(--vg-primary-soft)" }}>
-          {preset ? preset.title : "بدون افکت"}
-        </p>
-        <p className="text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-          <bdi>{family.name}</bdi>
-        </p>
-      </div>
     </div>
   );
 }
@@ -176,6 +258,14 @@ export function FormPanel({
   const [pickPreset, setPickPreset] = useState(false);
   const [preset, setPreset] = useState<Preset | null>(null);
   const modelRow = useRef<HTMLDivElement>(null);
+  const promptBox = useRef<HTMLTextAreaElement>(null);
+  /* Where the caret should sit once an inserted tag has actually landed in the
+     field. Held in a ref and applied in a layout effect rather than set
+     straight after `setPrompt`: at that moment React has not written the new
+     value yet, so a selection range into it is measured against the old text
+     and then thrown away when the new one arrives — which put the caret at the
+     end every time, and typing carried on in the wrong place. */
+  const pendingCaret = useRef<number | null>(null);
 
   /* Files live here rather than in `useCreateState`, because they are object
      URLs with a lifetime: switching model has to revoke them or the tab leaks a
@@ -196,16 +286,37 @@ export function FormPanel({
   const setPrompt = s.setPrompt;
   const onFamily = s.setFamily;
 
-  /* The slots this model actually offers, and which group is on screen.
-     `variantRefs` resolves the variant's own list against the family's, which is
-     how "this variant has no slots" (`refs: null`) stays different from "inherit
-     the family's". */
+  /* The slots this model actually offers. `variantRefs` resolves the variant's
+     own list against the family's, which is how "this variant has no slots"
+     (`refs: null`) stays different from "inherit the family's".
+
+     They are not drawn one per upload area any more — see `RefBox`. */
   const slots = variantRefs(family, variant);
-  const groups = refGroups(slots);
-  const [refTab, setRefTab] = useState<"reference" | "frame">("reference");
-  const activeTab = groups.includes(refTab) ? refTab : (groups[0] ?? "reference");
-  const shownSlots = slotsInGroup(slots, activeTab);
-  const pairs = pairsImages(shownSlots);
+
+  /* The references have names — `@Image1`, `@Video3` — and the prompt can
+     point at one. See `lib/refTags`: a prompt that says "the attached image"
+     leaves a multi-reference model to guess which input a sentence is about.
+     Frames are not named; a start frame is a position, not material. */
+  const fileCounts = Object.fromEntries(Object.entries(refImages).map(([key, files]) => [key, files.length]));
+  const tagList = allTags(refTags(slots, fileCounts));
+
+  function insertAtCaret(tag: string) {
+    const box = promptBox.current;
+    const at = box?.selectionStart ?? prompt.length;
+    const next = insertTag(prompt, at, tag);
+    pendingCaret.current = next.caret;
+    setPrompt(next.prompt);
+  }
+
+  useLayoutEffect(() => {
+    const at = pendingCaret.current;
+    if (at === null) return;
+    pendingCaret.current = null;
+    const box = promptBox.current;
+    if (!box) return;
+    box.focus();
+    box.setSelectionRange(at, at);
+  }, [prompt]);
 
   useEffect(() => {
     return () => {
@@ -221,225 +332,251 @@ export function FormPanel({
     // a phone, where the panel is a stacked block rather than a column beside
     // the canvas and has the whole page to grow into.
     <PanelShell>
-      <div className="flex flex-col gap-2 p-3">
-        <PresetCard family={family} preset={preset} onChange={() => setPickPreset(true)} />
-
-        {pickPreset && (
-          <PresetPicker
-            kind={family.kind}
-            selectedId={preset?.id ?? null}
-            onPick={(p) => {
-              setPreset(p);
-              // A preset is a prompt with a hole in it, so it seeds the box and
-              // switches to the family it was written against — running it on
-              // another model is not the effect the picture showed.
-              const f = families.find((x) => x.id === p.familyId);
-              if (f) onFamily(f);
-              setPrompt(p.prompt);
-            }}
-            onClear={() => {
-              setPreset(null);
-              setPrompt("");
-            }}
-            onClose={() => setPickPreset(false)}
+      {/* One surface, not eight. The blocks below are divided by hairlines
+          rather than by gaps, which is what lets the column read top-to-bottom:
+          subject, material, instruction, machine, settings. */}
+      <div className="p-2.5">
+        <Panel>
+          {/* The panel's subject, and whose engine is behind it.
+              The subtitle is the vendor rather than the model: the model row
+              four blocks down already prints `family · variant`, and a panel
+              that says "Seedance · ۲٫۵" twice has told you nothing the second
+              time. Provenance is the thing that is otherwise nowhere on this
+              surface. */}
+          <PanelHead
+            icon={<Sparkle size={14} weight="fill" />}
+            title={preset ? preset.title : "بدون افکت"}
+            sub={<bdi>{family.vendor}</bdi>}
           />
-        )}
 
-        {/* The model's actual slots, not a picture of an upload area.
-            This card used to be three static icons over "افزودن فایل / تصویر،
-            ویدیو یا صدا" — decoration. It accepted nothing, and the catalogue's
-            own slots never reached the screen, so a customer on a model that
-            *requires* a character image had no way to give it one.
+          <Section>
+            <PresetCover family={family} preset={preset} onChange={() => setPickPreset(true)} />
+          </Section>
 
-            Grouped the way the reference groups them: a frame is a position in
-            the clip and a reference is material to draw from, they are different
-            questions, and the tabs ask them separately. One group means no tabs
-            — a tab strip with a single tab is a label pretending to be a
-            choice. */}
-        {slots.length > 0 && (
-          <Card className="p-3">
-            {/* A segmented control, and a radiogroup rather than a tablist.
-                The reference marks these as radios and its canvas tabs as a
-                tablist, which is the right split: this picks a *value* — which
-                kind of input you are giving — while History / How-it-works moves
-                between panels. Two loose text buttons said neither. */}
-            {groups.length > 1 && (
-              <div
-                role="radiogroup"
-                aria-label={t("ref_kind")}
-                className="mb-3 flex gap-1 rounded-lg p-1"
-                style={{ background: "var(--vg-deep)" }}
-              >
-                {groups.map((g) => (
-                  <button
-                    key={g}
-                    role="radio"
-                    aria-checked={activeTab === g}
-                    onClick={() => setRefTab(g)}
-                    className="h-7 flex-1 rounded-md text-[12px] font-semibold transition-colors"
-                    style={{
-                      background: activeTab === g ? "var(--vg-surface-overlay)" : "transparent",
-                      color: activeTab === g ? "var(--vg-text)" : "var(--vg-text-muted)",
-                    }}
-                  >
-                    {t(g === "frame" ? "ref_frames" : "ref_references")}
-                  </button>
-                ))}
+          {/* One box, not one upload area per slot.
+
+              This was a labelled area per slot: on Seedance 2.5 that is three
+              of them stacked — image, video, audio — taller together than the
+              prompt, the model row and every setting combined, in a 342px
+              column. And the segmented control above them asked which *kind* of
+              input you were about to give, which is the one thing the file
+              itself already knows.
+
+              `RefBox` takes anything and routes it by MIME type, and asks the
+              only question a file cannot answer — reference, start frame or end
+              frame — per file, on the tile, and only on models that have frames.
+              Seedance has none; Kling, Veo and Wan do. */}
+          {slots.length > 0 && (
+            <Section className="p-2.5">
+              <RefBox slots={slots} refs={refImages} onChange={setRefImages} prompt={prompt} onInsertTag={insertAtCaret} />
+            </Section>
+          )}
+
+          <Section className="px-2.5 py-2">
+            {/* Follows the field: `dir="auto"` below sends the text to the other
+                edge the moment a Latin character is typed, and a caption left on
+                the far side is what makes a symmetrically padded box look wrong. */}
+            <p className="mb-1 text-[11px]" dir={labelDir(prompt)} style={{ color: "var(--vg-text-muted)" }}>
+              پرامپت
+            </p>
+            <textarea
+              ref={promptBox}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={3}
+              dir={promptDir(prompt)}
+              disabled={family.noPrompt}
+              placeholder={family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط فایل بده" : "صحنه‌ات را با جزئیات توصیف کن."}
+              className="hide-scrollbar vg-field-inset resize-none bg-transparent text-[12.5px] leading-[1.7] outline-none disabled:opacity-40"
+              style={{ color: "var(--vg-text)" }}
+            />
+            {/* The names of the files above, under the hand that is writing.
+                They are on the tiles too, but the tiles are at the top of the
+                panel and this is where you are when you need one. Lime means
+                the prompt already points at it. */}
+            {tagList.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                <span className="shrink-0 text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+                  اشاره به
+                </span>
+                {tagList.map((tag) => {
+                  const pointed = tagUsed(prompt, tag);
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => insertAtCaret(tag)}
+                      aria-label={`درج ${tag} در پرامپت`}
+                      className="vg-tag rounded px-1.5 py-0.5 font-semibold"
+                      style={{
+                        background: pointed ? "var(--vg-primary-a18)" : "var(--vg-surface-overlay)",
+                        color: pointed ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                      }}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
               </div>
             )}
-            <div className="grid grid-cols-2 gap-2">
-              {shownSlots.map((slot) => (
-                <div key={slot.key} className={pairs && isImageSlot(slot) ? undefined : "col-span-2"}>
-                  <RefUpload
-                    slot={slot}
-                    images={refImages[slot.key] ?? []}
-                    onChange={(files) => setRefImages((prev) => ({ ...prev, [slot.key]: files }))}
-                  />
-                </div>
-              ))}
+
+            {/* Toggles live inside the prompt card, as small pills on its floor. */}
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {chips
+                .filter((c) => c.kind === "toggle")
+                .map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => set(c.key, !input[c.key])}
+                    aria-pressed={Boolean(input[c.key])}
+                    className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11.5px] font-medium"
+                    style={{
+                      background: input[c.key] ? "var(--vg-primary-a14)" : "var(--vg-surface-overlay)",
+                      color: input[c.key] ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                    }}
+                  >
+                    {c.label}: {valueLabel(c, input)}
+                  </button>
+                ))}
             </div>
-          </Card>
-        )}
+          </Section>
 
-        <Card className="p-3">
-          {/* Follows the field: `dir="auto"` below sends the text to the other
-              edge the moment a Latin character is typed, and a caption left on
-              the far side is what makes a symmetrically padded box look wrong. */}
-          <p className="mb-1 text-[11px]" dir={labelDir(prompt)} style={{ color: "var(--vg-text-muted)" }}>
-            پرامپت
-          </p>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={3}
-            dir={promptDir(prompt)}
-            disabled={family.noPrompt}
-            placeholder={family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط فایل بده" : "صحنه‌ات را با جزئیات توصیف کن."}
-            className="hide-scrollbar vg-field-inset resize-none bg-transparent text-[13px] leading-6 outline-none disabled:opacity-40"
-            style={{ color: "var(--vg-text)" }}
-          />
-          {/* Toggles live inside the prompt card, as small pills on its floor. */}
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {chips
-              .filter((c) => c.kind === "toggle")
-              .map((c) => (
-                <button
-                  key={c.key}
-                  onClick={() => set(c.key, !input[c.key])}
-                  className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11.5px] font-medium"
-                  style={{
-                    background: input[c.key] ? "var(--vg-primary-a14)" : "var(--vg-surface-overlay)",
-                    color: input[c.key] ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
-                  }}
-                >
-                  {c.label}: {valueLabel(c, input)}
-                </button>
-              ))}
+          {/* The model row opens the model picker — a different component from the
+              cover's "تغییر", because it is a different decision. */}
+          <div ref={modelRow}>
+            <Section>
+              <RowSelect label="مدل" value={`${family.name} · ${variant.label}`} onClick={() => setPickModel((v) => !v)} />
+            </Section>
           </div>
-        </Card>
 
-        {/* The model row opens the model picker — a different component from the
-            cover's "تغییر", because it is a different decision. */}
-        <div ref={modelRow}>
-          <Card>
-            <RowSelect label="مدل" value={`${family.name} · ${variant.label}`} onClick={() => setPickModel((v) => !v)} />
-          </Card>
-        </div>
-        {pickModel && (
-          <ModelPicker
-            anchor={modelRow.current}
-            families={families}
-            family={family}
-            variant={variant}
-            onPickFamily={onFamily}
-            onPickVariant={s.setVariant}
-            onClose={() => setPickModel(false)}
-          />
-        )}
+          {/* No variant strip.
+              The row above opens `ModelPicker`, which lists this family's variants
+              and every other family in one panel — its own docstring says so, and
+              the image dock has worked that way since. Keeping a second row of
+              variant pills under it asked the customer to learn our data model
+              (family, then variant) before they could choose a model, and gave two
+              controls for one decision. The reference has one row here too. */}
 
-        {/* No variant strip.
-            The row above opens `ModelPicker`, which lists this family's variants
-            and every other family in one panel — its own docstring says so, and
-            the image dock has worked that way since. Keeping a second row of
-            variant pills under it asked the customer to learn our data model
-            (family, then variant) before they could choose a model, and gave two
-            controls for one decision. The reference has one row here too. */}
+          {/* A fixed set gets a select; a continuous range gets a real slider.
+              Seedance takes any duration from 4 to 15 and Kling 2.5 takes 5 or 10
+              — collapsing both into a dropdown loses the range on one and would
+              offer values the other rejects. The catalog already knows which is
+              which; `rangeOf` is just reading it. */}
+          {chips
+            .filter((c) => c.kind === "slider")
+            .map((c) => {
+              const r = rangeOf(c)!;
+              const v = Number(input[c.key]);
+              return (
+                <Section key={c.key} className="px-2.5 py-2">
+                  <div className="mb-1.5 flex items-baseline justify-between">
+                    <span className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+                      {c.label}
+                    </span>
+                    {/* Plain text, not lime. A duration read-out is not an action
+                        and does not compete with the one control that is. */}
+                    <span className="text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
+                      {/* Through `n()`, like every other figure in the app. The
+                          slider printed Latin digits beside a Persian price and
+                          a Persian coin balance. */}
+                      <span className="vg-numeric">{n(v)}</span>
+                      {c.unit ? (
+                        <span className="ms-1 text-[11px] font-normal" style={{ color: "var(--vg-text-muted)" }}>
+                          {c.unit}
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={r.min}
+                    max={r.max}
+                    step={r.step}
+                    value={v}
+                    aria-label={c.label}
+                    onChange={(e) => set(c.key, c.asString ? e.target.value : Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="mt-0.5 flex justify-between text-[10px]" style={{ color: "var(--vg-text-faint)" }}>
+                    <span className="vg-numeric">{n(r.min)}</span>
+                    <span className="vg-numeric">{n(r.max)}</span>
+                  </div>
+                </Section>
+              );
+            })}
 
-        {/* A fixed set gets a select; a continuous range gets a real slider.
-            Seedance takes any duration from 4 to 15 and Kling 2.5 takes 5 or 10
-            — collapsing both into a dropdown loses the range on one and would
-            offer values the other rejects. The catalog already knows which is
-            which; `rangeOf` is just reading it. */}
-        {chips
-          .filter((c) => c.kind === "slider")
-          .map((c) => {
-            const r = rangeOf(c)!;
-            const v = Number(input[c.key]);
-            return (
-              <Card key={c.key} className="px-3 py-2.5">
-                <div className="mb-1.5 flex items-baseline justify-between">
-                  <span className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-                    {c.label}
-                  </span>
-                  <span className="text-[13px] font-bold" style={{ color: "var(--vg-primary-soft)" }}>
-                    <span className="vg-numeric">{v}</span>
-                    {c.unit ? <span className="ms-1 text-[11px] font-normal">{c.unit}</span> : null}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={r.min}
-                  max={r.max}
-                  step={r.step}
-                  value={v}
-                  aria-label={c.label}
-                  onChange={(e) => set(c.key, c.asString ? e.target.value : Number(e.target.value))}
-                  className="w-full"
-                />
-                <div className="mt-1 flex justify-between text-[10px]" style={{ color: "var(--vg-text-faint)" }}>
-                  <span className="vg-numeric">{r.min}</span>
-                  <span className="vg-numeric">{r.max}</span>
-                </div>
-              </Card>
-            );
-          })}
-
-        {chips.some((c) => c.kind !== "toggle" && c.kind !== "slider") && (
-          <div className="grid grid-cols-3 gap-1.5">
-            {chips
-              .filter((c) => c.kind !== "toggle" && c.kind !== "slider")
-              .map((c) => {
-                const opts = c.options.map((o) => ({ value: o.value as string | number, label: o.label }));
-                return (
-                  <label key={c.key} className="relative block">
-                    <span className="sr-only">{c.label}</span>
-                    <select
-                      value={String(input[c.key])}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        const match = opts.find((o) => String(o.value) === raw);
-                        set(c.key, match ? match.value : raw);
-                      }}
-                      className="h-9 w-full cursor-pointer appearance-none rounded-lg px-2 text-center text-[12px] font-semibold outline-none"
-                      style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)", color: "var(--vg-text)" }}
-                    >
-                      {opts.map((o) => (
-                        <option key={String(o.value)} value={String(o.value)}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                );
-              })}
-          </div>
-        )}
+          {/* A wrapping row, not a three-column grid. Most video models expose
+              two of these, and a fixed third column left a hole beside them. */}
+          {chips.some((c) => c.kind !== "toggle" && c.kind !== "slider") && (
+            <Section className="flex flex-wrap gap-1.5 p-2.5">
+              {chips
+                .filter((c) => c.kind !== "toggle" && c.kind !== "slider")
+                .map((c) => {
+                  const opts = c.options.map((o) => ({ value: o.value as string | number, label: o.label }));
+                  return (
+                    <label key={c.key} className="relative block min-w-[84px] flex-1">
+                      <span className="sr-only">{c.label}</span>
+                      <select
+                        value={String(input[c.key])}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const match = opts.find((o) => String(o.value) === raw);
+                          set(c.key, match ? match.value : raw);
+                        }}
+                        className="vg-msel h-8 w-full cursor-pointer appearance-none rounded-[7px] text-center text-[12px] font-semibold outline-none"
+                      >
+                        {opts.map((o) => (
+                          <option key={String(o.value)} value={String(o.value)}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  );
+                })}
+            </Section>
+          )}
+        </Panel>
       </div>
+
+      {/* Both pickers portal to the body, so they live outside the panel —
+          `Panel` clips its own corners and would clip a popover with them. */}
+      {pickPreset && (
+        <PresetPicker
+          kind={family.kind}
+          selectedId={preset?.id ?? null}
+          onPick={(p) => {
+            setPreset(p);
+            // A preset is a prompt with a hole in it, so it seeds the box and
+            // switches to the family it was written against — running it on
+            // another model is not the effect the picture showed.
+            const f = families.find((x) => x.id === p.familyId);
+            if (f) onFamily(f);
+            setPrompt(p.prompt);
+          }}
+          onClear={() => {
+            setPreset(null);
+            setPrompt("");
+          }}
+          onClose={() => setPickPreset(false)}
+        />
+      )}
+
+      {pickModel && (
+        <ModelPicker
+          anchor={modelRow.current}
+          families={families}
+          family={family}
+          variant={variant}
+          onPickFamily={onFamily}
+          onPickVariant={s.setVariant}
+          onClose={() => setPickModel(false)}
+        />
+      )}
 
       {/* The button is pinned to the panel floor, not scrolled with the stack.
           It is the only thing on this surface the user is guaranteed to want. */}
       <div
-        className="sticky bottom-0 mt-auto p-3"
+        className="sticky bottom-0 mt-auto p-2.5"
         style={{ background: "var(--vg-canvas)", borderBlockStart: "1px solid var(--vg-border-subtle)" }}
       >
         {/* A locked model gets an upgrade button, not a disabled create button.
@@ -449,7 +586,7 @@ export function FormPanel({
         {locked && !visitor ? (
           <button
             onClick={access.onUpgrade}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-bold"
             style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
           >
             <Lock size={14} weight="fill" />
@@ -465,8 +602,16 @@ export function FormPanel({
           <button
             disabled={!visitor && !ready}
             onClick={() => (visitor ? signIn() : onGenerate(family, variant, prompt.trim(), input, refImages))}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold transition-opacity disabled:opacity-35"
-            style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
+            style={{
+              background: "var(--vg-primary)",
+              color: "var(--vg-text-on-primary)",
+              /* The bloom is what makes this read as the lit thing on the
+                 surface rather than a green rectangle — and it is now the only
+                 filled accent in the column, so it can carry that alone. A
+                 button that cannot be pressed does not glow. */
+              boxShadow: !visitor && !ready ? "none" : "var(--vg-glow-primary)",
+            }}
           >
             <Sparkle size={15} weight="fill" />
             {visitor ? t("visitor_cta") : isSubmitting ? "در حال ثبت…" : "بساز"}
