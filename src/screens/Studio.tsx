@@ -77,8 +77,11 @@ function OutputCard({ gen }: { gen: Generation }) {
         /* A real determinate bar, driven by the job's own progress rather than
            a fixed 18-second animation that finished whenever it felt like it.
            A generation is money already spent, so it gets a number. */
-        <div className="absolute inset-0 grid place-items-center" style={{ background: "rgba(0,0,0,0.45)" }}>
-          <div className="w-2/3">
+        <div className="absolute inset-0 grid place-items-center">
+          {/* Black, with the brand's light moving through it — see
+              `.vg-gen-field` — in place of a flat 45% scrim. */}
+          <div className="vg-gen-field" />
+          <div className="relative w-2/3">
             {/* A progressbar, not a div that happens to be N% wide.
                 The percentage was in the caption and nowhere else, so a screen
                 reader got a stray number with no role, no range and no update as

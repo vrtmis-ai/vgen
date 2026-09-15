@@ -959,6 +959,75 @@
   }
 }
 
+/* A generation in progress, as an overlay on its own card.
+
+   Black, with the brand's light moving through it: two soft lime pools drifting
+   in opposite directions at different speeds, so the motion never settles into
+   a loop you can count. It replaces the flat dark scrim that running cards
+   used, which said "wait" in the same voice as every disabled control in the
+   app — a job somebody has paid for is not a disabled thing.
+
+   Brighter than `.vg-generating`'s under-12% wash, deliberately: that rule was
+   written for a wash under content, and here the light *is* the content — at
+   12% on near-black it reads as a smudge, not as something happening.
+
+   Transform-only animation on two pseudo-elements, so a wall with four jobs
+   running is eight composited layers and no repaint. The card's own text and
+   progress sit above it; they are later, positioned siblings.
+   ------------------------------------------------------------------------ */
+.vg-gen-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+  background: color-mix(in oklab, var(--vg-canvas), black 45%);
+}
+.vg-gen-field::before,
+.vg-gen-field::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  will-change: transform;
+}
+.vg-gen-field::before {
+  background: radial-gradient(closest-side, rgb(var(--vg-primary-rgb) / 0.46), rgb(var(--vg-primary-rgb) / 0.12) 55%, transparent 72%);
+  animation: vg-gen-drift-a 6s var(--vg-ease) infinite alternate;
+}
+.vg-gen-field::after {
+  background: radial-gradient(closest-side, rgb(var(--vg-primary-rgb) / 0.3), transparent 70%);
+  animation: vg-gen-drift-b 8.5s var(--vg-ease) infinite alternate;
+}
+@keyframes vg-gen-drift-a {
+  0% {
+    transform: translate(-28%, -24%) scale(0.55);
+  }
+  50% {
+    transform: translate(12%, -6%) scale(0.75);
+  }
+  100% {
+    transform: translate(24%, 26%) scale(0.6);
+  }
+}
+@keyframes vg-gen-drift-b {
+  0% {
+    transform: translate(26%, 22%) scale(0.7);
+  }
+  50% {
+    transform: translate(-8%, 14%) scale(0.5);
+  }
+  100% {
+    transform: translate(-24%, -26%) scale(0.65);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* The light stays where it is; only its movement stops. */
+  .vg-gen-field::before,
+  .vg-gen-field::after {
+    animation: none;
+  }
+}
+
 /* Indeterminate bar for the tile — distinct from .vg-progress, which needs a
    known percentage. Most generations cannot report one. */
 .vg-generating__bar {

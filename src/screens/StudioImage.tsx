@@ -10,6 +10,7 @@ import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
+import { useIgnition } from "../components/Ignition";
 import { ModelChip } from "../components/ModelPicker";
 import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
 import { unlimitedFit } from "../lib/unlimited";
@@ -200,6 +201,8 @@ export default function StudioImage({
      order is the order the provider receives, so "these two are the wrong way
      round" is a real thing to want to fix. */
   const [dragAt, setDragAt] = useState<number | null>(null);
+  // See FormPanel: the field lights across «بساز», then the job is sent.
+  const ignition = useIgnition();
 
   /* Files belong to the model that asked for them.
      Switching model has to drop them — the next model's slot has a different
@@ -443,7 +446,10 @@ export default function StudioImage({
                nothing to open, download or recreate until it lands. */
               t.pending ? (
                 <div className="relative grid size-full place-items-center overflow-hidden" style={{ background: t.pending.grad }}>
-                  <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
+                  {/* Black, with the brand's light moving through it — see
+                      `.vg-gen-field`. It replaces a flat 45% scrim, which said
+                      "wait" in the voice every disabled thing in the app uses. */}
+                  <div className="vg-gen-field" />
                   <div className="relative w-2/3 max-w-[180px]">
                     <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
                       <div
@@ -699,13 +705,23 @@ export default function StudioImage({
                    colour is enough: it is the only lime in the dock. */
                 <button
                   disabled={!visitor && !s.ready}
-                  onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, refs))}
-                  className={`${CHIP_CLASS} justify-center px-4 transition-opacity disabled:opacity-35`}
-                  style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+                  onClick={(event) =>
+                    visitor
+                      ? signIn()
+                      : ignition.ignite(event, () => onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, refs))
+                  }
+                  aria-busy={ignition.igniting || undefined}
+                  className={`${CHIP_CLASS} relative justify-center overflow-hidden px-4 transition-opacity disabled:opacity-35`}
+                  style={{
+                    background: "var(--vg-primary)",
+                    color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
+                    textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
+                  }}
                 >
-                  <Sparkle size={14} weight="fill" />
-                  {visitor ? t("visitor_cta") : "بساز"}
-                  <span className="flex items-center gap-1 opacity-90">
+                  {ignition.layer}
+                  <Sparkle size={14} weight="fill" className="relative" />
+                  <span className="relative">{visitor ? t("visitor_cta") : "بساز"}</span>
+                  <span className="relative flex items-center gap-1 opacity-90">
                     <CoinMark size={11} />
                     {/* The local table prices the metered pipe. When the other
                         one is chosen and reachable, the figure is not a smaller

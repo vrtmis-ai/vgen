@@ -25,6 +25,7 @@ import { ViewControls, useViewMode } from "../components/ViewControls";
 import { CoinMark } from "../components/chrome";
 import { Panel, PanelHead, PanelShell, PanelTabs, Section } from "../components/FormPanel";
 import { ModelPicker } from "../components/ModelPicker";
+import { useIgnition } from "../components/Ignition";
 import { labelDir, promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
@@ -224,6 +225,8 @@ export default function StudioAudio({
   const [pickModel, setPickModel] = useState(false);
   const [batch, setBatch] = useState(1);
   const modelRow = useRef<HTMLDivElement>(null);
+  // See FormPanel: the field lights across «بساز», then the job is sent.
+  const ignition = useIgnition();
   // Their audio canvas opens in list: a speech result has no thumbnail, so the
   // row with its waveform is the more useful default.
   const view = useViewMode("audio", { mode: "list", density: 1 });
@@ -494,21 +497,30 @@ export default function StudioAudio({
           ) : (
             <button
               disabled={!visitor && !s.ready}
-              onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input))}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
+              onClick={(event) =>
+                visitor ? signIn() : ignition.ignite(event, () => onGenerate(s.family, s.variant, s.prompt.trim(), s.input))
+              }
+              aria-busy={ignition.igniting || undefined}
+              className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
               style={{
                 background: "var(--vg-primary)",
-                color: "var(--vg-text-on-primary)",
+                color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
+                // A dark halo while it is light: the field sweeps in from the
+                // pressed point, so for a moment the label sits half on lime.
+                textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
                 // As in the video dock: the only filled accent in the column,
                 // and a button that cannot be pressed does not glow.
                 boxShadow: !visitor && !s.ready ? "none" : "var(--vg-glow-primary)",
               }}
             >
-              <Sparkle size={15} weight="fill" />
-              {visitor ? t("visitor_cta") : "بساز"}
-              <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
-                <CoinMark size={12} />
-                <span className="vg-numeric">{s.price === null ? "—" : n(s.price * batch)}</span>
+              {ignition.layer}
+              <span className="relative flex items-center gap-2">
+                <Sparkle size={15} weight="fill" />
+                {visitor ? t("visitor_cta") : "بساز"}
+                <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
+                  <CoinMark size={12} />
+                  <span className="vg-numeric">{s.price === null ? "—" : n(s.price * batch)}</span>
+                </span>
               </span>
             </button>
           )}

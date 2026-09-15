@@ -4,6 +4,7 @@ import { CaretLeft, Lock, Sparkle, PencilSimple } from "@phosphor-icons/react";
 import { type Family, type Variant, variantRefs } from "../data/models";
 import { type InputMap, type RefMap } from "./controls";
 import { RefBox } from "./RefBox";
+import { useIgnition } from "./Ignition";
 import { allTags, insertTag, refTags, tagUsed } from "../lib/refTags";
 import { useCreateState, valueLabel, rangeOf } from "../lib/useCreateState";
 import { ModelPicker } from "./ModelPicker";
@@ -259,6 +260,9 @@ export function FormPanel({
   const [preset, setPreset] = useState<Preset | null>(null);
   const modelRow = useRef<HTMLDivElement>(null);
   const promptBox = useRef<HTMLTextAreaElement>(null);
+  /* The sign-in field, lit across «بساز» from the point pressed; the
+     submission goes when it has swept the button. See `useIgnition`. */
+  const ignition = useIgnition();
   /* Where the caret should sit once an inserted tag has actually landed in the
      field. Held in a ref and applied in a layout effect rather than set
      straight after `setPrompt`: at that moment React has not written the new
@@ -601,11 +605,18 @@ export function FormPanel({
         ) : (
           <button
             disabled={!visitor && !ready}
-            onClick={() => (visitor ? signIn() : onGenerate(family, variant, prompt.trim(), input, refImages))}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
+            onClick={(event) =>
+              visitor ? signIn() : ignition.ignite(event, () => onGenerate(family, variant, prompt.trim(), input, refImages))
+            }
+            aria-busy={ignition.igniting || undefined}
+            className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
             style={{
               background: "var(--vg-primary)",
-              color: "var(--vg-text-on-primary)",
+              // Light while the dark field is behind it, or the ink disappears.
+              color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
+              // A dark halo while it is light: the field sweeps in from the
+              // pressed point, so for a moment the label sits half on lime.
+              textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
               /* The bloom is what makes this read as the lit thing on the
                  surface rather than a green rectangle — and it is now the only
                  filled accent in the column, so it can carry that alone. A
@@ -613,11 +624,15 @@ export function FormPanel({
               boxShadow: !visitor && !ready ? "none" : "var(--vg-glow-primary)",
             }}
           >
-            <Sparkle size={15} weight="fill" />
-            {visitor ? t("visitor_cta") : isSubmitting ? "در حال ثبت…" : "بساز"}
-            <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
-              <CoinMark size={12} />
-              <span className="vg-numeric">{price === null ? "—" : n(price)}</span>
+            {ignition.layer}
+            {/* Positioned so it paints above the field. */}
+            <span className="relative flex items-center gap-2">
+              <Sparkle size={15} weight="fill" />
+              {visitor ? t("visitor_cta") : isSubmitting ? "در حال ثبت…" : "بساز"}
+              <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
+                <CoinMark size={12} />
+                <span className="vg-numeric">{price === null ? "—" : n(price)}</span>
+              </span>
             </span>
           </button>
         )}
