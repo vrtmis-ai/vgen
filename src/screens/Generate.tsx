@@ -9,6 +9,7 @@ import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
 import { ControlField, RefUpload, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
+import { useIgnition } from "../components/Ignition";
 import { isVideoUrl, labelDir, promptDir } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { generationErrorMessage, validateGenerationInput } from "../features/generation/validation";
@@ -184,6 +185,7 @@ export default function Generate({
   const need = locked ? access.needs(family.id) : null;
   const validation = validateGenerationInput({ family, variant, prompt, input, refs: refImages, assetRefs });
   const canGenerate = validation.valid && !clipUnreadable && price != null;
+  const ignition = useIgnition();
 
   async function submit() {
     if (!canGenerate || submitting) return;
@@ -421,19 +423,31 @@ export default function Generate({
               )}
             </button>
           ) : (
+            /* The same field as the studios' «بساز» — every button that spends
+               coins on a generation lights the same way. This one was missed:
+               every model link and every effect tile lands here, so it is the
+               button most people press first. See `useIgnition`. */
             <button
-              onClick={() => (visitor ? signIn() : void submit())}
+              onClick={(event) => (visitor ? signIn() : ignition.ignite(event, () => void submit()))}
               disabled={!visitor && (!canGenerate || submitting)}
-              className="btn-accent flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
+              aria-busy={ignition.igniting || submitting || undefined}
+              className="btn-accent relative flex w-full items-center justify-center overflow-hidden rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
+              // Light ink over the dark field, with a halo for the moment the
+              // label still sits half on lime — as FormPanel does.
+              style={ignition.igniting ? { color: "var(--vg-text)", textShadow: "0 0 6px rgb(0 0 0 / 0.7)" } : undefined}
             >
-              <Sparkle size={18} weight="fill" />
-              <span>{visitor ? t("visitor_cta") : submitting ? "در حال ثبت…" : t("g_create")}</span>
-              {price != null && !clipUnreadable && (
-                <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
-                  <CoinMark size={12} />
-                  {n(price)}
-                </span>
-              )}
+              {ignition.layer}
+              {/* Positioned so it paints above the field. */}
+              <span className="relative flex items-center gap-2">
+                <Sparkle size={18} weight="fill" />
+                <span>{visitor ? t("visitor_cta") : submitting ? "در حال ثبت…" : t("g_create")}</span>
+                {price != null && !clipUnreadable && (
+                  <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
+                    <CoinMark size={12} />
+                    {n(price)}
+                  </span>
+                )}
+              </span>
             </button>
           )}
           <div className="pt-1.5 text-center text-[10.5px] text-ink3">
