@@ -232,19 +232,18 @@ describe("the free-pipe preference reaches the quote", () => {
 });
 
 /**
- * Pressing create in a studio and watching the page not move.
+ * Pressing create in a studio, and staying in the studio.
  *
- * The three studios all submit through `requestGeneration`, which was
- * fire-and-forget in the strictest sense: the job went, the coins were held,
- * and nothing on screen acknowledged the press. The new generation did appear
- * as a tile in the canvas, but on the video studio that canvas is beside a
- * 320px form panel and below the fold — so the button read as dead, and was
- * reported as dead.
+ * The three studios all submit through `requestGeneration`. For a while it
+ * sent the browser to کارهای من once a job was accepted, so that the press
+ * visibly did something. That took people out of the form they were sending
+ * several generations from, and it was reported as wrong: the answer belongs
+ * on the studio's own canvas, which draws from `gens`.
  *
- * Asserted on the router rather than on a rendered result, because the bug was
- * never about what the destination looks like. It was that there wasn't one.
+ * So both halves are asserted — the router is left alone, and the job is in
+ * the list the canvas reads.
  */
-describe("submitting from a studio takes you to your work", () => {
+describe("submitting from a studio keeps you in the studio", () => {
   function Dock() {
     const { requestGeneration } = useGenerations();
     return <button onClick={() => requestGeneration("nano-banana", "یک گربه", INPUT, VARIANT_WITH_REF)}>dock</button>;
@@ -266,12 +265,19 @@ describe("submitting from a studio takes you to your work", () => {
     );
   }
 
-  it("navigates to کارهای من once the job is accepted", async () => {
-    renderDock(createDemoServices());
+  it("leaves the page where it is once the job is accepted, with the job in the list", async () => {
+    const services = createDemoServices();
+    const create = vi.fn(services.generation.create);
+    renderDock({ ...services, generation: { ...services.generation, create } });
 
     await act(async () => screen.getByText("dock").click());
 
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/gallery"));
+    await waitFor(() => expect(create).toHaveBeenCalledOnce());
+    const job = await create.mock.results[0]!.value;
+    // Stored as it lands — the save effect runs off the same list the canvas draws.
+    await waitFor(() => expect(loadGenerations().some((generation) => generation.jobId === job.id)).toBe(true));
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it("stays put when the submit is refused, so the error is still on screen", async () => {

@@ -13,6 +13,8 @@ import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
 import { useIgnition } from "../components/Ignition";
+import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
+import { useRevealArrival } from "../lib/useRevealArrival";
 import { ModelChip } from "../components/ModelPicker";
 import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
 import { unlimitedFit } from "../lib/unlimited";
@@ -154,10 +156,13 @@ export default function StudioImage({
   gens,
   onGenerate,
   onOpenModel,
+  onRemove,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean, refs: RefMap) => void;
   onOpenModel: (familyId: string, prompt?: string) => void;
+  /** Offered on a refused generation only, as in کارهای من. */
+  onRemove: (g: Generation) => void;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -276,9 +281,15 @@ export default function StudioImage({
   /* `done`, not "not running". A refused generation has no file, so it fell to
      the `art()` placeholder below and appeared on the wall as somebody else's
      stock photograph — the studio claiming a picture where the provider had
-     produced none. A failure belongs in کارهای من, which draws it as one and
-     offers to remove it; this surface is the pictures you actually have. */
+     produced none.
+
+     Refusals are not dropped, though. They used to be — "a failure belongs in
+     کارهای من" — which only worked while «بساز» sent the browser there. It no
+     longer does, and a job that vanished from this wall would read as lost.
+     They are tiles of their own below, in the order they were made. */
   const finished = mine.filter((g) => g.status === "done");
+  // The press stays on this page, so bring the job it made into view.
+  const reveal = useRevealArrival(mine[0]?.id);
   /* No stand-in library.
      This used to fall back to the seeded examples so the dock would not float
      over nothing. It filled the create surface with forty-two pictures the
@@ -325,6 +336,7 @@ export default function StudioImage({
     ratio: base.w / base.h,
     asset: base,
     pending: null as Generation | null,
+    refused: null as Generation | null,
   }));
   // Named as a set, not one at a time: whether a name needs an ordinal is a
   // fact about the whole wall, so it cannot be decided from inside one tile.
@@ -332,17 +344,25 @@ export default function StudioImage({
     shaped.map((t) => t.asset),
     (familyId) => catalogFamilies.find((family) => family.id === familyId)?.name,
   );
+  const pictures = new Map(shaped.map((t, i) => [t.key, { ...t, name: names[i]! }]));
+  /* A tile for something with no picture: a job still running, or one that
+     was refused. Shaped by what was asked for, since nothing arrived. */
+  const placeholder = (g: Generation, state: "pending" | "refused") => ({
+    key: g.id,
+    ratio: g.w / g.h,
+    asset: { id: g.id, url: "", prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h } as ViewerAsset,
+    pending: state === "pending" ? g : null,
+    refused: state === "refused" ? g : null,
+    name: g.prompt.trim().slice(0, 60) || g.name,
+  });
   // Running jobs first, newest at the head, so the thing the user just paid for
-  // is the thing they are looking at.
+  // is the thing they are looking at. Then everything settled, newest first —
+  // a refusal sits where it happened rather than pinned above the pictures.
   const tiles = [
-    ...running.map((g) => ({
-      key: g.id,
-      ratio: g.w / g.h,
-      asset: { id: g.id, url: "", prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h } as ViewerAsset,
-      pending: g,
-      name: g.prompt.trim().slice(0, 60) || g.name,
-    })),
-    ...shaped.map((t, i) => ({ ...t, name: names[i]! })),
+    ...running.map((g) => placeholder(g, "pending")),
+    ...mine.flatMap((g) =>
+      g.status === "failed" ? [placeholder(g, "refused")] : g.status === "done" && pictures.has(g.id) ? [pictures.get(g.id)!] : [],
+    ),
   ];
 
   /* Through the API, not straight at the file — the same fix the result page
@@ -465,27 +485,33 @@ export default function StudioImage({
             items={tiles}
             targetHeight={view.rowHeight}
             gap={2}
-            render={(t) =>
+            render={(t, size) =>
               /* A job with no picture yet: the tile holds its place in the wall
                and shows the bar. Not clickable and no action stack — there is
                nothing to open, download or recreate until it lands. */
               t.pending ? (
-                <div className="relative grid size-full place-items-center overflow-hidden" style={{ background: t.pending.grad }}>
-                  {/* Black, with the brand's light moving through it — see
-                      `.vg-gen-field`. It replaces a flat 45% scrim, which said
-                      "wait" in the voice every disabled thing in the app uses. */}
-                  <div className="vg-gen-field" />
-                  <div className="relative w-2/3 max-w-[180px]">
-                    <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
-                      <div
-                        className="h-full transition-[width] duration-200 ease-out"
-                        style={{ width: `${Math.round(t.pending.progress ?? 0)}%`, background: "var(--vg-primary)" }}
-                      />
-                    </div>
-                    <p className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-                      در حال ساخت… <span className="vg-numeric">{Math.round(t.pending.progress ?? 0)}%</span>
-                    </p>
-                  </div>
+                <div
+                  ref={t.key === mine[0]?.id ? reveal.target : undefined}
+                  className="relative size-full overflow-hidden"
+                  // Clear of the sticky bar above and the dock floating below.
+                  style={{ background: t.pending.grad, scrollMarginBlock: "6rem 14rem" }}
+                >
+                  <RunningVeil gen={t.pending} />
+                </div>
+              ) : t.refused ? (
+                <div
+                  ref={t.key === mine[0]?.id ? reveal.target : undefined}
+                  className="relative size-full overflow-hidden"
+                  style={{ scrollMarginBlock: "6rem 14rem" }}
+                >
+                  {/* Rows shrink with the density control; a short tile keeps
+                      the badge and the remove button and clamps the sentence. */}
+                  <FailedVeil
+                    gen={t.refused}
+                    onRemove={() => t.refused && onRemove(t.refused)}
+                    lines={size.height < 110 ? 0 : size.height < 150 ? 2 : 4}
+                    framed
+                  />
                 </div>
               ) : (
                 <div className="group relative size-full overflow-hidden" style={{ background: "var(--vg-surface)" }}>
@@ -777,7 +803,10 @@ export default function StudioImage({
                   onClick={(event) =>
                     visitor
                       ? signIn()
-                      : ignition.ignite(event, () => onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, refs))
+                      : ignition.ignite(event, () => {
+                          reveal.arm();
+                          onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, refs);
+                        })
                   }
                   aria-busy={ignition.igniting || undefined}
                   className={`${CHIP_CLASS} relative justify-center overflow-hidden px-4 transition-opacity disabled:opacity-35`}

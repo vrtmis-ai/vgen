@@ -22,9 +22,11 @@ function Ignition({ origin, onDone }: { origin: { x: number; y: number }; onDone
  *
  * `ignite(event, submit)` lights the field from the pressed point and calls
  * `submit` when it has swept the button. The submission waits for it on
- * purpose: the studio leaves for کارهای من the moment a generation is accepted,
- * so a submission sent at the press took the button off the screen before the
- * field had drawn — which is why the first version of this was never seen.
+ * purpose: the field is the answer to the press, and the job arriving on the
+ * canvas is the answer after that. Sent at the press, the card could land
+ * before the field had drawn, and the two would read as unrelated. (While a
+ * submit still left for کارهای من, it also carried the button off screen
+ * mid-sweep — which is why the first version of this was never seen.)
  * The wait is `IGNITION_MS` on a timer (so a switch to another tab cannot
  * stall it), and nothing is sent twice: a second press while it runs is
  * ignored.

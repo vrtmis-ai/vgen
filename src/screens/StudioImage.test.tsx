@@ -1,13 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDemoServices } from "../adapters/demo/demoServices";
 import { createDemoCatalogService } from "../adapters/demo/catalog";
 import { CatalogProvider } from "../features/catalog/CatalogProvider";
 import { LanguageProvider } from "../lib/i18n";
 import { AppServicesProvider } from "../runtime/AppServices";
 import { SessionProvider, type Session } from "../runtime/providers/SessionProvider";
+import type { Generation } from "../lib/gallery";
 import StudioImage from "./StudioImage";
 
 /* ---------------------------------------------------------------------------
@@ -31,21 +32,22 @@ const ACCOUNT: Session = {
   signOut: vi.fn(),
 };
 
-function show() {
+function show(gens: Generation[] = [], onRemove = vi.fn()) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  render(
     <QueryClientProvider client={queryClient}>
       <AppServicesProvider services={createDemoServices()}>
         <LanguageProvider initialLang="fa">
           <CatalogProvider families={catalog.families}>
             <SessionProvider value={ACCOUNT}>
-              <StudioImage gens={[]} onGenerate={vi.fn()} onOpenModel={vi.fn()} />
+              <StudioImage gens={gens} onGenerate={vi.fn()} onOpenModel={vi.fn()} onRemove={onRemove} />
             </SessionProvider>
           </CatalogProvider>
         </LanguageProvider>
       </AppServicesProvider>
     </QueryClientProvider>,
   );
+  return { onRemove };
 }
 
 /** Switch the dock onto a family by name, through the picker the user uses. */
@@ -110,5 +112,62 @@ describe("the image studio's input slot", () => {
 
     expect(screen.queryByRole("button", { name: /^افزودن/ })).not.toBeInTheDocument();
     expect(document.querySelector("input[type=file]")).toBeNull();
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   What the wall says about work that is not a picture.
+
+   «بساز» used to send the browser to کارهای من, so this wall could leave
+   refusals out and nobody lost track of one. It stays on the page now, which
+   makes the wall the only place somebody is looking when a job is refused —
+   so a refusal is a tile here, with the reason, and it can be cleared.
+   --------------------------------------------------------------------------- */
+
+describe("the image wall, for jobs with no picture", () => {
+  const job = (over: Partial<Generation>): Generation => ({
+    id: "g1",
+    jobId: "job-1",
+    familyId: "nano-banana",
+    variantId: "nano-banana-pro",
+    name: "Nano Banana",
+    vendor: "Google",
+    grad: "linear-gradient(#000,#111)",
+    kind: "image",
+    prompt: "a lime lantern",
+    w: 1,
+    h: 1,
+    status: "running",
+    createdAt: 1,
+    ...over,
+  });
+
+  // The wall measures its own width to lay out rows, and jsdom measures 0.
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: 1200, height: 800 } as DOMRect);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("keeps a refused job on the wall, says why, and lets it be cleared", async () => {
+    const refused = job({ status: "failed", error: { code: "content_policy", message: "" } });
+    const { onRemove } = show([refused]);
+
+    expect(screen.getByText("انجام نشد")).toBeInTheDocument();
+    // The code's own sentence — the one that tells somebody to change the words.
+    expect(screen.getByText(/متن را عوض کنید/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /^حذف از کارهای من/ }));
+    expect(onRemove).toHaveBeenCalledWith(refused);
+  });
+
+  /* Nothing on the server reports progress, so every real job has none, and
+     the bar used to sit at ۰٪ for as long as the job ran — which reads as
+     stalled. The moving field says it is working; no number is invented. */
+  it("draws a running job without claiming a percentage nobody sent", () => {
+    show([job({ status: "running" })]);
+
+    expect(screen.getByText(/در حال ساخت/)).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByText(/٪/)).not.toBeInTheDocument();
   });
 });

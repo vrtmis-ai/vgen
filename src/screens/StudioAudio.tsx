@@ -26,6 +26,8 @@ import { CoinMark } from "../components/chrome";
 import { Panel, PanelHead, PanelShell, PanelTabs, Section } from "../components/FormPanel";
 import { ModelPicker } from "../components/ModelPicker";
 import { useIgnition } from "../components/Ignition";
+import { FailedVeil } from "../components/GenerationVeils";
+import { useRevealArrival } from "../lib/useRevealArrival";
 import { labelDir, promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
@@ -205,9 +207,12 @@ const SEED_CLIPS = [
 export default function StudioAudio({
   gens,
   onGenerate,
+  onRemove,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
+  /** Offered on a refused generation only, as in کارهای من. */
+  onRemove: (g: Generation) => void;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -235,7 +240,14 @@ export default function StudioAudio({
   /* Running jobs stay out of the clip list and sit above it: a speech result is
      a waveform and a duration, and a job that has not finished has neither. */
   const running = mine.filter((g) => g.status === "running");
-  const finished = mine.filter((g) => g.status !== "running");
+  /* `done`, not "not running". A refused job has no audio, and it was drawn as
+     a clip anyway — a waveform, a play button and a made-up 00:12 — so a
+     refusal looked like a result that would not play. Refusals get their own
+     row now, with the reason, above the clips. */
+  const finished = mine.filter((g) => g.status === "done");
+  const refused = mine.filter((g) => g.status === "failed");
+  // The press stays on this page, so bring the job it made into view.
+  const reveal = useRevealArrival(mine[0]?.id);
   const clips =
     finished.length > 0
       ? finished.map((g) => ({
@@ -244,7 +256,10 @@ export default function StudioAudio({
           voice: g.name.toUpperCase(),
           seconds: Math.round((g.durationMs ?? 12000) / 1000),
         }))
-      : SEED_CLIPS;
+      : // The examples are for an empty history, not for one that holds only refusals.
+        refused.length > 0
+        ? []
+        : SEED_CLIPS;
 
   const voiceControl = s.controls.find((c) => c.kind === "voice");
   const voiceId = voiceControl ? String(s.input[voiceControl.key]) : null;
@@ -498,7 +513,12 @@ export default function StudioAudio({
             <button
               disabled={!visitor && !s.ready}
               onClick={(event) =>
-                visitor ? signIn() : ignition.ignite(event, () => onGenerate(s.family, s.variant, s.prompt.trim(), s.input))
+                visitor
+                  ? signIn()
+                  : ignition.ignite(event, () => {
+                      reveal.arm();
+                      onGenerate(s.family, s.variant, s.prompt.trim(), s.input);
+                    })
               }
               aria-busy={ignition.igniting || undefined}
               className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
@@ -574,26 +594,33 @@ export default function StudioAudio({
             running.map((g) => (
               <div
                 key={g.id}
-                className="flex items-center gap-3 rounded-xl p-4"
-                style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+                ref={g.id === mine[0]?.id ? reveal.target : undefined}
+                className="relative flex scroll-my-24 items-center gap-3 overflow-hidden rounded-xl p-4"
+                style={{ border: "1px solid var(--vg-border-subtle)" }}
               >
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-                    در حال ساخت…
+                {/* The same moving field as a running card on the other two
+                    canvases. No bar: nothing on the server reports progress,
+                    and this one sat at 0% for the whole job. */}
+                <div className="vg-gen-field" />
+                <div className="relative min-w-0 flex-1">
+                  <p className="text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
+                    {t("r_making")}…
                   </p>
-                  <p className="mt-0.5 truncate text-[12.5px]" style={{ color: "var(--vg-text-secondary)" }}>
+                  <p className="mt-0.5 truncate text-[12.5px]" style={{ color: "var(--vg-text)" }}>
                     {g.prompt || g.name}
                   </p>
-                  <div className="mt-2 h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
-                    <div
-                      className="h-full transition-[width] duration-200 ease-out"
-                      style={{ width: `${Math.round(g.progress ?? 0)}%`, background: "var(--vg-primary)" }}
-                    />
-                  </div>
                 </div>
-                <span className="vg-numeric shrink-0 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                  {Math.round(g.progress ?? 0)}%
-                </span>
+              </div>
+            ))}
+          {tab !== "liked" &&
+            refused.map((g) => (
+              <div
+                key={g.id}
+                ref={g.id === mine[0]?.id ? reveal.target : undefined}
+                className="relative min-h-[104px] scroll-my-24 overflow-hidden rounded-xl"
+                style={{ border: "1px solid var(--vg-border-subtle)" }}
+              >
+                <FailedVeil gen={g} onRemove={() => onRemove(g)} lines={2} />
               </div>
             ))}
           {(tab === "liked" ? clips.slice(0, 2) : clips).map((c) => (

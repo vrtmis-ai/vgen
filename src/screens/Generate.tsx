@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, CaretDown, Lock, Sparkle, Stack, X } from "@phosphor-icons/react";
+import { ArrowRight, CaretDown, Lock, Sparkle, SpeakerHigh, Stack, X } from "@phosphor-icons/react";
 import { defaultInput, variantControls, variantRefs, variantMaxPrompt, type Family, type ModelKind, type Variant } from "../data/models";
 import { priceCoins, priceRefusal } from "../data/pricing";
 import { CoinMark } from "../components/chrome";
@@ -10,6 +10,10 @@ import { useAccess } from "../lib/access";
 import { ControlField, RefUpload, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
 import { useIgnition } from "../components/Ignition";
+import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
+import { GenerationMedia } from "../components/GenerationMedia";
+import { displayAspect, type Generation } from "../lib/gallery";
+import { useRevealArrival } from "../lib/useRevealArrival";
 import { isVideoUrl, labelDir, promptDir } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { generationErrorMessage, validateGenerationInput } from "../features/generation/validation";
@@ -53,6 +57,9 @@ export default function Generate({
   startFrom,
   onBack,
   onGenerate,
+  made = [],
+  onOpenMade,
+  onRemoveMade,
 }: {
   family: Family;
   initialVariantId?: string | undefined;
@@ -74,6 +81,17 @@ export default function Generate({
     refs: RefMap,
     assetRefs: Record<string, string[]>,
   ) => Promise<GenerationReceipt | null>;
+  /**
+   * What was sent from this page, newest first — drawn above the form.
+   *
+   * The page stays put after a submit. It used to leave for کارهای من so the
+   * press visibly did something, which took people off the form they were
+   * about to send the next variation from. This is where that answer lives now.
+   */
+  made?: Generation[] | undefined;
+  onOpenMade?: ((generation: Generation) => void) | undefined;
+  /** Offered on a refused generation only, as in کارهای من. */
+  onRemoveMade?: ((generation: Generation) => void) | undefined;
 }) {
   const firstVariant = family.variants.find((v) => v.id === initialVariantId) ?? family.variants[0]!;
   const [variant, setVariant] = useState<Variant>(firstVariant);
@@ -186,11 +204,14 @@ export default function Generate({
   const validation = validateGenerationInput({ family, variant, prompt, input, refs: refImages, assetRefs });
   const canGenerate = validation.valid && !clipUnreadable && price != null;
   const ignition = useIgnition();
+  // On a phone the strip above the form is a scroll away from the button.
+  const reveal = useRevealArrival(made[0]?.id);
 
   async function submit() {
     if (!canGenerate || submitting) return;
     setSubmitting(true);
     setSubmitError(null);
+    reveal.arm();
     try {
       const nextReceipt = await onGenerate(prompt.trim(), input, variant, refImages, assetRefs);
       if (nextReceipt) setReceipt(nextReceipt);
@@ -233,6 +254,31 @@ export default function Generate({
           shorter — a 1100px page of single-file controls is a phone screenshot
           stretched, and the scroll it costs is the actual usability problem. */}
       <div className="flex flex-col gap-7 px-4 pt-5 md:grid md:grid-cols-2 md:items-start md:gap-x-6 md:px-8">
+        {/* What this page has made, first and full width: the answer to the
+            press, on the page where it was pressed. A row that scrolls
+            sideways, so a run of variations never pushes the form down. */}
+        {made.length > 0 && (
+          <section aria-labelledby="made-here" className="md:col-span-2">
+            <div className="mb-2.5 flex items-center justify-between gap-3">
+              <h2 id="made-here" className="text-[12px] font-medium text-ink2">
+                ساخته‌شده از این صفحه
+              </h2>
+              <span className="text-[11px] text-ink3">در کارهای من هم می‌ماند</span>
+            </div>
+            <div className="no-scrollbar -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
+              {made.map((g) => (
+                <MadeTile
+                  key={g.id}
+                  gen={g}
+                  target={g.id === made[0]?.id ? reveal.target : undefined}
+                  onOpen={() => onOpenMade?.(g)}
+                  onRemove={onRemoveMade ? () => onRemoveMade(g) : undefined}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* variant selector — prominent */}
         {multiVariant && (
           <div className="rounded-bezel border border-line bg-card p-3.5">
@@ -469,6 +515,53 @@ export default function Generate({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** How tall a tile in the "made here" row is; its width follows the frame. */
+const MADE_HEIGHT = 140;
+
+/**
+ * One generation sent from this page: running, refused, or there.
+ *
+ * Shaped like the frame it will be — or was asked to be — so a row of them
+ * does not reflow when a file lands. A refusal gets room for its sentence.
+ */
+function MadeTile({
+  gen,
+  target,
+  onOpen,
+  onRemove,
+}: {
+  gen: Generation;
+  target: ((element: HTMLElement | null) => void) | undefined;
+  onOpen: () => void;
+  onRemove: (() => void) | undefined;
+}) {
+  const shape = displayAspect(gen);
+  const framed = Math.round(Math.min(260, Math.max(96, (shape.w / shape.h) * MADE_HEIGHT)));
+  const width = gen.status === "failed" ? Math.max(220, framed) : framed;
+  return (
+    <div
+      ref={target}
+      className="relative shrink-0 scroll-mx-4 scroll-my-24 overflow-hidden rounded-2xl border border-line"
+      style={{ width, height: MADE_HEIGHT, background: gen.grad }}
+    >
+      {gen.status === "failed" ? (
+        <FailedVeil gen={gen} onRemove={onRemove} lines={3} />
+      ) : (
+        <button onClick={onOpen} className="absolute inset-0" aria-label={`باز کردن — ${gen.prompt.trim().slice(0, 60) || gen.name}`}>
+          <GenerationMedia gen={gen} />
+          {gen.status === "running" && <RunningVeil gen={gen} />}
+          {/* A clip has no frame to show in a tile, so a finished one says so. */}
+          {gen.status === "done" && gen.kind === "audio" && (
+            <span className="absolute inset-0 grid place-items-center text-ink">
+              <SpeakerHigh size={22} weight="fill" />
+            </span>
+          )}
+        </button>
+      )}
     </div>
   );
 }

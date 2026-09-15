@@ -12,17 +12,19 @@ import { mockApi } from "./fixtures";
  */
 const promptBox = (page: import("@playwright/test").Page) => page.getByRole("textbox");
 
-test("takes you to your work once the job is accepted", async ({ page }) => {
+test("stays on the form once the job is accepted, and draws the job above it", async ({ page }) => {
   await mockApi(page);
   await page.goto("/generate/z-image");
   await promptBox(page).fill("A quiet forest");
   await page.getByRole("button", { name: /^ساخت/ }).click();
 
-  /* The create screen used to stay put and print the server's price under the
-     button. Pressing a button that costs money and watching the page not move
-     read as a dead button — so a submit now goes where the generation is. */
-  await expect(page).toHaveURL(/\/gallery$/);
-  await expect(page.getByText("A quiet forest")).toBeVisible();
+  /* The create screen once stayed put with nothing but the server's price under
+     the button, which read as a dead button; then it left for کارهای من, which
+     took people off the form they were sending the next variation from. It
+     stays now, and the answer to the press is the job itself, on this page. */
+  const made = page.getByRole("region", { name: "ساخته‌شده از این صفحه" });
+  await expect(made.getByRole("button", { name: /A quiet forest/ })).toBeVisible();
+  await expect(page).toHaveURL(/\/generate\/z-image$/);
 });
 
 test("stays on the form when the quote is refused, with the error", async ({ page }) => {
