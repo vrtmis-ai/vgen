@@ -51,7 +51,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             response. Written in the head directly rather than through
             `metadata`, which Next may stream in after the head. The empty
             public/38669407.txt is the same check's other accepted proof. */}
-        <meta name="enamad" content="38669407" />
+        <meta name="enamad" content="11292457" />
         {/* Start the DNS+TCP+TLS chain for the runtime third-party origins during
             parse instead of serially after it. On a high-latency connection the
             handshakes, not the bytes, are the expensive part.
