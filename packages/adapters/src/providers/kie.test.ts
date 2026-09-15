@@ -131,3 +131,74 @@ describe("typing an output URL", () => {
     expect(describeOutput("https://cdn.kie.ai/out.png?v=1.mp4", "image")).toMatchObject({ kind: "image", mimeType: "image/png" });
   });
 });
+
+describe("request shapes KIE names differently from the catalogue", () => {
+  it("sends an ElevenLabs script as `text`, not `prompt`", async () => {
+    const provider = new KieGenerationProvider({ fetch: stubFetch([{ status: 200, body: { data: { taskId: "t-2" } } }]) });
+
+    const submission = await provider.submit({
+      externalModelId: "elevenlabs/text-to-speech-turbo-2-5",
+      params: { prompt: "سلام", voice: "Rachel" },
+      apiKey: "k",
+    });
+
+    expect(submission.requestPayload).toEqual({ model: "elevenlabs/text-to-speech-turbo-2-5", input: { text: "سلام", voice: "Rachel" } });
+  });
+
+  it("always tells Kling 3 it is single-shot, the one mode the catalogue can fill", async () => {
+    const provider = new KieGenerationProvider({ fetch: stubFetch([{ status: 200, body: { data: { taskId: "t-3" } } }]) });
+
+    const submission = await provider.submit({
+      externalModelId: "kling-3.0/video",
+      params: { prompt: "a boat", mode: "std" },
+      apiKey: "k",
+    });
+
+    expect(submission.requestPayload).toEqual({ model: "kling-3.0/video", input: { multi_shots: false, prompt: "a boat", mode: "std" } });
+  });
+
+  it("posts a Veo tier to the legacy endpoint, flat, with an integer duration and translation on", async () => {
+    const provider = new KieGenerationProvider({
+      fetch: stubFetch([{ status: 200, body: { code: 200, data: { taskId: "veo_task_1" } } }]),
+    });
+
+    const submission = await provider.submit({
+      externalModelId: "veo3_lite",
+      params: { prompt: "a boat", aspect_ratio: "16:9", resolution: "720p", duration: "4", imageUrls: ["https://f/a.png"] },
+      apiKey: "k",
+    });
+
+    expect(submission.endpoint).toBe("https://api.kie.ai/api/v1/veo/generate");
+    expect(submission.requestPayload).toEqual({
+      model: "veo3_lite",
+      prompt: "a boat",
+      aspect_ratio: "16:9",
+      resolution: "720p",
+      duration: 4,
+      imageUrls: ["https://f/a.png"],
+      enableTranslation: true,
+    });
+  });
+
+  it("reads a Veo task from record-info by its successFlag", async () => {
+    const seen: string[] = [];
+    const responses = [
+      { data: { successFlag: 0 } },
+      { data: { successFlag: 1, response: { resultUrls: ["https://cdn.kie.ai/v.mp4"] } } },
+      { data: { successFlag: 3, errorCode: 501, errorMessage: "generation failed" } },
+    ];
+    let index = 0;
+    const fetchImpl = (async (url: string) => {
+      seen.push(url);
+      return new Response(JSON.stringify(responses[index++]), { status: 200 });
+    }) as unknown as typeof globalThis.fetch;
+    const provider = new KieGenerationProvider({ fetch: fetchImpl, modality: "video" });
+
+    expect((await provider.poll("veo_task_1", "k", "veo3_fast")).state).toBe("running");
+    const done = await provider.poll("veo_task_1", "k", "veo3_fast");
+    expect(done).toMatchObject({ state: "succeeded", providerUnitsCost: null });
+    if (done.state === "succeeded") expect(done.outputs.map((o) => o.url)).toEqual(["https://cdn.kie.ai/v.mp4"]);
+    expect(await provider.poll("veo_task_1", "k", "veo3_fast")).toMatchObject({ state: "failed", errorCode: "501", retryable: false });
+    expect(seen.every((url) => url === "https://api.kie.ai/api/v1/veo/record-info?taskId=veo_task_1")).toBe(true);
+  });
+});

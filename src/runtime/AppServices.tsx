@@ -12,8 +12,8 @@ import type { CatalogSnapshot } from "./contracts/catalog";
 import type { ContentSnapshot } from "./contracts/content";
 import type { CommunityFeed } from "./contracts/community";
 import type { GalleryPage, GalleryQuery } from "./contracts/gallery";
-import type { Plan } from "./contracts/plans";
-import type { CreateGenerationRequest, GenerationJob, GenerationQuote, QuoteGenerationRequest } from "./contracts/generation";
+import type { PlansResponse } from "./contracts/plans";
+import type { CreateGenerationRequest, GenerationJob, GenerationQuote, JobReference, QuoteGenerationRequest } from "./contracts/generation";
 import type { UploadedAsset } from "./contracts/assets";
 import type { CheckoutOrder, CreateCheckoutOrderInput } from "./contracts/payment";
 import type { Session } from "./contracts/session";
@@ -39,6 +39,12 @@ export interface AppServices {
     register(input: RegisterInput, options?: RequestOptions): Promise<Session>;
     login(input: LoginInput, options?: RequestOptions): Promise<Session>;
     /**
+     * Whether an invite code would admit someone right now. A hint for the
+     * invite page, not the gate: signup checks the code again as it creates
+     * the account.
+     */
+    checkInvite(code: string, options?: RequestOptions): Promise<boolean>;
+    /**
      * Hands the browser to an identity provider.
      *
      * Unlike every other call here this is a *navigation*, not a request, and in
@@ -47,7 +53,7 @@ export interface AppServices {
      * both fails CORS and drops that cookie. Failures come back as
      * `?auth=<code>` on the landing page rather than as a rejected promise.
      */
-    startProviderSignIn(provider: OAuthProvider, options?: RequestOptions): Promise<void>;
+    startProviderSignIn(provider: OAuthProvider, inviteCode?: string, options?: RequestOptions): Promise<void>;
     logout(options?: RequestOptions): Promise<void>;
   };
   /**
@@ -61,6 +67,14 @@ export interface AppServices {
   /** What people published. Approved posts only — the route decides, not a screen. */
   community: {
     list(options?: RequestOptions): Promise<CommunityFeed>;
+    /**
+     * Say a published post should not be there.
+     *
+     * Hides nothing on its own — it puts the post in front of a moderator, who
+     * has a takedown route. A report that un-published would be a veto anyone
+     * could exercise with one click.
+     */
+    report(postId: string, input: { category: string; note?: string | undefined }, options?: RequestOptions): Promise<void>;
   };
   catalog: {
     list(options?: RequestOptions): Promise<CatalogSnapshot>;
@@ -71,7 +85,7 @@ export interface AppServices {
    * to see it with, so the landing page asks for this while anonymous.
    */
   plans: {
-    list(options?: RequestOptions): Promise<Plan[]>;
+    list(options?: RequestOptions): Promise<PlansResponse>;
   };
   wallet: {
     getCurrent(options?: RequestOptions): Promise<Wallet>;
@@ -105,6 +119,15 @@ export interface AppServices {
      * in memory.
      */
     downloadUrl(jobId: string, index?: number): string;
+    /**
+     * The files a past generation was run against, so it can be run again with
+     * them rather than without them.
+     *
+     * Asked for per generation, when somebody presses "generate again" — not
+     * carried on the job, which would sign every reference of every gallery row
+     * to serve a button pressed on one.
+     */
+    references(jobId: string, options?: RequestOptions): Promise<JobReference[]>;
     /**
      * Take a finished generation off the account's wall.
      *

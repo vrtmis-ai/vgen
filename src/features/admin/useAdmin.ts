@@ -9,6 +9,7 @@ import {
   type AdminUsersQuery,
   type AnalyticsWindow,
   type CreateInviteInput,
+  type UpdateInviteInput,
   type CreatePromoInput,
 } from "./adminApi";
 import type { AdminProviderCreate, AdminRouteInput, AdminServingModelCreate, AdminSessionState } from "../../runtime/contracts/admin";
@@ -44,6 +45,9 @@ export const adminKeys = {
   users: (query: AdminUsersQuery) => ["admin", "users", query] as const,
   user: (id: string) => ["admin", "user", id] as const,
   adminSessions: ["admin", "sessions"] as const,
+  staff: ["admin", "staff"] as const,
+  staffRoles: ["admin", "staff", "roles"] as const,
+  staffPlan: (userId: string) => ["admin", "staff", userId, "plan"] as const,
 };
 
 export type AdminAvailability = { available: true; api: AdminApi } | { available: false; reason: string };
@@ -239,6 +243,10 @@ export function useInviteMutations(api: AdminApi) {
   const refresh = () => queryClient.invalidateQueries({ queryKey: adminKeys.invites });
   return {
     create: useMutation({ mutationFn: (input: CreateInviteInput) => api.createInvite(input), onSuccess: refresh }),
+    update: useMutation({
+      mutationFn: ({ id, input }: { id: string; input: UpdateInviteInput }) => api.updateInvite(id, input),
+      onSuccess: refresh,
+    }),
     remove: useMutation({ mutationFn: (id: string) => api.removeInvite(id), onSuccess: refresh }),
   };
 }
@@ -253,6 +261,50 @@ export function usePromoMutations(api: AdminApi) {
   return {
     create: useMutation({ mutationFn: (input: CreatePromoInput) => api.createPromo(input), onSuccess: refresh }),
     remove: useMutation({ mutationFn: (id: string) => api.removePromo(id), onSuccess: refresh }),
+  };
+}
+
+/* ------------------------------------------------------------------ staff */
+
+export function useStaff(api: AdminApi, enabled: boolean) {
+  return useQuery({ queryKey: adminKeys.staff, enabled, queryFn: () => api.listStaff(), retry: false });
+}
+
+export function useStaffRoles(api: AdminApi, enabled: boolean) {
+  return useQuery({ queryKey: adminKeys.staffRoles, enabled, queryFn: () => api.listStaffRoles(), retry: false });
+}
+
+export function useStaffPlan(api: AdminApi, userId: string | null) {
+  return useQuery({
+    queryKey: adminKeys.staffPlan(userId ?? ""),
+    enabled: userId !== null,
+    queryFn: () => api.getStaffPlan(userId!),
+    retry: false,
+  });
+}
+
+export function useStaffMutations(api: AdminApi) {
+  const queryClient = useQueryClient();
+  // The list carries the resolved permission set, so every one of these
+  // changes it — including the plan ones, which do not, but which sit in the
+  // same table and would otherwise leave a stale row on screen beside a fresh
+  // one. One invalidation is cheaper than four correct ones.
+  const refresh = () => queryClient.invalidateQueries({ queryKey: adminKeys.staff });
+  return {
+    appoint: useMutation({
+      mutationFn: (input: Parameters<AdminApi["appointStaff"]>[0]) => api.appointStaff(input),
+      onSuccess: refresh,
+    }),
+    setPermissions: useMutation({
+      mutationFn: (input: { userId: string; permissions: string[] | null }) => api.setStaffPermissions(input.userId, input.permissions),
+      onSuccess: refresh,
+    }),
+    revoke: useMutation({ mutationFn: (userId: string) => api.revokeStaff(userId), onSuccess: refresh }),
+    grantPlan: useMutation({
+      mutationFn: (input: { userId: string; planCode: string }) => api.grantStaffPlan(input.userId, input.planCode),
+      onSuccess: refresh,
+    }),
+    revokePlan: useMutation({ mutationFn: (userId: string) => api.revokeStaffPlan(userId), onSuccess: refresh }),
   };
 }
 

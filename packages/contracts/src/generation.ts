@@ -170,6 +170,23 @@ export const GenerationJobSchema = z.object({
   /** What it was quoted at, in hundredths of a coin. Also what it was charged, once it succeeds. */
   coins: z.number().nonnegative(),
   prompt: z.string(),
+  /**
+   * The rest of what was submitted — aspect, resolution, duration, seed.
+   *
+   * `prompt` above is one key out of the same object, kept separate because
+   * every screen shows it. This carries the others so a generation can be run
+   * again as it was actually run: the job has always stored them and the worker
+   * has always read them, but nothing served them back, so "make another like
+   * this" could offer the model and the prompt and had to default the rest.
+   */
+  params: z.record(z.string(), z.unknown()).default({}),
+  /**
+   * The files it ran against, keyed by the slot they filled, as asset ids.
+   *
+   * Ids, not URLs: a URL here is signed and expires within the hour, and the
+   * quote for the next generation names its references by asset id anyway.
+   */
+  referenceAssetIds: z.record(z.string().min(1), z.array(z.string().uuid())).default({}),
   createdAt: z.number().int().nonnegative(),
   updatedAt: z.number().int().nonnegative(),
   outputs: z.array(GeneratedOutputSchema),
@@ -184,6 +201,25 @@ export const GenerationJobSchema = z.object({
    */
   error: z.object({ code: z.string().min(1), message: z.string() }).optional(),
 });
+
+/**
+ * One file a finished generation was run against, with a link to look at it.
+ *
+ * Its own route rather than a field on the job, for the reason the download
+ * link is its own route: a gallery page would sign every reference of every row
+ * to serve a button pressed on one of them. Reading references is what
+ * "generate again" does, and that is one generation at a time.
+ */
+export const JobReferenceSchema = z.object({
+  /** The slot it filled. The next request has to put it back in the same one. */
+  slot: z.string().min(1),
+  assetId: z.uuid(),
+  /** Signed and short-lived, for the preview only. Submit the id. */
+  url: z.string().min(1),
+  kind: z.enum(["image", "video", "audio", "document"]),
+});
+
+export const JobReferencesSchema = z.object({ references: z.array(JobReferenceSchema) });
 
 export const GalleryPageSchema = z.object({
   items: z.array(GenerationJobSchema),
@@ -202,6 +238,8 @@ export const GalleryQuerySchema = z
 export type CreateGenerationJob = z.infer<typeof CreateGenerationJobSchema>;
 export type GeneratedOutput = z.infer<typeof GeneratedOutputSchema>;
 export type GenerationJob = z.infer<typeof GenerationJobSchema>;
+export type JobReference = z.infer<typeof JobReferenceSchema>;
+export type JobReferences = z.infer<typeof JobReferencesSchema>;
 export type GenerationJobStatus = z.infer<typeof GenerationJobStatusSchema>;
 export type GalleryPage = z.infer<typeof GalleryPageSchema>;
 export type GalleryQuery = z.infer<typeof GalleryQuerySchema>;

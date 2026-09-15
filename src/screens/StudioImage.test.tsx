@@ -39,7 +39,7 @@ function show() {
         <LanguageProvider initialLang="fa">
           <CatalogProvider families={catalog.families}>
             <SessionProvider value={ACCOUNT}>
-              <StudioImage gens={[]} onGenerate={vi.fn()} onOpenModel={vi.fn()} />
+              <StudioImage gens={[]} onGenerate={vi.fn()} onOpenModel={vi.fn()} onRegenerate={vi.fn()} />
             </SessionProvider>
           </CatalogProvider>
         </LanguageProvider>

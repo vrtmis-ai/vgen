@@ -10,11 +10,40 @@ import { defaultInput, variantControls, type Family } from "../../data/models";
 import { loadGenerations, saveGenerations, type Generation } from "../../lib/gallery";
 import { GenerationsProvider, useGenerations } from "./GenerationsProvider";
 import { NavigationProvider } from "./NavigationProvider";
+import { SessionProvider } from "./SessionProvider";
+import type { AccountUser } from "../contracts/session";
+import type { Wallet } from "../contracts/wallet";
 
 /* One stable push across the whole file rather than a fresh spy per
    `useRouter()` call. Where the provider sends the browser after a submit is
    behaviour worth asserting, and a mock that forgets is a mock that cannot. */
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }));
+
+/**
+ * Signed in, because everything below is about an account's own generations.
+ *
+ * The provider reads the session now — it gates the history fetch on having an
+ * account rather than on having read localStorage, which is what stopped every
+ * anonymous page load from asking `GET /gallery` and collecting a 401. These
+ * stacks had no SessionProvider at all, so the hook they now call would throw;
+ * a signed-in one keeps every assertion here exactly as it was.
+ */
+const SIGNED_IN = {
+  user: { id: "u-1", email: "harness@example.test" } as unknown as AccountUser,
+  wallet: { coins: 12 } as unknown as Wallet,
+  signIn: () => {},
+  signUp: () => {},
+  signOut: () => {},
+};
+
+/** The provider under test, with the session the real tree always has above it. */
+function Generations({ children }: { children: React.ReactNode }) {
+  return (
+    <SessionProvider value={SIGNED_IN}>
+      <GenerationsProvider>{children}</GenerationsProvider>
+    </SessionProvider>
+  );
+}
 
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
@@ -52,9 +81,9 @@ function renderProvider() {
       <AppServicesProvider services={createDemoServices()}>
         <CatalogProvider families={[]}>
           <NavigationProvider>
-            <GenerationsProvider>
+            <Generations>
               <Probe />
-            </GenerationsProvider>
+            </Generations>
           </NavigationProvider>
         </CatalogProvider>
       </AppServicesProvider>
@@ -125,9 +154,9 @@ function renderWithServices(services: AppServices, refs: Record<string, { file: 
       <AppServicesProvider services={services}>
         <CatalogProvider families={catalog.families}>
           <NavigationProvider>
-            <GenerationsProvider>
+            <Generations>
               <Uploader refs={refs} {...(preferUnlimited === undefined ? {} : { preferUnlimited })} />
-            </GenerationsProvider>
+            </Generations>
           </NavigationProvider>
         </CatalogProvider>
       </AppServicesProvider>
@@ -256,9 +285,9 @@ describe("submitting from a studio takes you to your work", () => {
         <AppServicesProvider services={services}>
           <CatalogProvider families={catalog.families}>
             <NavigationProvider>
-              <GenerationsProvider>
+              <Generations>
                 <Dock />
-              </GenerationsProvider>
+              </Generations>
             </NavigationProvider>
           </CatalogProvider>
         </AppServicesProvider>
@@ -311,9 +340,9 @@ describe("already-stored assets reach the quote alongside uploads", () => {
         <AppServicesProvider services={services}>
           <CatalogProvider families={catalog.families}>
             <NavigationProvider>
-              <GenerationsProvider>
+              <Generations>
                 <Carrier assetRefs={assetRefs} refs={refs} />
-              </GenerationsProvider>
+              </Generations>
             </NavigationProvider>
           </CatalogProvider>
         </AppServicesProvider>
@@ -390,9 +419,9 @@ describe("a settled job stops looking like a running one", () => {
         <AppServicesProvider services={spied}>
           <CatalogProvider families={catalog.families}>
             <NavigationProvider>
-              <GenerationsProvider>
+              <Generations>
                 <StatusProbe />
-              </GenerationsProvider>
+              </Generations>
             </NavigationProvider>
           </CatalogProvider>
         </AppServicesProvider>

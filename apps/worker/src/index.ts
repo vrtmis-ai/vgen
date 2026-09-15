@@ -5,6 +5,7 @@ import postgres from "postgres";
 import { createGenerationProvider, createS3ObjectStore } from "@vgen/adapters";
 import { PostgresJobRunnerRepository, PostgresOutboxDispatcher } from "@vgen/db";
 import { BullGenerationPublisher } from "./outboxConsumer";
+import { FX_CHECK_INTERVAL_MS, refreshFxRate } from "./fxRefresh";
 import { HttpOutputMirror } from "./outputMirror";
 import { isLoopbackUrl, runGeneration, WORKER_LOST } from "./runGeneration";
 
@@ -104,6 +105,30 @@ async function dispatch(): Promise<void> {
 const interval = setInterval(() => void dispatch(), 500);
 void dispatch();
 
+/* The day's USD/Toman rate.
+ *
+ * Asked hourly, acted on daily: `refreshFxRate` reads how old the live rate is
+ * and does nothing until it is due, so the schedule survives a restart without
+ * a cron table to keep in step and without refreshing on every deploy.
+ *
+ * Every failure is a log line and nothing else. A source that is unreachable
+ * leaves yesterday's rate live, which is the safe outcome — a price one day
+ * stale is not a price that is wrong — and an implausible one is refused on
+ * purpose. Both repeat next hour. */
+async function refreshRate(): Promise<void> {
+  try {
+    const result = await refreshFxRate(sql);
+    if (result.outcome === "not_due") return;
+    const line = { event: "fx.refresh", ...result };
+    if (result.outcome === "written" || result.outcome === "unchanged") log(line);
+    else console.error(JSON.stringify(line));
+  } catch (error) {
+    console.error(JSON.stringify({ event: "fx.refresh_failed", error: messageOf(error) }));
+  }
+}
+const fxInterval = setInterval(() => void refreshRate(), FX_CHECK_INTERVAL_MS);
+void refreshRate();
+
 // A fresh volume has no bucket, and discovering that on the first successful
 // generation would fail a job somebody paid for.
 void objectStore.ensureBucket().catch((error) => {
@@ -198,6 +223,7 @@ async function close(): Promise<void> {
   if (closing) return;
   closing = true;
   clearInterval(interval);
+  clearInterval(fxInterval);
   await worker.close();
   await queue.close();
   await sql.end();

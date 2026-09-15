@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { CalendarCheck, CaretDown, Check, DeviceMobile, Gift, ImageSquare, VideoCamera } from "@phosphor-icons/react";
+import { CalendarCheck, CaretDown, Check, Gift, ImageSquare, VideoCamera } from "@phosphor-icons/react";
 import type { Family } from "../data/models";
 import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import type { CommunityPost } from "../runtime/contracts/community";
@@ -16,6 +16,7 @@ import {
 } from "../data/plans";
 import type { Plan } from "../runtime/contracts/plans";
 import { HeroSection } from "../components/blocks/hero-section-5";
+import { useTomanPerUsd } from "../features/plans/PlansProvider";
 import { FeaturesBento } from "../components/blocks/bento-features";
 import { ModelMark } from "../components/ModelMark";
 import { isVideoUrl } from "../lib/format";
@@ -402,6 +403,7 @@ function LandingPlanEstimates({ plan, compact = false }: { plan: Plan; compact?:
 
 function LandingPlanPrice({ plan, cycle }: { plan: Plan; cycle: PlanCycle }) {
   const { t, n, lang } = useI18n();
+  const rate = useTomanPerUsd();
   const annual = cycle === "annual" && plan.annualUsdPerMonth != null;
   const perMonth = effectiveUsd(plan, annual);
   const total = annualTotalUsd(plan);
@@ -412,12 +414,12 @@ function LandingPlanPrice({ plan, cycle }: { plan: Plan; cycle: PlanCycle }) {
     <>
       {annual && off > 0 && (
         <div className="mb-1 text-[10.5px] text-ink3">
-          <s>{n(toman(effectiveUsd(plan, false)))}</s> · {pct}
+          <s>{n(toman(effectiveUsd(plan, false), rate))}</s> · {pct}
           {n(off)} {t("pl_save")}
         </div>
       )}
       <div className="flex items-baseline gap-1.5">
-        <span className="font-display text-[22px] font-semibold leading-none tabular-nums">{n(toman(perMonth))}</span>
+        <span className="font-display text-[22px] font-semibold leading-none tabular-nums">{n(toman(perMonth, rate))}</span>
         <span className="text-[11px] text-ink2">
           {t("w_toman")} {t("pl_per_month")}
         </span>
@@ -425,7 +427,7 @@ function LandingPlanPrice({ plan, cycle }: { plan: Plan; cycle: PlanCycle }) {
       {annual && total != null && (
         <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink2">
           <CalendarCheck size={12} weight="fill" className="shrink-0 text-accent" />
-          {t("pl_today")}: {n(toman(total))} {t("w_toman")} ({t("pl_billed_annual")})
+          {t("pl_today")}: {n(toman(total, rate))} {t("w_toman")} ({t("pl_billed_annual")})
         </div>
       )}
       {cycle === "annual" && plan.annualUsdPerMonth == null && <div className="mt-1 text-[10.5px] text-ink3">{t("pl_monthly_only")}</div>}
@@ -620,13 +622,8 @@ function Closing({ onSignIn }: { onSignIn: () => void }) {
               boxShadow: "0 0 48px rgb(var(--vg-primary-rgb) / 0.35)",
             }}
           >
-            {/* Phone, not email — and the line underneath is why.
-                "No password, one verification and you are in" is true of the OTP
-                route and false of the email one, which takes a password of at
-                least ten characters. This button used to promise passwordless
-                email sign-in, which no route has ever served; harmless while it
-                went nowhere, and a contradiction the moment /signin existed. */}
-            <DeviceMobile size={17} weight="bold" />
+            {/* Names no method: phone sign-in exists only where an SMS gateway
+                does, and this page cannot promise a door the server may not have. */}
             {t("lp_phone")}
           </button>
         </div>
@@ -665,6 +662,19 @@ const FOOTER_LINKS: { group: TKey; items: { label: TKey; href: string }[] }[] = 
       { label: "lp_footer_terms", href: "/terms" },
       { label: "lp_footer_privacy", href: "/privacy" },
       { label: "lp_footer_refund", href: "/coins" },
+      { label: "lp_footer_cookies", href: "/cookies" },
+    ],
+  },
+  /* The company column. These three links were the reason this list needed
+     revisiting at all: the legal column above pointed at /terms, /privacy and
+     /coins, and none of those pages existed — so the footer of the landing
+     page served three 404s to anybody who clicked it, which is exactly what a
+     reviewer does first. */
+  {
+    group: "lp_footer_company",
+    items: [
+      { label: "lp_footer_company", href: "/about" },
+      { label: "lp_footer_contact", href: "/contact" },
     ],
   },
 ];

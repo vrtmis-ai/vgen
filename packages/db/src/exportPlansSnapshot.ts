@@ -23,7 +23,10 @@ if (!databaseUrl) throw new Error("DATABASE_URL is required to export the plans 
 const sql = postgres(databaseUrl, { max: 1 });
 
 try {
-  const plans = await new PostgresPlansRepository(sql).list();
+  // Only the ladder. The exchange rate the endpoint serves alongside it is
+  // deliberately not committed: a snapshot of a number that changes daily is
+  // a stale price with a git history.
+  const { plans } = await new PostgresPlansRepository(sql).list();
   // An empty ladder is a database that has not been seeded, not a product with
   // no plans. Writing it would commit the emptiness and take the Plans screen
   // down with it.

@@ -32,7 +32,7 @@ export default function HomePage() {
 
   return (
     <Landing
-      plans={plansQuery.data}
+      plans={plansQuery.data.plans}
       // An empty showcase strip is a much smaller failure than a landing page
       // that refuses to paint until other people's posts have loaded.
       posts={communityQuery.data?.posts ?? []}

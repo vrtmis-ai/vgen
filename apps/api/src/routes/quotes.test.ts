@@ -2,6 +2,7 @@ import type { QuoteResult } from "@vgen/db";
 import Fastify from "fastify";
 import { describe, expect, it, vi } from "vitest";
 import { registerErrorHandling } from "../plugins/errors";
+import { permissivePromptGuard } from "../promptGuard";
 import { registerGenerationQuotesRoute } from "./quotes";
 
 const SIGNED_IN = { status: "authed" as const, user: { id: "11111111-1111-4111-8111-111111111111" } };
@@ -18,13 +19,13 @@ const quoted = (coins: number, unlimited?: { remainingToday: number | null; dail
   },
 });
 
-function quotesApp(result: QuoteResult, identity: unknown = SIGNED_IN) {
+function quotesApp(result: QuoteResult, identity: unknown = SIGNED_IN, guard = permissivePromptGuard) {
   const create = vi.fn(async () => result);
   const app = Fastify({ logger: false });
   // The handler createApp installs, so a rejected body is the 400 the route
   // really answers rather than the 500 a bare Fastify would give.
   registerErrorHandling(app);
-  registerGenerationQuotesRoute(app, { getCurrent: vi.fn(async () => identity) } as never, { create });
+  registerGenerationQuotesRoute(app, { getCurrent: vi.fn(async () => identity) } as never, { create }, guard);
   return { app, create };
 }
 

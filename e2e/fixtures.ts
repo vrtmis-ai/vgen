@@ -9,7 +9,7 @@ import { FAMILIES } from "../src/data/models";
  * which do not carry one — and do not need one, because everything else that
  * imports them is bundled. The file is already the exact `GET /plans` payload.
  */
-import planPayload from "../src/data/plans.snapshot.json" with { type: "json" };
+import plansSnapshot from "../src/data/plans.snapshot.json" with { type: "json" };
 /* Both are the exact payloads their routes serve, generated out of Postgres and
    committed — so the browser under test parses what production sends. */
 import contentPayload from "../src/data/content.snapshot.json" with { type: "json" };
@@ -42,7 +42,8 @@ export async function mockApi(page: Page, scenario: ApiScenario = {}): Promise<v
   );
   await page.route("**/api/v1/catalog", (route) => json(route, { version: "e2e-v1", publishedAt: 1, families: FAMILIES }));
   // Served to anonymous visitors too — the landing page prices two plans from it.
-  await page.route("**/api/v1/plans", (route) => json(route, planPayload));
+  // The snapshot is the ladder; the live route also serves the day's rate.
+  await page.route("**/api/v1/plans", (route) => json(route, { ...plansSnapshot, tomanPerUsd: 170_000 }));
   // Both served to anonymous visitors: the landing page's feature bento renders
   // effects, courses and a voice count, and its showcase strip renders posts.
   // Without these the shell waits on content forever and never paints.
@@ -50,7 +51,7 @@ export async function mockApi(page: Page, scenario: ApiScenario = {}): Promise<v
   // a fixture that forgets it paints the "content failed to load" screen and
   // every landing assertion fails at once — which is exactly what it did.
   await page.route("**/api/v1/content", (route) =>
-    json(route, { version: "e2e-v1", publishedAt: 1, flags: { siteBanner: true }, ...contentPayload }),
+    json(route, { version: "e2e-v1", publishedAt: 1, flags: { siteBanner: true, earlyAccess: false }, ...contentPayload }),
   );
   await page.route("**/api/v1/community", (route) => json(route, communityPayload));
   await page.route("**/api/v1/wallet", (route) => json(route, { spendable: 1000, grants: [] }));

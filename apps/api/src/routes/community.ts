@@ -1,4 +1,4 @@
-import { SharePostRequestSchema, SharedPostSchema, type CommunityFeed } from "@vgen/contracts";
+import { ReportPostRequestSchema, SharePostRequestSchema, SharedPostSchema, type CommunityFeed } from "@vgen/contracts";
 import type { ShareOutcome, SharePostInput } from "@vgen/db";
 import type { FastifyInstance } from "fastify";
 import type { CustomerSessionApplication } from "./session";
@@ -9,6 +9,13 @@ export interface CustomerCommunityApplication {
 
 export interface CommunitySubmissionsApplication {
   share(input: SharePostInput): Promise<ShareOutcome>;
+  /** Put a published post in front of a moderator. It hides nothing on its own. */
+  report(input: {
+    postId: string;
+    reporterId: string;
+    category: string;
+    note?: string | undefined;
+  }): Promise<"recorded" | "already" | "no_such_post">;
 }
 
 /**
@@ -28,6 +35,37 @@ export function registerCommunityRoutes(
   submissions: CommunitySubmissionsApplication,
 ): void {
   app.get("/api/v1/community", async () => community.list());
+
+  /**
+   * Report a published post.
+   *
+   * Reporting hides nothing. A report that un-publishes on its own is a
+   * heckler's veto with a single click, and the first use anybody finds for one
+   * is aiming it at a competitor. This puts the post in front of a person, who
+   * has a takedown route to act with.
+   *
+   * Authenticated, so a report is attributable and one person cannot file a
+   * thousand. Filing twice answers 200 as well — the second press of a button
+   * is somebody who is not sure the first one worked, not an error to show them.
+   */
+  app.post("/api/v1/community/posts/:id/report", { bodyLimit: 4 * 1024 }, async (request, reply) => {
+    const session = await sessions.getCurrent(request);
+    if (session.status !== "authed") {
+      return reply.code(401).send({ error: { code: "unauthorized", message: "Authentication required." } });
+    }
+    const { id } = request.params as { id: string };
+    const body = ReportPostRequestSchema.parse(request.body ?? {});
+    const outcome = await submissions.report({
+      postId: id,
+      reporterId: session.user.id,
+      category: body.category,
+      ...(body.note ? { note: body.note } : {}),
+    });
+    if (outcome === "no_such_post") {
+      return reply.code(404).send({ error: { code: "not_found", message: "There is no such post." } });
+    }
+    return reply.send({ id, reported: true });
+  });
 
   /**
    * Share a finished generation into the feed.

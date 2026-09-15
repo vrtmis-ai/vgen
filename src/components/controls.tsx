@@ -45,7 +45,10 @@ function AspectPicker({
 }) {
   return (
     <FieldShell label={control.label}>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar">
+      {/* Wraps, for the reason the variant picker does: these rows run to
+          eleven ratios on Nano Banana and nine on GPT Image 2.5, and a hidden
+          scrollbar turned the tail of that into options nobody could see. */}
+      <div className="-mx-4 flex flex-wrap gap-2 px-4">
         {control.options.map((o) => {
           const on = o.value === value;
           return (

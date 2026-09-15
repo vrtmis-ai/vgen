@@ -43,10 +43,13 @@ function Gate({ familyId }: { familyId: string }) {
   return <span>{`${access.tier}:${access.can(familyId) ? "open" : "locked"}:${access.needs(familyId)?.code ?? "-"}`}</span>;
 }
 
+/** Nothing here asserts a price; the provider just needs a rate to hold. */
+const RATE = 250_000;
+
 describe("PlansProvider", () => {
   it("hands the served ladder down, in the order it arrived", () => {
     render(
-      <PlansProvider plans={PLAN_LADDER}>
+      <PlansProvider plans={PLAN_LADDER} tomanPerUsd={RATE}>
         <LadderNames />
       </PlansProvider>,
     );
@@ -64,7 +67,7 @@ describe("PlansProvider", () => {
 describe("the access gate, on the served ladder", () => {
   const gate = (planId: string | null, plans: readonly Plan[] = PLAN_LADDER) =>
     render(
-      <PlansProvider plans={plans}>
+      <PlansProvider plans={plans} tomanPerUsd={RATE}>
         <AccessProvider planId={planId} onUpgrade={vi.fn()}>
           <Gate familyId="veo" />
         </AccessProvider>

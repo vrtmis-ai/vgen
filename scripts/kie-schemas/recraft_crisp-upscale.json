@@ -1,0 +1,30 @@
+{
+  "models": ["recraft/crisp-upscale"],
+  "title": "Recraft - Crisp Upscale",
+  "docUrl": "https://docs.kie.ai/market/recraft/crisp-upscale.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Recraft - Crisp Upscale — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "image": {
+        "description": "Image to upscale (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 10.0MB)",
+        "type": "string",
+        "examples": ["https://file.aiquickdraw.com/custom-page/akr/section-images/1757169577325ijj8vwvt.jpg"]
+      }
+    },
+    "required": ["image"]
+  },
+  "examples": [
+    {
+      "model": "recraft/crisp-upscale",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "image": "https://file.aiquickdraw.com/custom-page/akr/section-images/1757169577325ijj8vwvt.jpg"
+      }
+    }
+  ]
+}

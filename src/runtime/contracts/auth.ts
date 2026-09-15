@@ -78,3 +78,6 @@ export interface LoginInput {
 }
 
 export type PhoneVerificationStarted = z.infer<typeof PhoneVerificationStartedSchema>;
+
+/** `POST /auth/invite/check`. One boolean: which rule refused a code is not the visitor's business. */
+export const InviteCheckResultSchema = z.object({ valid: z.boolean() });

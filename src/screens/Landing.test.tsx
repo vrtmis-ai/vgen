@@ -7,6 +7,7 @@ import { PLAN_LADDER } from "../data/planLadder";
 import Landing, { HERO_MODEL_IDS } from "./Landing";
 import { hasModelMark } from "../components/ModelMark";
 import { CatalogProvider } from "../features/catalog/CatalogProvider";
+import { PlansProvider } from "../features/plans/PlansProvider";
 import { ContentProvider } from "../features/content/ContentProvider";
 import { createDemoCatalogService } from "../adapters/demo/catalog";
 import { createDemoContentService } from "../adapters/demo/content";
@@ -25,12 +26,21 @@ const content = await createDemoContentService(() => 0).list();
 const catalog = await createDemoCatalogService(() => 0).list();
 const { posts } = await createDemoCommunityService().list();
 
+/**
+ * Deliberately not the seed constant: the landing page prices in Toman at the
+ * rate `GET /plans` served, and a number that appears nowhere in the bundle is
+ * what tells that apart from a card still reading a compiled-in one.
+ */
+const RATE = 250_000;
+
 function withProviders(ui: React.ReactNode, families: CatalogSnapshot["families"] = catalog.families) {
   return (
     <LanguageProvider initialLang="en">
-      <CatalogProvider families={families}>
-        <ContentProvider content={content}>{ui}</ContentProvider>
-      </CatalogProvider>
+      <PlansProvider plans={PLAN_LADDER} tomanPerUsd={RATE}>
+        <CatalogProvider families={families}>
+          <ContentProvider content={content}>{ui}</ContentProvider>
+        </CatalogProvider>
+      </PlansProvider>
     </LanguageProvider>
   );
 }
@@ -241,7 +251,7 @@ describe("Landing pricing", () => {
 
     const cheapest = [...PLAN_LADDER].sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false))[0]!;
     const cheapestCard = screen.getByTestId(`landing-plan-${cheapest.code}`);
-    expect(cheapestCard).toHaveTextContent(toman(effectiveUsd(cheapest, false)).toLocaleString("en-US"));
+    expect(cheapestCard).toHaveTextContent(toman(effectiveUsd(cheapest, false), RATE).toLocaleString("en-US"));
     expect(within(cheapestCard).getByRole("button", { name: "Buy 30 days" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Professional plans" }));

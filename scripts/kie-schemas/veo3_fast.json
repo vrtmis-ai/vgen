@@ -1,0 +1,85 @@
+{
+  "models": ["veo3", "veo3_fast", "veo3_lite"],
+  "title": "Generate Veo3.1 Video (legacy endpoint)",
+  "docUrl": "https://docs.kie.ai/old-model/veo3-api/generate-veo-3-video.md",
+  "endpoint": "/api/v1/veo/generate",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Generate Veo3.1 Video (legacy endpoint) — input",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "Text prompt describing the desired video content. Required for all generation modes.\n\n- Should be detailed and specific in describing video content\n- Can include actions, scenes, style and other information\n- For image-to-video, describe how you want the image to come alive",
+        "examples": ["A dog playing in a park"]
+      },
+      "imageUrls": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Image URL list (used in image-to-video mode). Supports 1 or 2 images:\n\n- **1 image**: The generated video will unfold around this image, with the image content presented dynamically\n- **2 images**: The first image serves as the video's first frame, and the second image serves as the video's last frame, with the video transitioning between them\n- Must be valid image URLs\n- Images must be accessible to the API server.",
+        "examples": [["http://example.com/image1.jpg", "http://example.com/image2.jpg"]]
+      },
+      "generationType": {
+        "type": "string",
+        "description": "Video generation mode (optional). Specifies different video generation approaches:\n\n- **TEXT_2_VIDEO**: Text-to-video - Generate videos using only text prompts\n- **FIRST_AND_LAST_FRAMES_2_VIDEO**: First and last frames to video - Flexible image-to-video generation mode\n  - 1 image: Generate video based on the provided image\n  - 2 images: First image as first frame, second image as last frame, generating transition video\n- **REFERENCE_2_VIDEO**: Reference-to-video - Generate videos based on reference images, requires 1-3 images in imageUrls (minimum 1, maximum 3)\n\n**Important Notes**:\n- REFERENCE_2_VIDEO mode currently supports the veo3_fast and veo3_lite models.\n- If not specified, the system will automatically determine the generation mode based on whether imageUrls are provided",
+        "enum": ["TEXT_2_VIDEO", "FIRST_AND_LAST_FRAMES_2_VIDEO", "REFERENCE_2_VIDEO"],
+        "examples": ["TEXT_2_VIDEO"]
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "description": "Video aspect ratio. Specifies the dimension ratio of the generated video. Available options:\n\n- 16:9: Landscape video format. \n- 9:16: Portrait video format, suitable for mobile short videos\n- Auto: In auto mode, the video will be automatically center-cropped based on whether your uploaded image is closer to 16:9 or 9:16.\n\nDefault value is 16:9.",
+        "enum": ["16:9", "9:16", "Auto"],
+        "default": "16:9",
+        "examples": ["16:9"]
+      },
+      "enableFallback": {
+        "type": "boolean",
+        "description": "Deprecated Enable fallback functionality. When set to true, if the official Veo3.1 video generation service is unavailable or encounters exceptions, the system will automatically switch to a backup model for video generation to ensure task continuity and reliability. Default value is false.\n\n- When fallback is enabled, backup model will be used for the following errors:\n  - public error minor upload\n  - Your prompt was flagged by Website as violating content policies\n  - public error prominent people upload\n- Fallback mode requires 16:9 aspect ratio and uses 1080p resolution by default\n- **Note**: Videos generated through fallback mode cannot be accessed via the Get 1080P Video endpoint\n- **Credit Consumption**: Successful fallback has different credit consumption, please see https://kie.ai/pricing for pricing details\n\n**Note: This parameter is deprecated. Please remove this parameter from your requests. The system has automatically optimized the content review mechanism without requiring manual fallback configuration.**",
+        "default": false,
+        "deprecated": true,
+        "examples": [false]
+      },
+      "enableTranslation": {
+        "type": "boolean",
+        "description": "Enable prompt translation to English. When set to true, the system will automatically translate prompts to English before video generation for better generation results. Default value is true.\n\n- true: Enable translation, prompts will be automatically translated to English\n- false: Disable translation, use original prompts directly for generation",
+        "default": false,
+        "examples": [true]
+      },
+      "watermark": {
+        "type": "string",
+        "description": "Watermark text.\n\n- Optional parameter\n- If provided, a watermark will be added to the generated video",
+        "examples": ["MyBrand"]
+      },
+      "resolution": {
+        "type": "string",
+        "enum": ["720p", "1080p", "4k"],
+        "default": "720p",
+        "description": "Controls the pixel dimensions of the generated image. Higher resolution results in greater clarity and detail, while lower resolution allows for faster generation."
+      },
+      "duration": {
+        "type": "integer",
+        "description": "The duration of the generated video, in seconds. Optional values are 4, 6, 8.\n**Important Note**:\n- The REFERENCE_2_VIDEO mode currently only supports a duration of 8 seconds.",
+        "enum": [4, 6, 8],
+        "examples": [8],
+        "default": 8
+      }
+    },
+    "required": ["prompt"]
+  },
+  "examples": [
+    {
+      "prompt": "A dog playing in a park",
+      "imageUrls": ["http://example.com/image1.jpg", "http://example.com/image2.jpg"],
+      "model": "veo3_fast",
+      "watermark": "MyBrand",
+      "callBackUrl": "http://your-callback-url.com/complete",
+      "aspect_ratio": "16:9",
+      "enableFallback": false,
+      "enableTranslation": true,
+      "generationType": "REFERENCE_2_VIDEO"
+    }
+  ]
+}

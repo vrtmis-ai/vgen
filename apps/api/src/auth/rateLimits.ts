@@ -49,6 +49,7 @@ export async function createAuthRateLimiters(
     otpVerifyPerPhone: limiter("otp.verify", "phone", { window_seconds: 900, max_requests: 10 }),
     loginPerAccount: limiter("login", "user", { window_seconds: 900, max_requests: 10 }),
     loginPerIp: limiter("login", "ip", { window_seconds: 900, max_requests: 50 }),
+    inviteCheckPerIp: limiter("invite.check", "ip", { window_seconds: 900, max_requests: 20 }),
   };
 
   return {

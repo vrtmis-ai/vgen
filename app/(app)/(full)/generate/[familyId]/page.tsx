@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import Generate from "../../../../../src/screens/Generate";
+import Generate, { type CarriedRef, type Reuse } from "../../../../../src/screens/Generate";
+import { useAppServices } from "../../../../../src/runtime/AppServices";
 import { ClientRedirect } from "../../../../../src/components/ClientRedirect";
 import { useCatalogFamilies } from "../../../../../src/features/catalog/CatalogProvider";
 import { useGenerations } from "../../../../../src/runtime/providers/GenerationsProvider";
@@ -15,6 +17,18 @@ export default function GeneratePage() {
   const families = useCatalogFamilies();
   const { gens, startGeneration } = useGenerations();
   const { goBack, setTab } = useNavigation();
+
+  /* "Generate again" arrives as `?again=<generation id>`, and what it restores
+     is the *inputs* of that generation rather than its output. The settings
+     ride along on the row the gallery already holds; the files do not, because
+     a reference URL is signed and expires, so they are fetched by id from the
+     one route that can prove this account owns them.
+
+     Above the redirect below, because it calls a hook: an early return between
+     two hooks changes how many run on a render, which React reads as the hooks
+     having moved. */
+  const again = gens.find((candidate) => candidate.id === searchParams.get("again"));
+  const references = useJobReferences(again?.jobId);
 
   const family = families.find((candidate) => candidate.id === decodeURIComponent(params.familyId));
   if (!family) return <ClientRedirect to={navPath("video")} />;
@@ -33,11 +47,24 @@ export default function GeneratePage() {
   const startFrom =
     source?.outputAssetId && source.outputUrl ? { assetId: source.outputAssetId, url: source.outputUrl, kind: source.kind } : undefined;
 
+  const reuse: Reuse | undefined = again
+    ? {
+        jobId: again.id,
+        variantId: again.variantId,
+        // The prompt lives in `params` too, and the form has its own field for
+        // it — leaving it in would put the prompt into a settings control.
+        input: Object.fromEntries(Object.entries(again.params ?? {}).filter(([key]) => key !== "prompt")) as Reuse["input"],
+        references,
+      }
+    : undefined;
+
   return (
     <Generate
       family={family}
-      initialPrompt={initialPrompt}
+      initialPrompt={again ? again.prompt : initialPrompt}
+      initialVariantId={again?.variantId}
       startFrom={startFrom}
+      reuse={reuse}
       onBack={goBack}
       onGenerate={async (prompt, input, variant, refs, assetRefs) => {
         const started = await startGeneration(family.id, prompt, input, variant, { refs, assetRefs });
@@ -53,4 +80,44 @@ export default function GeneratePage() {
       }}
     />
   );
+}
+
+/**
+ * The files a past generation ran against, signed for preview.
+ *
+ * Empty until it answers, and empty for a generation this browser started but
+ * the server has not confirmed — which is correct rather than a gap: a job with
+ * no id on the server has no stored references to restore.
+ */
+function useJobReferences(jobId: string | undefined): CarriedRef[] {
+  const services = useAppServices();
+  const [references, setReferences] = useState<CarriedRef[]>([]);
+
+  useEffect(() => {
+    if (!jobId) {
+      setReferences([]);
+      return;
+    }
+    const abort = new AbortController();
+    void services.generation
+      .references(jobId, { signal: abort.signal })
+      .then((found) =>
+        setReferences(
+          found.map((reference) => ({
+            slot: reference.slot,
+            assetId: reference.assetId,
+            url: reference.url,
+            kind: reference.kind,
+            label: "از تولید قبلی",
+          })),
+        ),
+      )
+      // A reference we cannot show is not a reason to refuse the whole form:
+      // the prompt and the settings are still worth arriving with, and the
+      // slot simply reads as empty.
+      .catch(() => undefined);
+    return () => abort.abort();
+  }, [jobId, services]);
+
+  return references;
 }

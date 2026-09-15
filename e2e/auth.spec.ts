@@ -33,8 +33,10 @@ test("the landing page's two entry points open the two auth routes", async ({ pa
 test("the sign-in screen is a deep link", async ({ page }) => {
   await mockApi(page, { anonymous: true });
   await page.goto("/signin");
-  await expect(page.getByLabel("شماره موبایل")).toBeVisible();
-  await expect(page.getByRole("button", { name: "ارسال کد" })).toBeVisible();
+  // The mocked server has no SMS gateway, so email is the only form.
+  await expect(page.getByLabel("ایمیل")).toBeVisible();
+  await expect(page.getByRole("button", { name: "ورود", exact: true })).toBeVisible();
+  await expect(page.getByLabel("شماره موبایل")).toHaveCount(0);
 });
 
 test("authenticated users load the workspace", async ({ page }) => {

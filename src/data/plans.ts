@@ -26,8 +26,9 @@
 // one-shot card gateway, so recurring card-on-file billing was never available.
 //
 // Economics: 1 coin = $0.05 of face value = $0.025 of our KIE cost (5 credits).
-// Iranian users pay Toman via ZarinPal. TOMAN_PER_USD is THE one constant to
-// update when the exchange rate moves — every displayed price derives from it.
+// Iranian users pay Toman via ZarinPal at whatever a dollar costs today, which
+// the worker fetches daily into `fx_rates` and `GET /plans` serves back as
+// `tomanPerUsd`. Every displayed price derives from that, not from a constant.
 //
 // The ladder itself no longer lives here. `GET /plans` serves it, screens read
 // it through `usePlanLadder()`, and what is left in this file is the arithmetic
@@ -42,7 +43,16 @@ import type { InputMap } from "../components/controls";
 
 export { ANNUAL_MONTHS, COIN_USD };
 export type { Plan, Tier };
-export const TOMAN_PER_USD = 170_000; // set 2026-07 by owner ($50 ≈ 8.5M Toman)
+/**
+ * A rate for the two callers that have no database to ask: the plan seeder,
+ * filling an empty `fx_rates`, and demo mode, which has no API at all.
+ *
+ * NOT the rate anybody is charged. That one is fetched from the market daily —
+ * see `apps/worker/src/fxRefresh.ts` — and reaches the browser on the `/plans`
+ * response. This number was set by hand in 2026-07 and was 28% low by
+ * September, which is the whole reason the refresh exists.
+ */
+export const SEED_TOMAN_PER_USD = 170_000;
 
 /** Days a grant stays spendable before it expires. Read-time expiry in the ledger. */
 export const MONTHLY_EXPIRY_DAYS = 30;
@@ -454,9 +464,17 @@ export function outputsPerMonth(plan: Plan, b: Benchmark): number | null {
   return b.coins == null || b.coins <= 0 ? null : Math.floor(plan.coinsPerTerm / b.coins);
 }
 
-/** Toman price for a USD amount (rounded to the nearest 1000). */
-export function toman(usd: number): number {
-  return Math.round((usd * TOMAN_PER_USD) / 1000) * 1000;
+/**
+ * Toman price for a USD amount, at the rate `GET /plans` served.
+ *
+ * The rate is a parameter and not a constant because it changes daily. Rounded
+ * to the nearest thousand, which is both how a price is written here and,
+ * more to the point, exactly what `tomanFor()` does on the server: the checkout
+ * sheet compares the two figures and warns the customer when they differ, so
+ * the two roundings have to be the same rounding.
+ */
+export function toman(usd: number, tomanPerUsd: number): number {
+  return Math.round((usd * tomanPerUsd) / 1000) * 1000;
 }
 
 /** Percent saved per month by paying for a year upfront (0 if no annual option). */

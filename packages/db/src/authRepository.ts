@@ -43,6 +43,18 @@ export interface SignupContext {
   ip?: string | undefined;
   userAgent?: string | undefined;
   locale?: "fa" | "en" | undefined;
+  /**
+   * The terms this account was created against, recorded with the moment.
+   *
+   * The undertaking the owner signs to eNamad should be backed by one the user
+   * signed to DEEV. A boolean would answer "did they agree" and not "to what",
+   * and terms change — the version is the only thing that makes the record
+   * mean anything a year later.
+   *
+   * Optional so a caller that has nothing to say leaves the pair null rather
+   * than recording a consent nobody gave.
+   */
+  termsVersion?: string | undefined;
 }
 
 export interface StartedVerification {
@@ -313,11 +325,16 @@ export class PostgresAuthRepository {
       const verifiedAt = new Date();
       const [user] = await tx<UserRow[]>`
         insert into users (email, phone, password_hash, display_name, locale, personal_account_id,
-                           email_verified_at, phone_verified_at)
+                           email_verified_at, phone_verified_at, terms_accepted_at, terms_version)
         values (${identity.email ?? null}, ${identity.phone ?? null}, ${identity.passwordHash ?? null},
                 ${identity.displayName ?? null}, ${context.locale ?? "fa"}, ${account!.id},
                 ${identity.email && !identity.passwordHash ? verifiedAt : null},
-                ${identity.phone ? verifiedAt : null})
+                ${identity.phone ? verifiedAt : null},
+                -- Written here and nowhere else: every way of creating an
+                -- account -- password, phone code, and each OAuth provider --
+                -- funnels through this insert, so recording it once covers all
+                -- of them and a route added next year cannot forget.
+                ${context.termsVersion ? verifiedAt : null}, ${context.termsVersion ?? null})
         returning id, email, phone, display_name, locale, status, personal_account_id
       `;
       await tx`update accounts set owner_user_id = ${user!.id} where id = ${account!.id}`;
@@ -332,10 +349,13 @@ export class PostgresAuthRepository {
       if (context.inviteCode) {
         try {
           await tx`select redeem_invite(${context.inviteCode}, ${user!.id}, ${account!.id}, ${context.ip ?? null})`;
-        } catch (error) {
+        } catch {
           // The invite is the gate. A bad code must fail the signup, not create
           // an account that slipped past it.
-          throw new AuthError("invite_invalid", error instanceof Error ? error.message : "That invite code is not valid");
+          // The same words whichever rule refused it. redeem_invite() says
+          // "invite_revoked: CODE" or "invite_exhausted: CODE", and passing that
+          // on told anyone guessing codes which guesses were real.
+          throw new AuthError("invite_invalid", "That invite code is not valid");
         }
       }
 
@@ -375,6 +395,27 @@ export class PostgresAuthRepository {
                            now() + (${TRIAL_TTL_DAYS} * interval '1 day'), 'DEEV trial') as grant_credits
     `;
     await tx`update trial_grants set lot_id = ${lot!.grant_credits} where phone_hash = ${phoneHash}`;
+  }
+
+  /**
+   * Whether a code would admit someone right now — the same five conditions
+   * redeem_invite() checks, read without redeeming.
+   *
+   * A yes or a no and nothing else: which condition failed is for the
+   * console, not for somebody typing codes at the front door.
+   */
+  async isInviteUsable(code: string): Promise<boolean> {
+    const [row] = await this.sql<{ usable: boolean }[]>`
+      select exists (
+        select 1 from invite_codes
+        where code = ${code.trim()}
+          and is_active and revoked_at is null
+          and starts_at <= now()
+          and (expires_at is null or expires_at > now())
+          and (max_redemptions is null or redemption_count < max_redemptions)
+      ) as usable
+    `;
+    return row?.usable === true;
   }
 
   /** True once early access is over and anyone may sign up without an invite. */

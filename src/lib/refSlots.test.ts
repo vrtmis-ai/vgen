@@ -51,11 +51,13 @@ describe("pairsImages", () => {
 
 describe("against the real catalogue", () => {
   const wan = FAMILIES.find((f) => f.id === "wan")!;
-  const v27 = wan.variants.find((v) => v.label === "۲٫۷")!;
+  // The image model: the text one takes no files, since they would reach an
+  // endpoint with no field for them.
+  const v27 = wan.variants.find((v) => v.id === "wan-2-7-i2v")!;
   const frames = slotsInGroup(variantRefs(wan, v27), "frame");
 
-  it("gives Wan 2.7 a frame group of two images and a clip", () => {
-    expect(frames.map((s) => s.key)).toEqual(["first_frame_url", "last_frame_url", "first_clip_url"]);
+  it("gives Wan 2.7 a frame group of two images", () => {
+    expect(frames.map((s) => s.key)).toEqual(["first_frame_url", "last_frame_url"]);
   });
 
   it("pairs that group's two frames", () => {

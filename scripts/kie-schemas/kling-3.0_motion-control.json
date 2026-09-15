@@ -1,0 +1,59 @@
+{
+  "models": ["kling-3.0/motion-control"],
+  "title": "Kling-3.0 motion-control",
+  "docUrl": "https://docs.kie.ai/market/kling/motion-control-v3.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Kling-3.0 motion-control — input",
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "description": "(Optional) Text prompt words, used to guide the generation of animation content. Can be empty or 0 - 2500 characters long.",
+        "type": "string"
+      },
+      "input_urls": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "(Required) Include a URL of an image"
+      },
+      "video_urls": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "(Required) Include a video URL"
+      },
+      "mode": {
+        "description": "(Optional) Video Quality Mode. std: Standard Mode (720p). pro: Professional Mode (1080p)",
+        "type": "string"
+      },
+      "character_orientation": {
+        "description": "(Optional) Reference source for character orientation. video: Refer to video (recommended); image: Refer to image. Default value: video",
+        "type": "string"
+      },
+      "background_source": {
+        "description": "(Optional) Background source. input_video: Use video background; input_image: Use image background. Default value: input_video",
+        "type": "string"
+      }
+    },
+    "required": ["input_urls", "video_urls"]
+  },
+  "examples": [
+    {
+      "model": "kling-3.0/motion-control",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "The cartoon character is dancing.",
+        "input_urls": ["https://static.aiquickdraw.com/tools/example/1767694885407_pObJoMcy.png"],
+        "video_urls": ["https://static.aiquickdraw.com/tools/example/1767525918769_QyvTNib2.mp4"],
+        "mode": "720p",
+        "character_orientation": "image",
+        "background_source": "input_video"
+      }
+    }
+  ]
+}

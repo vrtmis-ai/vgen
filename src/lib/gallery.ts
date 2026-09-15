@@ -64,6 +64,23 @@ export interface Generation {
    * read it.
    */
   outputUrlExpiresAt?: number | undefined;
+  /**
+   * What this generation was actually submitted with, so it can be run again
+   * as it was run — the aspect, the resolution, the duration, the seed.
+   *
+   * Only present on rows read from the server. A row this tab started
+   * optimistically already knows its own inputs from the form that made it.
+   */
+  params?: Record<string, unknown> | undefined;
+  /**
+   * The files it ran against, keyed by the slot they filled, as asset ids.
+   *
+   * "Generate again" needs these and nothing else would do: the reference is
+   * part of the request, not decoration on it, and re-running seedance with the
+   * prompt but without the first frame is a different generation that costs the
+   * same money.
+   */
+  refAssetIds?: Record<string, string[]> | undefined;
   /** Server-computed perceptual hash, opaque to the client. */
   phash?: string | undefined;
   status: GenStatus;

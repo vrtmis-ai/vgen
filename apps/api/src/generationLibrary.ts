@@ -1,4 +1,4 @@
-import type { GalleryPage, GenerationJob } from "@vgen/contracts";
+import type { GalleryPage, GenerationJob, JobReference } from "@vgen/contracts";
 import type { ObjectStore } from "@vgen/adapters";
 import type { GalleryQuery, GenerationRecord, PostgresGalleryRepository, StoredOutput } from "@vgen/db";
 
@@ -20,6 +20,8 @@ export interface GenerationLibraryApplication {
   list(userId: string, query: GalleryQuery): Promise<GalleryPage>;
   /** A link that saves the file instead of displaying it. Null if there is no such output. */
   downloadUrl(jobId: string, userId: string, index: number): Promise<string | null>;
+  /** The files a generation ran against, signed for preview. Empty if it had none. */
+  references(jobId: string, userId: string): Promise<JobReference[]>;
   /** Take a settled generation off the account's wall. */
   remove(jobId: string, userId: string): Promise<"removed" | "still_running" | "not_found">;
 }
@@ -85,6 +87,25 @@ export class GenerationLibraryService implements GenerationLibraryApplication {
   }
 
   /**
+   * The files this generation was run against, ready to be shown.
+   *
+   * Signed here and not on the job, for the reason `downloadUrl` is not on the
+   * output: a page of thirty generations would sign every reference of every
+   * one of them to fill a form nobody has opened yet.
+   */
+  async references(jobId: string, userId: string): Promise<JobReference[]> {
+    const stored = await this.gallery.referencesForUser(jobId, userId);
+    return Promise.all(
+      stored.map(async (reference) => ({
+        slot: reference.slot,
+        assetId: reference.assetId,
+        url: await this.store.signedUrl(reference.key, this.expirySeconds),
+        kind: reference.kind,
+      })),
+    );
+  }
+
+  /**
    * Straight through to the repository, which owns the rules about which
    * generations may go. Here for the same reason `get` and `list` are: routes
    * talk to this, never to `@vgen/db`.
@@ -102,6 +123,8 @@ export class GenerationLibraryService implements GenerationLibraryApplication {
       variantId: record.variantId,
       coins: record.coins,
       prompt: record.prompt,
+      params: record.params,
+      referenceAssetIds: record.referenceAssetIds,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       outputs,

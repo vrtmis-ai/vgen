@@ -18,8 +18,9 @@ export function registerCustomerSessionRoute(
   app: FastifyInstance,
   sessions: CustomerSessionApplication,
   authProviders: readonly OAuthProvider[] = [],
+  phoneSignIn = false,
 ): void {
   app.get("/api/v1/session", async (request) =>
-    CustomerSessionSchema.parse({ ...(await sessions.getCurrent(request)), authProviders: [...authProviders] }),
+    CustomerSessionSchema.parse({ ...(await sessions.getCurrent(request)), authProviders: [...authProviders], phoneSignIn }),
   );
 }

@@ -1,6 +1,7 @@
 import { GenerationQuoteSchema, QuoteGenerationRequestSchema } from "@vgen/contracts";
 import type { GenerationParams, QuoteRequest, QuoteResult } from "@vgen/db";
 import type { FastifyInstance } from "fastify";
+import type { PromptGuardApplication } from "../promptGuard";
 import type { CustomerSessionApplication } from "./session";
 
 export interface GenerationQuotesApplication {
@@ -18,6 +19,7 @@ export function registerGenerationQuotesRoute(
   app: FastifyInstance,
   sessions: CustomerSessionApplication,
   quotes: GenerationQuotesApplication,
+  promptGuard: PromptGuardApplication,
 ): void {
   app.post("/api/v1/generation/quotes", { bodyLimit: 64 * 1024 }, async (request, reply) => {
     const session = await sessions.getCurrent(request);
@@ -26,6 +28,18 @@ export function registerGenerationQuotesRoute(
     }
 
     const body = QuoteGenerationRequestSchema.parse(request.body);
+
+    /* Before the price, not after it. This is the surface where a person can
+       still change their mind, and quoting something we will not build is a
+       worse answer than declining to quote it. */
+    const refusal = await promptGuard.check({ prompt: body.prompt, userId: session.user.id, surface: "quote" });
+    if (refusal) {
+      // 422 rather than 403: nothing is wrong with the account or the session,
+      // the request itself is one we will not process. A 403 would read as
+      // "you are not allowed here" and send people to support.
+      return reply.code(422).send({ error: { code: "prompt_refused", message: refusal.message, category: refusal.category } });
+    }
+
     const result = await quotes.create({
       userId: session.user.id,
       variantId: body.variantId,

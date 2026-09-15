@@ -1,0 +1,59 @@
+{
+  "models": ["gpt-image-2-5-sunburst-image-to-image"],
+  "title": "GPT Image 2.5 Sunburst - Image To Image",
+  "docUrl": "https://docs.kie.ai/market/gpt/gpt-image-2-5-sunburst-image-to-image.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "GPT Image 2.5 Sunburst - Image To Image — input",
+    "type": "object",
+    "description": "Input parameters for the image-to-image task.",
+    "required": ["prompt", "input_urls"],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "Text prompts, up to 20,000 characters.",
+        "examples": ["Transform this product image into a premium e-commerce poster style."]
+      },
+      "input_urls": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "description": "Array of input image URLs.",
+        "examples": [["https://example.com/"]],
+        "maxItems": 16
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "description": "The aspect ratio of the generated image is set to auto by default. The 27:16, 16:27, 9:8 and 8:9 aspect ratios support 1K only. 2K and 4K are available for other aspect ratios.",
+        "enum": ["auto", "1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "21:9", "27:16", "16:27", "9:8", "8:9"]
+      },
+      "resolution": {
+        "type": "string",
+        "enum": ["1K", "2K", "4K"],
+        "description": "Image resolution"
+      },
+      "background": {
+        "type": "string",
+        "description": "For 2K/4K tasks, background=transparent must be paired with the prompt: describe an isolated subject with no backdrop, scenery or shadow, and for image-to-image explicitly ask to extract the subject and keep the background transparent.",
+        "enum": ["transparent", "opaque", "auto"]
+      }
+    }
+  },
+  "examples": [
+    {
+      "model": "gpt-image-2-5-sunburst-image-to-image",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "Transform this product image into a premium e-commerce poster style.",
+        "input_urls": ["https://example.com/"],
+        "aspect_ratio": "auto",
+        "resolution": "4K",
+        "background": "opaque"
+      }
+    }
+  ]
+}
