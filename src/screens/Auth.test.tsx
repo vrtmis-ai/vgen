@@ -134,6 +134,36 @@ describe("the sign-in screen", () => {
     expect(screen.queryByLabelText("Invite code")).not.toBeInTheDocument();
   });
 
+  it("lets the password be read back, and keeps the typing where it was", async () => {
+    const user = userEvent.setup();
+    // Awaited, though it returns nothing here: #78 makes this helper wait for
+    // the content document, and the test should not break the day that lands.
+    await renderAuth(createDemoServices({ startAnonymous: true }), "signup");
+
+    await user.click(await screen.findByRole("button", { name: "Use email instead" }));
+    const field = screen.getByLabelText("Password");
+    await user.type(field, "correct-horse");
+
+    // Hidden until asked — the default a password field has to keep.
+    expect(field).toHaveAttribute("type", "password");
+    const show = screen.getByRole("button", { name: "Show password" });
+    expect(show).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(show);
+    expect(field).toHaveAttribute("type", "text");
+    expect(field).toHaveValue("correct-horse");
+    expect(screen.getByRole("button", { name: "Hide password" })).toHaveAttribute("aria-pressed", "true");
+
+    // A mouse click on the eye must not pull focus out of the field, or you
+    // look at the password and then have to click back in to finish it.
+    expect(field).toHaveFocus();
+    await user.keyboard("-battery");
+    expect(field).toHaveValue("correct-horse-battery");
+
+    await user.click(screen.getByRole("button", { name: "Hide password" }));
+    expect(field).toHaveAttribute("type", "password");
+  });
+
   it("reports a taken address on the sign-up route", async () => {
     const user = userEvent.setup();
     renderAuth(createDemoServices({ startAnonymous: true }), "signup");
