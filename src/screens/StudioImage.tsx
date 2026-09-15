@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Plus, Minus, Sparkle, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock, X, SpeakerHigh } from "@phosphor-icons/react";
 import { variantRefs, type Family, type Variant } from "../data/models";
+import { groupOf } from "../lib/refSlots";
+import { insertTag, refTags, tagUsed } from "../lib/refTags";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { addRefFiles, moveRefFile, slotAccept, type InputMap, type RefMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
@@ -194,6 +196,29 @@ export default function StudioImage({
      move this surface onto `RefUpload`. */
   const slot = variantRefs(s.family, s.variant)[0];
   const picked = slot ? (refs[slot.key] ?? []) : [];
+  /* The pictures have names the prompt can use — `@Image1`, `@Image2` — as in
+     the video dock. Nano Banana takes up to fourteen, and "put the jacket from
+     the second one on the person in the first" is exactly the sentence an edit
+     model needs the names for. A frame slot gets none (a position, not
+     material), and neither does a model that takes no prompt. */
+  const tags =
+    slot && groupOf(slot) === "reference" && !s.family.noPrompt ? (refTags([slot], { [slot.key]: picked.length })[slot.key] ?? []) : [];
+  const promptBox = useRef<HTMLTextAreaElement>(null);
+  // See FormPanel: the caret is placed once the inserted text is in the field.
+  const pendingCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const at = pendingCaret.current;
+    if (at === null) return;
+    pendingCaret.current = null;
+    promptBox.current?.focus();
+    promptBox.current?.setSelectionRange(at, at);
+  }, [s.prompt]);
+  function insertAtCaret(tag: string) {
+    const at = promptBox.current?.selectionStart ?? s.prompt.length;
+    const next = insertTag(s.prompt, at, tag);
+    pendingCaret.current = next.caret;
+    s.setPrompt(next.prompt);
+  }
   const needsFile = slot?.required === true && picked.length === 0;
   const pickRef = useRef<HTMLInputElement>(null);
   const [tooBig, setTooBig] = useState<string | null>(null);
@@ -542,6 +567,18 @@ export default function StudioImage({
                       style={{ background: "var(--vg-surface-raised)", opacity: dragAt === index ? 0.35 : 1 }}
                     >
                       {(slot.media ?? "image") === "image" && <img src={file.url} alt="" className="size-full object-cover" />}
+                      {/* The tile's number, so it can be matched to its name in
+                          the row under the prompt. A 32px tile has no room for
+                          "@Image2" and every room for "2". */}
+                      {tags.length > 1 && (
+                        <span
+                          aria-hidden
+                          className="vg-tag pointer-events-none absolute bottom-0 grid h-3.5 min-w-3.5 place-items-center rounded-tl px-0.5 text-[9px] leading-none"
+                          style={{ insetInlineEnd: 0, background: "rgba(0,0,0,0.7)", color: "var(--vg-text)" }}
+                        >
+                          {index + 1}
+                        </span>
+                      )}
                       {slot.media === "video" && (
                         <video src={file.url} muted playsInline preload="metadata" className="size-full object-cover" />
                       )}
@@ -597,16 +634,48 @@ export default function StudioImage({
                   broke, but the box invited the customer to write something
                   that could not affect the result. The panel has always
                   disabled it on these models; this surface never did. */}
-              <textarea
-                value={s.prompt}
-                onChange={(e) => s.setPrompt(e.target.value)}
-                rows={2}
-                dir={promptDir(s.prompt)}
-                disabled={s.family.noPrompt}
-                placeholder={s.family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط تصویر بده." : "تصویری که در ذهن داری را توصیف کن."}
-                className="hide-scrollbar vg-field-inset min-h-[52px] resize-none bg-transparent text-[13.5px] leading-6 outline-none disabled:opacity-40"
-                style={{ color: "var(--vg-text)" }}
-              />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <textarea
+                  ref={promptBox}
+                  value={s.prompt}
+                  onChange={(e) => s.setPrompt(e.target.value)}
+                  rows={2}
+                  dir={promptDir(s.prompt)}
+                  disabled={s.family.noPrompt}
+                  placeholder={s.family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط تصویر بده." : "تصویری که در ذهن داری را توصیف کن."}
+                  className="hide-scrollbar vg-field-inset min-h-[52px] w-full resize-none bg-transparent text-[13.5px] leading-6 outline-none disabled:opacity-40"
+                  style={{ color: "var(--vg-text)" }}
+                />
+                {/* The names, under the hand that is writing. Lime once the prompt
+                  uses one. Shown for a single picture too, as the video dock
+                  does: naming even one input measurably changes what an edit
+                  model does with it, because "the image" leaves it to decide
+                  what the sentence is about. */}
+                {tags.length > 0 && (
+                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                    <span className="shrink-0 text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+                      اشاره به
+                    </span>
+                    {tags.map((tag) => {
+                      const pointed = tagUsed(s.prompt, tag);
+                      return (
+                        <button
+                          key={tag}
+                          onClick={() => insertAtCaret(tag)}
+                          aria-label={`درج ${tag} در پرامپت`}
+                          className="vg-tag rounded px-1.5 py-0.5 font-semibold"
+                          style={{
+                            background: pointed ? "var(--vg-primary-a18)" : "var(--vg-surface-overlay)",
+                            color: pointed ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                          }}
+                        >
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mt-3 flex items-end gap-2">
