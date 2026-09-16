@@ -1,26 +1,25 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, CaretDown, Lock, Sparkle, SpeakerHigh, Stack, X } from "@phosphor-icons/react";
+import { ArrowRight, CaretDown, Lock, Sparkle, X } from "@phosphor-icons/react";
 import { defaultInput, variantControls, variantRefs, variantMaxPrompt, type Family, type ModelKind, type Variant } from "../data/models";
 import { priceCoins, priceRefusal } from "../data/pricing";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
-import { ControlField, RefUpload, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
+import { ControlField, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
+import { Panel, PanelHead, PanelShell, Section } from "../components/FormPanel";
+import { RefBox } from "../components/RefBox";
 import { useIgnition } from "../components/Ignition";
 import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
 import { GenerationMedia } from "../components/GenerationMedia";
 import { displayAspect, type Generation } from "../lib/gallery";
 import { useRevealArrival } from "../lib/useRevealArrival";
+import { allTags, insertTag, refTags, tagUsed } from "../lib/refTags";
 import { isVideoUrl, labelDir, promptDir } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { generationErrorMessage, validateGenerationInput } from "../features/generation/validation";
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-[12px] font-medium text-ink2">{children}</div>;
-}
 
 /**
  * What to ask for, in the words the studio for that kind already uses.
@@ -50,6 +49,17 @@ export interface StartFrame {
   kind: "image" | "video" | "audio";
 }
 
+/**
+ * One model's own page: the dock that drives it, and what it has made.
+ *
+ * Every model link and every effect tile lands here, so for a lot of people
+ * this is the product. It used to be a single column of form controls on a
+ * 1100px page with nothing else on it — no output, no history, nothing to come
+ * back to — while the three studios had been rebuilt around a dock and a
+ * canvas. It is that shape now, for one model: the same panel, the same
+ * reference box, the same lit button, and beside it everything this account has
+ * made with this model.
+ */
 export default function Generate({
   family,
   initialVariantId,
@@ -57,9 +67,9 @@ export default function Generate({
   startFrom,
   onBack,
   onGenerate,
-  made = [],
-  onOpenMade,
-  onRemoveMade,
+  gens = [],
+  onOpen,
+  onRemove,
 }: {
   family: Family;
   initialVariantId?: string | undefined;
@@ -81,17 +91,11 @@ export default function Generate({
     refs: RefMap,
     assetRefs: Record<string, string[]>,
   ) => Promise<GenerationReceipt | null>;
-  /**
-   * What was sent from this page, newest first — drawn above the form.
-   *
-   * The page stays put after a submit. It used to leave for کارهای من so the
-   * press visibly did something, which took people off the form they were
-   * about to send the next variation from. This is where that answer lives now.
-   */
-  made?: Generation[] | undefined;
-  onOpenMade?: ((generation: Generation) => void) | undefined;
+  /** The account's generations; this page draws its own model's. */
+  gens?: Generation[] | undefined;
+  onOpen?: ((generation: Generation) => void) | undefined;
   /** Offered on a refused generation only, as in کارهای من. */
-  onRemoveMade?: ((generation: Generation) => void) | undefined;
+  onRemove?: ((generation: Generation) => void) | undefined;
 }) {
   const firstVariant = family.variants.find((v) => v.id === initialVariantId) ?? family.variants[0]!;
   const [variant, setVariant] = useState<Variant>(firstVariant);
@@ -102,6 +106,13 @@ export default function Generate({
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<GenerationReceipt | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const promptBox = useRef<HTMLTextAreaElement>(null);
+  /* Where the caret goes once an inserted tag has landed in the field. Held in
+     a ref and applied in a layout effect, not straight after `setPrompt`: at
+     that moment React has not written the new value, so a selection range into
+     it is measured against the old text and thrown away — which put the caret
+     at the end every time. Same as the dock; see FormPanel. */
+  const pendingCaret = useRef<number | null>(null);
 
   // Object URLs are process-wide; without this every picked image leaks until reload.
   const liveRefs = useRef<RefMap>(refImages);
@@ -188,15 +199,6 @@ export default function Generate({
   const clipUnreadable =
     videoFiles.some((f) => f.duration == null) &&
     priceCoins(variant, input, { chars, clipSeconds: 0 }) !== priceCoins(variant, input, { chars, clipSeconds: 1 });
-  // No price means no row covers this combination — the provider doesn't offer
-  // it at all (Hailuo 2.3 has no 1080P at 10s). Selling it would take the
-  // user's coins for a job that can't run.
-  // maxLength on the textarea only stops typing and pasting, so the length is
-  // checked again here. The backend has to check a third time — nothing the
-  // client says about length can be trusted once money is attached.
-  // Upscalers and background removal transform a file and take no description,
-  // so requiring a prompt would leave their button permanently disabled.
-  const wantsPrompt = !family.noPrompt;
   // Same gate as the studios. See the CTA below for why this screen needs it.
   const access = useAccess();
   const locked = !access.can(family.id);
@@ -204,8 +206,38 @@ export default function Generate({
   const validation = validateGenerationInput({ family, variant, prompt, input, refs: refImages, assetRefs });
   const canGenerate = validation.valid && !clipUnreadable && price != null;
   const ignition = useIgnition();
-  // On a phone the strip above the form is a scroll away from the button.
-  const reveal = useRevealArrival(made[0]?.id);
+
+  /* The references have names — `@Image1`, `@Video3` — and the prompt can point
+     at one; see `lib/refTags`. The dock does this too, and a model reached from
+     a link rather than from the dock is the same model with the same inputs. */
+  const fileCounts = Object.fromEntries(Object.entries(refImages).map(([key, files]) => [key, files.length]));
+  const tagList = allTags(refTags(refs, fileCounts));
+
+  function insertAtCaret(tag: string) {
+    const box = promptBox.current;
+    const at = box?.selectionStart ?? prompt.length;
+    const next = insertTag(prompt, at, tag);
+    pendingCaret.current = next.caret;
+    setPrompt(next.prompt);
+  }
+
+  useLayoutEffect(() => {
+    const at = pendingCaret.current;
+    if (at === null) return;
+    pendingCaret.current = null;
+    const box = promptBox.current;
+    if (!box) return;
+    box.focus();
+    box.setSelectionRange(at, at);
+  }, [prompt]);
+
+  /* This model's own work, newest first. Not every generation: the canvas
+     beside a model's dock answers "what does this thing make for me", and a
+     wall of everything is کارهای من, which is one click away in the bar. */
+  const mine = gens.filter((generation) => generation.familyId === family.id);
+  // On a phone the canvas is under the form, so the job a press made is out of
+  // sight the moment it is created.
+  const reveal = useRevealArrival(mine[0]?.id);
 
   async function submit() {
     if (!canGenerate || submitting) return;
@@ -223,243 +255,270 @@ export default function Generate({
     }
   }
 
+  /* The line under the button: whichever of these is true first. A refusal
+     outranks a price, and a missing file outranks both — the reason the button
+     will not work is worth more than the number it would have cost. */
+  const footnote = submitError
+    ? submitError
+    : receipt
+      ? `هزینهٔ نهایی سرور: ${n(receipt.coins)} · اعتبار قیمت تا ${new Date(receipt.expiresAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}`
+      : missingRequired
+        ? `${t("g_need_also")} ${missingRequired.label}`
+        : orphanNeeds
+          ? `${t("g_need_also")} ${orphanNeeds.label}`
+          : clipUnreadable
+            ? t("g_clip_unreadable")
+            : validation.issues[0]
+              ? validation.issues[0].message
+              : price != null
+                ? `≈ ${n(price)} ${t("g_est_for")}`
+                : t(refusal === "not_offered" ? "g_no_rate" : "g_no_price");
+
   return (
-    /* Every model link and every preset lands here, and it was still a 480px
-       phone column: the controls ran single-file down the middle of a 1440px
-       page with the CTA pinned to a 480px strip. It now runs a 1100px
-       container and splits into two columns from `md`. */
-    <div className="relative z-10 mx-auto min-h-[100dvh] w-full max-w-[1100px] pb-32 md:pb-10">
-      {/* top bar */}
-      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/85 px-4 py-3 backdrop-blur-xl">
-        <button
-          onClick={onBack}
-          aria-label={t("nav_home")}
-          className="grid h-9 w-9 place-items-center rounded-full bg-card2 active:scale-95"
-        >
-          <ArrowRight size={18} weight="bold" className="ltr:-scale-x-100" />
-        </button>
-        <span className="relative h-9 w-9 overflow-hidden rounded-xl" style={{ background: family.grad }}>
-          {family.cover && !isVideoUrl(family.cover) && !coverFailed && (
-            <img src={family.cover} alt="" className="absolute inset-0 h-full w-full object-cover" onError={onCoverError} />
-          )}
-        </span>
-        <div className="flex-1">
-          <div className="t-title leading-tight">{family.name}</div>
-          <div className="t-caption text-ink3">{family.vendor}</div>
-        </div>
-        <VendorMark vendor={family.vendor} size={24} />
-      </div>
+    /* The studios' own shape: a dock that stays put and a canvas that fills the
+       rest, stacking on a phone. `vg-grain` belongs to the page, so it grains
+       both. */
+    <div className="vg-grain flex flex-col md:flex-row md:items-start">
+      {/* The page's own title, for a screen reader arriving on a route change.
+          The dock names the model on screen. */}
+      <h1 className="sr-only">
+        ساخت با {family.name} — {family.vendor}
+      </h1>
 
-      {/* Two columns from `md`: the settings stack does not get wider, it gets
-          shorter — a 1100px page of single-file controls is a phone screenshot
-          stretched, and the scroll it costs is the actual usability problem. */}
-      <div className="flex flex-col gap-7 px-4 pt-5 md:grid md:grid-cols-2 md:items-start md:gap-x-6 md:px-8">
-        {/* What this page has made, first and full width: the answer to the
-            press, on the page where it was pressed. A row that scrolls
-            sideways, so a run of variations never pushes the form down. */}
-        {made.length > 0 && (
-          <section aria-labelledby="made-here" className="md:col-span-2">
-            <div className="mb-2.5 flex items-center justify-between gap-3">
-              <h2 id="made-here" className="text-[12px] font-medium text-ink2">
-                ساخته‌شده از این صفحه
-              </h2>
-              <span className="text-[11px] text-ink3">در کارهای من هم می‌ماند</span>
-            </div>
-            <div className="no-scrollbar -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
-              {made.map((g) => (
-                <MadeTile
-                  key={g.id}
-                  gen={g}
-                  target={g.id === made[0]?.id ? reveal.target : undefined}
-                  onOpen={() => onOpenMade?.(g)}
-                  onRemove={onRemoveMade ? () => onRemoveMade(g) : undefined}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+      <PanelShell>
+        <div className="flex flex-col gap-2.5 p-2.5">
+          {/* This screen has no bar of its own — it is reached from one and
+              returns to it — so the way back is the first thing in the column. */}
+          <button
+            onClick={onBack}
+            className="flex h-8 w-fit items-center gap-1.5 rounded-lg px-2 text-[12px] font-semibold transition-colors"
+            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+          >
+            <ArrowRight size={14} weight="bold" className="ltr:-scale-x-100" />
+            {t("g_back")}
+          </button>
 
-        {/* variant selector — prominent */}
-        {multiVariant && (
-          <div className="rounded-bezel border border-line bg-card p-3.5">
-            <div className="mb-3 flex items-center gap-1.5">
-              <Stack size={15} weight="fill" className="text-ink2" />
-              <span className="text-[12.5px] font-medium">{t("g_version")}</span>
-              <span className="text-[11px] text-ink3">
-                ({n(family.variants.length)} {t("g_versions")})
-              </span>
-            </div>
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 no-scrollbar">
-              {family.variants.map((v) => {
-                const on = v.id === variant.id;
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => selectVariant(v)}
-                    className="flex shrink-0 flex-col items-center gap-1 rounded-2xl border px-4 py-2.5 transition-colors active:scale-95"
-                    style={
-                      on
-                        ? { borderColor: "transparent", background: "var(--color-accent)", color: "var(--color-on-accent)" }
-                        : { borderColor: "var(--color-line)", background: "var(--color-card2)", color: "var(--color-ink2)" }
-                    }
-                  >
-                    <span className="text-[13px] font-medium">{v.label}</span>
-                    {v.badge && (
-                      <span
-                        className="text-[10px]"
-                        style={{ color: on ? "color-mix(in srgb, var(--color-on-accent) 70%, transparent)" : "var(--color-ink3)" }}
-                      >
-                        {v.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* input images — every slot the model supports */}
-        {refs.length > 0 && (
-          <div className="flex flex-col gap-4">
-            <SectionLabel>{t("g_inputs")}</SectionLabel>
-            {refs.map((slot) => (
-              <RefUpload
-                key={slot.key}
-                slot={slot}
-                images={refImages[slot.key] ?? []}
-                onChange={(imgs) => setRefImages((p) => ({ ...p, [slot.key]: imgs }))}
-                leading={
-                  /* The carried frame is one of this slot's inputs, so it is a
-                     tile in the same row — first, because it arrived first.
-                     There are no bytes behind it to hand RefUpload: the file is
-                     already ours and travels as an id. */
-                  carriedSlot?.key === slot.key && carried ? (
-                    <div
-                      className="relative size-[84px] overflow-hidden rounded-2xl border border-line bg-card2"
-                      title="از کارهای خودت — فریم شروع"
-                    >
-                      {carried.kind === "video" ? (
-                        <video src={carried.url} muted playsInline preload="metadata" className="size-full object-cover" />
-                      ) : (
-                        <img src={carried.url} alt="" className="size-full object-cover" />
-                      )}
-                      <button
-                        onClick={() => setDismissed(true)}
-                        aria-label="حذف فریم شروع"
-                        className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-bg/70 backdrop-blur-sm"
-                      >
-                        <X size={13} weight="bold" />
-                      </button>
-                      <span className="absolute inset-x-0 bottom-0 bg-bg/70 py-0.5 text-center text-[9.5px] text-ink2 backdrop-blur-sm">
-                        فریم شروع
-                      </span>
-                    </div>
-                  ) : null
-                }
-              />
-            ))}
-          </div>
-        )}
-
-        {/* prompt */}
-        {wantsPrompt && (
-          <div className="flex flex-col gap-2.5">
-            {/* The row follows the field. `dir="auto"` on the textarea below
-                moves the text to the other edge as soon as a Latin character is
-                typed, and this caption stayed behind — a box with symmetric
-                padding that still read as misaligned, because its own label had
-                parted company with it. */}
-            <div className="flex items-center justify-between" dir={labelDir(prompt)}>
-              <SectionLabel>{t("g_prompt")}</SectionLabel>
-              {/* The count only appears near the ceiling — Wan 2.5 stops at 800,
-                so on that model it matters; on a 20000 one it never shows. */}
-              {maxPrompt != null && prompt.length > maxPrompt * 0.8 ? (
-                <span className="text-[11px] tabular-nums text-ink3">
-                  {n(prompt.length)} / {n(maxPrompt)}
-                </span>
-              ) : (
-                <span className="text-[11px] text-ink3">{t("g_prompt_hint")}</span>
-              )}
-            </div>
-            {/* `dir="auto"` rather than a forced `ltr`.
-                The field was pinned left-to-right, so a Persian prompt — the
-                first language of this product — was laid out against the wrong
-                edge, starting at the far side of the box from where the writer
-                is reading and leaving the whole reading edge empty. `auto` lets
-                the first strong character decide, so English sits left and
-                Persian sits right, each one starting where its reader starts.
-                The placeholder matches the studios' wording for the same
-                reason: this screen was the only one asking in English. */}
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              dir={promptDir(prompt)}
-              placeholder={PROMPT_PLACEHOLDER[family.kind]}
-              rows={4}
-              maxLength={maxPrompt ?? undefined}
-              className="w-full resize-none rounded-bezel border border-line bg-card p-4 text-[14px] leading-relaxed text-ink transition-colors duration-[--vg-dur-fast] placeholder:text-ink3 focus:border-accent focus:outline-none"
+          <Panel>
+            {/* The subject is the model, and the subtitle is whose engine runs
+                it — the one fact that is otherwise nowhere on this surface. */}
+            <PanelHead
+              icon={<Sparkle size={14} weight="fill" />}
+              title={family.name}
+              sub={<bdi>{family.vendor}</bdi>}
+              action={<VendorMark vendor={family.vendor} size={20} />}
             />
-          </div>
-        )}
 
-        {/* settings */}
-        <div className="flex flex-col gap-6">
-          <SectionLabel>{t("g_settings")}</SectionLabel>
-          {basic.map((c) => (
-            <ControlField key={c.key} control={c} value={input[c.key]} onChange={setValue} />
-          ))}
-
-          {advanced.length > 0 && (
-            <>
-              <button
-                onClick={() => setShowAdvanced((s) => !s)}
-                className="flex items-center justify-between text-[12.5px] text-ink2 active:scale-[0.99]"
-              >
-                <span>{t("g_advanced")}</span>
-                <CaretDown size={16} className={`transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
-              </button>
-              <AnimatePresence initial={false}>
-                {showAdvanced && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex flex-col gap-6"
-                  >
-                    {advanced.map((c) => (
-                      <ControlField key={c.key} control={c} value={input[c.key]} onChange={setValue} />
-                    ))}
-                  </motion.div>
+            {/* What it makes, before anything is typed. A model page that opens
+                on a form asks for a decision the catalogue has already made. */}
+            <Section>
+              <div className="relative h-[104px] w-full overflow-hidden" style={{ background: family.grad }}>
+                {family.cover && !isVideoUrl(family.cover) && !coverFailed && (
+                  <img
+                    src={family.cover}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    onError={onCoverError}
+                    className="absolute inset-0 size-full object-cover"
+                  />
                 )}
-              </AnimatePresence>
-            </>
-          )}
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgb(0 0 0 / 0.7), transparent 60%)" }} />
+                <span className="absolute inset-x-2.5 bottom-2 truncate text-[12px] font-semibold" style={{ color: "var(--vg-text)" }}>
+                  <bdi>{family.name}</bdi>
+                </span>
+              </div>
+            </Section>
+
+            {/* Variants as one row of pills. The studios open a picker here
+                because it also lists every other model; this page is one model,
+                so its versions are the only choice on it. */}
+            {multiVariant && (
+              <Section className="flex flex-wrap gap-1.5 p-2.5">
+                {family.variants.map((v) => {
+                  const on = v.id === variant.id;
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => selectVariant(v)}
+                      aria-pressed={on}
+                      className="flex h-8 items-center gap-1.5 rounded-[7px] px-2.5 text-[12px] font-semibold transition-colors"
+                      style={{
+                        background: on ? "var(--vg-primary-a14)" : "var(--vg-surface-overlay)",
+                        color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                      }}
+                    >
+                      {v.label}
+                      {v.badge && (
+                        <span className="text-[10px] font-medium" style={{ color: "var(--vg-text-faint)" }}>
+                          {v.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </Section>
+            )}
+
+            {/* The file that came with the press, in the slot it will fill. It
+                is not a picked file — the bytes are already ours and travel as
+                an id — so it sits beside the box rather than inside it. */}
+            {carried && carriedSlot && (
+              <Section className="flex items-center gap-2.5 p-2.5">
+                <span
+                  className="relative size-[52px] shrink-0 overflow-hidden rounded-[9px]"
+                  style={{ background: "var(--vg-surface-overlay)" }}
+                >
+                  {carried.kind === "video" ? (
+                    <video src={carried.url} muted playsInline preload="metadata" className="size-full object-cover" />
+                  ) : (
+                    <img src={carried.url} alt="" className="size-full object-cover" />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[11.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
+                    از کارهای خودت
+                  </span>
+                  <span className="block truncate text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+                    {carriedSlot.label}
+                  </span>
+                </span>
+                <button
+                  onClick={() => setDismissed(true)}
+                  aria-label="حذف فایل پیوست‌شده"
+                  title="حذف فایل پیوست‌شده"
+                  className="grid size-7 shrink-0 place-items-center rounded-lg"
+                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+                >
+                  <X size={13} weight="bold" />
+                </button>
+              </Section>
+            )}
+
+            {/* One box for every slot, routed by what the file is — the dock's
+                own control, so an upload behaves the same on both surfaces. */}
+            {refs.length > 0 && (
+              <Section className="p-2.5">
+                <RefBox slots={refs} refs={refImages} onChange={setRefImages} prompt={prompt} onInsertTag={insertAtCaret} />
+              </Section>
+            )}
+
+            <Section className="px-2.5 py-2">
+              {/* Follows the field: `dir="auto"` below sends the text to the
+                  other edge the moment a Latin character is typed, and a caption
+                  left behind is what makes a symmetric box look wrong. */}
+              <div className="mb-1 flex items-baseline justify-between gap-2" dir={labelDir(prompt)}>
+                <span className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+                  {t("g_prompt")}
+                </span>
+                {/* Only near the ceiling. Wan 2.5 stops at 800, so there it
+                    matters; on a 20000 one it never shows. */}
+                {maxPrompt != null && prompt.length > maxPrompt * 0.8 ? (
+                  <span className="vg-numeric text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+                    {n(prompt.length)} / {n(maxPrompt)}
+                  </span>
+                ) : (
+                  <span className="text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+                    {t("g_prompt_hint")}
+                  </span>
+                )}
+              </div>
+              <textarea
+                ref={promptBox}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                dir={promptDir(prompt)}
+                rows={4}
+                maxLength={maxPrompt ?? undefined}
+                disabled={family.noPrompt}
+                placeholder={family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط فایل بده" : PROMPT_PLACEHOLDER[family.kind]}
+                className="hide-scrollbar vg-field-inset resize-none bg-transparent text-[12.5px] leading-[1.7] outline-none disabled:opacity-40"
+                style={{ color: "var(--vg-text)" }}
+              />
+              {/* The names of the files above, under the hand that is writing.
+                  Lime means the prompt already points at that one. */}
+              {tagList.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                  <span className="shrink-0 text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+                    اشاره به
+                  </span>
+                  {tagList.map((tag) => {
+                    const pointed = tagUsed(prompt, tag);
+                    return (
+                      <button
+                        key={tag}
+                        onClick={() => insertAtCaret(tag)}
+                        aria-label={`درج ${tag} در پرامپت`}
+                        className="vg-tag rounded px-1.5 py-0.5 font-semibold"
+                        style={{
+                          background: pointed ? "var(--vg-primary-a18)" : "var(--vg-surface-overlay)",
+                          color: pointed ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                        }}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </Section>
+
+            {basic.map((c) => (
+              <Section key={c.key} className="px-2.5 py-2.5">
+                <ControlField control={c} value={input[c.key]} onChange={setValue} />
+              </Section>
+            ))}
+
+            {advanced.length > 0 && (
+              <Section>
+                <button
+                  onClick={() => setShowAdvanced((s) => !s)}
+                  aria-expanded={showAdvanced}
+                  className="flex h-10 w-full items-center justify-between px-2.5 text-[12px]"
+                  style={{ color: "var(--vg-text-muted)" }}
+                >
+                  <span>{t("g_advanced")}</span>
+                  <CaretDown size={14} className={`transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+                </button>
+                <AnimatePresence initial={false}>
+                  {showAdvanced && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                      className="overflow-hidden"
+                    >
+                      {advanced.map((c) => (
+                        <div key={c.key} className="px-2.5 pb-2.5" style={{ borderBlockStart: "1px solid var(--vg-border-subtle)" }}>
+                          <div className="pt-2.5">
+                            <ControlField control={c} value={input[c.key]} onChange={setValue} />
+                          </div>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Section>
+            )}
+          </Panel>
         </div>
-        {/* The CTA. Fixed to the viewport floor on a phone, where the thumb is.
 
-            On desktop it is a cell of the same two-column grid as everything
-            above it, pinned to column 1 — the prompt's column, which in RTL is
-            the right one. It used to be a 520px block centred on the page,
-            which put its edges at 258 and 778 while the columns sat at 32–506
-            and 530–1004: aligned to neither, and reading as a stray card
-            floating between them. Now its edges are the prompt's edges.
-
-            Fixed positioning takes it out of flow on mobile, so sitting inside
-            the grid costs the phone layout nothing. */}
-        <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-[480px] -translate-x-1/2 border-t border-line bg-surface/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-xl md:static md:col-start-1 md:mt-1 md:max-w-none md:translate-x-0 md:rounded-2xl md:border md:px-4 md:pb-4 md:backdrop-blur-none">
-          {/* This screen is reached from an effect tile, so the model is chosen
-            for the user by the preset rather than picked in a menu. It has to
-            carry the same gate as the studios — otherwise the one route where
-            the user never saw the picker is the one that skips the lock. */}
-          {locked ? (
+        {/* Pinned to the panel floor rather than scrolled with the stack: it is
+            the only thing on this surface the user is guaranteed to want. */}
+        <div
+          className="sticky bottom-0 mt-auto p-2.5"
+          style={{ background: "var(--vg-canvas)", borderBlockStart: "1px solid var(--vg-border-subtle)" }}
+        >
+          {/* A locked model gets an upgrade button, not a disabled create
+              button: greying out the price says the job is unavailable without
+              saying that it is the plan, or what fixes it. */}
+          {locked && !visitor ? (
             <button
               onClick={access.onUpgrade}
-              className="flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-bold"
               style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
             >
-              <Lock size={16} weight="fill" />
+              <Lock size={14} weight="fill" />
               {need ? (
                 <>
                   ارتقا به <bdi>{need.name}</bdi>
@@ -470,98 +529,118 @@ export default function Generate({
             </button>
           ) : (
             /* The same field as the studios' «بساز» — every button that spends
-               coins on a generation lights the same way. This one was missed:
-               every model link and every effect tile lands here, so it is the
-               button most people press first. See `useIgnition`. */
+               coins on a generation lights the same way. See `useIgnition`. */
             <button
               onClick={(event) => (visitor ? signIn() : ignition.ignite(event, () => void submit()))}
               disabled={!visitor && (!canGenerate || submitting)}
               aria-busy={ignition.igniting || submitting || undefined}
-              className="btn-accent relative flex w-full items-center justify-center overflow-hidden rounded-full py-3.5 text-[15px] font-semibold disabled:opacity-40"
-              // Light ink over the dark field, with a halo for the moment the
-              // label still sits half on lime — as FormPanel does.
-              style={ignition.igniting ? { color: "var(--vg-text)", textShadow: "0 0 6px rgb(0 0 0 / 0.7)" } : undefined}
+              className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
+              style={{
+                background: "var(--vg-primary)",
+                // Light ink over the dark field, with a halo for the moment the
+                // label still sits half on lime — as the dock does.
+                color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
+                textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
+                boxShadow: !visitor && (!canGenerate || submitting) ? "none" : "var(--vg-glow-primary)",
+              }}
             >
               {ignition.layer}
               {/* Positioned so it paints above the field. */}
               <span className="relative flex items-center gap-2">
-                <Sparkle size={18} weight="fill" />
-                <span>{visitor ? t("visitor_cta") : submitting ? "در حال ثبت…" : t("g_create")}</span>
+                <Sparkle size={15} weight="fill" />
+                {visitor ? t("visitor_cta") : submitting ? "در حال ثبت…" : t("g_create")}
                 {price != null && !clipUnreadable && (
-                  <span className="ms-1 flex items-center gap-1 rounded-full bg-black/12 px-2.5 py-0.5 text-[12.5px]">
+                  <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
                     <CoinMark size={12} />
-                    {n(price)}
+                    <span className="vg-numeric">{n(price)}</span>
                   </span>
                 )}
               </span>
             </button>
           )}
-          <div className="pt-1.5 text-center text-[10.5px] text-ink3">
-            {submitError
-              ? submitError
-              : receipt
-                ? `هزینهٔ نهایی سرور: ${n(receipt.coins)} · اعتبار قیمت تا ${new Date(receipt.expiresAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}`
-                : missingRequired
-                  ? `${t("g_need_also")} ${missingRequired.label}`
-                  : orphanNeeds
-                    ? `${t("g_need_also")} ${orphanNeeds.label}`
-                    : clipUnreadable
-                      ? t("g_clip_unreadable")
-                      : validation.issues[0]
-                        ? validation.issues[0].message
-                        : price != null
-                          ? `≈ ${n(price)} ${t("g_est_for")}`
-                          : t(refusal === "not_offered" ? "g_no_rate" : "g_no_price")}
-          </div>
+          <p className="mt-1.5 text-center text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+            {footnote}
+          </p>
         </div>
-      </div>
-    </div>
-  );
-}
+      </PanelShell>
 
-/** How tall a tile in the "made here" row is; its width follows the frame. */
-const MADE_HEIGHT = 140;
-
-/**
- * One generation sent from this page: running, refused, or there.
- *
- * Shaped like the frame it will be — or was asked to be — so a row of them
- * does not reflow when a file lands. A refusal gets room for its sentence.
- */
-function MadeTile({
-  gen,
-  target,
-  onOpen,
-  onRemove,
-}: {
-  gen: Generation;
-  target: ((element: HTMLElement | null) => void) | undefined;
-  onOpen: () => void;
-  onRemove: (() => void) | undefined;
-}) {
-  const shape = displayAspect(gen);
-  const framed = Math.round(Math.min(260, Math.max(96, (shape.w / shape.h) * MADE_HEIGHT)));
-  const width = gen.status === "failed" ? Math.max(220, framed) : framed;
-  return (
-    <div
-      ref={target}
-      className="relative shrink-0 scroll-mx-4 scroll-my-24 overflow-hidden rounded-2xl border border-line"
-      style={{ width, height: MADE_HEIGHT, background: gen.grad }}
-    >
-      {gen.status === "failed" ? (
-        <FailedVeil gen={gen} onRemove={onRemove} lines={3} />
-      ) : (
-        <button onClick={onOpen} className="absolute inset-0" aria-label={`باز کردن — ${gen.prompt.trim().slice(0, 60) || gen.name}`}>
-          <GenerationMedia gen={gen} />
-          {gen.status === "running" && <RunningVeil gen={gen} />}
-          {/* A clip has no frame to show in a tile, so a finished one says so. */}
-          {gen.status === "done" && gen.kind === "audio" && (
-            <span className="absolute inset-0 grid place-items-center text-ink">
-              <SpeakerHigh size={22} weight="fill" />
+      {/* The canvas: what this model has made for this account. */}
+      <main
+        className="vg-canvas-field @container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
+        style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}
+      >
+        <div className="mb-4 flex items-baseline justify-between gap-3">
+          <h2 className="text-[13px] font-semibold" style={{ color: "var(--vg-text)" }}>
+            خروجی‌های این مدل
+          </h2>
+          {mine.length > 0 && (
+            <span className="vg-numeric text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+              {n(mine.length)}
             </span>
           )}
-        </button>
-      )}
+        </div>
+
+        {mine.length === 0 ? (
+          /* Empty, not blank. The model's own name carries the Latin ghost
+             label the design system added for exactly this — Persian has no
+             uppercase to buy presence with. */
+          <div className="mx-auto max-w-[560px] py-10 text-center">
+            <span className="t-ghost block" lang="en">
+              {family.name}
+            </span>
+            <h3 className="t-h1 mt-2 text-balance">هنوز با این مدل چیزی نساخته‌ای</h3>
+            <p className="t-caption mx-auto mt-2 max-w-[44ch] text-pretty" style={{ color: "var(--vg-text-muted)" }}>
+              هرچه اینجا بسازی همین‌جا می‌ماند و در کارهای من هم هست.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
+            {mine.map((generation) => {
+              const shape = displayAspect(generation);
+              const target = generation.id === mine[0]?.id ? reveal.target : undefined;
+              const frame = { aspectRatio: `${shape.w} / ${shape.h}`, background: generation.grad };
+              /* A refused card carries its own remove control, so it cannot be
+                 a button: a button inside a button is invalid markup that
+                 browsers resolve by dropping one of them. */
+              if (generation.status === "failed") {
+                return (
+                  <div
+                    key={generation.id}
+                    ref={target}
+                    className="relative scroll-my-24 overflow-hidden rounded-[14px]"
+                    style={{ ...frame, border: "1px solid var(--vg-border-subtle)" }}
+                  >
+                    <FailedVeil gen={generation} onRemove={onRemove ? () => onRemove(generation) : undefined} />
+                  </div>
+                );
+              }
+              return (
+                <button
+                  key={generation.id}
+                  ref={target}
+                  onClick={() => onOpen?.(generation)}
+                  aria-label={`باز کردن — ${generation.prompt.trim().slice(0, 60) || generation.name}`}
+                  className="relative scroll-my-24 overflow-hidden rounded-[14px] text-start"
+                  style={{ ...frame, border: "1px solid var(--vg-border-subtle)" }}
+                >
+                  <GenerationMedia gen={generation} />
+                  {generation.status === "running" && <RunningVeil gen={generation} />}
+                  {generation.prompt && generation.status === "done" && (
+                    <span
+                      className="absolute inset-x-0 bottom-0 p-2"
+                      style={{ background: "linear-gradient(to top, rgb(0 0 0 / 0.72), transparent)" }}
+                    >
+                      <span className="ltr line-clamp-2 block text-[11px] leading-snug" style={{ color: "var(--vg-text-secondary)" }}>
+                        {generation.prompt}
+                      </span>
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </main>
     </div>
   );
 }
