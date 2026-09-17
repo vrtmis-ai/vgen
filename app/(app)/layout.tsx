@@ -10,7 +10,7 @@ import { SystemState } from "../../src/components/SystemState";
 import { CatalogProvider } from "../../src/features/catalog/CatalogProvider";
 import { ContentProvider } from "../../src/features/content/ContentProvider";
 import { PlansProvider } from "../../src/features/plans/PlansProvider";
-import { useCatalog, useCommunityFeed, useContent, usePlans, useSession, useWallet } from "../../src/features/session/useSession";
+import { useCatalog, useContent, usePlans, useSession, useWallet } from "../../src/features/session/useSession";
 import { AccessProvider } from "../../src/lib/access";
 import { useOnlineStatus } from "../../src/lib/useOnlineStatus";
 import Landing from "../../src/screens/Landing";
@@ -61,7 +61,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   // would unlock a family.
   const plansQuery = usePlans();
   const contentQuery = useContent();
-  const communityQuery = useCommunityFeed();
 
   if (!online) {
     return <SystemState kind="offline" onPrimary={() => window.dispatchEvent(new Event(navigator.onLine ? "online" : "offline"))} />;
@@ -145,15 +144,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <ContentProvider content={contentQuery.data}>
           <OAuthFailureNotice />
           <SiteBanner plans={plansQuery.data} onSeePlans={() => router.push("/plans")} />
-          {/* `posts` is not gated above with plans and content: an empty showcase
-              strip is a much smaller failure than a landing page that refuses to
-              paint until other people's posts have loaded. */}
-          <Landing
-            plans={plansQuery.data}
-            posts={communityQuery.data?.posts ?? []}
-            onSignIn={authActions.signIn}
-            onSignUp={authActions.signUp}
-          />
+          <Landing plans={plansQuery.data} onSignIn={authActions.signIn} onSignUp={authActions.signUp} />
         </ContentProvider>
       </CatalogProvider>
     );

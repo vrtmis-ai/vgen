@@ -1,27 +1,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { CalendarCheck, CaretDown, Check, DeviceMobile, Gift, ImageSquare, VideoCamera } from "@phosphor-icons/react";
-import type { Family } from "../data/models";
-import { useFamilyLookup } from "../features/catalog/CatalogProvider";
-import type { CommunityPost } from "../runtime/contracts/community";
-import {
-  toman,
-  annualDiscountPct,
-  annualTotalUsd,
-  effectiveUsd,
-  estImages,
-  estVideos,
-  IMAGE_ANCHOR_NAME,
-  VIDEO_ANCHOR_NAME,
-} from "../data/plans";
+import { CaretDown, Check, DeviceMobile } from "@phosphor-icons/react";
+import { effectiveUsd } from "../data/plans";
 import type { Plan } from "../runtime/contracts/plans";
+import { EntryCard, PlanCard, type Cycle } from "../components/PlanCards";
 import { HeroSection } from "../components/blocks/hero-section-5";
 import { FeaturesBento } from "../components/blocks/bento-features";
-import { ModelMark } from "../components/ModelMark";
-import { isVideoUrl } from "../lib/format";
-import { useImageFallback } from "../lib/useImageFallback";
 import { useI18n, type TKey } from "../lib/i18n";
-import { riseItem, riseParent } from "../lib/motion";
+import { riseParent } from "../lib/motion";
 import { BRAND } from "../data/brand";
 
 /* Built from stitch-export/desktop/vgen-persian-home-unified.html.
@@ -57,21 +43,6 @@ const FAQ_KEYS: { q: TKey; a: TKey }[] = [
   { q: "lp_faq3_q", a: "lp_faq3_a" },
   { q: "lp_faq4_q", a: "lp_faq4_a" },
 ];
-
-function Art({ family }: { family?: Family | undefined }) {
-  const [failed, onError] = useImageFallback();
-  const cover = family?.cover;
-  return (
-    <>
-      <span className="absolute inset-0 block" style={{ background: family?.grad ?? "var(--vg-surface-overlay)" }} />
-      {cover && isVideoUrl(cover) ? (
-        <video src={cover} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
-      ) : cover && !failed ? (
-        <img src={cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={onError} />
-      ) : null}
-    </>
-  );
-}
 
 /** A wide, continuous section shell. The landing relies on content and scale
     for hierarchy instead of drawing a divider around every chapter. */
@@ -138,8 +109,7 @@ function Heading({ index, children, sub }: { index: string; children: React.Reac
    02 — the product beyond generation.
 
    The model band inside the hero answers "what can I use?". This answers the
-   next question: "what does DEEV help me do with it?" The grid comes before
-   the showcase so visitors meet the workflow before they meet its output.
+   next question: "what does DEEV help me do with it?"
    --------------------------------------------------------------------------- */
 function Features() {
   const { t } = useI18n();
@@ -156,85 +126,16 @@ function Features() {
   );
 }
 
-/* ---------------------------------------------------------------------------
-   The reel.
-
-   The proof that any of this works is the work itself, and the hero has no room
-   for it any more — a shot with a thumbnail grid in it is not a shot. So it
-   follows the product bento, and it is edge to edge.
-
-   Full-bleed on purpose. A contained grid says "here are some samples"; frames
-   running off both sides say the reel continues past the screen, which is both
-   truer and the reason a film strip reads the way it does. Faded at the edges
-   with the same mask the nav uses, so the cut is light rather than a hard crop.
-   --------------------------------------------------------------------------- */
-function Reel({ posts }: { posts: readonly CommunityPost[] }) {
-  const { t } = useI18n();
-  const familyOf = useFamilyLookup();
-  // The eight most-liked, handed down rather than fetched here. Landing stays a
-  // screen that renders what it is given — the same reason `plans` is a prop —
-  // so it can be rendered in a test without a service container behind it.
-  const reel = [...posts].sort((a, b) => b.likes - a.likes).slice(0, 8);
-  return (
-    <Section id="showcase">
-      <Heading index="03" sub={t("lp_showcase_sub")}>
-        {t("lp_showcase_title")}
-      </Heading>
-
-      {/* The strip is no longer decoration, so it is no longer `aria-hidden`.
-          It used to be a wall of images with nothing said about them — which is
-          the version of this section that proves the least, because a picture
-          with no model name attached could have come from anywhere. The caption
-          is the section: model, prompt, author.
-
-          Publishing these is what the author agreed to. `consentAt` on every
-          record is consent to expose exactly this — the prompt, the settings and
-          the reference files — so the prompt is not a detail we are choosing to
-          leak, it is the thing they published. */}
-      <Rise className="-mx-5 flex gap-4 overflow-x-auto px-5 pb-4 sm:-mx-8 sm:px-8">
-        {reel.map((p) => (
-          <motion.figure key={p.id} variants={riseItem} className="flex w-[230px] shrink-0 flex-col gap-3 md:w-[280px]">
-            <div className="vg-bezel">
-              <div className="relative h-[300px] w-full md:h-[360px]">
-                <Art family={familyOf(p.familyId)} />
-              </div>
-            </div>
-            <figcaption className="grid gap-1.5">
-              <span className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: "var(--vg-text-secondary)" }}>
-                <ModelMark vendor={familyOf(p.familyId)?.vendor ?? ""} size={14} />
-                <span lang="en">{familyOf(p.familyId)?.name ?? p.familyId}</span>
-              </span>
-              {/* The prompt is English in the seed data and will often be
-                  English in production too — people paste them from elsewhere —
-                  so it carries `dir="ltr"` on its own rather than inheriting the
-                  page's RTL and arriving with its punctuation rearranged. */}
-              <p className="line-clamp-3 text-[12px] leading-[1.85]" style={{ color: "var(--vg-text-muted)" }} dir="ltr">
-                {p.prompt}
-              </p>
-              <span className="text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
-                {t("lp_showcase_by")} <span lang="en">{p.author}</span>
-              </span>
-            </figcaption>
-          </motion.figure>
-        ))}
-      </Rise>
-    </Section>
-  );
-}
-
 /* ---------- plans ----------
-   The visual hierarchy mirrors the live /plans screen: credit and honest output
-   estimates first, then price and the purchase action. Landing keeps its group
-   tabs, while the card model stays recognisably the same as the app. */
-
-type PlanCycle = "monthly" | "annual";
-
-const PLAN_TAG_KEY = { test: "w_tag_test", gift: "w_tag_gift", popular: "w_tag_popular", best: "w_tag_best" } as const;
+   The cards are the plans screen's own — same component, same flip, same
+   numbers. The landing keeps only what is its own: the entry/main tabs, the
+   monthly/yearly switch, and the wash behind them. */
 
 function Plans({ plans, onSignIn }: { plans: readonly Plan[]; onSignIn: () => void }) {
   const { t } = useI18n();
   const [annual, setAnnual] = useState(false);
   const [group, setGroup] = useState<Plan["group"]>("entry");
+  const cycle: Cycle = annual ? "annual" : "monthly";
   const activePlans = plans.filter((plan) => plan.group === group).sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false));
   const groupTone = group === "entry" ? { rgb: "92 175 255", hex: "#5cafff" } : { rgb: "255 57 126", hex: "#ff397e" };
 
@@ -337,9 +238,18 @@ function Plans({ plans, onSignIn }: { plans: readonly Plan[]; onSignIn: () => vo
         transition={{ duration: 0.22 }}
         className={`grid gap-3 ${group === "entry" ? "sm:grid-cols-2 xl:grid-cols-4" : "lg:grid-cols-3"}`}
       >
-        {activePlans.map((plan) => (
-          <PlanCard key={plan.code} plan={plan} annual={annual} onSignIn={onSignIn} compact={group === "entry"} />
-        ))}
+        {activePlans.map((plan) =>
+          /* The plans screen's own cards — see `components/PlanCards`. The
+             landing drew a flat copy of them, which drifted into a second
+             design for the same plan; a visitor comparing the front page with
+             /plans was reading two answers. No account is passed: nobody is
+             signed in here, so the price is the list price. */
+          group === "entry" ? (
+            <EntryCard key={plan.code} plan={plan} cycle={cycle} current={false} onSelect={onSignIn} />
+          ) : (
+            <PlanCard key={plan.code} plan={plan} cycle={cycle} current={false} onSelect={onSignIn} />
+          ),
+        )}
       </motion.div>
 
       <div
@@ -353,182 +263,6 @@ function Plans({ plans, onSignIn }: { plans: readonly Plan[]; onSignIn: () => vo
         <span className="sm:hidden">{t("lp_plans_estimate_note")}</span>
       </div>
     </Section>
-  );
-}
-
-function LandingPlanTag({ plan }: { plan: Plan }) {
-  const { t } = useI18n();
-  if (!plan.tag) return null;
-  return (
-    <span
-      className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
-      style={
-        plan.popular
-          ? { background: "var(--color-accent)", color: "var(--color-on-accent)" }
-          : { background: "var(--color-card2)", color: "var(--color-ink2)" }
-      }
-    >
-      {t(PLAN_TAG_KEY[plan.tag])}
-    </span>
-  );
-}
-
-function LandingPlanEstimates({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
-  const { t, n } = useI18n();
-  const images = estImages(plan);
-  const videos = estVideos(plan);
-  const rows: { icon: typeof ImageSquare; count: number; unit: string; model: string | null }[] = [];
-  if (images != null) rows.push({ icon: ImageSquare, count: images, unit: t("w_est_img"), model: IMAGE_ANCHOR_NAME });
-  if (videos != null) rows.push({ icon: VideoCamera, count: videos, unit: t("w_est_vid"), model: VIDEO_ANCHOR_NAME });
-  if (rows.length === 0) return null;
-
-  return (
-    <div className={`flex flex-col gap-1 ${compact ? "text-[11px]" : "text-[12px]"} text-ink2`}>
-      {rows.map(({ icon: Icon, count, unit, model }) => (
-        <span key={unit} className="flex min-w-0 items-center gap-1.5">
-          <Icon size={compact ? 12 : 14} className="shrink-0 text-accent" />
-          <span className="tabular-nums font-semibold text-ink">{n(count)}</span>
-          <span className="shrink-0">{unit}</span>
-          {model && (
-            <span className="truncate text-ink3">
-              {t("w_est_with")} <bdi>{model}</bdi>
-            </span>
-          )}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function LandingPlanPrice({ plan, cycle }: { plan: Plan; cycle: PlanCycle }) {
-  const { t, n, lang } = useI18n();
-  const annual = cycle === "annual" && plan.annualUsdPerMonth != null;
-  const perMonth = effectiveUsd(plan, annual);
-  const total = annualTotalUsd(plan);
-  const off = annualDiscountPct(plan);
-  const pct = lang === "fa" ? "٪" : "%";
-
-  return (
-    <>
-      {annual && off > 0 && (
-        <div className="mb-1 text-[10.5px] text-ink3">
-          <s>{n(toman(effectiveUsd(plan, false)))}</s> · {pct}
-          {n(off)} {t("pl_save")}
-        </div>
-      )}
-      <div className="flex items-baseline gap-1.5">
-        <span className="font-display text-[22px] font-semibold leading-none tabular-nums">{n(toman(perMonth))}</span>
-        <span className="text-[11px] text-ink2">
-          {t("w_toman")} {t("pl_per_month")}
-        </span>
-      </div>
-      {annual && total != null && (
-        <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink2">
-          <CalendarCheck size={12} weight="fill" className="shrink-0 text-accent" />
-          {t("pl_today")}: {n(toman(total))} {t("w_toman")} ({t("pl_billed_annual")})
-        </div>
-      )}
-      {cycle === "annual" && plan.annualUsdPerMonth == null && <div className="mt-1 text-[10.5px] text-ink3">{t("pl_monthly_only")}</div>}
-    </>
-  );
-}
-
-function PlanCard({ plan, annual, onSignIn, compact = false }: { plan: Plan; annual: boolean; onSignIn: () => void; compact?: boolean }) {
-  const { t, n } = useI18n();
-  const cycle: PlanCycle = annual ? "annual" : "monthly";
-  const buyKey = cycle === "annual" && plan.annualUsdPerMonth != null ? "pl_buy_12m" : "pl_buy_30";
-
-  if (compact) {
-    return (
-      <motion.article
-        data-testid={`landing-plan-${plan.code}`}
-        whileHover={{ y: -3 }}
-        transition={{ type: "spring", stiffness: 300, damping: 24 }}
-        className="relative flex flex-col gap-2 rounded-card border bg-card p-3.5"
-        style={{ borderColor: "var(--color-line)" }}
-      >
-        {plan.tag && (
-          <span className="absolute -top-2 start-3">
-            <LandingPlanTag plan={plan} />
-          </span>
-        )}
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="font-display text-[12.5px] font-semibold tracking-wide text-accent" lang="en">
-            {plan.name}
-          </span>
-          <span className="flex items-baseline gap-1">
-            <span className="text-[19px] font-semibold tabular-nums">{n(plan.coinsPerTerm)}</span>
-            <span className="text-[11px] text-ink2">{t("w_coins")}</span>
-          </span>
-        </div>
-        <LandingPlanEstimates plan={plan} compact />
-        <div className="mt-0.5">
-          <LandingPlanPrice plan={plan} cycle={cycle} />
-        </div>
-        <button onClick={onSignIn} className="btn-quiet mt-auto flex items-center justify-center rounded-xl py-2 text-[12px] font-bold">
-          {t(buyKey)}
-        </button>
-      </motion.article>
-    );
-  }
-
-  return (
-    <motion.article
-      data-testid={`landing-plan-${plan.code}`}
-      whileHover={{ y: -4 }}
-      transition={{ type: "spring", stiffness: 300, damping: 24 }}
-      className="flex flex-col gap-3.5 rounded-bezel border bg-card p-4"
-      style={{
-        borderColor: plan.popular ? "var(--color-accent)" : "var(--color-line)",
-        boxShadow: plan.popular ? "0 26px 72px -48px var(--color-accent)" : undefined,
-      }}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <span className="font-display text-[15px] font-semibold tracking-wide text-accent" lang="en">
-          {plan.name}
-        </span>
-        <LandingPlanTag plan={plan} />
-      </div>
-
-      <div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="font-display text-[30px] font-semibold leading-none tabular-nums">{n(plan.coinsPerTerm)}</span>
-          <span className="text-[13px] text-ink2">{t("pl_coins_month")}</span>
-        </div>
-        {plan.bonusCoins > 0 && (
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-400">
-            <Gift size={12} weight="fill" />
-            {n(plan.bonusCoins)} {t("w_gift")}
-          </div>
-        )}
-      </div>
-
-      <LandingPlanEstimates plan={plan} />
-
-      {plan.tier === 3 && (
-        <div className="rounded-xl border border-line bg-card2/70 px-3 py-2.5">
-          <div className="flex items-center gap-2 text-[11px] font-semibold text-ink">
-            <span className="text-[15px] text-accent" aria-hidden>
-              ∞
-            </span>
-            <span dir="ltr">{t("lp_plan_unlimited")}</span>
-          </div>
-          <div className="mt-0.5 text-[10px] text-ink3" dir="ltr">
-            {t("lp_plan_unlimited_models")}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-auto border-t border-line pt-3">
-        <LandingPlanPrice plan={plan} cycle={cycle} />
-        <button
-          onClick={onSignIn}
-          className={`${plan.popular ? "btn-accent" : "btn-quiet"} mt-3 flex w-full items-center justify-center rounded-2xl py-3 text-[13.5px] font-bold`}
-        >
-          {t(buyKey)}
-        </button>
-      </div>
-    </motion.article>
   );
 }
 
@@ -726,13 +460,11 @@ function Footer() {
  */
 export default function Landing({
   plans,
-  posts,
   onSignIn,
   onSignUp,
   signedIn,
 }: {
   plans: readonly Plan[];
-  posts: readonly CommunityPost[];
   onSignIn: () => void;
   onSignUp: () => void;
   /** Reachable from the wordmark while signed in, where the auth CTAs do not apply. */
@@ -753,7 +485,7 @@ export default function Landing({
       }}
     >
       {/* Keep the first public pass visual and product-led: hero, tool mosaic,
-          real outputs, plans and common questions. Editorial sections inspired
+          plans and common questions. Editorial sections inspired
           by creator platforms can be inserted later without carrying over the
           temporary calculator, comparison, steps or trust blocks. */}
       {/* Nav, hero and the model band come from the Tailark block as given —
@@ -763,7 +495,6 @@ export default function Landing({
           verbatim is listed at the top of that file. */}
       <HeroSection plans={plans} onSignIn={onSignIn} onSignUp={onSignUp} signedIn={signedIn} />
       <Features />
-      <Reel posts={posts} />
       <Plans plans={plans} onSignIn={onSignUp} />
       <Faq />
       <Closing onSignIn={onSignUp} />
