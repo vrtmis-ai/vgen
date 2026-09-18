@@ -21,6 +21,7 @@ import { useAuth } from "../features/session/useAuth";
 import { useSession } from "../features/session/useSession";
 import { faNum, latinDigits } from "../lib/format";
 import { useI18n, type TKey } from "../lib/i18n";
+import { PasswordInput } from "../components/PasswordInput";
 import { EASE_OUT } from "../lib/motion";
 import { ApiError } from "../runtime/apiError";
 import { SIGN_IN_PATH, SIGN_UP_PATH } from "../runtime/providers/authActions";
@@ -701,14 +702,13 @@ export default function Auth({ mode }: { mode: AuthMode }) {
                 error={onEmailForm ? failureText : undefined}
               >
                 {({ id, describedBy }) => (
-                  <input
+                  <PasswordInput
                     id={id}
                     aria-describedby={describedBy}
                     className={`${PILL} focus:border-accent`}
                     style={pillStyle}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    type="password"
                     // Only the sign-up form states the floor. `login` accepts
                     // min(1) on purpose, so that the password rules are not
                     // leaked to someone guessing at an existing account.
