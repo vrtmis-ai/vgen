@@ -72,7 +72,7 @@ const dict = {
     lp_signup: "رایگان بساز",
     lp_hero_title: "ایده‌ات را بساز؛ از اولین فریم تا صدای آخر",
     lp_hero_sub: "تصویر، ویدیو و صدا را با مدل‌های روز دنیا در یک استودیو بساز. فارسی بنویس و با کارت ایرانی شروع کن.",
-    lp_cta_start: "رایگان شروع کن",
+    lp_cta_start: "رایگان بساز",
     lp_cta_secondary: "ببین با دیو چه می‌سازی",
     /** {n} تومان ماهانه، {c} سکه — هر دو از PLANS مشتق می‌شوند. */
     lp_hero_from: "پلن‌ها از {n} تومان؛ همراه {c} سکه",
@@ -547,7 +547,7 @@ const dict = {
     lp_signup: "Create for free",
     lp_hero_title: "Build your idea, from the first frame to the final sound",
     lp_hero_sub: "Create images, video, and voice with leading models in one studio. Write in Persian and pay with an Iranian card.",
-    lp_cta_start: "Start creating for free",
+    lp_cta_start: "Create for free",
     lp_cta_secondary: "See what DEEV can make",
     lp_hero_from: "Plans from {n} toman, with {c} coins",
     lp_kind_video: "Video",

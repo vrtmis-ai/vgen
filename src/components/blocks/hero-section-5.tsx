@@ -148,19 +148,20 @@ export function HeroSection({
                 </p>
 
                 <div className="mt-12 flex flex-col items-center justify-center gap-2 sm:flex-row lg:justify-start">
-                  <Button
+                  {/* The one paid action on the page, and the only button
+                      wearing the gleam — a light running its border instead of
+                      a lime slab sitting on the photograph. See `.vg-gleam`. */}
+                  <button
+                    type="button"
                     onClick={onSignUp}
-                    size="lg"
-                    className="h-12 rounded-full ps-5 pe-3 text-base font-bold"
-                    style={{
-                      background: "var(--vg-primary)",
-                      color: "var(--vg-text-on-primary)",
-                      boxShadow: "0 0 48px rgb(var(--vg-primary-rgb) / 0.35)",
-                    }}
+                    className="vg-gleam h-12 px-6 text-base font-bold"
+                    style={{ boxShadow: "inset 0 0 0 1px var(--vg-surface), 0 0 48px rgb(var(--vg-primary-rgb) / 0.22)" }}
                   >
-                    <span className="text-nowrap">{t("lp_cta_start")}</span>
-                    <ChevronLeft className="ms-1 size-5" />
-                  </Button>
+                    <span className="flex items-center gap-1 text-nowrap">
+                      {t("lp_cta_start")}
+                      <ChevronLeft className="size-5" />
+                    </span>
+                  </button>
                   <Button
                     key={2}
                     asChild
