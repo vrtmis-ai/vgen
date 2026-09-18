@@ -10,7 +10,17 @@ import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "DEEV",
-  icons: { icon: "/favicon.svg" },
+  /* The mark, in the three forms the platforms actually ask for: the SVG for
+     browsers that take one, a 32px PNG for the ones that do not, and the 180px
+     tile iOS uses when the site is kept on a home screen. All three are the
+     same traced artwork — see `src/components/brandMarks.tsx`. */
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/apple-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -19,7 +29,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#0e1012",
+  themeColor: "#0a0c0d",
 };
 
 /**

@@ -1,3 +1,4 @@
+import { Wordmark } from "./brandMarks";
 import { BRAND } from "../data/brand";
 
 export function AppLoading({ label = "در حال آماده‌سازی فضای کار…" }: { label?: string | undefined }) {
@@ -5,8 +6,8 @@ export function AppLoading({ label = "در حال آماده‌سازی فضای
     <main className="min-h-[100dvh] bg-surface text-ink" aria-busy="true" aria-label={label}>
       <header className="border-b border-line px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-[var(--vg-container-max)] items-center justify-between">
-          <span className="text-[17px] font-bold" style={{ fontFamily: "var(--vg-font-display)" }}>
-            {BRAND.name}
+          <span>
+            <Wordmark height={18} title={BRAND.name} />
           </span>
           <span className="t-ghost" lang="en">
             LOADING WORKSPACE

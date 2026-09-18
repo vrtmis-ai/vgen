@@ -5,6 +5,7 @@ import type { NavMenus } from "./navMenu";
 import { useI18n, type TKey } from "../lib/i18n";
 import { useEdgeFade } from "../lib/useEdgeFade";
 import { useMediaQuery } from "../lib/useMediaQuery";
+import { Wordmark } from "./brandMarks";
 import { BRAND } from "../data/brand";
 
 /* ---------------------------------------------------------------------------
@@ -103,13 +104,8 @@ export function TopBar({
       <div className="mx-auto flex h-11 max-w-[var(--vg-container-max)] items-center gap-3 px-4 md:px-6">
         {/* Wordmark leads the row. In RTL that puts it on the right, which is
             where the reference puts it in LTR — the same position, mirrored. */}
-        <button
-          onClick={onHome}
-          aria-label={BRAND.name}
-          className="shrink-0 text-[17px] font-light tracking-[0.34em]"
-          style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-        >
-          {BRAND.name}
+        <button onClick={onHome} aria-label={BRAND.name} className="shrink-0" style={{ color: "var(--vg-text)" }}>
+          <Wordmark height={18} />
         </button>
 
         {/* hide-scrollbar: the row is meant to scroll on narrow viewports, but a

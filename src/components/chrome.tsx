@@ -1,28 +1,31 @@
 import { motion } from "framer-motion";
 import { House, ImagesSquare, UsersThree, UserCircle, Plus } from "@phosphor-icons/react";
 import { useI18n } from "../lib/i18n";
+import { Mark, Wordmark } from "./brandMarks";
 import { BRAND } from "../data/brand";
 
 /** Metaball "blob" brand mark. Gooey filter fuses the three circles. */
+/**
+ * The mark, where a screen wants the brand as an object rather than a lockup.
+ *
+ * It used to be three blurred circles gooed together in the old orange — a
+ * placeholder from before there was a logo. `animate` gives it the same slow
+ * breath it had, which is what the result screen uses while a job runs.
+ */
 export function Logo({ size = 26, animate = false }: { size?: number; animate?: boolean }) {
-  const float = (delay: number) =>
-    animate
-      ? { animate: { translateY: [0, -1.4, 0] }, transition: { duration: 2.4, repeat: Infinity, ease: "easeInOut" as const, delay } }
-      : {};
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden style={{ color: "var(--color-accent)" }}>
-      <defs>
-        <filter id="vg-goo">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="1.6" result="b" />
-          <feColorMatrix in="b" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8" />
-        </filter>
-      </defs>
-      <g filter="url(#vg-goo)" fill="currentColor">
-        <motion.circle cx="15" cy="16" r="10" {...float(0)} />
-        <motion.circle cx="26" cy="22" r="8.5" {...float(0.5)} />
-        <motion.circle cx="17.5" cy="27" r="6.5" {...float(1)} />
-      </g>
-    </svg>
+    <motion.span
+      className="inline-block"
+      style={{ color: "var(--vg-text)" }}
+      {...(animate
+        ? {
+            animate: { scale: [1, 1.04, 1], opacity: [0.85, 1, 0.85] },
+            transition: { duration: 2.4, repeat: Infinity, ease: "easeInOut" as const },
+          }
+        : {})}
+    >
+      <Mark size={size} />
+    </motion.span>
   );
 }
 
@@ -146,11 +149,8 @@ export function SideNav({
       }}
     >
       <div className="flex h-16 items-center px-5" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>
-        <span
-          className="text-[20px] font-light tracking-[0.34em]"
-          style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-        >
-          {BRAND.name}
+        <span style={{ color: "var(--vg-text)" }}>
+          <Wordmark height={20} title={BRAND.name} />
         </span>
       </div>
 

@@ -12,6 +12,7 @@ import { ModelMark, hasModelMark } from "@/components/ModelMark";
 import { MegaMenu } from "@/components/MegaMenu";
 import { useNavMenus } from "@/components/navMenu";
 import type { NavKey } from "@/components/TopBar";
+import { Wordmark } from "@/components/brandMarks";
 import { BRAND } from "@/data/brand";
 import { useCatalogFamilies } from "@/features/catalog/CatalogProvider";
 import { effectiveUsd, toman } from "@/data/plans";
@@ -339,11 +340,8 @@ const HeroHeader = ({ onSignIn, onSignUp, signedIn }: { onSignIn: () => void; on
                 aria-label={BRAND.name}
                 className="flex items-center gap-2"
               >
-                <span
-                  className="text-[20px] font-light tracking-[0.34em]"
-                  style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-                >
-                  {BRAND.name}
+                <span style={{ color: "var(--vg-text)" }}>
+                  <Wordmark height={20} />
                 </span>
               </button>
 

@@ -8,6 +8,7 @@ import { HeroSection } from "../components/blocks/hero-section-5";
 import { FeaturesBento } from "../components/blocks/bento-features";
 import { useI18n, type TKey } from "../lib/i18n";
 import { riseParent } from "../lib/motion";
+import { Wordmark } from "../components/brandMarks";
 import { BRAND } from "../data/brand";
 
 /* Built from stitch-export/desktop/vgen-persian-home-unified.html.
@@ -409,11 +410,8 @@ function Footer() {
     <footer className="px-5 pb-10 pt-14 sm:px-8">
       <div className="mx-auto grid w-full max-w-[1600px] gap-10 lg:px-2 md:grid-cols-[1.5fr_1fr_1fr]">
         <div className="grid gap-3">
-          <span
-            className="text-[18px] font-light tracking-[0.34em]"
-            style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-          >
-            {BRAND.name}
+          <span style={{ color: "var(--vg-text)" }}>
+            <Wordmark height={20} title={BRAND.name} />
           </span>
           <span className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
             <Check size={13} weight="bold" />

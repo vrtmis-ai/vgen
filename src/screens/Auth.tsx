@@ -16,6 +16,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { DotField } from "../components/DotField";
 import { AuthProviderMark } from "../components/AuthProviderMark";
+import { Wordmark } from "../components/brandMarks";
 import { BRAND } from "../data/brand";
 import { useAuth } from "../features/session/useAuth";
 import { useSession } from "../features/session/useSession";
@@ -538,12 +539,8 @@ export default function Auth({ mode }: { mode: AuthMode }) {
               is hidden during the code step, leaving somebody mid-OTP with no
               way back to the site except the browser's own button. */}
           <a href="/" aria-label={BRAND.name} className="mb-10 flex flex-col items-center text-center">
-            <span
-              className="text-[18px] font-light tracking-[0.34em]"
-              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-              lang="en"
-            >
-              {BRAND.name}
+            <span style={{ color: "var(--vg-text)" }}>
+              <Wordmark height={22} />
             </span>
             <span
               className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.2em]"
