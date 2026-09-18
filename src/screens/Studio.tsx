@@ -138,11 +138,7 @@ export default function Studio({
   return (
     // The panel is a flex sibling of the canvas rather than a fixed overlay, so
     // it can simply stack above the canvas below `md` with no second layout.
-    /* `vg-grain` is fixed by design — it belongs to the page, not to this
-       element — so it grains the dock as well as the canvas. That is the
-       prototype's arrangement too: its noise layer sits on the stage, and the
-       nodes are on the stage. */
-    <div className="vg-grain flex flex-col md:flex-row md:items-start">
+    <div className="flex flex-col md:flex-row md:items-start">
       {/* See StudioImage. The visible heading below belongs to the empty state
           only, so once there is history this page had no h1 at all. */}
       <h1 className="sr-only">{kind === "video" ? "ساخت ویدیو" : "ساخت"}</h1>
@@ -151,11 +147,10 @@ export default function Studio({
       <main
         // @container so the header's view controls size against this canvas
         // rather than the viewport — see ViewControls and StudioAudio.
-        /* The canvas is a lit ground, not a hole. `vg-canvas-field` puts the
-           dot grid and the brand wash behind it — see index.css. Empty is the
-           state this screen opens in, and an empty dark rectangle reads as a
-           thing that failed to load. */
-        className="vg-canvas-field @container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
+        /* No ground of its own: the page is the lit ground now (`.vg-stage`
+           in Shell), and this canvas paints nothing so it shows through. The
+           dock beside it is opaque, which is what keeps the two apart. */
+        className="@container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
         style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}
       >
         {/* Their canvas heads with two pill tabs on the leading side and the

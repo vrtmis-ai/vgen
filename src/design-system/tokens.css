@@ -16,7 +16,13 @@
      In near-black, shadows are invisible; elevation is expressed as surface
      lightness. Each step is a real level, not decoration.
      --------------------------------------------------------------------- */
-  --vg-canvas: #0e1012; /* level 0 — page background            */
+  /* Level 0, and the one the whole ladder is read against. Taken down from
+     #0e1012 to sit nearer the prototype's #080808: the studio work put every
+     screen on a lit stage, and a canvas only two steps under `--vg-surface`
+     left the panels standing on it with nothing between them. Darker here
+     raises the contrast of everything printed on it, so nothing that passed
+     before stops passing. */
+  --vg-canvas: #0a0c0d; /* level 0 — page background            */
   /* The create panel's own ground. Measured off their audio panel: it sits a
      step above the canvas so the column reads as a separate surface without a
      divider doing the work. */

@@ -23,7 +23,7 @@ import { usePublishedContent } from "../features/content/ContentProvider";
 import { VoicePicker } from "../components/VoicePicker";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { CoinMark } from "../components/chrome";
-import { Panel, PanelHead, PanelShell, PanelTabs, Section } from "../components/FormPanel";
+import { Panel, PanelHead, PanelShell, PanelTabs, Section } from "../components/Panel";
 import { ModelPicker } from "../components/ModelPicker";
 import { useIgnition } from "../components/Ignition";
 import { FailedVeil } from "../components/GenerationVeils";

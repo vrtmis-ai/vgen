@@ -9,7 +9,7 @@ import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
 import { ControlField, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
-import { Panel, PanelHead, PanelShell, Section } from "../components/FormPanel";
+import { Panel, PanelHead, PanelShell, Section } from "../components/Panel";
 import { RefBox } from "../components/RefBox";
 import { useIgnition } from "../components/Ignition";
 import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
@@ -275,10 +275,9 @@ export default function Generate({
                 : t(refusal === "not_offered" ? "g_no_rate" : "g_no_price");
 
   return (
-    /* The studios' own shape: a dock that stays put and a canvas that fills the
-       rest, stacking on a phone. `vg-grain` belongs to the page, so it grains
-       both. */
-    <div className="vg-grain flex flex-col md:flex-row md:items-start">
+    /* The studios' own shape: a dock that stays put and a canvas that fills
+       the rest, stacking on a phone. Both stand on the page's stage. */
+    <div className="flex flex-col md:flex-row md:items-start">
       {/* The page's own title, for a screen reader arriving on a route change.
           The dock names the model on screen. */}
       <h1 className="sr-only">
@@ -566,7 +565,7 @@ export default function Generate({
 
       {/* The canvas: what this model has made for this account. */}
       <main
-        className="vg-canvas-field @container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
+        className="@container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
         style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}
       >
         <div className="mb-4 flex items-baseline justify-between gap-3">

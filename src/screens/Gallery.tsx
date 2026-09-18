@@ -5,6 +5,7 @@ import { displayAspect, type Generation } from "../lib/gallery";
 import type { ModelKind } from "../data/models";
 import { GenerationMedia } from "../components/GenerationMedia";
 import { ViewControls, useViewMode } from "../components/ViewControls";
+import { PANEL_RING } from "../components/Panel";
 import { jobFailureMessage } from "../features/generation/validation";
 import { useI18n } from "../lib/i18n";
 
@@ -62,8 +63,8 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: Math.min(i, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
           onClick={onOpen}
-          className={`flex w-full items-center gap-3 rounded-xl border border-line p-2 text-start ${failed ? "pe-11" : ""}`}
-          style={{ background: "var(--vg-surface)" }}
+          className={`flex w-full items-center gap-3 rounded-[11px] p-2 text-start ${failed ? "pe-11" : ""}`}
+          style={{ background: "var(--vg-surface)", boxShadow: PANEL_RING }}
         >
           <span className="relative size-14 shrink-0 overflow-hidden rounded-lg" style={{ background: g.grad }}>
             <GenerationMedia gen={g} />
@@ -215,10 +216,30 @@ export default function Gallery({
     // for the density group. Without a container ancestor the query can never
     // match and the control disappears. Full width here, so it tracks the page.
     <div className="@container relative z-10 mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-16 pt-5 md:px-8">
-      <h1 className="text-[19px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
-        {t("gal_title")}
-      </h1>
-      <p className="mt-0.5 text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
+      {/* The prototype's lockup: a Latin ghost label over the title, and the
+          count as a pill beside it rather than a number in the prose. Persian
+          has no uppercase to buy presence with, which is what `.t-ghost` was
+          added for. */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <span className="t-ghost block" lang="en">
+            My work
+          </span>
+          <h1 className="mt-1 text-[19px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+            {t("gal_title")}
+          </h1>
+        </div>
+        {gens.length > 0 && (
+          <span
+            className="flex h-7 items-center gap-2 rounded-full px-3 text-[11.5px]"
+            style={{ border: "1px solid var(--vg-border-subtle)", color: "var(--vg-text-muted)" }}
+          >
+            <i className="size-[5px] rounded-full" style={{ background: "var(--vg-primary)" }} aria-hidden />
+            <span className="vg-numeric">{n(gens.length)}</span> {t("gal_title")}
+          </span>
+        )}
+      </div>
+      <p className="mt-1 text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
         هرچه ساخته‌ای اینجاست. هیچ‌کدام تا وقتی خودت نخواهی عمومی نمی‌شود.
       </p>
 
@@ -232,11 +253,11 @@ export default function Gallery({
                 key={f.key}
                 onClick={() => setFilter(f.key)}
                 aria-pressed={on}
-                className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
+                className="vg-ease flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold"
                 style={{
-                  background: on ? "var(--vg-primary-a14)" : "var(--vg-surface)",
+                  background: on ? "var(--vg-primary-a14)" : "transparent",
                   color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
-                  border: "1px solid var(--vg-border-subtle)",
+                  boxShadow: on ? "inset 0 0 0 1px var(--vg-primary-a40)" : "inset 0 0 0 1px var(--vg-border-subtle)",
                 }}
               >
                 {f.label}
