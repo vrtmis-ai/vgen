@@ -16,7 +16,6 @@ import type { GenerationQuote } from "../contracts/generation";
 import { appQueryKeys } from "../../features/session/useSession";
 import { useAppServices } from "../AppServices";
 import { useIsVisitor } from "./SessionProvider";
-import { useNavigation } from "./NavigationProvider";
 
 interface StartedGeneration {
   generation: Generation;
@@ -104,7 +103,6 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   const families = useCatalogFamilies();
   const visitor = useIsVisitor();
   const services = useAppServices();
-  const navigation = useNavigation();
   const createGeneration = useCreateGeneration();
   const queryClient = useQueryClient();
   const pendingRef = useRef(false);
@@ -366,31 +364,29 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   );
 
   /* The studios' start button, and the one place all three of them route
-     through — so it is the one place that has to answer "what just happened".
+     through.
 
-     It used to answer nothing. The job was submitted, the coins were held, and
-     the page did not move: the new generation appeared as a tile somewhere in
-     the canvas the user was not necessarily looking at, and on the video studio
-     it is below a 320px form panel. Pressing a button that costs money and
-     watching the screen stay exactly as it was reads as a dead button, and it
-     was reported as one.
+     It does not move the page. For a while it did — to کارهای من, the moment a
+     job was accepted (#74) — because the new generation used to appear
+     somewhere the customer was not looking and the button read as dead. That
+     problem was real. Leaving the page was the wrong answer to it: the studio
+     is a workbench, people send several in a row from one form, and a page
+     change after every press threw them out of it. It also carried the button
+     off screen before its field had finished drawing.
 
-     So it goes where the work is. `setTab("gallery")` rather than the result
-     page: the studios are where people submit several in a row, and کارهای من
-     is the screen that holds all of them with their progress — landing on one
-     result would hide the other four.
+     So the studios answer on their own canvas now. The button lights, the job
+     arrives first on the canvas as a running card, and a refusal lands in the
+     same place with its reason. None of that needs anything from here beyond
+     the job being in `gens`, which it is before this promise settles.
 
-     Only on success. A refusal has an error to show and moving the page would
-     take the user away from the form that produced it. */
+     A request that throws still takes over the screen below, as before. */
   const requestGeneration = useCallback(
     (familyId: string, prompt: string, input: InputMap, variant: Variant, options?: GenerationRequestOptions) => {
-      void startGeneration(familyId, prompt, input, variant, options)
-        .then((started) => {
-          if (started) navigation.setTab("gallery");
-        })
-        .catch((error: unknown) => setOperationError(error instanceof Error ? error : new Error(String(error))));
+      void startGeneration(familyId, prompt, input, variant, options).catch((error: unknown) =>
+        setOperationError(error instanceof Error ? error : new Error(String(error))),
+      );
     },
-    [navigation, startGeneration],
+    [startGeneration],
   );
 
   const removeGeneration = useCallback(

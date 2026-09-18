@@ -140,9 +140,6 @@ const dict = {
     lp_footer: "دیو؛ جایی برای ساختن",
 
     // ── 02 showcase ────────────────────────────────────────────────────────
-    lp_showcase_title: "این‌ها با دیو ساخته شده‌اند",
-    lp_showcase_sub: "روی هر کار بزن تا مدل و پرامپتی که با آن ساخته شده را ببینی.",
-    lp_showcase_by: "از",
 
     // ── 06 features, the bento ─────────────────────────────────────────────
     // Counts arrive from the live catalog rather than being baked into copy.
@@ -440,6 +437,7 @@ const dict = {
     g_settings: "تنظیمات",
     g_advanced: "تنظیمات پیشرفته",
     g_create: "ساخت",
+    g_back: "بازگشت",
     g_est_for: "سکه برای این تنظیمات",
     auth_signed_out: "برای ساختن، اول وارد شو",
     g_no_rate: "این ترکیب تنظیمات پشتیبانی نمی‌شود",
@@ -622,9 +620,6 @@ const dict = {
     lp_footer: "DEEV, a place to create",
 
     // ── 02 showcase ────────────────────────────────────────────────────────
-    lp_showcase_title: "These were made with DEEV",
-    lp_showcase_sub: "Open any piece to see the model and prompt behind it.",
-    lp_showcase_by: "by",
 
     // ── 06 features, the bento ─────────────────────────────────────────────
     lp_features_title: "Everything you need to create",
@@ -907,6 +902,7 @@ const dict = {
     g_settings: "Settings",
     g_advanced: "Advanced settings",
     g_create: "Create",
+    g_back: "Back",
     g_est_for: "coins for these settings",
     auth_signed_out: "Sign in to start creating",
     g_no_rate: "This combination of settings isn't supported",

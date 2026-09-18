@@ -11,7 +11,6 @@ import { PlansProvider } from "../features/plans/PlansProvider";
 import { ContentProvider } from "../features/content/ContentProvider";
 import { createDemoCatalogService } from "../adapters/demo/catalog";
 import { createDemoContentService } from "../adapters/demo/content";
-import { createDemoCommunityService } from "../adapters/demo/community";
 import type { CatalogSnapshot } from "../runtime/contracts/catalog";
 
 /** The header's model menus route with the App Router, which no test mounts. */
@@ -24,7 +23,6 @@ vi.mock("next/navigation", () => ({ useRouter: () => nav }));
 // these tests read what a visitor with no session actually gets.
 const content = await createDemoContentService(() => 0).list();
 const catalog = await createDemoCatalogService(() => 0).list();
-const { posts } = await createDemoCommunityService().list();
 
 /**
  * Deliberately not the seed constant: the landing page prices in Toman at the
@@ -50,7 +48,7 @@ function withProviders(ui: React.ReactNode, families: CatalogSnapshot["families"
 // from the server, which is what lets <html dir> be correct in the first byte.
 describe("Landing authentication actions", () => {
   it("renders the DEEV product name", () => {
-    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     expect(within(screen.getByRole("banner")).getByText("DEEV")).toBeInTheDocument();
   });
@@ -60,7 +58,7 @@ describe("Landing authentication actions", () => {
     // `(nav)/layout.tsx` — so the menus have to be wired here separately, and
     // this is the test that says so. They were missing here once already.
     const user = userEvent.setup();
-    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     const header = within(screen.getByRole("banner"));
     await user.hover(header.getByRole("button", { name: "Video" }));
@@ -81,7 +79,7 @@ describe("Landing authentication actions", () => {
     // before pressing it, which opens the panel by hover and makes the press a
     // close. What is under test here is the keyboard path, where no hover
     // happens and the button is the only way in.
-    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     const header = within(screen.getByRole("banner"));
     const disclosure = header.getByRole("button", { name: "Video models" });
@@ -97,7 +95,7 @@ describe("Landing authentication actions", () => {
 
   it("keeps the item itself a destination rather than only a menu", async () => {
     const user = userEvent.setup();
-    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     await user.click(within(screen.getByRole("banner")).getByRole("button", { name: "Video" }));
 
@@ -106,7 +104,7 @@ describe("Landing authentication actions", () => {
 
   it("sends a model picked from the header menu to its generate route", async () => {
     const user = userEvent.setup();
-    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     const header = within(screen.getByRole("banner"));
     await user.hover(header.getByRole("button", { name: "Video" }));
@@ -122,7 +120,7 @@ describe("Landing authentication actions", () => {
     const onSignIn = vi.fn();
     const onSignUp = vi.fn();
 
-    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={onSignIn} onSignUp={onSignUp} />));
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={onSignIn} onSignUp={onSignUp} />));
 
     const navigation = screen.getByRole("banner");
     await user.click(within(navigation).getByTestId("landing-login"));
@@ -157,7 +155,7 @@ describe("Landing hero model row", () => {
   });
 
   it("shows every one of them to the visitor", () => {
-    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     for (const id of HERO_MODEL_IDS) {
       const family = catalog.families.find((f) => f.id === id)!;
@@ -181,7 +179,7 @@ describe("Landing logo band", () => {
 
   it("carries the served families that resolve to a logo", () => {
     expect(bandOnly.length).toBeGreaterThan(0);
-    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     for (const family of bandOnly) expect(screen.getAllByText(family.name).length).toBeGreaterThan(0);
   });
@@ -191,13 +189,13 @@ describe("Landing logo band", () => {
     // database and it leaves the page. Reading the bundled list, it did not.
     const retired = bandOnly[0]!;
 
-    const first = render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+    const first = render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
     expect(screen.getAllByText(retired.name).length).toBeGreaterThan(0);
     first.unmount();
 
     render(
       withProviders(
-        <Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />,
+        <Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />,
         catalog.families.filter((family) => family.id !== retired.id),
       ),
     );
@@ -207,15 +205,12 @@ describe("Landing logo band", () => {
 });
 
 describe("Landing feature bento", () => {
-  it("puts the product features before the showcase", () => {
-    const { container } = render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+  it("stands on its own, with every card the bento promises", () => {
+    const { container } = render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     const features = container.querySelector("#features");
-    const showcase = container.querySelector("#showcase");
 
     expect(features).toBeInTheDocument();
-    expect(showcase).toBeInTheDocument();
-    expect(features!.compareDocumentPosition(showcase!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 
     const featureSection = within(features as HTMLElement);
     expect(featureSection.queryByRole("navigation")).not.toBeInTheDocument();
@@ -229,46 +224,56 @@ describe("Landing feature bento", () => {
 describe("Landing pricing", () => {
   it("separates personal and professional plans while keeping the cheapest plan first in RTL", async () => {
     const user = userEvent.setup();
-    render(withProviders(<Landing plans={PLAN_LADDER} posts={posts} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
+    render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
     const personal = PLAN_LADDER.filter((plan) => plan.group === "entry").sort((a, b) => a.monthlyUsd - b.monthlyUsd);
     const professional = PLAN_LADDER.filter((plan) => plan.group === "main").sort((a, b) => a.monthlyUsd - b.monthlyUsd);
 
     for (const plan of personal) {
-      expect(screen.getByTestId(`landing-plan-${plan.code}`)).toHaveTextContent(plan.name);
+      expect(screen.getByTestId(`plan-card-${plan.code}`)).toHaveTextContent(plan.name);
     }
     for (const plan of professional) {
-      expect(screen.queryByTestId(`landing-plan-${plan.code}`)).not.toBeInTheDocument();
+      expect(screen.queryByTestId(`plan-card-${plan.code}`)).not.toBeInTheDocument();
     }
 
     const personalGrid = screen.getByTestId("landing-plan-grid");
     expect(personalGrid).toHaveAttribute("dir", "rtl");
     expect(
       within(personalGrid)
-        .getAllByTestId(/landing-plan-/)
+        .getAllByTestId(/plan-card-/)
         .map((card) => card.dataset.testid),
-    ).toEqual(personal.map((plan) => `landing-plan-${plan.code}`));
+    ).toEqual(personal.map((plan) => `plan-card-${plan.code}`));
 
     const cheapest = [...PLAN_LADDER].sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false))[0]!;
-    const cheapestCard = screen.getByTestId(`landing-plan-${cheapest.code}`);
+    const cheapestCard = screen.getByTestId(`plan-card-${cheapest.code}`);
     expect(cheapestCard).toHaveTextContent(toman(effectiveUsd(cheapest, false), RATE).toLocaleString("en-US"));
     expect(within(cheapestCard).getByRole("button", { name: "Buy 30 days" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Professional plans" }));
 
     for (const plan of professional) {
-      expect(screen.getByTestId(`landing-plan-${plan.code}`)).toHaveTextContent(plan.name);
+      expect(screen.getByTestId(`plan-card-${plan.code}`)).toHaveTextContent(plan.name);
     }
     for (const plan of personal) {
-      expect(screen.queryByTestId(`landing-plan-${plan.code}`)).not.toBeInTheDocument();
+      expect(screen.queryByTestId(`plan-card-${plan.code}`)).not.toBeInTheDocument();
     }
-    expect(screen.getAllByText("Unlimited Generation")).toHaveLength(2);
-    expect(screen.getAllByText("Nano Banana Pro · Nano Banana 2")).toHaveLength(2);
-    expect(document.body).not.toHaveTextContent(/(?:50|۵۰).*(?:daily|روزانه)/i);
+    /* The unlimited pipe is named on the plans that carry it, with the models
+       it applies to read from the catalogue rather than typed into the page —
+       and never as a daily quota, which is not what is being sold. */
+    for (const plan of professional.filter((candidate) => candidate.tier >= 2)) {
+      const card = within(screen.getByTestId(`plan-card-${plan.code}`));
+      expect(card.getByText(plan.code === "pro" ? /7 days of unlimited/i : /Unlimited image generation/i)).toBeInTheDocument();
+      expect(card.getAllByText(/Nano Banana/).length).toBeGreaterThan(0);
+    }
+    /* The pipe is not a daily quota, and the cards must not put a number of
+       free generations per day on it — the claim this page used to carry. */
+    for (const plan of professional) {
+      expect(screen.getByTestId(`plan-card-${plan.code}`)).not.toHaveTextContent(/\d+\s*(?:free\s*)?(?:daily|روزانه)/i);
+    }
 
     await user.click(screen.getByRole("button", { name: "Yearly" }));
     for (const plan of professional) {
-      expect(within(screen.getByTestId(`landing-plan-${plan.code}`)).getByRole("button", { name: "Buy 12 months" })).toBeInTheDocument();
+      expect(within(screen.getByTestId(`plan-card-${plan.code}`)).getByRole("button", { name: "Buy 12 months" })).toBeInTheDocument();
     }
   });
 });

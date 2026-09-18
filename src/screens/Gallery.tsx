@@ -69,7 +69,7 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
         >
           <span className="relative size-14 shrink-0 overflow-hidden rounded-lg" style={{ background: g.grad }}>
             <GenerationMedia gen={g} />
-            {running && <span className="shimmer absolute inset-0" />}
+            {running && <span className="vg-gen-field" />}
           </span>
           <span className="min-w-0 flex-1">
             <span className="ltr line-clamp-2 block text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
@@ -128,7 +128,10 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
       >
         <div className="relative w-full" style={{ aspectRatio: `${shape.w}/${shape.h}`, background: g.grad }}>
           <GenerationMedia gen={g} />
-          {running && <div className="shimmer absolute inset-0 bg-card/60" />}
+          {/* Where every studio sends a new generation, so this is where the
+              wait is seen: black, with the brand's light moving through it. It
+              sits under the scrim and the badges, so "در حال ساخت" stays legible. */}
+          {running && <div className="vg-gen-field" />}
           <div className="scrim-media" />
           <div className="absolute start-2 top-2 flex flex-col items-start gap-1">
             {running ? (

@@ -10,13 +10,13 @@ import { useGenerations } from "../../../../../src/runtime/providers/Generations
 import { useNavigation } from "../../../../../src/runtime/providers/NavigationProvider";
 import { navPath } from "../../../../../src/runtime/router";
 
-// Generate lays out its own 1100px two-column grid above `md`.
+// Generate lays out its own dock and canvas, as the studios do.
 export default function GeneratePage() {
   const params = useParams<{ familyId: string }>();
   const searchParams = useSearchParams();
   const families = useCatalogFamilies();
-  const { gens, startGeneration } = useGenerations();
-  const { goBack, setTab } = useNavigation();
+  const { gens, startGeneration, removeGeneration } = useGenerations();
+  const { goBack, openResult } = useNavigation();
 
   /* "Generate again" arrives as `?again=<generation id>`, and what it restores
      is the *inputs* of that generation rather than its output. The settings
@@ -66,16 +66,19 @@ export default function GeneratePage() {
       startFrom={startFrom}
       reuse={reuse}
       onBack={goBack}
+      /* The whole list, so the canvas beside the dock can draw this model's
+         own work — including what was made here a moment ago, which keeps its
+         live state as the jobs poll. */
+      gens={gens}
+      onOpen={(generation) => openResult(generation.id, { instant: generation.status !== "running" })}
+      onRemove={(generation) => void removeGeneration(generation.id)}
       onGenerate={async (prompt, input, variant, refs, assetRefs) => {
         const started = await startGeneration(family.id, prompt, input, variant, { refs, assetRefs });
-        /* Same destination as the studios, for the same reason: the job is
-           away, the coins are held, and leaving the form on screen with a line
-           of receipt text under the button reads as nothing having happened.
-           کارهای من is where the generation now is, with its progress on it.
-
-           Only on success — a refusal has an error to show, and moving the page
-           would take the user away from the form that produced it. */
-        if (started) setTab("gallery");
+        /* The page stays. It used to leave for کارهای من here, the studios'
+           destination at the time, because a form with a line of receipt text
+           under its button read as nothing having happened. The job now lands
+           on the canvas beside the dock instead — so the next variation can be
+           sent from the settings that are still on screen. */
         return started ? { coins: started.quote.coins, expiresAt: started.quote.expiresAt } : null;
       }}
     />

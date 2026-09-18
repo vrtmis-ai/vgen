@@ -12,6 +12,7 @@ import {
   DotsThree,
   FolderSimple,
   Lock,
+  SpeakerHigh,
 } from "@phosphor-icons/react";
 import { type Family, type Variant } from "../data/models";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
@@ -22,8 +23,11 @@ import { usePublishedContent } from "../features/content/ContentProvider";
 import { VoicePicker } from "../components/VoicePicker";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { CoinMark } from "../components/chrome";
-import { Card, PanelShell, PanelTabs } from "../components/FormPanel";
+import { Panel, PanelHead, PanelShell, PanelTabs, Section } from "../components/FormPanel";
 import { ModelPicker } from "../components/ModelPicker";
+import { useIgnition } from "../components/Ignition";
+import { FailedVeil } from "../components/GenerationVeils";
+import { useRevealArrival } from "../lib/useRevealArrival";
 import { labelDir, promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
@@ -203,9 +207,12 @@ const SEED_CLIPS = [
 export default function StudioAudio({
   gens,
   onGenerate,
+  onRemove,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
+  /** Offered on a refused generation only, as in کارهای من. */
+  onRemove: (g: Generation) => void;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -223,6 +230,8 @@ export default function StudioAudio({
   const [pickModel, setPickModel] = useState(false);
   const [batch, setBatch] = useState(1);
   const modelRow = useRef<HTMLDivElement>(null);
+  // See FormPanel: the field lights across «بساز», then the job is sent.
+  const ignition = useIgnition();
   // Their audio canvas opens in list: a speech result has no thumbnail, so the
   // row with its waveform is the more useful default.
   const view = useViewMode("audio", { mode: "list", density: 1 });
@@ -231,7 +240,14 @@ export default function StudioAudio({
   /* Running jobs stay out of the clip list and sit above it: a speech result is
      a waveform and a duration, and a job that has not finished has neither. */
   const running = mine.filter((g) => g.status === "running");
-  const finished = mine.filter((g) => g.status !== "running");
+  /* `done`, not "not running". A refused job has no audio, and it was drawn as
+     a clip anyway — a waveform, a play button and a made-up 00:12 — so a
+     refusal looked like a result that would not play. Refusals get their own
+     row now, with the reason, above the clips. */
+  const finished = mine.filter((g) => g.status === "done");
+  const refused = mine.filter((g) => g.status === "failed");
+  // The press stays on this page, so bring the job it made into view.
+  const reveal = useRevealArrival(mine[0]?.id);
   const clips =
     finished.length > 0
       ? finished.map((g) => ({
@@ -240,7 +256,10 @@ export default function StudioAudio({
           voice: g.name.toUpperCase(),
           seconds: Math.round((g.durationMs ?? 12000) / 1000),
         }))
-      : SEED_CLIPS;
+      : // The examples are for an empty history, not for one that holds only refusals.
+        refused.length > 0
+        ? []
+        : SEED_CLIPS;
 
   const voiceControl = s.controls.find((c) => c.kind === "voice");
   const voiceId = voiceControl ? String(s.input[voiceControl.key]) : null;
@@ -270,185 +289,215 @@ export default function StudioAudio({
           onPick={() => {}}
         />
 
-        <div className="flex flex-col gap-2 p-3">
-          {/* The voice card: 160px at radius 16, in the slot their cover card
-              sits in. Big, and it plays — a voice is chosen by ear. */}
-          <button
-            onClick={() => setPickVoice(true)}
-            className="relative h-[160px] overflow-hidden rounded-2xl text-start"
-            // --vg-canvas (#090909), not #000. The only raw hex left in a screen
-            // and the only pure black in the app: it sat outside the token layer,
-            // so a change to the base surface would have skipped it, and against
-            // the near-black canvas it read as a hole rather than a card.
-            style={{ background: "var(--vg-canvas)" }}
-          >
-            <span className="absolute inset-0" style={{ background: voiceGradient(voice?.id ?? "x") }} />
-            <span
-              className="absolute top-2 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold backdrop-blur-md"
-              style={{ insetInlineEnd: "0.5rem", background: "rgba(0,0,0,0.55)", color: "var(--vg-text)" }}
-            >
-              <PencilSimple size={11} weight="bold" />
-              تغییر
-            </span>
-            <span className="absolute inset-x-3 bottom-3 flex items-center gap-2.5">
-              <span
-                className="grid size-9 shrink-0 place-items-center rounded-full backdrop-blur-md"
-                style={{ background: "rgba(0,0,0,0.5)", color: "var(--vg-text)" }}
-              >
-                <Play size={14} weight="fill" />
-              </span>
-              <span className="min-w-0">
-                <bdi className="vg-numeric block truncate text-[14px] tracking-[0.08em]" style={{ color: "var(--vg-text)" }}>
-                  {voice?.name ?? "انتخاب صدا"}
-                </bdi>
-                <span className="block truncate text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-                  {voice?.note ?? "هنوز انتخاب نشده"}
-                </span>
-              </span>
-            </span>
-          </button>
+        {/* One surface, as the video dock is — see `Panel` in FormPanel. This
+            column was the last one still built from floating washes eight
+            pixels apart, so going between the two studios changed the whole
+            material of the panel for no reason the customer could see. */}
+        <div className="p-2.5">
+          <Panel>
+            {/* The voice is this panel's subject, so the head names it.
 
-          {/* "متن", not "پرامپت" — this is read aloud verbatim, and the helper
-              says so. Their label and their helper, both earned. */}
-          <Card className="p-3">
-            {/* The whole row flips, not just the caption: the count belongs on
-                the far side from the label, whichever side that is. */}
-            <div className="mb-1 flex items-center justify-between" dir={labelDir(s.prompt)}>
-              <span className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-                متن
-              </span>
-              <span className="vg-numeric text-[10.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                {n(s.prompt.length)}
-              </span>
-            </div>
-            <textarea
-              value={s.prompt}
-              onChange={(e) => s.setPrompt(e.target.value)}
-              rows={4}
-              dir={promptDir(s.prompt)}
-              placeholder="دقیقاً همان چیزی که می‌خواهی خوانده شود."
-              className="hide-scrollbar vg-field-inset resize-none bg-transparent text-[13px] leading-6 outline-none"
-              style={{ color: "var(--vg-text)" }}
+                The subtitle is the voice's own note — its character — where the
+                video head shows the vendor. Same rule, different answer: a voice
+                is chosen by what it sounds like, and "ElevenLabs" is already in
+                the model row below, so repeating it here would say nothing. */}
+            <PanelHead
+              icon={<SpeakerHigh size={14} weight="fill" />}
+              title={voice?.name ?? "انتخاب صدا"}
+              sub={voice?.note ?? "هنوز انتخاب نشده"}
             />
-            <p className="mt-1 text-[10.5px] leading-4" style={{ color: "var(--vg-text-muted)" }}>
-              نقطه و ویرگول را بگذار — مکث و لحن را از روی نشانه‌گذاری می‌سازد.
-            </p>
-          </Card>
 
-          <div ref={modelRow}>
-            <Card>
-              <button onClick={() => setPickModel((v) => !v)} className="flex w-full items-center gap-2 px-3 py-2.5 text-start">
-                <span className="flex-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
-                  مدل
+            <Section>
+              {/* The voice card, full-bleed now that it sits inside the panel.
+                  It still opens the picker. The name and note that sat on it
+                  moved up into the head — which is also why it needs a label of
+                  its own: its text used to be its accessible name, and "تغییر"
+                  alone does not say what changes. */}
+              <button
+                onClick={() => setPickVoice(true)}
+                aria-label={voice ? `تغییر صدا — ${voice.name}` : "انتخاب صدا"}
+                className="relative block h-[132px] w-full overflow-hidden text-start"
+                // --vg-canvas (#090909), not #000. The only raw hex left in a
+                // screen and the only pure black in the app: it sat outside the
+                // token layer, so a change to the base surface would have skipped
+                // it, and against the near-black canvas it read as a hole.
+                style={{ background: "var(--vg-canvas)" }}
+              >
+                <span className="absolute inset-0" style={{ background: voiceGradient(voice?.id ?? "x") }} />
+                <span
+                  className="absolute top-2 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold backdrop-blur-md"
+                  style={{ insetInlineEnd: "0.5rem", background: "rgba(0,0,0,0.55)", color: "var(--vg-text)" }}
+                >
+                  <PencilSimple size={11} weight="bold" />
+                  تغییر
                 </span>
-                <bdi className="truncate text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
-                  {s.family.name} · {s.variant.label}
-                </bdi>
-                <CaretLeft size={13} weight="bold" style={{ color: "var(--vg-text-muted)" }} />
+                <span
+                  className="absolute bottom-3 grid size-9 place-items-center rounded-full backdrop-blur-md"
+                  style={{ insetInlineStart: "0.75rem", background: "rgba(0,0,0,0.5)", color: "var(--vg-text)" }}
+                >
+                  <Play size={14} weight="fill" />
+                </span>
               </button>
-            </Card>
-          </div>
-          {pickModel && (
-            <ModelPicker
-              anchor={modelRow.current}
-              families={families}
-              family={s.family}
-              variant={s.variant}
-              onPickFamily={s.setFamily}
-              onPickVariant={s.setVariant}
-              onClose={() => setPickModel(false)}
-            />
-          )}
+            </Section>
 
-          {/* Batch size, as theirs has. Speech is cheap enough to want four
-              takes of one line and keep the best. */}
-          <Card>
-            <div className="flex items-center gap-2 px-3 py-2">
-              <span className="flex-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
-                تعداد نسخه
-              </span>
-              <button
-                onClick={() => setBatch((b) => Math.max(1, b - 1))}
-                disabled={batch === 1}
-                aria-label="کاهش تعداد خروجی"
-                className="grid size-7 place-items-center rounded-lg disabled:opacity-30"
-                style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
-              >
-                <Minus size={12} weight="bold" />
-              </button>
-              <span className="vg-numeric w-10 text-center text-[12.5px]" style={{ color: "var(--vg-text)" }}>
-                {n(batch)}/{n(4)}
-              </span>
-              <button
-                onClick={() => setBatch((b) => Math.min(4, b + 1))}
-                disabled={batch === 4}
-                // "بیشتر" alone collides with the row menus and says nothing
-                // about what it increases.
-                aria-label="افزایش تعداد خروجی"
-                className="grid size-7 place-items-center rounded-lg disabled:opacity-30"
-                style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
-              >
-                <Plus size={12} weight="bold" />
-              </button>
-            </div>
-          </Card>
-
-          {s.chips.length > 0 && (
-            <details className="group">
-              <summary
-                className="flex cursor-pointer list-none items-center gap-1.5 px-1 py-1.5 text-[12px]"
-                style={{ color: "var(--vg-text-muted)" }}
-              >
-                <CaretLeft size={12} weight="bold" className="transition-transform group-open:-rotate-90" />
-                تنظیمات پیشرفته
-              </summary>
-              <div className="mt-1 flex flex-col gap-2">
-                {s.chips.map((c) =>
-                  c.kind === "slider" ? (
-                    <Card key={c.key} className="px-3 py-2.5">
-                      <div className="mb-1.5 flex items-baseline justify-between">
-                        <span className="text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                          {c.label}
-                        </span>
-                        <span className="vg-numeric text-[12px]" style={{ color: "var(--vg-primary-soft)" }}>
-                          {String(s.input[c.key])}
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={c.min}
-                        max={c.max}
-                        step={c.step}
-                        value={Number(s.input[c.key])}
-                        onChange={(e) => s.set(c.key, c.asString ? e.target.value : Number(e.target.value))}
-                        className="w-full"
-                        aria-label={c.label}
-                      />
-                    </Card>
-                  ) : (
-                    <Card key={c.key} className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="flex-1 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                          {c.label}
-                        </span>
-                        <span className="text-[12px]" style={{ color: "var(--vg-text)" }}>
-                          {valueLabel(c, s.input)}
-                        </span>
-                      </div>
-                    </Card>
-                  ),
-                )}
+            {/* "متن", not "پرامپت" — this is read aloud verbatim, and the helper
+                says so. Their label and their helper, both earned. */}
+            <Section className="px-2.5 py-2">
+              {/* The whole row flips, not just the caption: the count belongs on
+                  the far side from the label, whichever side that is. */}
+              <div className="mb-1 flex items-center justify-between" dir={labelDir(s.prompt)}>
+                <span className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+                  متن
+                </span>
+                <span className="vg-numeric text-[10.5px]" style={{ color: "var(--vg-text-muted)" }}>
+                  {n(s.prompt.length)}
+                </span>
               </div>
-            </details>
-          )}
+              <textarea
+                value={s.prompt}
+                onChange={(e) => s.setPrompt(e.target.value)}
+                rows={4}
+                dir={promptDir(s.prompt)}
+                placeholder="دقیقاً همان چیزی که می‌خواهی خوانده شود."
+                className="hide-scrollbar vg-field-inset resize-none bg-transparent text-[12.5px] leading-[1.7] outline-none"
+                style={{ color: "var(--vg-text)" }}
+              />
+              <p className="mt-1 text-[10.5px] leading-4" style={{ color: "var(--vg-text-muted)" }}>
+                نقطه و ویرگول را بگذار — مکث و لحن را از روی نشانه‌گذاری می‌سازد.
+              </p>
+            </Section>
+
+            <div ref={modelRow}>
+              <Section>
+                <button onClick={() => setPickModel((v) => !v)} className="flex w-full items-center gap-2 px-2.5 py-2.5 text-start">
+                  <span className="flex-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
+                    مدل
+                  </span>
+                  <bdi className="truncate text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
+                    {s.family.name} · {s.variant.label}
+                  </bdi>
+                  <CaretLeft size={13} weight="bold" style={{ color: "var(--vg-text-muted)" }} />
+                </button>
+              </Section>
+            </div>
+
+            {/* Batch size, as theirs has. Speech is cheap enough to want four
+                takes of one line and keep the best. */}
+            <Section>
+              <div className="flex items-center gap-2 px-2.5 py-2">
+                <span className="flex-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
+                  تعداد نسخه
+                </span>
+                <button
+                  onClick={() => setBatch((b) => Math.max(1, b - 1))}
+                  disabled={batch === 1}
+                  aria-label="کاهش تعداد خروجی"
+                  className="grid size-7 place-items-center rounded-lg disabled:opacity-30"
+                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+                >
+                  <Minus size={12} weight="bold" />
+                </button>
+                <span className="vg-numeric w-10 text-center text-[12.5px]" style={{ color: "var(--vg-text)" }}>
+                  {n(batch)}/{n(4)}
+                </span>
+                <button
+                  onClick={() => setBatch((b) => Math.min(4, b + 1))}
+                  disabled={batch === 4}
+                  // "بیشتر" alone collides with the row menus and says nothing
+                  // about what it increases.
+                  aria-label="افزایش تعداد خروجی"
+                  className="grid size-7 place-items-center rounded-lg disabled:opacity-30"
+                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+                >
+                  <Plus size={12} weight="bold" />
+                </button>
+              </div>
+            </Section>
+
+            {s.chips.length > 0 && (
+              <Section>
+                <details className="group">
+                  <summary
+                    className="flex cursor-pointer list-none items-center gap-1.5 px-2.5 py-2 text-[12px]"
+                    style={{ color: "var(--vg-text-muted)" }}
+                  >
+                    <CaretLeft size={12} weight="bold" className="transition-transform group-open:-rotate-90" />
+                    تنظیمات پیشرفته
+                  </summary>
+                  {/* Rows divided by hairlines, not cards inside a card — a
+                      bordered box inside the panel's own box is the second edge
+                      the panel exists to avoid. */}
+                  <div className="flex flex-col">
+                    {s.chips.map((c) =>
+                      c.kind === "slider" ? (
+                        <div key={c.key} className="px-2.5 py-2" style={{ borderBlockStart: "1px solid var(--vg-border-subtle)" }}>
+                          <div className="mb-1 flex items-baseline justify-between">
+                            <span className="text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
+                              {c.label}
+                            </span>
+                            {/* Plain text and Persian digits, as in the video
+                                dock: a read-out is not an action, and it sat in
+                                Latin figures beside a Persian price. */}
+                            <span className="vg-numeric text-[12px]" style={{ color: "var(--vg-text)" }}>
+                              {n(Number(s.input[c.key]))}
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={c.min}
+                            max={c.max}
+                            step={c.step}
+                            value={Number(s.input[c.key])}
+                            onChange={(e) => s.set(c.key, c.asString ? e.target.value : Number(e.target.value))}
+                            className="w-full"
+                            aria-label={c.label}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          key={c.key}
+                          className="flex items-center gap-2 px-2.5 py-2"
+                          style={{ borderBlockStart: "1px solid var(--vg-border-subtle)" }}
+                        >
+                          <span className="flex-1 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
+                            {c.label}
+                          </span>
+                          <span className="text-[12px]" style={{ color: "var(--vg-text)" }}>
+                            {valueLabel(c, s.input)}
+                          </span>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                </details>
+              </Section>
+            )}
+          </Panel>
         </div>
 
-        <div className="sticky bottom-0 mt-auto p-3" style={{ background: "var(--vg-deep)" }}>
+        {/* A portal, so it lives outside the panel — `Panel` clips its corners
+            and would clip a popover with them. */}
+        {pickModel && (
+          <ModelPicker
+            anchor={modelRow.current}
+            families={families}
+            family={s.family}
+            variant={s.variant}
+            onPickFamily={s.setFamily}
+            onPickVariant={s.setVariant}
+            onClose={() => setPickModel(false)}
+          />
+        )}
+
+        <div
+          className="sticky bottom-0 mt-auto p-2.5"
+          style={{ background: "var(--vg-canvas)", borderBlockStart: "1px solid var(--vg-border-subtle)" }}
+        >
           {/* See FormPanel. */}
           {locked && !visitor ? (
             <button
               onClick={access.onUpgrade}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-bold"
               style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
             >
               <Lock size={14} weight="fill" />
@@ -463,15 +512,35 @@ export default function StudioAudio({
           ) : (
             <button
               disabled={!visitor && !s.ready}
-              onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input))}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold transition-opacity disabled:opacity-35"
-              style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+              onClick={(event) =>
+                visitor
+                  ? signIn()
+                  : ignition.ignite(event, () => {
+                      reveal.arm();
+                      onGenerate(s.family, s.variant, s.prompt.trim(), s.input);
+                    })
+              }
+              aria-busy={ignition.igniting || undefined}
+              className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
+              style={{
+                background: "var(--vg-primary)",
+                color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
+                // A dark halo while it is light: the field sweeps in from the
+                // pressed point, so for a moment the label sits half on lime.
+                textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
+                // As in the video dock: the only filled accent in the column,
+                // and a button that cannot be pressed does not glow.
+                boxShadow: !visitor && !s.ready ? "none" : "var(--vg-glow-primary)",
+              }}
             >
-              <Sparkle size={15} weight="fill" />
-              {visitor ? t("visitor_cta") : "بساز"}
-              <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
-                <CoinMark size={12} />
-                <span className="vg-numeric">{s.price === null ? "—" : n(s.price * batch)}</span>
+              {ignition.layer}
+              <span className="relative flex items-center gap-2">
+                <Sparkle size={15} weight="fill" />
+                {visitor ? t("visitor_cta") : "بساز"}
+                <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
+                  <CoinMark size={12} />
+                  <span className="vg-numeric">{s.price === null ? "—" : n(s.price * batch)}</span>
+                </span>
               </span>
             </button>
           )}
@@ -525,26 +594,33 @@ export default function StudioAudio({
             running.map((g) => (
               <div
                 key={g.id}
-                className="flex items-center gap-3 rounded-xl p-4"
-                style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+                ref={g.id === mine[0]?.id ? reveal.target : undefined}
+                className="relative flex scroll-my-24 items-center gap-3 overflow-hidden rounded-xl p-4"
+                style={{ border: "1px solid var(--vg-border-subtle)" }}
               >
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-                    در حال ساخت…
+                {/* The same moving field as a running card on the other two
+                    canvases. No bar: nothing on the server reports progress,
+                    and this one sat at 0% for the whole job. */}
+                <div className="vg-gen-field" />
+                <div className="relative min-w-0 flex-1">
+                  <p className="text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
+                    {t("r_making")}…
                   </p>
-                  <p className="mt-0.5 truncate text-[12.5px]" style={{ color: "var(--vg-text-secondary)" }}>
+                  <p className="mt-0.5 truncate text-[12.5px]" style={{ color: "var(--vg-text)" }}>
                     {g.prompt || g.name}
                   </p>
-                  <div className="mt-2 h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
-                    <div
-                      className="h-full transition-[width] duration-200 ease-out"
-                      style={{ width: `${Math.round(g.progress ?? 0)}%`, background: "var(--vg-primary)" }}
-                    />
-                  </div>
                 </div>
-                <span className="vg-numeric shrink-0 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                  {Math.round(g.progress ?? 0)}%
-                </span>
+              </div>
+            ))}
+          {tab !== "liked" &&
+            refused.map((g) => (
+              <div
+                key={g.id}
+                ref={g.id === mine[0]?.id ? reveal.target : undefined}
+                className="relative min-h-[104px] scroll-my-24 overflow-hidden rounded-xl"
+                style={{ border: "1px solid var(--vg-border-subtle)" }}
+              >
+                <FailedVeil gen={g} onRemove={() => onRemove(g)} lines={2} />
               </div>
             ))}
           {(tab === "liked" ? clips.slice(0, 2) : clips).map((c) => (

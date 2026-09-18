@@ -2,7 +2,7 @@
 
 import Landing from "../../src/screens/Landing";
 import { AppLoading } from "../../src/components/AppLoading";
-import { useCommunityFeed, usePlans } from "../../src/features/session/useSession";
+import { usePlans } from "../../src/features/session/useSession";
 import { useNavigation } from "../../src/runtime/providers/NavigationProvider";
 
 /**
@@ -20,12 +20,11 @@ import { useNavigation } from "../../src/runtime/providers/NavigationProvider";
  * the top rather than navigating — the same gesture the top bar's wordmark
  * performs everywhere else.
  *
- * `usePlans`/`useCommunityFeed` are the same queries the layout above already
- * ran, so this reads their cache rather than fetching anything again.
+ * `usePlans` is the same query the layout above already ran, so this reads its
+ * cache rather than fetching anything again.
  */
 export default function HomePage() {
   const plansQuery = usePlans();
-  const communityQuery = useCommunityFeed();
   const { setTab } = useNavigation();
 
   if (!plansQuery.data) return <AppLoading />;
@@ -33,9 +32,6 @@ export default function HomePage() {
   return (
     <Landing
       plans={plansQuery.data.plans}
-      // An empty showcase strip is a much smaller failure than a landing page
-      // that refuses to paint until other people's posts have loaded.
-      posts={communityQuery.data?.posts ?? []}
       // Both calls to action are "sign in" for a visitor. Somebody already
       // signed in wants the thing behind them, so they open the studio rather
       // than an auth screen that would have nothing to ask.

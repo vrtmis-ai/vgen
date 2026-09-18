@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Plus, Minus, Sparkle, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock, X, SpeakerHigh } from "@phosphor-icons/react";
 import { variantRefs, type Family, type Variant } from "../data/models";
+import { groupOf } from "../lib/refSlots";
+import { insertTag, refTags, tagUsed } from "../lib/refTags";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
-import { addRefFiles, slotAccept, type InputMap, type RefMap } from "../components/controls";
+import { addRefFiles, moveRefFile, slotAccept, type InputMap, type RefMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
 import { type Generation } from "../lib/gallery";
 import { CoinMark } from "../components/chrome";
@@ -10,10 +12,13 @@ import { AssetViewer, downloadAsset, viewerAsset, type ViewerAsset } from "../co
 import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
+import { useIgnition } from "../components/Ignition";
+import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
+import { useRevealArrival } from "../lib/useRevealArrival";
 import { ModelChip } from "../components/ModelPicker";
 import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
 import { unlimitedFit } from "../lib/unlimited";
-import { promptDir } from "../lib/format";
+import { faNum, promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { useAppServices } from "../runtime/AppServices";
@@ -152,11 +157,14 @@ export default function StudioImage({
   onGenerate,
   onOpenModel,
   onRegenerate,
+  onRemove,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean, refs: RefMap) => void;
   onOpenModel: (familyId: string, prompt?: string, fromGenerationId?: string) => void;
   onRegenerate: (familyId: string, generationId: string) => void;
+  /** Offered on a refused generation only, as in کارهای من. */
+  onRemove: (g: Generation) => void;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -195,9 +203,38 @@ export default function StudioImage({
      move this surface onto `RefUpload`. */
   const slot = variantRefs(s.family, s.variant)[0];
   const picked = slot ? (refs[slot.key] ?? []) : [];
+  /* The pictures have names the prompt can use — `@Image1`, `@Image2` — as in
+     the video dock. Nano Banana takes up to fourteen, and "put the jacket from
+     the second one on the person in the first" is exactly the sentence an edit
+     model needs the names for. A frame slot gets none (a position, not
+     material), and neither does a model that takes no prompt. */
+  const tags =
+    slot && groupOf(slot) === "reference" && !s.family.noPrompt ? (refTags([slot], { [slot.key]: picked.length })[slot.key] ?? []) : [];
+  const promptBox = useRef<HTMLTextAreaElement>(null);
+  // See FormPanel: the caret is placed once the inserted text is in the field.
+  const pendingCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const at = pendingCaret.current;
+    if (at === null) return;
+    pendingCaret.current = null;
+    promptBox.current?.focus();
+    promptBox.current?.setSelectionRange(at, at);
+  }, [s.prompt]);
+  function insertAtCaret(tag: string) {
+    const at = promptBox.current?.selectionStart ?? s.prompt.length;
+    const next = insertTag(s.prompt, at, tag);
+    pendingCaret.current = next.caret;
+    s.setPrompt(next.prompt);
+  }
   const needsFile = slot?.required === true && picked.length === 0;
   const pickRef = useRef<HTMLInputElement>(null);
   const [tooBig, setTooBig] = useState<string | null>(null);
+  /* Which tile is being carried. The row is the model's input array and its
+     order is the order the provider receives, so "these two are the wrong way
+     round" is a real thing to want to fix. */
+  const [dragAt, setDragAt] = useState<number | null>(null);
+  // See FormPanel: the field lights across «بساز», then the job is sent.
+  const ignition = useIgnition();
 
   /* Files belong to the model that asked for them.
      Switching model has to drop them — the next model's slot has a different
@@ -222,6 +259,12 @@ export default function StudioImage({
     setRefs({ [slot.key]: next.files });
   }
 
+  function reorder(from: number, to: number) {
+    if (!slot) return;
+    const next = moveRefFile(picked, from, to);
+    if (next !== picked) setRefs({ [slot.key]: next });
+  }
+
   function dropFile(index: number) {
     if (!slot) return;
     const file = picked[index];
@@ -240,9 +283,15 @@ export default function StudioImage({
   /* `done`, not "not running". A refused generation has no file, so it fell to
      the `art()` placeholder below and appeared on the wall as somebody else's
      stock photograph — the studio claiming a picture where the provider had
-     produced none. A failure belongs in کارهای من, which draws it as one and
-     offers to remove it; this surface is the pictures you actually have. */
+     produced none.
+
+     Refusals are not dropped, though. They used to be — "a failure belongs in
+     کارهای من" — which only worked while «بساز» sent the browser there. It no
+     longer does, and a job that vanished from this wall would read as lost.
+     They are tiles of their own below, in the order they were made. */
   const finished = mine.filter((g) => g.status === "done");
+  // The press stays on this page, so bring the job it made into view.
+  const reveal = useRevealArrival(mine[0]?.id);
   /* No stand-in library.
      This used to fall back to the seeded examples so the dock would not float
      over nothing. It filled the create surface with forty-two pictures the
@@ -277,6 +326,7 @@ export default function StudioImage({
     ratio: base.w / base.h,
     asset: base,
     pending: null as Generation | null,
+    refused: null as Generation | null,
   }));
   // Named as a set, not one at a time: whether a name needs an ordinal is a
   // fact about the whole wall, so it cannot be decided from inside one tile.
@@ -284,17 +334,25 @@ export default function StudioImage({
     shaped.map((t) => t.asset),
     (familyId) => catalogFamilies.find((family) => family.id === familyId)?.name,
   );
+  const pictures = new Map(shaped.map((t, i) => [t.key, { ...t, name: names[i]! }]));
+  /* A tile for something with no picture: a job still running, or one that
+     was refused. Shaped by what was asked for, since nothing arrived. */
+  const placeholder = (g: Generation, state: "pending" | "refused") => ({
+    key: g.id,
+    ratio: g.w / g.h,
+    asset: { id: g.id, url: "", prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h } as ViewerAsset,
+    pending: state === "pending" ? g : null,
+    refused: state === "refused" ? g : null,
+    name: g.prompt.trim().slice(0, 60) || g.name,
+  });
   // Running jobs first, newest at the head, so the thing the user just paid for
-  // is the thing they are looking at.
+  // is the thing they are looking at. Then everything settled, newest first —
+  // a refusal sits where it happened rather than pinned above the pictures.
   const tiles = [
-    ...running.map((g) => ({
-      key: g.id,
-      ratio: g.w / g.h,
-      asset: { id: g.id, url: "", prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h } as ViewerAsset,
-      pending: g,
-      name: g.prompt.trim().slice(0, 60) || g.name,
-    })),
-    ...shaped.map((t, i) => ({ ...t, name: names[i]! })),
+    ...running.map((g) => placeholder(g, "pending")),
+    ...mine.flatMap((g) =>
+      g.status === "failed" ? [placeholder(g, "refused")] : g.status === "done" && pictures.has(g.id) ? [pictures.get(g.id)!] : [],
+    ),
   ];
 
   const download = (a: ViewerAsset) => downloadAsset(services.generation.downloadUrl, a);
@@ -398,24 +456,33 @@ export default function StudioImage({
             items={tiles}
             targetHeight={view.rowHeight}
             gap={2}
-            render={(t) =>
+            render={(t, size) =>
               /* A job with no picture yet: the tile holds its place in the wall
                and shows the bar. Not clickable and no action stack — there is
                nothing to open, download or recreate until it lands. */
               t.pending ? (
-                <div className="relative grid size-full place-items-center overflow-hidden" style={{ background: t.pending.grad }}>
-                  <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
-                  <div className="relative w-2/3 max-w-[180px]">
-                    <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
-                      <div
-                        className="h-full transition-[width] duration-200 ease-out"
-                        style={{ width: `${Math.round(t.pending.progress ?? 0)}%`, background: "var(--vg-primary)" }}
-                      />
-                    </div>
-                    <p className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-                      در حال ساخت… <span className="vg-numeric">{Math.round(t.pending.progress ?? 0)}%</span>
-                    </p>
-                  </div>
+                <div
+                  ref={t.key === mine[0]?.id ? reveal.target : undefined}
+                  className="relative size-full overflow-hidden"
+                  // Clear of the sticky bar above and the dock floating below.
+                  style={{ background: t.pending.grad, scrollMarginBlock: "6rem 14rem" }}
+                >
+                  <RunningVeil gen={t.pending} />
+                </div>
+              ) : t.refused ? (
+                <div
+                  ref={t.key === mine[0]?.id ? reveal.target : undefined}
+                  className="relative size-full overflow-hidden"
+                  style={{ scrollMarginBlock: "6rem 14rem" }}
+                >
+                  {/* Rows shrink with the density control; a short tile keeps
+                      the badge and the remove button and clamps the sentence. */}
+                  <FailedVeil
+                    gen={t.refused}
+                    onRemove={() => t.refused && onRemove(t.refused)}
+                    lines={size.height < 110 ? 0 : size.height < 150 ? 2 : 4}
+                    framed
+                  />
                 </div>
               ) : (
                 <div className="group relative size-full overflow-hidden" style={{ background: "var(--vg-surface)" }}>
@@ -464,12 +531,55 @@ export default function StudioImage({
               {slot && (
                 <div className="flex shrink-0 items-center gap-2">
                   {picked.map((file, index) => (
+                    /* Draggable, and arrow-movable with the keyboard — dragging
+                       is a pointer gesture and cannot be the only way to do
+                       this. In RTL the row runs right to left, so ArrowRight is
+                       the way back through it and ArrowLeft the way on. */
                     <span
                       key={file.url}
-                      className="relative grid size-8 place-items-center overflow-hidden rounded-[10px]"
-                      style={{ background: "var(--vg-surface-raised)" }}
+                      role="listitem"
+                      tabIndex={0}
+                      aria-label={`${slot.label} ${faNum(index + 1)} — برای جابه‌جایی از کلیدهای جهت‌دار استفاده کنید`}
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("application/x-deev-ref", String(index));
+                        setDragAt(index);
+                      }}
+                      onDragEnd={() => setDragAt(null)}
+                      onDragOver={(event) => {
+                        if (dragAt === null) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={(event) => {
+                        if (dragAt === null) return;
+                        event.preventDefault();
+                        reorder(dragAt, index);
+                        setDragAt(null);
+                      }}
+                      onKeyDown={(event) => {
+                        const to = event.key === "ArrowRight" ? index - 1 : event.key === "ArrowLeft" ? index + 1 : null;
+                        if (to === null) return;
+                        event.preventDefault();
+                        reorder(index, to);
+                      }}
+                      className="vg-tile relative grid size-8 cursor-grab place-items-center overflow-hidden rounded-[10px] active:cursor-grabbing"
+                      style={{ background: "var(--vg-surface-raised)", opacity: dragAt === index ? 0.35 : 1 }}
                     >
                       {(slot.media ?? "image") === "image" && <img src={file.url} alt="" className="size-full object-cover" />}
+                      {/* The tile's number, so it can be matched to its name in
+                          the row under the prompt. A 32px tile has no room for
+                          "@Image2" and every room for "2". */}
+                      {tags.length > 1 && (
+                        <span
+                          aria-hidden
+                          className="vg-tag pointer-events-none absolute bottom-0 grid h-3.5 min-w-3.5 place-items-center rounded-tl px-0.5 text-[9px] leading-none"
+                          style={{ insetInlineEnd: 0, background: "rgba(0,0,0,0.7)", color: "var(--vg-text)" }}
+                        >
+                          {index + 1}
+                        </span>
+                      )}
                       {slot.media === "video" && (
                         <video src={file.url} muted playsInline preload="metadata" className="size-full object-cover" />
                       )}
@@ -525,16 +635,48 @@ export default function StudioImage({
                   broke, but the box invited the customer to write something
                   that could not affect the result. The panel has always
                   disabled it on these models; this surface never did. */}
-              <textarea
-                value={s.prompt}
-                onChange={(e) => s.setPrompt(e.target.value)}
-                rows={2}
-                dir={promptDir(s.prompt)}
-                disabled={s.family.noPrompt}
-                placeholder={s.family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط تصویر بده." : "تصویری که در ذهن داری را توصیف کن."}
-                className="hide-scrollbar vg-field-inset min-h-[52px] resize-none bg-transparent text-[13.5px] leading-6 outline-none disabled:opacity-40"
-                style={{ color: "var(--vg-text)" }}
-              />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <textarea
+                  ref={promptBox}
+                  value={s.prompt}
+                  onChange={(e) => s.setPrompt(e.target.value)}
+                  rows={2}
+                  dir={promptDir(s.prompt)}
+                  disabled={s.family.noPrompt}
+                  placeholder={s.family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط تصویر بده." : "تصویری که در ذهن داری را توصیف کن."}
+                  className="hide-scrollbar vg-field-inset min-h-[52px] w-full resize-none bg-transparent text-[13.5px] leading-6 outline-none disabled:opacity-40"
+                  style={{ color: "var(--vg-text)" }}
+                />
+                {/* The names, under the hand that is writing. Lime once the prompt
+                  uses one. Shown for a single picture too, as the video dock
+                  does: naming even one input measurably changes what an edit
+                  model does with it, because "the image" leaves it to decide
+                  what the sentence is about. */}
+                {tags.length > 0 && (
+                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                    <span className="shrink-0 text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+                      اشاره به
+                    </span>
+                    {tags.map((tag) => {
+                      const pointed = tagUsed(s.prompt, tag);
+                      return (
+                        <button
+                          key={tag}
+                          onClick={() => insertAtCaret(tag)}
+                          aria-label={`درج ${tag} در پرامپت`}
+                          className="vg-tag rounded px-1.5 py-0.5 font-semibold"
+                          style={{
+                            background: pointed ? "var(--vg-primary-a18)" : "var(--vg-surface-overlay)",
+                            color: pointed ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                          }}
+                        >
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mt-3 flex items-end gap-2">
@@ -633,13 +775,26 @@ export default function StudioImage({
                    colour is enough: it is the only lime in the dock. */
                 <button
                   disabled={!visitor && !s.ready}
-                  onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, refs))}
-                  className={`${CHIP_CLASS} justify-center px-4 transition-opacity disabled:opacity-35`}
-                  style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+                  onClick={(event) =>
+                    visitor
+                      ? signIn()
+                      : ignition.ignite(event, () => {
+                          reveal.arm();
+                          onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, refs);
+                        })
+                  }
+                  aria-busy={ignition.igniting || undefined}
+                  className={`${CHIP_CLASS} relative justify-center overflow-hidden px-4 transition-opacity disabled:opacity-35`}
+                  style={{
+                    background: "var(--vg-primary)",
+                    color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
+                    textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
+                  }}
                 >
-                  <Sparkle size={14} weight="fill" />
-                  {visitor ? t("visitor_cta") : "بساز"}
-                  <span className="flex items-center gap-1 opacity-90">
+                  {ignition.layer}
+                  <Sparkle size={14} weight="fill" className="relative" />
+                  <span className="relative">{visitor ? t("visitor_cta") : "بساز"}</span>
+                  <span className="relative flex items-center gap-1 opacity-90">
                     <CoinMark size={11} />
                     {/* The local table prices the metered pipe. When the other
                         one is chosen and reachable, the figure is not a smaller

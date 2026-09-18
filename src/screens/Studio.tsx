@@ -10,6 +10,8 @@ import { ViewControls, useViewMode } from "../components/ViewControls";
 import { type Generation } from "../lib/gallery";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
+import { useRevealArrival } from "../lib/useRevealArrival";
+import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
 import { riseItem, riseParent } from "../lib/motion";
 import { useI18n, type TKey } from "../lib/i18n";
 
@@ -49,12 +51,10 @@ const STEPS: { title: TKey; body: TKey; Icon: typeof SlidersHorizontal; art?: st
   { title: "st_step3_title", body: "st_step3_body", Icon: Sparkle },
 ];
 
-function OutputCard({ gen }: { gen: Generation }) {
-  const { t, n } = useI18n();
-  const percent = Math.round(gen.progress ?? 0);
+function OutputCard({ gen, onRemove }: { gen: Generation; onRemove?: (() => void) | undefined }) {
   const [failed, onError] = useImageFallback();
   const url = gen.outputUrl;
-  const running = gen.status === "running";
+  const refused = gen.status === "failed";
   return (
     <motion.div
       variants={riseItem}
@@ -70,55 +70,29 @@ function OutputCard({ gen }: { gen: Generation }) {
         (isVideoUrl(url) ? (
           <video src={url} muted loop playsInline className="absolute inset-0 size-full object-cover" />
         ) : (
-          <img src={url} alt={gen.prompt} onError={onError} className="absolute inset-0 size-full object-cover" />
+          <img src={url} alt={gen.prompt} loading="lazy" onError={onError} className="absolute inset-0 size-full object-cover" />
         ))}
 
-      {running && (
-        /* A real determinate bar, driven by the job's own progress rather than
-           a fixed 18-second animation that finished whenever it felt like it.
-           A generation is money already spent, so it gets a number. */
-        <div className="absolute inset-0 grid place-items-center" style={{ background: "rgba(0,0,0,0.45)" }}>
-          <div className="w-2/3">
-            {/* A progressbar, not a div that happens to be N% wide.
-                The percentage was in the caption and nowhere else, so a screen
-                reader got a stray number with no role, no range and no update as
-                the job advanced — on the one screen where the whole point is
-                telling somebody how far along the thing they paid for is. */}
-            <div
-              role="progressbar"
-              aria-label={t("r_making")}
-              aria-valuenow={percent}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuetext={`${n(percent)}٪`}
-              className="h-1 w-full overflow-hidden rounded-full"
-              style={{ background: "rgba(255,255,255,0.12)" }}
-            >
-              <div
-                className="h-full transition-[width] duration-200 ease-out"
-                style={{ width: `${percent}%`, background: "var(--vg-primary)" }}
-              />
-            </div>
-            {/* aria-hidden: the bar above already carries the figure, and a
-                screen reader announcing both says it twice every tick. */}
-            <p aria-hidden className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-              {t("r_making")}… <span className="vg-numeric">{n(percent)}٪</span>
-            </p>
-          </div>
+      {gen.status === "running" && <RunningVeil gen={gen} />}
+
+      {/* It drew the model's gradient and its name here, which is exactly what
+          a card waiting for its file looks like — a refusal read as a
+          generation that was still coming. */}
+      {refused ? (
+        <FailedVeil gen={gen} onRemove={onRemove} />
+      ) : (
+        <div
+          className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5"
+          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72), transparent)" }}
+        >
+          <span className="truncate text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
+            {gen.name}
+          </span>
+          <span className="vg-numeric shrink-0 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+            {gen.w}×{gen.h}
+          </span>
         </div>
       )}
-
-      <div
-        className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5"
-        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72), transparent)" }}
-      >
-        <span className="truncate text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-          {gen.name}
-        </span>
-        <span className="vg-numeric shrink-0 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-          {gen.w}×{gen.h}
-        </span>
-      </div>
     </motion.div>
   );
 }
@@ -128,11 +102,14 @@ export default function Studio({
   gens,
   onGenerate,
   onOpen,
+  onRemove,
 }: {
   kind: ModelKind;
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, refs: RefMap) => void;
   onOpen: (g: Generation) => void;
+  /** Offered on a refused generation only, as in کارهای من. */
+  onRemove: (g: Generation) => void;
 }) {
   const { t } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -148,20 +125,37 @@ export default function Studio({
   }, [families, family.id]);
 
   const mine = gens.filter((g) => g.kind === kind);
+  // The press stays on this page now, so the job has to be found on it: on a
+  // phone this canvas is under the form, and a scrolled history hides its head.
+  const reveal = useRevealArrival(mine[0]?.id);
+  const generate: typeof onGenerate = (...args) => {
+    reveal.arm();
+    // The explainer tab would hide the card the press just made.
+    setCanvasTab("history");
+    onGenerate(...args);
+  };
 
   return (
     // The panel is a flex sibling of the canvas rather than a fixed overlay, so
     // it can simply stack above the canvas below `md` with no second layout.
-    <div className="flex flex-col md:flex-row md:items-start">
+    /* `vg-grain` is fixed by design — it belongs to the page, not to this
+       element — so it grains the dock as well as the canvas. That is the
+       prototype's arrangement too: its noise layer sits on the stage, and the
+       nodes are on the stage. */
+    <div className="vg-grain flex flex-col md:flex-row md:items-start">
       {/* See StudioImage. The visible heading below belongs to the empty state
           only, so once there is history this page had no h1 at all. */}
       <h1 className="sr-only">{kind === "video" ? "ساخت ویدیو" : "ساخت"}</h1>
-      <FormPanel families={families} onGenerate={onGenerate} />
+      <FormPanel families={families} onGenerate={generate} />
 
       <main
         // @container so the header's view controls size against this canvas
         // rather than the viewport — see ViewControls and StudioAudio.
-        className="@container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
+        /* The canvas is a lit ground, not a hole. `vg-canvas-field` puts the
+           dot grid and the brand wash behind it — see index.css. Empty is the
+           state this screen opens in, and an empty dark rectangle reads as a
+           thing that failed to load. */
+        className="vg-canvas-field @container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
         style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}
       >
         {/* Their canvas heads with two pill tabs on the leading side and the
@@ -182,7 +176,7 @@ export default function Studio({
                 key={k}
                 onClick={() => setCanvasTab(k)}
                 aria-pressed={canvasTab === k}
-                className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
+                className="flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold transition-colors"
                 style={{
                   background: canvasTab === k ? "var(--vg-surface-overlay)" : "transparent",
                   color: canvasTab === k ? "var(--vg-text)" : "var(--vg-text-muted)",
@@ -244,7 +238,7 @@ export default function Studio({
                     }}
                   >
                     {step.art ? (
-                      <img src={step.art} alt="" className="size-full object-cover" />
+                      <img src={step.art} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
                     ) : (
                       <step.Icon size={26} weight="light" style={{ color: "var(--vg-text-muted)" }} />
                     )}
@@ -269,11 +263,26 @@ export default function Studio({
                 className="mt-4 grid gap-3"
                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(1300 / view.cols)}px, 1fr))` }}
               >
-                {mine.map((g) => (
-                  <button key={g.id} onClick={() => onOpen(g)} className="text-start">
-                    <OutputCard gen={g} />
-                  </button>
-                ))}
+                {mine.map((g) =>
+                  /* A refused card is not a button: it carries its own remove
+                     control, and a button inside a button is invalid markup
+                     that browsers resolve by dropping one of them. Its reason
+                     is already on it, so there is nothing to open. */
+                  g.status === "failed" ? (
+                    <div key={g.id} ref={g.id === mine[0]?.id ? reveal.target : undefined} className="scroll-my-24">
+                      <OutputCard gen={g} onRemove={() => onRemove(g)} />
+                    </div>
+                  ) : (
+                    <button
+                      key={g.id}
+                      ref={g.id === mine[0]?.id ? reveal.target : undefined}
+                      onClick={() => onOpen(g)}
+                      className="scroll-my-24 text-start"
+                    >
+                      <OutputCard gen={g} />
+                    </button>
+                  ),
+                )}
               </motion.div>
             ) : (
               /* Their list row is not a compact strip — it is the media at full
@@ -282,30 +291,40 @@ export default function Studio({
                  is a denser grid, which is the one thing a list should not be. */
               <div className="mt-4 flex flex-col gap-6">
                 {mine.map((g) => (
-                  <div key={g.id} className="flex flex-col gap-3 lg:flex-row lg:items-start">
-                    <button
-                      onClick={() => onOpen(g)}
-                      className="relative min-w-0 flex-1 overflow-hidden rounded-2xl"
-                      style={{ aspectRatio: `${g.w} / ${g.h}`, background: g.grad, maxHeight: "70dvh" }}
-                      aria-label={`باز کردن — ${g.prompt.trim() ? g.prompt.trim().slice(0, 60) : g.name}`}
-                    >
-                      {/* `g.kind`, not the file extension. An output URL is
-                          signed and ends in a query string, so `.mp4$` never
-                          matches one and every clip was handed to an `<img>`. */}
-                      {g.outputUrl &&
-                        (g.kind === "video" ? (
-                          <video src={g.outputUrl} muted loop playsInline className="absolute inset-0 size-full object-cover" />
-                        ) : (
-                          <img src={g.outputUrl} alt="" className="absolute inset-0 size-full object-cover" />
-                        ))}
-                      {g.status === "running" && (
-                        <span className="absolute inset-0 grid place-items-center" style={{ background: "rgba(0,0,0,0.45)" }}>
-                          <span className="text-[12px]" style={{ color: "var(--vg-text-secondary)" }}>
-                            در حال ساخت…
-                          </span>
-                        </span>
-                      )}
-                    </button>
+                  <div
+                    key={g.id}
+                    ref={g.id === mine[0]?.id ? reveal.target : undefined}
+                    className="flex scroll-my-24 flex-col gap-3 lg:flex-row lg:items-start"
+                  >
+                    {g.status === "failed" ? (
+                      // Not a button, for the same reason as the grid above.
+                      <div
+                        className="relative min-w-0 flex-1 overflow-hidden rounded-2xl"
+                        style={{ aspectRatio: `${g.w} / ${g.h}`, maxHeight: "70dvh", border: "1px solid var(--vg-border-subtle)" }}
+                      >
+                        <FailedVeil gen={g} onRemove={() => onRemove(g)} />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => onOpen(g)}
+                        className="relative min-w-0 flex-1 overflow-hidden rounded-2xl"
+                        style={{ aspectRatio: `${g.w} / ${g.h}`, background: g.grad, maxHeight: "70dvh" }}
+                        aria-label={`باز کردن — ${g.prompt.trim() ? g.prompt.trim().slice(0, 60) : g.name}`}
+                      >
+                        {/* `g.kind`, not the file extension. An output URL is
+                            signed and ends in a query string, so `.mp4$` never
+                            matches one and every clip was handed to an `<img>`. */}
+                        {g.outputUrl &&
+                          (g.kind === "video" ? (
+                            <video src={g.outputUrl} muted loop playsInline className="absolute inset-0 size-full object-cover" />
+                          ) : (
+                            <img src={g.outputUrl} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+                          ))}
+                        {/* The grid's field, not the flat 45% scrim it replaced
+                            there and that this view had kept. */}
+                        {g.status === "running" && <RunningVeil gen={g} />}
+                      </button>
+                    )}
 
                     <div className="flex w-full shrink-0 flex-col lg:w-[240px] lg:self-stretch">
                       <p className="flex items-center gap-1.5 text-[12.5px] font-bold" style={{ color: "var(--vg-text)" }}>
