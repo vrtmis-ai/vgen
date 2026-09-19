@@ -6,7 +6,7 @@ import { defaultInput, variantControls, type Variant } from "../../data/models";
 import type { InputMap, RefMap } from "../../components/controls";
 import { loadGenerations, saveGenerations, uid, type GenStatus, type Generation } from "../../lib/gallery";
 import { currentAspect } from "../../features/generation/aspect";
-import { validateGenerationInput } from "../../features/generation/validation";
+import { generationErrorMessage, validateGenerationInput } from "../../features/generation/validation";
 import { generationFromJob, mergeGenerations, sameGenerations } from "../../features/generation/fromJob";
 import { useCatalogFamilies } from "../../features/catalog/CatalogProvider";
 import { useCreateGeneration, useGalleryHistory, useGenerationJobs } from "../../features/generation/useGeneration";
@@ -76,6 +76,19 @@ interface Generations {
   ) => Promise<StartedGeneration | null>;
   /** Fire-and-forget start used by the studio docks, which have no result to await. */
   requestGeneration: (familyId: string, prompt: string, input: InputMap, variant: Variant, options?: GenerationRequestOptions) => void;
+  /**
+   * Why the last press did not become a job, in the words the customer needs.
+   *
+   * A submission can be refused before anything exists to show: the wallet is
+   * short, the plan does not carry the model, the account already has as many
+   * running as it may, the quote went stale, the network never answered. Each
+   * of those has its own sentence in `generationErrorMessage`, and each has a
+   * different fix — so the dock prints it where the press happened rather than
+   * replacing the studio with a page that says "something went wrong".
+   */
+  submitError: string | null;
+  /** Cleared by the dock when the next press starts, or when it is dismissed. */
+  clearSubmitError: () => void;
   regenerate: (previous: Generation) => Promise<void>;
   /**
    * Take one generation out of the account's history, here and on the server.
@@ -96,8 +109,9 @@ const GenerationsContext = createContext<Generations | null>(null);
  *
  * It also owns the polling for those generations' jobs, which is why the job
  * error gate lives here rather than in the layout above: whoever owns a query
- * owns its failure state. The same goes for `operationError`, which can only be
- * produced by `startGeneration`.
+ * owns its failure state. `submitError` is the same idea one step earlier: only
+ * `startGeneration` can produce it, so it is held here and read by the dock
+ * that pressed.
  */
 export function GenerationsProvider({ children }: { children: ReactNode }) {
   const families = useCatalogFamilies();
@@ -106,7 +120,7 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   const createGeneration = useCreateGeneration();
   const queryClient = useQueryClient();
   const pendingRef = useRef(false);
-  const [operationError, setOperationError] = useState<Error | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Starts empty on both server and client, then loads once mounted. Reading
   // localStorage in the useState initialiser — as this did — runs during render,
@@ -352,15 +366,22 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
      same place with its reason. None of that needs anything from here beyond
      the job being in `gens`, which it is before this promise settles.
 
-     A request that throws still takes over the screen below, as before. */
+     A refusal is answered in the dock rather than by the page. It used to raise
+     a full-screen 503 reading "درخواست ساخت کامل نشد" — which is true of a
+     short wallet, a busy account and a dropped connection alike, and tells
+     somebody with 2 coins left nothing they can act on. The codes have always
+     been specific; only the screen was not. */
   const requestGeneration = useCallback(
     (familyId: string, prompt: string, input: InputMap, variant: Variant, options?: GenerationRequestOptions) => {
+      setSubmitError(null);
       void startGeneration(familyId, prompt, input, variant, options).catch((error: unknown) =>
-        setOperationError(error instanceof Error ? error : new Error(String(error))),
+        setSubmitError(generationErrorMessage(error)),
       );
     },
     [startGeneration],
   );
+
+  const clearSubmitError = useCallback(() => setSubmitError(null), []);
 
   const regenerate = useCallback(
     async (previous: Generation) => {
@@ -404,22 +425,10 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<Generations>(
-    () => ({ gens, hydrated, startGeneration, requestGeneration, regenerate, removeGeneration, markDone }),
-    [gens, hydrated, markDone, regenerate, removeGeneration, requestGeneration, startGeneration],
+    () => ({ gens, hydrated, startGeneration, requestGeneration, submitError, clearSubmitError, regenerate, removeGeneration, markDone }),
+    [gens, hydrated, markDone, regenerate, removeGeneration, requestGeneration, startGeneration, submitError, clearSubmitError],
   );
 
-  if (operationError) {
-    return (
-      <SystemState
-        kind="service"
-        title="ساخت شروع نشد"
-        description="درخواست ساخت کامل نشد و اعتباری در این صفحه کسر نشده است. به فضای کار برگرد و دوباره تلاش کن."
-        primaryLabel="بازگشت به فضای کار"
-        onPrimary={() => setOperationError(null)}
-        requestId={operationError instanceof ApiError ? operationError.requestId : undefined}
-      />
-    );
-  }
   if (jobQueries.error) {
     return (
       <SystemState

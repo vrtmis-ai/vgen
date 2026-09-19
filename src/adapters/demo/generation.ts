@@ -8,7 +8,25 @@ import { ApiError } from "../../runtime/apiError";
 interface StoredJob {
   job: GenerationJob;
   createdAt: number;
+  /** The code this job is rehearsing a failure for; see `FAILURE_CUE`. */
+  fails?: string;
 }
+
+/**
+ * How to see a failure without one happening.
+ *
+ * A generation can fail in a dozen ways — the provider refusing the words, the
+ * request never reaching it, the file coming back unstorable — and each one has
+ * its own sentence in `features/generation/validation`. None of them were
+ * reachable in demo mode, so the screens that carry them were the only screens
+ * nobody could look at. A prompt that starts with `fail:<code>` settles the job
+ * with that code; `throw:<code>` refuses the submission instead, which is the
+ * other half — a request that never became a job at all.
+ *
+ * Demo mode only. Nothing reads these prefixes in production, where the codes
+ * come from the worker.
+ */
+const FAILURE_CUE = /^\s*(fail|throw):([a-z_]+)/i;
 
 /**
  * A stand-in placeholder, so a demo gallery has something to draw.
@@ -89,6 +107,18 @@ export function createDemoGenerationAdapters(now: () => number): {
     const elapsed = Math.max(0, now() - stored.createdAt);
     if (elapsed <= 250) return stored.job;
     if (elapsed < 2_500) return { ...stored.job, status: "running", updatedAt: now() };
+    if (stored.fails) {
+      /* Settled the way the worker settles a refusal: a code, a fixed sentence,
+         no outputs, and — the part that matters to whoever paid — nothing
+         charged. */
+      return {
+        ...stored.job,
+        status: "failed",
+        updatedAt: now(),
+        outputs: [],
+        error: { code: stored.fails, message: "Demo failure rehearsal." },
+      };
+    }
     return {
       ...stored.job,
       status: "succeeded",
@@ -133,6 +163,12 @@ export function createDemoGenerationAdapters(now: () => number): {
       const storedQuote = quotes.get(request.quoteId);
       if (!storedQuote) throw new Error("Demo quote was not found");
       if (storedQuote.quote.expiresAt < now()) throw new Error("Demo quote has expired");
+      const cue = FAILURE_CUE.exec(storedQuote.request.prompt);
+      if (cue && cue[1]?.toLowerCase() === "throw") {
+        // A submission that never becomes a job: the shape a screen sees when
+        // the request is refused, or never arrives at all.
+        throw new ApiError({ code: cue[2] ?? "submit_failed", message: "Demo submission refusal.", status: 422 });
+      }
       const timestamp = now();
       // Its start in the id, so a later page load can still answer for it.
       const id = `demo-job-${timestamp.toString(36)}-${++jobSequence}`;
@@ -148,7 +184,7 @@ export function createDemoGenerationAdapters(now: () => number): {
         outputs: [],
         urlsExpireAt: null,
       };
-      jobs.set(id, { job, createdAt: timestamp });
+      jobs.set(id, { job, createdAt: timestamp, ...(cue ? { fails: cue[2] } : {}) });
       idempotentJobs.set(request.idempotencyKey, id);
       return job;
     },

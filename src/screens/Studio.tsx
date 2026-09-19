@@ -103,6 +103,7 @@ export default function Studio({
   onGenerate,
   onOpen,
   onRemove,
+  submitError,
 }: {
   kind: ModelKind;
   gens: Generation[];
@@ -110,6 +111,8 @@ export default function Studio({
   onOpen: (g: Generation) => void;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove: (g: Generation) => void;
+  /** Why the last press did not become a job; the dock prints it. */
+  submitError?: string | null | undefined;
 }) {
   const { t } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -142,7 +145,7 @@ export default function Studio({
       {/* See StudioImage. The visible heading below belongs to the empty state
           only, so once there is history this page had no h1 at all. */}
       <h1 className="sr-only">{kind === "video" ? "ساخت ویدیو" : "ساخت"}</h1>
-      <FormPanel families={families} onGenerate={generate} />
+      <FormPanel families={families} onGenerate={generate} submitError={submitError} />
 
       <main
         // @container so the header's view controls size against this canvas

@@ -101,9 +101,12 @@ function PresetCover({ family, preset, onChange }: { family: Family; preset: Pre
 export function FormPanel({
   families,
   onGenerate,
+  submitError,
 }: {
   families: Family[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, refs: RefMap) => void;
+  /** Why the last press did not become a job. See `GenerationsProvider`. */
+  submitError?: string | null | undefined;
 }) {
   const { t, n } = useI18n();
   // A visitor sees the whole dock — models, controls, the price — and the one
@@ -501,7 +504,14 @@ export function FormPanel({
             این ترکیب قیمت‌گذاری نمی‌شود، پس فروخته نمی‌شود.
           </p>
         )}
-        {price !== null && validation.issues[0] && (
+        {/* The refusal outranks every hint below it: those say what would make
+            the next press better, and this says why the last one did not run. */}
+        {submitError && (
+          <p role="status" className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-danger, #ffb4ab)" }}>
+            {submitError}
+          </p>
+        )}
+        {!submitError && price !== null && validation.issues[0] && (
           <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
             {validation.issues[0].message}
           </p>

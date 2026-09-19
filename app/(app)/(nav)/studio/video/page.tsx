@@ -10,7 +10,7 @@ import { useNavigation } from "../../../../../src/runtime/providers/NavigationPr
    rail over waveform cards — because the three kinds of output are shaped
    differently. They share the token layer and `useCreateState`, and nothing else. */
 export default function StudioVideoPage() {
-  const { gens, requestGeneration, removeGeneration } = useGenerations();
+  const { gens, requestGeneration, removeGeneration, submitError } = useGenerations();
   const { openResult } = useNavigation();
 
   return (
@@ -20,6 +20,7 @@ export default function StudioVideoPage() {
       onGenerate={(family, variant, prompt, input, refs) => requestGeneration(family.id, prompt, input, variant, { refs })}
       onOpen={(generation) => openResult(generation.id, { instant: true })}
       onRemove={(generation) => void removeGeneration(generation.id)}
+      submitError={submitError}
     />
   );
 }

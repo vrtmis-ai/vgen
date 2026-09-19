@@ -208,11 +208,14 @@ export default function StudioAudio({
   gens,
   onGenerate,
   onRemove,
+  submitError,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove: (g: Generation) => void;
+  /** Why the last press did not become a job. See `GenerationsProvider`. */
+  submitError?: string | null | undefined;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -543,6 +546,12 @@ export default function StudioAudio({
                 </span>
               </span>
             </button>
+          )}
+          {/* A refusal that never became a job, where the press happened. */}
+          {submitError && (
+            <p role="status" className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-danger)" }}>
+              {submitError}
+            </p>
           )}
         </div>
       </PanelShell>

@@ -157,12 +157,15 @@ export default function StudioImage({
   onGenerate,
   onOpenModel,
   onRemove,
+  submitError,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean, refs: RefMap) => void;
   onOpenModel: (familyId: string, prompt?: string) => void;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove: (g: Generation) => void;
+  /** Why the last press did not become a job. See `GenerationsProvider`. */
+  submitError?: string | null | undefined;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -844,6 +847,14 @@ export default function StudioImage({
             {tooBig && (
               <p className="mt-2.5 text-[11.5px]" style={{ color: "var(--vg-danger)" }}>
                 فایل بزرگ‌تر از {tooBig} رد شد.
+              </p>
+            )}
+            {/* A refusal that never became a job — a short wallet, a full
+                account, a request that did not arrive. It belongs here, where
+                the press happened. */}
+            {submitError && (
+              <p role="status" className="mt-2.5 text-[11.5px]" style={{ color: "var(--vg-danger)" }}>
+                {submitError}
               </p>
             )}
           </div>

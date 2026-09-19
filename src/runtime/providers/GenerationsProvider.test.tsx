@@ -5,6 +5,7 @@ import { AppServicesProvider } from "../AppServices";
 import { CatalogProvider } from "../../features/catalog/CatalogProvider";
 import { createDemoCatalogService } from "../../adapters/demo/catalog";
 import { createDemoServices } from "../../adapters/demo/demoServices";
+import { ApiError } from "../../adapters/http/client";
 import type { AppServices } from "../AppServices";
 import { defaultInput, variantControls, type Family } from "../../data/models";
 import { loadGenerations, saveGenerations, type Generation } from "../../lib/gallery";
@@ -245,8 +246,13 @@ describe("the free-pipe preference reaches the quote", () => {
  */
 describe("submitting from a studio keeps you in the studio", () => {
   function Dock() {
-    const { requestGeneration } = useGenerations();
-    return <button onClick={() => requestGeneration("nano-banana", "یک گربه", INPUT, VARIANT_WITH_REF)}>dock</button>;
+    const { requestGeneration, submitError } = useGenerations();
+    return (
+      <>
+        <button onClick={() => requestGeneration("nano-banana", "یک گربه", INPUT, VARIANT_WITH_REF)}>dock</button>
+        <output data-testid="submit-error">{submitError ?? ""}</output>
+      </>
+    );
   }
 
   function renderDock(services: AppServices) {
@@ -280,20 +286,31 @@ describe("submitting from a studio keeps you in the studio", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it("stays put when the submit is refused, so the error is still on screen", async () => {
+  /* A refusal is answered in the dock. It used to raise a full-page 503 that
+     said "درخواست ساخت کامل نشد" over every one of these codes — true of a
+     short wallet, a full account and a dropped connection alike, and useless to
+     all three. The message is the one the code names. */
+  it("hands the dock the reason when the submit is refused, and stays put", async () => {
     const services = createDemoServices();
-    // A refusal, not a throw: `startGeneration` returns null for a variant the
-    // catalogue does not hold, which is the same "nothing was created" outcome
-    // as a rejected quote and must not move the page either.
     const spied: AppServices = {
       ...services,
-      generation: { ...services.generation, quote: vi.fn().mockRejectedValue(new Error("nope")) },
+      generation: {
+        ...services.generation,
+        quote: vi.fn().mockRejectedValue(new ApiError({ code: "insufficient_credits", message: "no", status: 402 })),
+      },
     };
     renderDock(spied);
 
     await act(async () => screen.getByText("dock").click());
 
-    await waitFor(() => expect(router.push).not.toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId("submit-error")).toHaveTextContent("اعتبار کیف پول"));
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("says nothing about a refusal nobody has made yet", () => {
+    renderDock(createDemoServices());
+
+    expect(screen.getByTestId("submit-error")).toHaveTextContent("");
   });
 });
 

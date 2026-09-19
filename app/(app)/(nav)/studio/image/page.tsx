@@ -5,7 +5,7 @@ import { useGenerations } from "../../../../../src/runtime/providers/Generations
 import { useNavigation } from "../../../../../src/runtime/providers/NavigationProvider";
 
 export default function StudioImagePage() {
-  const { gens, requestGeneration, removeGeneration } = useGenerations();
+  const { gens, requestGeneration, removeGeneration, submitError } = useGenerations();
   const { openModel } = useNavigation();
 
   return (
@@ -16,6 +16,7 @@ export default function StudioImagePage() {
       }
       onOpenModel={openModel}
       onRemove={(generation) => void removeGeneration(generation.id)}
+      submitError={submitError}
     />
   );
 }
