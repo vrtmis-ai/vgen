@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash } from "@phosphor-icons/react";
 import type { Generation } from "../lib/gallery";
 import { generationErrorAction, jobFailureMessage, type GenerationRefusal } from "../features/generation/validation";
@@ -139,13 +139,27 @@ export function FailedVeil({
 }
 
 /**
- * A press that never became a job, said under the button that made it.
+ * A press that never became a job, said above the button that made it.
  *
  * The other half of a failure, and the half that had nowhere to go: a refusal
  * arrives before there is any card to draw it on. It used to replace the whole
  * studio with a 503, then became a bare red line, and is now the same notice as
  * every other failure — with the button its own sentence keeps asking for,
  * where there is one to offer.
+ *
+ * Above the button rather than below it, which is where it started. Every dock
+ * in this product is pinned to the floor of its panel, so a box added under the
+ * button pushes the button up — measured at 52px in the image dock: the thing
+ * you just pressed slides out from under the pointer, and the answer lands in
+ * the last strip of the screen, which is the part of it nobody is looking at
+ * after a press. Added above, the panel grows upward instead: the button does
+ * not move, and the sentence appears inside the dock the eye is already on.
+ *
+ * Two more things carry it the rest of the way. `.vg-notice-in` gives it a
+ * 160ms rise, because appearing in place is not something peripheral vision
+ * reports. And if it is off-screen anyway — a long form on a short window —
+ * it scrolls itself into view, once, without moving anything that is already
+ * visible (`block: "nearest"`).
  */
 export function SubmitRefusalNote({
   refusal,
@@ -157,17 +171,31 @@ export function SubmitRefusalNote({
   className?: string;
 }) {
   const action = generationErrorAction(refusal.code);
+  const box = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = box.current;
+    // jsdom has no scrollIntoView, and a window with no layout has no answer
+    // to "is this visible" worth acting on.
+    if (!element?.scrollIntoView) return;
+    const rect = element.getBoundingClientRect();
+    if (rect.top >= 0 && rect.bottom <= window.innerHeight) return;
+    element.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [refusal]);
+
   return (
-    <Note
-      type="error"
-      size="small"
-      fill
-      align="start"
-      role="status"
-      className={className}
-      action={action && onAction ? <NoteAction onClick={() => onAction(action.target)}>{action.label}</NoteAction> : undefined}
-    >
-      {refusal.message}
-    </Note>
+    <div ref={box} className={className}>
+      <Note
+        type="error"
+        size="small"
+        fill
+        align="start"
+        role="status"
+        className="vg-notice-in"
+        action={action && onAction ? <NoteAction onClick={() => onAction(action.target)}>{action.label}</NoteAction> : undefined}
+      >
+        {refusal.message}
+      </Note>
+    </div>
   );
 }

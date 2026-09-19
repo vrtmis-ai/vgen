@@ -711,6 +711,12 @@ export default function StudioImage({
               </div>
             </div>
 
+            {/* A refusal that never became a job — a short wallet, a full
+                account, a request that did not arrive. Above the control row,
+                because this dock is pinned to the bottom of the window and a
+                box under it lifts «بساز» out from under the pointer. */}
+            {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-3" />}
+
             <div className="mt-3 flex items-end gap-2">
               <div className="hide-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
                 {/* One chip for the model, not a family chip plus a variant
@@ -853,10 +859,6 @@ export default function StudioImage({
                 فایل بزرگ‌تر از {tooBig} رد شد.
               </p>
             )}
-            {/* A refusal that never became a job — a short wallet, a full
-                account, a request that did not arrive. It belongs here, where
-                the press happened. */}
-            {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-2.5" />}
           </div>
         </div>
       </div>

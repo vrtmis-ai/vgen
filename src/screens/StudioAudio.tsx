@@ -500,6 +500,9 @@ export default function StudioAudio({
           className="sticky bottom-0 mt-auto p-2.5"
           style={{ background: "var(--vg-canvas)", borderBlockStart: "1px solid var(--vg-border-subtle)" }}
         >
+          {/* A refusal that never became a job, above the button that made it —
+              see `SubmitRefusalNote` for why above. */}
+          {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
           {/* See FormPanel. */}
           {locked && !visitor ? (
             <button
@@ -551,8 +554,6 @@ export default function StudioAudio({
               </span>
             </button>
           )}
-          {/* A refusal that never became a job, where the press happened. */}
-          {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-2" />}
         </div>
       </PanelShell>
 

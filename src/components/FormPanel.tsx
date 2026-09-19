@@ -446,6 +446,9 @@ export function FormPanel({
         className="sticky bottom-0 mt-auto p-2.5"
         style={{ background: "var(--vg-canvas)", borderBlockStart: "1px solid var(--vg-border-subtle)" }}
       >
+        {/* Above the button, so the floor the button is pinned to does not move
+            under the pointer that just pressed it. See `SubmitRefusalNote`. */}
+        {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
         {/* A locked model gets an upgrade button, not a disabled create button.
             Greying out the price would tell the user the job is unavailable
             without saying it is their plan or what fixes it — and the moment
@@ -509,9 +512,6 @@ export function FormPanel({
             این ترکیب قیمت‌گذاری نمی‌شود، پس فروخته نمی‌شود.
           </p>
         )}
-        {/* The refusal outranks every hint below it: those say what would make
-            the next press better, and this says why the last one did not run. */}
-        {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-2" />}
         {!submitError && price !== null && validation.issues[0] && (
           <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
             {validation.issues[0].message}

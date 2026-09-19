@@ -10,6 +10,7 @@ import { AppServicesProvider } from "../runtime/AppServices";
 import { SessionProvider, type Session } from "../runtime/providers/SessionProvider";
 import type { Generation } from "../lib/gallery";
 import StudioImage from "./StudioImage";
+import type { GenerationRefusal } from "../features/generation/validation";
 
 /* ---------------------------------------------------------------------------
    The image dock's one required input.
@@ -32,7 +33,7 @@ const ACCOUNT: Session = {
   signOut: vi.fn(),
 };
 
-function show(gens: Generation[] = [], onRemove = vi.fn()) {
+function show(gens: Generation[] = [], onRemove = vi.fn(), submitError?: GenerationRefusal) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
@@ -40,7 +41,14 @@ function show(gens: Generation[] = [], onRemove = vi.fn()) {
         <LanguageProvider initialLang="fa">
           <CatalogProvider families={catalog.families}>
             <SessionProvider value={ACCOUNT}>
-              <StudioImage gens={gens} onGenerate={vi.fn()} onOpenModel={vi.fn()} onRemove={onRemove} />
+              <StudioImage
+                gens={gens}
+                onGenerate={vi.fn()}
+                onOpenModel={vi.fn()}
+                onRemove={onRemove}
+                submitError={submitError ?? null}
+                onErrorAction={vi.fn()}
+              />
             </SessionProvider>
           </CatalogProvider>
         </LanguageProvider>
@@ -169,5 +177,36 @@ describe("the image wall, for jobs with no picture", () => {
     expect(screen.getByText(/در حال ساخت/)).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.queryByText(/٪/)).not.toBeInTheDocument();
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   Where the refusal lands.
+
+   Every dock in this product is pinned to the floor of its panel, so a notice
+   added underneath the create button pushes the button upwards — 52px in this
+   one, measured — and the thing you just pressed moves out from under the
+   pointer while the answer appears in the last strip of the window. Above it,
+   the panel grows the other way and nothing moves. The order in the document is
+   the whole claim, so that is what is asserted.
+   --------------------------------------------------------------------------- */
+describe("a refusal in the image dock", () => {
+  const refusal: GenerationRefusal = { code: "insufficient_credits", message: "اعتبار کیف پول برای این ساخت کافی نیست." };
+
+  it("is drawn above the create button, not below it", () => {
+    show([], vi.fn(), refusal);
+
+    const notice = screen.getByRole("status");
+    const create = screen.getByRole("button", { name: /بساز/ });
+
+    expect(notice).toHaveTextContent("اعتبار کیف پول");
+    // DOCUMENT_POSITION_FOLLOWING: the button comes after the notice.
+    expect(notice.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("offers the way out the code names", async () => {
+    show([], vi.fn(), refusal);
+
+    expect(await screen.findByRole("button", { name: "شارژ کیف پول" })).toBeInTheDocument();
   });
 });

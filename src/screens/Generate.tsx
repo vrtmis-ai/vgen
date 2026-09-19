@@ -512,6 +512,10 @@ export default function Generate({
           className="sticky bottom-0 mt-auto p-2.5"
           style={{ background: "var(--vg-canvas)", borderBlockStart: "1px solid var(--vg-border-subtle)" }}
         >
+          {/* Above the button, not under it — the footer is pinned to the
+              panel floor, so a box below would lift the button away from the
+              pointer that just pressed it. See `SubmitRefusalNote`. */}
+          {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
           {/* A locked model gets an upgrade button, not a disabled create
               button: greying out the price says the job is unavailable without
               saying that it is the plan, or what fixes it. */}
@@ -561,13 +565,9 @@ export default function Generate({
               </span>
             </button>
           )}
-          {submitError ? (
-            <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-2" />
-          ) : (
-            <p className="mt-1.5 text-center text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
-              {footnote}
-            </p>
-          )}
+          <p className="mt-1.5 text-center text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+            {footnote}
+          </p>
         </div>
       </PanelShell>
 
