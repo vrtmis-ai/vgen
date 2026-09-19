@@ -332,6 +332,11 @@ export function RefBox({
           {tiles.map((tile, at) => {
             const media = tile.slot.media ?? "image";
             const part = groupOf(tile.slot) === "frame" ? roleWord(tile.slot) : null;
+            /* The parts this file could be given. Held here rather than only
+               inside the menu, because the badge is now the way to change one
+               and it needs to know whether there is a choice to offer. */
+            const parts = partsFor(tile);
+            const other = parts.find((item) => !item.checked);
             const tag = tags[tile.slot.key]?.[tile.index];
             const pointed = tag ? tagUsed(prompt, tag) : false;
             return (
@@ -377,14 +382,56 @@ export function RefBox({
                   </span>
                 )}
 
-                {/* The part it has been given, worn like Higgsfield's. */}
-                {part && (
-                  <span
-                    className="absolute bottom-1 rounded px-1.5 text-[10.5px] font-semibold"
-                    style={{ insetInlineStart: 4, background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+                {/* The part it has been given, worn like Higgsfield's — and
+                    the way to change it. It used to be a `<span>`: the only
+                    route to «فریم پایان» was the «…» menu, which is a control
+                    nobody looks for on a 72px thumbnail, and this is the one
+                    question about a reference that the file cannot answer
+                    itself. Two parts swap on a press; more than two open the
+                    menu, because cycling through three is guessing. */}
+                {part &&
+                  (parts.length >= 2 ? (
+                    <button
+                      onClick={(event) => {
+                        if (parts.length === 2 && other) other.run();
+                        else setMenuAt({ at, anchor: event.currentTarget });
+                      }}
+                      title={parts.length === 2 && other ? `تغییر به ${other.label}` : "تغییر بخش این فایل"}
+                      aria-label={`بخش این فایل: فریم ${part}${parts.length === 2 && other ? ` — تغییر به ${other.label}` : " — تغییر"}`}
+                      className="absolute bottom-1 rounded px-1.5 text-[10.5px] font-semibold"
+                      style={{ insetInlineStart: 4, background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+                    >
+                      {part}
+                    </button>
+                  ) : (
+                    <span
+                      className="absolute bottom-1 rounded px-1.5 text-[10.5px] font-semibold"
+                      style={{ insetInlineStart: 4, background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+                    >
+                      {part}
+                    </span>
+                  ))}
+
+                {/* A file that is a reference on a model that also has frames
+                    to give. It wears no part, so before this there was nothing
+                    on it to press — the route from «مرجع» to «فریم شروع» was
+                    the «…» menu and nothing else. Opposite corner from the tag,
+                    which owns the other one. */}
+                {/* Images only: the kind badge owns this corner on a clip or a
+                    track, and neither has a second slot to move to anyway. */}
+                {!part && media === "image" && parts.length >= 2 && (
+                  <button
+                    onClick={(event) => {
+                      if (parts.length === 2 && other) other.run();
+                      else setMenuAt({ at, anchor: event.currentTarget });
+                    }}
+                    title={parts.length === 2 && other ? `تغییر به ${other.label}` : "انتخاب بخش این فایل"}
+                    aria-label={`بخش این فایل: مرجع — ${parts.length === 2 && other ? `تغییر به ${other.label}` : "تغییر"}`}
+                    className="vg-tile__part absolute bottom-1 rounded px-1.5 text-[10.5px] font-semibold"
+                    style={{ insetInlineEnd: 4, background: "rgba(0,0,0,0.6)", color: "var(--vg-text-secondary)" }}
                   >
-                    {part}
-                  </span>
+                    مرجع
+                  </button>
                 )}
 
                 {/* Its name, and a way to put that name in the prompt. Lime
