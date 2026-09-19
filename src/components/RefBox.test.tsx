@@ -110,3 +110,45 @@ describe("a model with nothing but a bag", () => {
     expect(screen.queryByRole("button", { name: /بخش این فایل/ })).toBeNull();
   });
 });
+
+/* ---------------------------------------------------------------------------
+   A slot that cannot be filled on its own.
+
+   There is no end frame without a start frame, and the catalogue says so with
+   `RefSlot.requires` — Kling 2.5 Turbo's tail image declares it. Submitting
+   that combination was already refused by `validateGenerationInput`, but a box
+   you can drop a file into is an invitation, and finding out at the create
+   button that the drop was never going to work is finding out too late.
+   --------------------------------------------------------------------------- */
+
+const DEPENDENT_SLOTS: RefSlot[] = [
+  { key: "image_url", group: "frame", label: "فریم شروع", max: 1 },
+  { key: "tail_image_url", group: "frame", label: "فریم پایان", max: 1, requires: "image_url" },
+];
+
+describe("an end frame with no start frame", () => {
+  it("says what it is waiting for instead of offering to take a file", () => {
+    show(DEPENDENT_SLOTS);
+
+    expect(screen.getByRole("button", { name: "افزودن فریم شروع" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "افزودن فریم پایان" })).toBeNull();
+    expect(screen.getByLabelText("فریم پایان — اول فریم شروع را بگذار")).toBeInTheDocument();
+  });
+
+  it("refuses a file dropped on it, and says why", async () => {
+    const onChange = show(DEPENDENT_SLOTS);
+    const file = new File(["x"], "end.png", { type: "image/png" });
+
+    const box = screen.getByLabelText("فریم پایان — اول فریم شروع را بگذار").parentElement!;
+    fireEvent.drop(box, { dataTransfer: { files: [file], types: ["Files"], getData: () => "" } });
+
+    expect(await screen.findByText("اول فریم شروع را بگذار")).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("opens once the frame it depends on is there", () => {
+    show(DEPENDENT_SLOTS, { image_url: [picture("start.png")] });
+
+    expect(screen.getByRole("button", { name: "افزودن فریم پایان" })).toBeInTheDocument();
+  });
+});

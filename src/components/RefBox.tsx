@@ -247,8 +247,28 @@ export function RefBox({
     onChange(next);
   }
 
+  /**
+   * The slot this one is waiting on, when it is waiting on one.
+   *
+   * `RefSlot.requires` is the catalogue's own word for it: Kling 2.5 Turbo's
+   * `tail_image_url` is meaningless without `image_url`, because there is no
+   * end frame without a start frame. `validateGenerationInput` already refuses
+   * to submit that combination — but a box you can drop a file into is an
+   * invitation, and finding out at the create button that the drop was never
+   * going to work is finding out too late.
+   */
+  function waitingOn(slot: RefSlot): RefSlot | null {
+    if (!slot.requires || (refs[slot.requires] ?? []).length > 0) return null;
+    return slots.find((candidate) => candidate.key === slot.requires) ?? null;
+  }
+
   /** Put files in one named slot, whatever `landingSlot` would have chosen. */
   async function addTo(slot: RefSlot, picked: File[]) {
+    const blocked = waitingOn(slot);
+    if (blocked) {
+      setRejected(`اول ${slotTitle(blocked)} را بگذار`);
+      return;
+    }
     const kind = slot.media ?? "image";
     const usable = picked.filter((file) => kindOfFile(file.type) === kind);
     if (usable.length === 0) {
@@ -383,6 +403,7 @@ export function RefBox({
             const files = refs[slot.key] ?? [];
             const file = files[0];
             const over = overSlot === slot.key;
+            const blocked = waitingOn(slot);
             return (
               <div key={slot.key} className="min-w-0">
                 <p className="mb-1 truncate text-[10.5px]" style={{ color: "var(--vg-text-muted)" }}>
@@ -398,6 +419,7 @@ export function RefBox({
                   }}
                   onDragOver={(event) => {
                     const types = event.dataTransfer.types;
+                    if (blocked && types.includes("Files")) return;
                     if (!types.includes("Files") && !types.includes(DRAG_TYPE)) return;
                     event.preventDefault();
                     event.stopPropagation();
@@ -440,6 +462,19 @@ export function RefBox({
                         <X size={12} weight="bold" />
                       </button>
                     </>
+                  ) : blocked ? (
+                    /* Shown, not hidden. The slot is part of the model's shape
+                       and taking it off the panel would leave the customer
+                       looking for something that is there — it says what it is
+                       waiting for instead. */
+                    <span
+                      aria-label={`${slotTitle(slot)} — اول ${slotTitle(blocked)} را بگذار`}
+                      title={`اول ${slotTitle(blocked)} را بگذار`}
+                      className="grid size-full place-items-center px-1.5 text-center text-[10.5px] leading-tight"
+                      style={{ color: "var(--vg-text-faint)" }}
+                    >
+                      اول {slotTitle(blocked)}
+                    </span>
                   ) : (
                     <button
                       onClick={() => {
