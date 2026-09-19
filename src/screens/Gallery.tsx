@@ -10,6 +10,7 @@ import { jobFailureMessage } from "../features/generation/validation";
 import { Note } from "../components/ui/note";
 import { GenerationField } from "../components/GenerationField";
 import { CancelButton, type CancelOutcome } from "../components/GenerationVeils";
+import { OutputActions } from "../components/OutputActions";
 import { useI18n } from "../lib/i18n";
 
 /**
@@ -49,6 +50,8 @@ function GenCard({
   onOpen,
   onRemove,
   onCancel,
+  onRegenerate,
+  onToVideo,
   list,
 }: {
   g: Generation;
@@ -56,6 +59,8 @@ function GenCard({
   onOpen: () => void;
   onRemove: () => void;
   onCancel?: (() => Promise<CancelOutcome>) | undefined;
+  onRegenerate?: (() => void) | undefined;
+  onToVideo?: (() => void) | undefined;
   list?: boolean;
 }) {
   const { t } = useI18n();
@@ -139,6 +144,13 @@ function GenCard({
             <CancelButton onCancel={onCancel} />
           </div>
         )}
+        {/* Inline and always visible: there is nothing to overlay in a row, and
+            hidden-until-hover in a list is just a hidden control. */}
+        {g.status === "done" && (
+          <div className="absolute top-1/2 -translate-y-1/2" style={{ insetInlineEnd: "0.5rem" }}>
+            <OutputActions gen={g} inline onOpen={onOpen} onRegenerate={onRegenerate} onToVideo={onToVideo} />
+          </div>
+        )}
       </div>
     );
   }
@@ -146,7 +158,7 @@ function GenCard({
   return (
     // Same reason as the list branch: the remove control cannot live inside the
     // card, because the card is a button.
-    <div className="relative mb-3 break-inside-avoid">
+    <div className="group relative mb-3 break-inside-avoid">
       <motion.button
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -230,6 +242,7 @@ function GenCard({
           <CancelButton onCancel={onCancel} />
         </div>
       )}
+      {g.status === "done" && <OutputActions gen={g} onOpen={onOpen} onRegenerate={onRegenerate} onToVideo={onToVideo} />}
     </div>
   );
 }
@@ -249,6 +262,8 @@ export default function Gallery({
   onOpen,
   onRemove,
   onCancel,
+  onRegenerate,
+  onToVideo,
   onBrowse,
 }: {
   gens: Generation[];
@@ -256,6 +271,9 @@ export default function Gallery({
   onRemove: (g: Generation) => void;
   /** Offered on a queued generation only, and only where the API has it. */
   onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
+  /** The action rail on a finished card. */
+  onRegenerate?: ((g: Generation) => void) | undefined;
+  onToVideo?: ((g: Generation) => void) | undefined;
   onBrowse: () => void;
 }) {
   const { t, n } = useI18n();
@@ -359,6 +377,8 @@ export default function Gallery({
               onOpen={() => onOpen(g)}
               onRemove={() => onRemove(g)}
               onCancel={onCancel ? () => onCancel(g) : undefined}
+              onRegenerate={onRegenerate ? () => onRegenerate(g) : undefined}
+              onToVideo={onToVideo ? () => onToVideo(g) : undefined}
               list={view.mode === "list"}
             />
           ))}

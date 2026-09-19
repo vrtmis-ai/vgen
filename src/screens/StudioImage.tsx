@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Plus, Minus, Sparkle, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock, X, SpeakerHigh } from "@phosphor-icons/react";
+import { Plus, Minus, Sparkle, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock, X, SpeakerHigh } from "@phosphor-icons/react";
 import { variantRefs, type Family, type Variant } from "../data/models";
 import { groupOf } from "../lib/refSlots";
 import { insertTag, refTags, tagUsed } from "../lib/refTags";
@@ -99,11 +99,13 @@ function chipOptions(c: ChipControl) {
 function TileActions({
   onOpen,
   onDownload,
+  onRegenerate,
   inline,
   of,
 }: {
   onOpen: () => void;
   onDownload: () => void;
+  onRegenerate?: (() => void) | undefined;
   inline?: boolean;
   /**
    * What this stack acts on, for the accessible name.
@@ -132,10 +134,16 @@ function TileActions({
       }
       style={inline ? undefined : { insetInlineEnd: "0.375rem" }}
     >
+      {/* Two of these four were wired to `() => {}`: a heart with no likes
+          endpoint behind it, and a "regenerate" that regenerated nothing. The
+          heart is gone rather than stubbed — a button that does nothing teaches
+          people not to press the ones that do — and the repeat now repeats.
+          See `components/OutputActions`, which is this rail on every other
+          canvas; this one stays local because the wall's tiles are viewer
+          assets rather than generations. */}
       {[
-        { Icon: Heart, label: "پسندیدن", on: () => {} },
         { Icon: DownloadSimple, label: "دانلود", on: onDownload },
-        { Icon: ArrowsClockwise, label: "دوباره بساز", on: () => {} },
+        ...(onRegenerate ? [{ Icon: ArrowsClockwise, label: "دوباره بساز", on: onRegenerate }] : []),
         { Icon: ArrowsOut, label: "بزرگ کن", on: onOpen },
       ].map(({ Icon, label, on }) => (
         <button
@@ -159,6 +167,7 @@ export default function StudioImage({
   onOpenModel,
   onRemove,
   onCancel,
+  onRegenerate,
   submitError,
   onErrorAction,
 }: {
@@ -169,6 +178,8 @@ export default function StudioImage({
   onRemove: (g: Generation) => void;
   /** Offered on a queued generation only, and only where the API has it. */
   onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
+  /** Repeat a finished generation, from the tile it is drawn on. */
+  onRegenerate?: ((g: Generation) => void) | undefined;
   /** Why the last press did not become a job. See `GenerationsProvider`. */
   submitError?: GenerationRefusal | null | undefined;
   /** Where a refusal that has a way out leads. */
@@ -357,6 +368,13 @@ export default function StudioImage({
   const pictures = new Map(shaped.map((t, i) => [t.key, { ...t, name: names[i]! }]));
   /* A tile for something with no picture: a job still running, or one that
      was refused. Shaped by what was asked for, since nothing arrived. */
+  /* The wall's tiles are viewer assets, and an asset's id is the id of the
+     generation it came from. That is the whole mapping back. */
+  const regenerateTile = (assetId: string) => {
+    const generation = mine.find((candidate) => candidate.id === assetId);
+    if (generation) onRegenerate?.(generation);
+  };
+
   const placeholder = (g: Generation, state: "pending" | "refused") => ({
     key: g.id,
     ratio: g.w / g.h,
@@ -532,7 +550,12 @@ export default function StudioImage({
                       style={{ background: "rgba(0,0,0,0.25)" }}
                     />
                   </button>
-                  <TileActions onOpen={() => setViewing(t.asset)} onDownload={() => download(t.asset)} of={t.name} />
+                  <TileActions
+                    onOpen={() => setViewing(t.asset)}
+                    onDownload={() => download(t.asset)}
+                    {...(onRegenerate ? { onRegenerate: () => regenerateTile(t.asset.id) } : {})}
+                    of={t.name}
+                  />
                 </div>
               )
             }

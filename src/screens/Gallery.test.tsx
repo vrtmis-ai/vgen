@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../lib/i18n";
 import type { Generation } from "../lib/gallery";
 import Gallery from "./Gallery";
+import { AppServicesProvider } from "../runtime/AppServices";
+import { createDemoServices } from "../adapters/demo/demoServices";
 
 /* ---------------------------------------------------------------------------
    کارهای من, on the two things a refused generation has to say.
@@ -44,11 +46,16 @@ const failed: Generation = {
   createdAt: 2,
 };
 
+/* Services, because a finished card can now be downloaded from the wall and
+   the action rail asks for the route that saves rather than the one the browser
+   opens in a tab. */
 function show(gens: Generation[], onRemove = vi.fn()) {
   render(
-    <LanguageProvider initialLang="fa">
-      <Gallery gens={gens} onOpen={vi.fn()} onRemove={onRemove} onBrowse={vi.fn()} />
-    </LanguageProvider>,
+    <AppServicesProvider services={createDemoServices()}>
+      <LanguageProvider initialLang="fa">
+        <Gallery gens={gens} onOpen={vi.fn()} onRemove={onRemove} onBrowse={vi.fn()} />
+      </LanguageProvider>
+    </AppServicesProvider>,
   );
   return onRemove;
 }

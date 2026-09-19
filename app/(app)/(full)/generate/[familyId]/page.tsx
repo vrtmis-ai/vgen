@@ -13,8 +13,8 @@ export default function GeneratePage() {
   const params = useParams<{ familyId: string }>();
   const searchParams = useSearchParams();
   const families = useCatalogFamilies();
-  const { gens, startGeneration, removeGeneration, cancelGeneration } = useGenerations();
-  const { goBack, openResult, openWallet } = useNavigation();
+  const { gens, startGeneration, removeGeneration, cancelGeneration, regenerate } = useGenerations();
+  const { goBack, openResult, openWallet, openModel } = useNavigation();
   const family = families.find((candidate) => candidate.id === decodeURIComponent(params.familyId));
   if (!family) return <ClientRedirect to={navPath("video")} />;
 
@@ -45,6 +45,10 @@ export default function GeneratePage() {
       onOpen={(generation) => openResult(generation.id, { instant: generation.status !== "running" })}
       onRemove={(generation) => void removeGeneration(generation.id)}
       onCancel={cancelGeneration ? (generation) => cancelGeneration(generation.id) : undefined}
+      onRegenerate={(generation) => void regenerate(generation)}
+      /* Carries the picture, not just the destination — as the result page's
+         own button does. */
+      onToVideo={(generation) => openModel("seedance", generation.prompt, generation.id)}
       /* The wallet and the plan ladder are two sections of the same page today;
          see the studios. */
       onErrorAction={() => openWallet()}

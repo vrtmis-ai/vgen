@@ -13,6 +13,7 @@ import { Panel, PanelHead, PanelShell, Section } from "../components/Panel";
 import { RefBox } from "../components/RefBox";
 import { useIgnition } from "../components/Ignition";
 import { FailedVeil, RunningVeil, SubmitRefusalNote, type CancelOutcome } from "../components/GenerationVeils";
+import { OutputActions } from "../components/OutputActions";
 import { GenerationMedia } from "../components/GenerationMedia";
 import { displayAspect, isUnfinished, type Generation } from "../lib/gallery";
 import { useRevealArrival } from "../lib/useRevealArrival";
@@ -72,6 +73,8 @@ export default function Generate({
   onOpen,
   onRemove,
   onCancel,
+  onRegenerate,
+  onToVideo,
   onErrorAction,
 }: {
   family: Family;
@@ -101,6 +104,9 @@ export default function Generate({
   onRemove?: ((generation: Generation) => void) | undefined;
   /** Offered on a queued generation only, and only where the API has it. */
   onCancel?: ((generation: Generation) => Promise<CancelOutcome>) | undefined;
+  /** The action rail on a finished card. */
+  onRegenerate?: ((generation: Generation) => void) | undefined;
+  onToVideo?: ((generation: Generation) => void) | undefined;
   /** Where a refusal that has a way out leads. See `generationErrorAction`. */
   onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
@@ -631,16 +637,31 @@ export default function Generate({
                 );
               }
               return (
-                <button
+                // The rail has buttons of its own, so the card is a box with an
+                // open button filling it rather than a button itself.
+                <div
                   key={generation.id}
                   ref={target}
-                  onClick={() => onOpen?.(generation)}
-                  aria-label={`باز کردن — ${generation.prompt.trim().slice(0, 60) || generation.name}`}
-                  className="relative scroll-my-24 overflow-hidden rounded-[14px] text-start"
+                  className="group relative scroll-my-24 overflow-hidden rounded-[14px] text-start"
                   style={{ ...frame, border: "1px solid var(--vg-border-subtle)" }}
                 >
-                  <GenerationMedia gen={generation} />
+                  <button
+                    type="button"
+                    onClick={() => onOpen?.(generation)}
+                    aria-label={`باز کردن — ${generation.prompt.trim().slice(0, 60) || generation.name}`}
+                    className="absolute inset-0"
+                  >
+                    <GenerationMedia gen={generation} />
+                  </button>
                   {generation.status === "running" && <RunningVeil gen={generation} />}
+                  {generation.status === "done" && (
+                    <OutputActions
+                      gen={generation}
+                      {...(onOpen ? { onOpen: () => onOpen(generation) } : {})}
+                      {...(onRegenerate ? { onRegenerate: () => onRegenerate(generation) } : {})}
+                      {...(onToVideo ? { onToVideo: () => onToVideo(generation) } : {})}
+                    />
+                  )}
                   {generation.prompt && generation.status === "done" && (
                     <span
                       className="absolute inset-x-0 bottom-0 p-2"
@@ -651,7 +672,7 @@ export default function Generate({
                       </span>
                     </span>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
