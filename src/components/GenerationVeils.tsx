@@ -3,12 +3,13 @@ import { Trash } from "@phosphor-icons/react";
 import type { Generation } from "../lib/gallery";
 import { generationErrorAction, jobFailureMessage, type GenerationRefusal } from "../features/generation/validation";
 import { Note, NoteAction } from "./ui/note";
+import { GenerationField } from "./GenerationField";
 import { useI18n } from "../lib/i18n";
 
 /**
  * A generation that is still being made, drawn where it was asked for.
  *
- * Black with the brand's light moving through it (`.vg-gen-field`), filling
+ * Black with the brand's light moving through it (`GenerationField`), filling
  * its positioned parent. Four surfaces drew this separately — the video
  * canvas in both views, the image wall, the model page — and they had already
  * drifted: one list still used the flat 45% scrim the field replaced.
@@ -23,7 +24,7 @@ export function RunningVeil({ gen }: { gen: Generation }) {
   const percent = gen.progress == null ? null : Math.round(gen.progress);
   return (
     <div className="absolute inset-0 grid place-items-center">
-      <div className="vg-gen-field" />
+      <GenerationField />
       <div className="relative w-2/3 max-w-[180px] text-center">
         {percent !== null && (
           /* A progressbar, not a div that happens to be N% wide — a screen

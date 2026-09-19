@@ -8,6 +8,7 @@ import { ViewControls, useViewMode } from "../components/ViewControls";
 import { PANEL_RING } from "../components/Panel";
 import { jobFailureMessage } from "../features/generation/validation";
 import { Note } from "../components/ui/note";
+import { GenerationField } from "../components/GenerationField";
 import { useI18n } from "../lib/i18n";
 
 /**
@@ -69,7 +70,7 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
         >
           <span className="relative size-14 shrink-0 overflow-hidden rounded-lg" style={{ background: g.grad }}>
             <GenerationMedia gen={g} />
-            {running && <span className="vg-gen-field" />}
+            {running && <GenerationField />}
           </span>
           <span className="min-w-0 flex-1">
             <span className="ltr line-clamp-2 block text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
@@ -138,7 +139,7 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
           {/* Where every studio sends a new generation, so this is where the
               wait is seen: black, with the brand's light moving through it. It
               sits under the scrim and the badges, so "در حال ساخت" stays legible. */}
-          {running && <div className="vg-gen-field" />}
+          {running && <GenerationField />}
           <div className="scrim-media" />
           <div className="absolute start-2 top-2 flex flex-col items-start gap-1">
             {running ? (

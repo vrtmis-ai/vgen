@@ -10,6 +10,8 @@ interface StoredJob {
   createdAt: number;
   /** The code this job is rehearsing a failure for; see `FAILURE_CUE`. */
   fails?: string;
+  /** How long it stays running, for looking at what is drawn while it does. */
+  runsFor?: number;
 }
 
 /**
@@ -27,6 +29,16 @@ interface StoredJob {
  * come from the worker.
  */
 const FAILURE_CUE = /^\s*(fail|throw):([a-z_]+)/i;
+
+/**
+ * How to look at a generation that is still being made.
+ *
+ * A demo job settles in two and a half seconds, which is the right length for
+ * trying the product and far too short for looking at the surface it draws
+ * while it runs. A prompt starting with `slow:<seconds>` holds it there.
+ * Capped at five minutes, and demo only, like `FAILURE_CUE` above it.
+ */
+const SLOW_CUE = /^\s*slow:(\d{1,3})/i;
 
 /**
  * A stand-in placeholder, so a demo gallery has something to draw.
@@ -106,7 +118,7 @@ export function createDemoGenerationAdapters(now: () => number): {
   function currentJob(stored: StoredJob): GenerationJob {
     const elapsed = Math.max(0, now() - stored.createdAt);
     if (elapsed <= 250) return stored.job;
-    if (elapsed < 2_500) return { ...stored.job, status: "running", updatedAt: now() };
+    if (elapsed < (stored.runsFor ?? 2_500)) return { ...stored.job, status: "running", updatedAt: now() };
     if (stored.fails) {
       /* Settled the way the worker settles a refusal: a code, a fixed sentence,
          no outputs, and — the part that matters to whoever paid — nothing
@@ -184,7 +196,9 @@ export function createDemoGenerationAdapters(now: () => number): {
         outputs: [],
         urlsExpireAt: null,
       };
-      jobs.set(id, { job, createdAt: timestamp, ...(cue ? { fails: cue[2] } : {}) });
+      const slow = SLOW_CUE.exec(storedQuote.request.prompt);
+      const runsFor = slow ? Math.min(300, Number(slow[1])) * 1_000 : undefined;
+      jobs.set(id, { job, createdAt: timestamp, ...(cue ? { fails: cue[2] } : {}), ...(runsFor ? { runsFor } : {}) });
       idempotentJobs.set(request.idempotencyKey, id);
       return job;
     },

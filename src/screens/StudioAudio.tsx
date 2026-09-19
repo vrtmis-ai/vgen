@@ -27,6 +27,7 @@ import { Panel, PanelHead, PanelShell, PanelTabs, Section } from "../components/
 import { ModelPicker } from "../components/ModelPicker";
 import { useIgnition } from "../components/Ignition";
 import { FailedVeil, SubmitRefusalNote } from "../components/GenerationVeils";
+import { GenerationField } from "../components/GenerationField";
 import type { GenerationRefusal } from "../features/generation/validation";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { labelDir, promptDir } from "../lib/format";
@@ -611,7 +612,7 @@ export default function StudioAudio({
                 {/* The same moving field as a running card on the other two
                     canvases. No bar: nothing on the server reports progress,
                     and this one sat at 0% for the whole job. */}
-                <div className="vg-gen-field" />
+                <GenerationField />
                 <div className="relative min-w-0 flex-1">
                   <p className="text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
                     {t("r_making")}…

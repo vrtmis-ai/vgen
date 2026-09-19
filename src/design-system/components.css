@@ -1020,6 +1020,21 @@
     transform: translate(-24%, -26%) scale(0.65);
   }
 }
+/* With the particle cloud on top, the two drifting blobs stop being the thing
+   being looked at and become the haze behind it — otherwise they are simply
+   brighter than the cloud and it reads as a smudge with sparkles in it. They
+   are not removed: they are the floor the cloud fades into at its edges, and
+   they are what the tile falls back to alone when the scene cannot load. */
+.vg-gen-field::before,
+.vg-gen-field::after {
+  opacity: 1;
+  transition: opacity 600ms var(--vg-ease);
+}
+.vg-gen-field--nebula::before,
+.vg-gen-field--nebula::after {
+  opacity: 0.18;
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* The light stays where it is; only its movement stops. */
   .vg-gen-field::before,
