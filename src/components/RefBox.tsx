@@ -28,6 +28,16 @@ import { faNum } from "../lib/format";
 
    A tile that has been given a part wears the word, the way Higgsfield labels
    its start and end frames.
+
+   FRAMES ARE THE EXCEPTION, AND THEY COME BACK OUT OF THE BOX. A reference
+   slot is a bag — nine pictures of one subject, and which goes where is not a
+   question anybody is asking. A frame slot is a named role: this model wants
+   one picture for the first frame and one for the last. On a model whose only
+   inputs are those, "drop anything here and we will sort it out" is not a
+   simplification, it is a riddle — you cannot see where the opening frame goes
+   because there is nowhere for it to go. So each frame slot gets its own
+   labelled box again; the one box stays for whatever references remain, and a
+   model with nothing but references is untouched.
    --------------------------------------------------------------------------- */
 
 const ACCEPT: Record<SlotMedia, string> = {
@@ -38,9 +48,17 @@ const ACCEPT: Record<SlotMedia, string> = {
 
 const KIND_WORD: Record<SlotMedia, string> = { image: "تصویر", video: "ویدیو", audio: "صدا" };
 
+/** The slot's name without its parenthetical aside: «فریم شروع (اختیاری)» → «فریم شروع». */
+function slotTitle(slot: RefSlot): string {
+  return slot.label.replace(/\s*\([^)]*\)\s*$/, "").trim() || slot.label;
+}
+
 /** The drag's own MIME type. `Files` is what an OS drag carries, and the box
  *  has to tell the two apart: one adds, the other rearranges. */
 const DRAG_TYPE = "application/x-deev-ref";
+
+/** Prefix that marks a drag of a whole named slot rather than a tile index. */
+const SLOT_DRAG = "slot:";
 
 interface Tile {
   slot: RefSlot;
@@ -187,12 +205,27 @@ export function RefBox({
   const [dropping, setDropping] = useState(false);
   const [drag, setDrag] = useState<{ from: number; over: number | null } | null>(null);
   const [menuAt, setMenuAt] = useState<{ at: number; anchor: HTMLElement } | null>(null);
+  /* Which labelled box a pick or a drag is aimed at. A file dropped on «فریم
+     پایان» goes to the last frame, not wherever `landingSlot` would have put
+     it — naming the target is the entire point of drawing them apart. */
+  const pickFor = useRef<RefSlot | null>(null);
+  const [overSlot, setOverSlot] = useState<string | null>(null);
 
-  const tiles = tilesOf(slots, refs);
+  /* Frames are drawn as their own labelled boxes; the one box holds what is
+     left. Split here so neither list draws the other's files twice. */
+  const frames = slots.filter((slot) => groupOf(slot) === "frame");
+  const bagSlots = slots.filter((slot) => groupOf(slot) !== "frame");
+
+  const tiles = tilesOf(bagSlots, refs);
   const tags = refTags(slots, counts(refs));
-  const kinds = [...new Set(slots.map((slot) => slot.media ?? "image"))];
-  const accept = [...new Set(kinds.map((kind) => ACCEPT[kind]))].join(",");
-  const room = slots.some((slot) => (refs[slot.key] ?? []).length < slot.max);
+  /* What the catch-all box takes, which is not what the model takes once the
+     frames have boxes of their own: promising «تصویر» there sends the opening
+     frame to the wrong place. `accept` stays wide, because the same hidden
+     input serves the named boxes too and narrows itself per pick. */
+  const kinds = [...new Set(bagSlots.map((slot) => slot.media ?? "image"))];
+  const accept = [...new Set(slots.map((slot) => ACCEPT[slot.media ?? "image"]))].join(",");
+  const room = bagSlots.some((slot) => (refs[slot.key] ?? []).length < slot.max);
+  const held = slots.reduce((total, slot) => total + (refs[slot.key] ?? []).length, 0);
 
   async function add(picked: File[]) {
     let next = refs;
@@ -214,11 +247,38 @@ export function RefBox({
     onChange(next);
   }
 
+  /** Put files in one named slot, whatever `landingSlot` would have chosen. */
+  async function addTo(slot: RefSlot, picked: File[]) {
+    const kind = slot.media ?? "image";
+    const usable = picked.filter((file) => kindOfFile(file.type) === kind);
+    if (usable.length === 0) {
+      setRejected(`این جای ${KIND_WORD[kind]} است`);
+      return;
+    }
+    // A single-file slot takes the newest and lets the old one go, which is
+    // what dropping a second picture on an occupied box plainly means.
+    const room = Math.max(0, slot.max - (refs[slot.key] ?? []).length);
+    const existing = room > 0 ? (refs[slot.key] ?? []) : (refs[slot.key] ?? []).slice(usable.length);
+    const result = await addRefFiles(slot, existing, usable.slice(0, slot.max));
+    setRejected(result.rejected ? `فایل بزرگ‌تر از ${result.rejected} رد شد` : null);
+    onChange({ ...refs, [slot.key]: result.files });
+  }
+
   function remove(key: string, index: number) {
     const file = (refs[key] ?? [])[index];
     if (file) URL.revokeObjectURL(file.url);
     setRejected(null);
     onChange({ ...refs, [key]: (refs[key] ?? []).filter((_, i) => i !== index) });
+  }
+
+  /** Exchange what two named boxes hold, which is what dragging one onto the
+      other means: a start frame and an end frame trading places. */
+  function swapSlots(fromKey: string, toKey: string) {
+    if (fromKey === toKey) return;
+    const from = slots.find((slot) => slot.key === fromKey);
+    const to = slots.find((slot) => slot.key === toKey);
+    if (!from || !to || (from.media ?? "image") !== (to.media ?? "image")) return;
+    onChange({ ...refs, [fromKey]: refs[toKey] ?? [], [toKey]: refs[fromKey] ?? [] });
   }
 
   /** Give one file a different part. A full single-file target swaps with it. */
@@ -310,11 +370,102 @@ export function RefBox({
         {/* What this model will take, rather than one caption per slot saying
             the same thing three times. */}
         <span className="text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
-          {tiles.length ? `${faNum(tiles.length)} فایل` : kinds.map((kind) => KIND_WORD[kind]).join(" · ")}
+          {held ? `${faNum(held)} فایل` : kinds.map((kind) => KIND_WORD[kind]).join(" · ")}
         </span>
       </div>
 
-      {tiles.length === 0 ? (
+      {/* One named box per frame. The images sit two-up because a start and an
+          end are a matched pair and the eye compares them across; a clip is its
+          own question and takes the row. */}
+      {frames.length > 0 && (
+        <div className="mb-2 grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))" }}>
+          {frames.map((slot) => {
+            const files = refs[slot.key] ?? [];
+            const file = files[0];
+            const over = overSlot === slot.key;
+            return (
+              <div key={slot.key} className="min-w-0">
+                <p className="mb-1 truncate text-[10.5px]" style={{ color: "var(--vg-text-muted)" }}>
+                  {slotTitle(slot)}
+                  {slot.required && <span style={{ color: "var(--vg-primary-soft)" }}> *</span>}
+                </p>
+                <div
+                  className="vg-tile relative h-[72px] overflow-hidden rounded-[10px]"
+                  draggable={Boolean(file)}
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData(DRAG_TYPE, `${SLOT_DRAG}${slot.key}`);
+                  }}
+                  onDragOver={(event) => {
+                    const types = event.dataTransfer.types;
+                    if (!types.includes("Files") && !types.includes(DRAG_TYPE)) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setOverSlot(slot.key);
+                  }}
+                  onDragLeave={() => setOverSlot(null)}
+                  onDrop={(event) => {
+                    const moved = event.dataTransfer.getData(DRAG_TYPE);
+                    // Stopped either way, or the outer box would place the file
+                    // by MIME type and the aim would be lost.
+                    if (moved.startsWith(SLOT_DRAG)) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setOverSlot(null);
+                      swapSlots(moved.slice(SLOT_DRAG.length), slot.key);
+                      return;
+                    }
+                    if (!event.dataTransfer.types.includes("Files")) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setOverSlot(null);
+                    setDropping(false);
+                    void addTo(slot, Array.from(event.dataTransfer.files));
+                  }}
+                  style={{
+                    background: over ? "var(--vg-primary-a05)" : "var(--vg-deep)",
+                    boxShadow: `inset 0 0 0 1px ${over ? "var(--vg-primary)" : "var(--vg-border)"}`,
+                  }}
+                >
+                  {file ? (
+                    <>
+                      <TileMedia file={file} media={slot.media ?? "image"} />
+                      <button
+                        onClick={() => remove(slot.key, 0)}
+                        aria-label={`حذف ${slotTitle(slot)}`}
+                        title="حذف فایل"
+                        className="absolute top-1 grid size-6 place-items-center rounded-md backdrop-blur-sm"
+                        style={{ insetInlineEnd: 4, background: "rgba(0,0,0,0.55)", color: "var(--vg-text)" }}
+                      >
+                        <X size={12} weight="bold" />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        pickFor.current = slot;
+                        /* Set on the element and not through state: the click
+                           below is synchronous and a re-render would not have
+                           happened yet. React writes the wide value back on the
+                           next render, which is what the catch-all wants. */
+                        if (inputRef.current) inputRef.current.accept = ACCEPT[slot.media ?? "image"];
+                        inputRef.current?.click();
+                      }}
+                      aria-label={`افزودن ${slotTitle(slot)}`}
+                      className="grid size-full place-items-center border border-dashed active:scale-95"
+                      style={{ borderColor: "transparent", color: "var(--vg-text-faint)" }}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {bagSlots.length === 0 ? null : tiles.length === 0 ? (
         <button
           onClick={() => inputRef.current?.click()}
           className="flex h-[72px] w-full items-center justify-center gap-2 rounded-[10px] border border-dashed text-[12px] active:scale-[0.99]"
@@ -511,7 +662,10 @@ export function RefBox({
         onChange={(e) => {
           const picked = Array.from(e.target.files ?? []);
           e.target.value = "";
-          if (picked.length) void add(picked);
+          const aimed = pickFor.current;
+          pickFor.current = null;
+          if (!picked.length) return;
+          void (aimed ? addTo(aimed, picked) : add(picked));
         }}
       />
     </div>
