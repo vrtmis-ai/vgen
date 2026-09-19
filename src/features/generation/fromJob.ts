@@ -28,12 +28,20 @@ export function generationFromJob(job: GenerationJob, families: readonly Family[
      shape each is usually asked for. */
   const [w, h] = output?.width && output.height ? [output.width, output.height] : kind === "image" ? [1, 1] : [16, 9];
 
+  /* `draft` sits with `queued`: neither has been handed to a provider, and the
+     difference between them is ours rather than the customer's. `expired` sits
+     with `failed` — a job whose window closed produced nothing, which is what
+     that word means here. `cancelled` now stands alone; see `GenStatus`. */
   const status: GenStatus =
     job.status === "succeeded"
       ? "done"
-      : job.status === "failed" || job.status === "cancelled" || job.status === "expired"
-        ? "failed"
-        : "running";
+      : job.status === "cancelled"
+        ? "cancelled"
+        : job.status === "failed" || job.status === "expired"
+          ? "failed"
+          : job.status === "running"
+            ? "running"
+            : "queued";
 
   return {
     // The job id is the identity here. A generation this browser started also

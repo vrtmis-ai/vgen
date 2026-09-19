@@ -114,6 +114,19 @@ export interface AppServices {
      * becoming unaccountable.
      */
     remove(jobId: string, options?: RequestOptions): Promise<void>;
+    /**
+     * Call off a generation that has not started yet.
+     *
+     * Optional, and its absence is the answer to "can this deployment cancel?"
+     * — the endpoint is issue #81 and is not built, so the HTTP adapter only
+     * offers this where `NEXT_PUBLIC_JOB_CANCEL` says the API has it. A screen
+     * asks by looking for the method rather than by reading a flag of its own.
+     *
+     * Only `queued` can be cancelled. A job the worker has already claimed
+     * answers 409 `job_started`, because the provider is running it and the
+     * coins are being spent; the caller refreshes and says so.
+     */
+    cancel?(jobId: string, options?: RequestOptions): Promise<void>;
   };
   gallery: {
     list(query?: GalleryQuery, options?: RequestOptions): Promise<GalleryPage>;

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Trash } from "@phosphor-icons/react";
+import { Trash, X } from "@phosphor-icons/react";
 import type { Generation } from "../lib/gallery";
 import { generationErrorAction, jobFailureMessage, type GenerationRefusal } from "../features/generation/validation";
+import { cn } from "../lib/utils";
 import { Note, NoteAction } from "./ui/note";
 import { GenerationField } from "./GenerationField";
 import { useI18n } from "../lib/i18n";
@@ -19,14 +20,15 @@ import { useI18n } from "../lib/i18n";
  * bar that says ۰٪ for the whole of a two-minute video tells somebody it has
  * stalled. The moving field already says "working"; the words say what.
  */
-export function RunningVeil({ gen }: { gen: Generation }) {
+export function RunningVeil({ gen, onCancel }: { gen: Generation; onCancel?: ((generation: Generation) => CancelPromise) | undefined }) {
   const { t, n } = useI18n();
   const percent = gen.progress == null ? null : Math.round(gen.progress);
+  const queued = gen.status === "queued";
   return (
     <div className="absolute inset-0 grid place-items-center">
       <GenerationField />
       <div className="relative w-2/3 max-w-[180px] text-center">
-        {percent !== null && (
+        {percent !== null && !queued && (
           /* A progressbar, not a div that happens to be N% wide — a screen
              reader gets a range and a value rather than a stray number. */
           <div
@@ -46,10 +48,74 @@ export function RunningVeil({ gen }: { gen: Generation }) {
           </div>
         )}
         <p className="text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-          {t("r_making")}…{percent !== null && <span className="vg-numeric"> {n(percent)}٪</span>}
+          {queued ? t("gal_queued") : `${t("r_making")}…`}
+          {!queued && percent !== null && <span className="vg-numeric"> {n(percent)}٪</span>}
         </p>
+        {queued && onCancel && (
+          <div className="mt-2 flex justify-center">
+            <CancelButton onCancel={() => onCancel(gen)} />
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+/** What a cancel attempt came back with. See `GenerationsProvider`. */
+export type CancelOutcome = "cancelled" | "started" | "finished" | "error";
+type CancelPromise = Promise<CancelOutcome> | void;
+
+/**
+ * Call off a generation that has not started.
+ *
+ * It answers for itself, which is the whole reason it is a component rather
+ * than a button the callers draw. The press can lose a race — the worker may
+ * have taken the job while the pointer was travelling — and a card in a grid
+ * has nowhere to put that sentence. So the control becomes the sentence, for a
+ * few seconds, and by then the card has usually redrawn as running anyway.
+ */
+export function CancelButton({ onCancel, className }: { onCancel: () => CancelPromise; className?: string }) {
+  const { t } = useI18n();
+  const [state, setState] = useState<"idle" | "busy" | CancelOutcome>("idle");
+
+  useEffect(() => {
+    if (state !== "started" && state !== "finished" && state !== "error") return;
+    const timer = setTimeout(() => setState("idle"), 4_000);
+    return () => clearTimeout(timer);
+  }, [state]);
+
+  if (state === "started" || state === "finished" || state === "error") {
+    return (
+      <span
+        role="status"
+        className={cn("rounded-full px-2 py-1 text-[10.5px] leading-tight", className)}
+        style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+      >
+        {state === "started" ? t("gal_cancel_late") : state === "finished" ? t("gal_cancelled") : t("gal_cancel_failed")}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={state === "busy"}
+      onClick={async (event) => {
+        // The tile under it may be a link to the result; this press is not that.
+        event.stopPropagation();
+        setState("busy");
+        const outcome = await onCancel();
+        setState(outcome ?? "idle");
+      }}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-semibold transition-colors disabled:opacity-60",
+        className,
+      )}
+      style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)", boxShadow: "inset 0 0 0 1px var(--vg-border)" }}
+    >
+      <X size={11} weight="bold" />
+      {state === "busy" ? t("gal_cancelling") : t("gal_cancel")}
+    </button>
   );
 }
 
@@ -85,14 +151,18 @@ export function FailedVeil({
 }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
-  const reason = jobFailureMessage(gen.error?.code);
+  /* Cancelled is not refused. The customer ended this one themselves, so the
+     tile says so in the neutral tone and skips the failure's sentence, which
+     answers a question they did not ask. */
+  const cancelled = gen.status === "cancelled";
+  const reason = cancelled ? t("gal_cancelled_note") : jobFailureMessage(gen.error?.code);
   return (
     <div
       className="absolute inset-0 flex flex-col justify-end p-2"
       style={{ background: "var(--vg-surface)", boxShadow: framed ? "inset 0 0 0 1px var(--vg-border-subtle)" : undefined }}
     >
       <Note
-        type="error"
+        type={cancelled ? "default" : "error"}
         size="small"
         fill
         align="start"
@@ -100,7 +170,7 @@ export function FailedVeil({
            there is, so it goes in the body and the icon takes the label's
            place — a bold «انجام نشد:» with nothing after the colon is a
            sentence cut in half. */
-        label={lines > 0 ? t("gal_failed") : true}
+        label={lines > 0 ? t(cancelled ? "gal_cancelled" : "gal_failed") : true}
         action={
           onRemove && (
             <button
@@ -131,7 +201,7 @@ export function FailedVeil({
           </span>
         ) : (
           <span title={reason} className="font-semibold">
-            {t("gal_failed")}
+            {t(cancelled ? "gal_cancelled" : "gal_failed")}
           </span>
         )}
       </Note>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ImagesSquare, CircleNotch, WarningCircle, Trash } from "@phosphor-icons/react";
-import { displayAspect, type Generation } from "../lib/gallery";
+import { ImagesSquare, CircleNotch, Clock, WarningCircle, Trash } from "@phosphor-icons/react";
+import { displayAspect, isPending, isUnfinished, type Generation } from "../lib/gallery";
 import type { ModelKind } from "../data/models";
 import { GenerationMedia } from "../components/GenerationMedia";
 import { ViewControls, useViewMode } from "../components/ViewControls";
@@ -9,6 +9,7 @@ import { PANEL_RING } from "../components/Panel";
 import { jobFailureMessage } from "../features/generation/validation";
 import { Note } from "../components/ui/note";
 import { GenerationField } from "../components/GenerationField";
+import { CancelButton, type CancelOutcome } from "../components/GenerationVeils";
 import { useI18n } from "../lib/i18n";
 
 /**
@@ -42,10 +43,26 @@ function RemoveButton({ onRemove }: { onRemove: () => void }) {
   );
 }
 
-function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; onOpen: () => void; onRemove: () => void; list?: boolean }) {
+function GenCard({
+  g,
+  i,
+  onOpen,
+  onRemove,
+  onCancel,
+  list,
+}: {
+  g: Generation;
+  i: number;
+  onOpen: () => void;
+  onRemove: () => void;
+  onCancel?: (() => Promise<CancelOutcome>) | undefined;
+  list?: boolean;
+}) {
   const { t } = useI18n();
-  const running = g.status === "running";
-  const failed = g.status === "failed";
+  const pending = isPending(g.status);
+  const queued = g.status === "queued";
+  const cancelled = g.status === "cancelled";
+  const failed = isUnfinished(g.status);
   // What arrived rather than what was ordered. `cover` hides the difference on
   // a card, but the tile still has to reserve the right shape or the wall
   // reflows the moment a file lands.
@@ -65,12 +82,12 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: Math.min(i, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
           onClick={onOpen}
-          className={`flex w-full items-center gap-3 rounded-[11px] p-2 text-start ${failed ? "pe-11" : ""}`}
+          className={`flex w-full items-center gap-3 rounded-[11px] p-2 text-start ${failed || (queued && onCancel) ? "pe-11" : ""}`}
           style={{ background: "var(--vg-surface)", boxShadow: PANEL_RING }}
         >
           <span className="relative size-14 shrink-0 overflow-hidden rounded-lg" style={{ background: g.grad }}>
             <GenerationMedia gen={g} />
-            {running && <GenerationField />}
+            {pending && <GenerationField />}
           </span>
           <span className="min-w-0 flex-1">
             <span className="ltr line-clamp-2 block text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
@@ -84,17 +101,20 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
               <span className="vg-numeric">
                 {shape.w}×{shape.h}
               </span>
-              {running && (
-                <span className="flex items-center gap-1" style={{ color: "var(--vg-primary-soft)" }}>
-                  <CircleNotch size={10} className="animate-spin" />
-                  {t("gal_making")}
+              {pending && (
+                <span className="flex items-center gap-1" style={{ color: queued ? "var(--vg-text-muted)" : "var(--vg-primary-soft)" }}>
+                  {/* No spinner on a queued row: nothing is turning yet, and a
+                      spinner over a job nobody has started is the same lie the
+                      word «در حال ساخت» was telling. */}
+                  {queued ? <Clock size={11} /> : <CircleNotch size={10} className="animate-spin" />}
+                  {queued ? t("gal_queued") : t("gal_making")}
                 </span>
               )}
               {failed && (
                 <>
                   <span className="flex items-center gap-1" style={{ color: "var(--vg-text-muted)" }}>
                     <WarningCircle size={11} />
-                    {t("gal_failed")}
+                    {cancelled ? t("gal_cancelled") : t("gal_failed")}
                   </span>
                   {/* Where somebody is most likely to be looking for it.
                       Every failure is refunded in full — the worker releases the
@@ -107,9 +127,16 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
             </span>
           </span>
         </motion.button>
+        {/* Siblings of the card, for the reason above it: the card is a
+            button. A queued row offers the cancel; a settled one offers the bin. */}
         {failed && (
           <div className="absolute top-1/2 -translate-y-1/2" style={{ insetInlineEnd: "0.5rem" }}>
             <RemoveButton onRemove={onRemove} />
+          </div>
+        )}
+        {queued && onCancel && (
+          <div className="absolute top-1/2 -translate-y-1/2" style={{ insetInlineEnd: "0.5rem" }}>
+            <CancelButton onCancel={onCancel} />
           </div>
         )}
       </div>
@@ -139,13 +166,13 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
           {/* Where every studio sends a new generation, so this is where the
               wait is seen: black, with the brand's light moving through it. It
               sits under the scrim and the badges, so "در حال ساخت" stays legible. */}
-          {running && <GenerationField />}
+          {pending && <GenerationField />}
           <div className="scrim-media" />
           <div className="absolute start-2 top-2 flex flex-col items-start gap-1">
-            {running ? (
+            {pending ? (
               <span className="flex items-center gap-1 rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
-                <CircleNotch size={11} className="animate-spin" />
-                {t("gal_making")}
+                {queued ? <Clock size={11} /> : <CircleNotch size={11} className="animate-spin" />}
+                {queued ? t("gal_queued") : t("gal_making")}
               </span>
             ) : failed ? (
               /* The refund, said on the card rather than only on the result
@@ -168,14 +195,24 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
                 tile is an empty gradient with a badge on it, and "why" is what
                 the customer came to it for. Drawn as the same notice the
                 studios and the result page use. */}
+            {/* A cancelled card is not a refused one, so it is not drawn in
+                the failure's colour: nothing went wrong, the customer changed
+                their mind, and the red would be the screen arguing with them. */}
             {failed && (
-              <Note type="error" size="small" fill align="start" label={t("gal_failed")} className="mt-1.5">
+              <Note
+                type={cancelled ? "default" : "error"}
+                size="small"
+                fill
+                align="start"
+                label={cancelled ? t("gal_cancelled") : t("gal_failed")}
+                className="mt-1.5"
+              >
                 {/* Clamped in the style attribute, not with `line-clamp-2`:
                     the utility sets its own `display`, and the `block` that was
                     here beside it won — which let a long reason run the height
                     of the card. */}
                 <span className="overflow-hidden" style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2 }}>
-                  {jobFailureMessage(g.error?.code)}
+                  {cancelled ? t("gal_cancelled_note") : jobFailureMessage(g.error?.code)}
                 </span>
               </Note>
             )}
@@ -186,6 +223,11 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
       {failed && (
         <div className="absolute top-2" style={{ insetInlineEnd: "0.5rem" }}>
           <RemoveButton onRemove={onRemove} />
+        </div>
+      )}
+      {queued && onCancel && (
+        <div className="absolute top-2" style={{ insetInlineEnd: "0.5rem" }}>
+          <CancelButton onCancel={onCancel} />
         </div>
       )}
     </div>
@@ -206,11 +248,14 @@ export default function Gallery({
   gens,
   onOpen,
   onRemove,
+  onCancel,
   onBrowse,
 }: {
   gens: Generation[];
   onOpen: (g: Generation) => void;
   onRemove: (g: Generation) => void;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
   onBrowse: () => void;
 }) {
   const { t, n } = useI18n();
@@ -218,12 +263,8 @@ export default function Gallery({
   const view = useViewMode("gallery", { mode: "grid", density: 1 });
 
   const count = (f: Filter) =>
-    f === "all"
-      ? gens.length
-      : f === "running"
-        ? gens.filter((g) => g.status === "running").length
-        : gens.filter((g) => g.kind === f).length;
-  const shown = gens.filter((g) => (filter === "all" ? true : filter === "running" ? g.status === "running" : g.kind === filter));
+    f === "all" ? gens.length : f === "running" ? gens.filter((g) => isPending(g.status)).length : gens.filter((g) => g.kind === f).length;
+  const shown = gens.filter((g) => (filter === "all" ? true : filter === "running" ? isPending(g.status) : g.kind === filter));
 
   return (
     /* Rebuilt for the top-bar shell. Like Community, this printed its own title
@@ -311,7 +352,15 @@ export default function Gallery({
            The density stepper drives the column count directly. */
         <div className="[column-fill:_balance] gap-3" style={{ columnCount: view.mode === "list" ? 1 : view.cols }}>
           {shown.map((g, i) => (
-            <GenCard key={g.id} g={g} i={i} onOpen={() => onOpen(g)} onRemove={() => onRemove(g)} list={view.mode === "list"} />
+            <GenCard
+              key={g.id}
+              g={g}
+              i={i}
+              onOpen={() => onOpen(g)}
+              onRemove={() => onRemove(g)}
+              onCancel={onCancel ? () => onCancel(g) : undefined}
+              list={view.mode === "list"}
+            />
           ))}
         </div>
       )}

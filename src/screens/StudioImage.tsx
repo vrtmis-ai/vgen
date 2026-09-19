@@ -6,14 +6,14 @@ import { insertTag, refTags, tagUsed } from "../lib/refTags";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { addRefFiles, moveRefFile, slotAccept, type InputMap, type RefMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
-import { displayAspect, type Generation } from "../lib/gallery";
+import { displayAspect, isPending, isUnfinished, type Generation } from "../lib/gallery";
 import { CoinMark } from "../components/chrome";
 import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
 import { useIgnition } from "../components/Ignition";
-import { FailedVeil, RunningVeil, SubmitRefusalNote } from "../components/GenerationVeils";
+import { FailedVeil, RunningVeil, SubmitRefusalNote, type CancelOutcome } from "../components/GenerationVeils";
 import type { GenerationRefusal } from "../features/generation/validation";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { ModelChip } from "../components/ModelPicker";
@@ -158,6 +158,7 @@ export default function StudioImage({
   onGenerate,
   onOpenModel,
   onRemove,
+  onCancel,
   submitError,
   onErrorAction,
 }: {
@@ -166,6 +167,8 @@ export default function StudioImage({
   onOpenModel: (familyId: string, prompt?: string) => void;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove: (g: Generation) => void;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
   /** Why the last press did not become a job. See `GenerationsProvider`. */
   submitError?: GenerationRefusal | null | undefined;
   /** Where a refusal that has a way out leads. */
@@ -284,7 +287,7 @@ export default function StudioImage({
      forty-two times would be forty-two progress bars for one generation. It
      also has no picture yet, so it cannot take part in a layout whose whole
      job is arranging pictures. */
-  const running = mine.filter((g) => g.status === "running");
+  const running = mine.filter((g) => isPending(g.status));
   /* `done`, not "not running". A refused generation has no file, so it fell to
      the `art()` placeholder below and appeared on the wall as somebody else's
      stock photograph — the studio claiming a picture where the provider had
@@ -368,7 +371,7 @@ export default function StudioImage({
   const tiles = [
     ...running.map((g) => placeholder(g, "pending")),
     ...mine.flatMap((g) =>
-      g.status === "failed" ? [placeholder(g, "refused")] : g.status === "done" && pictures.has(g.id) ? [pictures.get(g.id)!] : [],
+      isUnfinished(g.status) ? [placeholder(g, "refused")] : g.status === "done" && pictures.has(g.id) ? [pictures.get(g.id)!] : [],
     ),
   ];
 
@@ -503,7 +506,7 @@ export default function StudioImage({
                   // Clear of the sticky bar above and the dock floating below.
                   style={{ background: t.pending.grad, scrollMarginBlock: "6rem 14rem" }}
                 >
-                  <RunningVeil gen={t.pending} />
+                  <RunningVeil gen={t.pending} onCancel={onCancel} />
                 </div>
               ) : t.refused ? (
                 <div

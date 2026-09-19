@@ -7,11 +7,11 @@ import { VendorMark } from "../components/VendorMark";
 import type { InputMap, RefMap } from "../components/controls";
 import { FormPanel } from "../components/FormPanel";
 import { ViewControls, useViewMode } from "../components/ViewControls";
-import { type Generation } from "../lib/gallery";
+import { isPending, isUnfinished, type Generation } from "../lib/gallery";
 import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { useRevealArrival } from "../lib/useRevealArrival";
-import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
+import { FailedVeil, RunningVeil, type CancelOutcome } from "../components/GenerationVeils";
 import type { GenerationRefusal } from "../features/generation/validation";
 import { riseItem, riseParent } from "../lib/motion";
 import { useI18n, type TKey } from "../lib/i18n";
@@ -52,10 +52,18 @@ const STEPS: { title: TKey; body: TKey; Icon: typeof SlidersHorizontal; art?: st
   { title: "st_step3_title", body: "st_step3_body", Icon: Sparkle },
 ];
 
-function OutputCard({ gen, onRemove }: { gen: Generation; onRemove?: (() => void) | undefined }) {
+function OutputCard({
+  gen,
+  onRemove,
+  onCancel,
+}: {
+  gen: Generation;
+  onRemove?: (() => void) | undefined;
+  onCancel?: ((generation: Generation) => Promise<CancelOutcome>) | undefined;
+}) {
   const [failed, onError] = useImageFallback();
   const url = gen.outputUrl;
-  const refused = gen.status === "failed";
+  const refused = isUnfinished(gen.status);
   return (
     <motion.div
       variants={riseItem}
@@ -74,7 +82,7 @@ function OutputCard({ gen, onRemove }: { gen: Generation; onRemove?: (() => void
           <img src={url} alt={gen.prompt} loading="lazy" onError={onError} className="absolute inset-0 size-full object-cover" />
         ))}
 
-      {gen.status === "running" && <RunningVeil gen={gen} />}
+      {isPending(gen.status) && <RunningVeil gen={gen} onCancel={onCancel} />}
 
       {/* It drew the model's gradient and its name here, which is exactly what
           a card waiting for its file looks like — a refusal read as a
@@ -104,6 +112,7 @@ export default function Studio({
   onGenerate,
   onOpen,
   onRemove,
+  onCancel,
   submitError,
   onErrorAction,
 }: {
@@ -113,6 +122,8 @@ export default function Studio({
   onOpen: (g: Generation) => void;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove: (g: Generation) => void;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
   /** Why the last press did not become a job; the dock prints it. */
   submitError?: GenerationRefusal | null | undefined;
   /** Where a refusal that has a way out leads. */
@@ -266,13 +277,13 @@ export default function Studio({
                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(1300 / view.cols)}px, 1fr))` }}
               >
                 {mine.map((g) =>
-                  /* A refused card is not a button: it carries its own remove
-                     control, and a button inside a button is invalid markup
-                     that browsers resolve by dropping one of them. Its reason
-                     is already on it, so there is nothing to open. */
-                  g.status === "failed" ? (
+                  /* A refused or queued card is not a button: it carries its
+                     own control — remove, or cancel — and a button inside a
+                     button is invalid markup that browsers resolve by dropping
+                     one of them. Neither has anything to open in any case. */
+                  isUnfinished(g.status) || g.status === "queued" ? (
                     <div key={g.id} ref={g.id === mine[0]?.id ? reveal.target : undefined} className="scroll-my-24">
-                      <OutputCard gen={g} onRemove={() => onRemove(g)} />
+                      <OutputCard gen={g} onRemove={() => onRemove(g)} onCancel={onCancel} />
                     </div>
                   ) : (
                     <button
@@ -298,13 +309,23 @@ export default function Studio({
                     ref={g.id === mine[0]?.id ? reveal.target : undefined}
                     className="flex scroll-my-24 flex-col gap-3 lg:flex-row lg:items-start"
                   >
-                    {g.status === "failed" ? (
-                      // Not a button, for the same reason as the grid above.
+                    {/* A card with a control on it cannot be a button: a button
+                        inside a button is invalid markup that browsers resolve
+                        by dropping one of them. That is the refused card's
+                        remove control, and now also the queued card's cancel —
+                        and a queued generation has nothing to open in any case,
+                        so it loses nothing by not being pressable until it
+                        starts. */}
+                    {isUnfinished(g.status) || g.status === "queued" ? (
                       <div
                         className="relative min-w-0 flex-1 overflow-hidden rounded-2xl"
                         style={{ aspectRatio: `${g.w} / ${g.h}`, maxHeight: "70dvh", border: "1px solid var(--vg-border-subtle)" }}
                       >
-                        <FailedVeil gen={g} onRemove={() => onRemove(g)} />
+                        {isUnfinished(g.status) ? (
+                          <FailedVeil gen={g} onRemove={() => onRemove(g)} />
+                        ) : (
+                          <RunningVeil gen={g} onCancel={onCancel} />
+                        )}
                       </div>
                     ) : (
                       <button

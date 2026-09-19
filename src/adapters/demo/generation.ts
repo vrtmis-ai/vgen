@@ -12,6 +12,10 @@ interface StoredJob {
   fails?: string;
   /** How long it stays running, for looking at what is drawn while it does. */
   runsFor?: number;
+  /** How long it waits before a worker takes it. */
+  queuedFor?: number;
+  /** Set by `cancel`, which is the one ending the customer chooses. */
+  cancelled?: boolean;
 }
 
 /**
@@ -39,6 +43,14 @@ const FAILURE_CUE = /^\s*(fail|throw):([a-z_]+)/i;
  * Capped at five minutes, and demo only, like `FAILURE_CUE` above it.
  */
 const SLOW_CUE = /^\s*slow:(\d{1,3})/i;
+
+/**
+ * The same, for the state before it: `queue:<seconds>` holds the job in the
+ * queue that long before a worker takes it. A demo job is queued for a quarter
+ * of a second, which is not long enough to read the word, let alone press the
+ * button that calls it off.
+ */
+const QUEUE_CUE = /^\s*queue:(\d{1,3})/i;
 
 /**
  * A stand-in placeholder, so a demo gallery has something to draw.
@@ -117,7 +129,9 @@ export function createDemoGenerationAdapters(now: () => number): {
    */
   function currentJob(stored: StoredJob): GenerationJob {
     const elapsed = Math.max(0, now() - stored.createdAt);
-    if (elapsed <= 250) return stored.job;
+    // Called off while it waited: it stops here and nothing was charged.
+    if (stored.cancelled) return { ...stored.job, status: "cancelled", updatedAt: now(), outputs: [] };
+    if (elapsed <= (stored.queuedFor ?? 250)) return stored.job;
     if (elapsed < (stored.runsFor ?? 2_500)) return { ...stored.job, status: "running", updatedAt: now() };
     if (stored.fails) {
       /* Settled the way the worker settles a refusal: a code, a fixed sentence,
@@ -197,8 +211,18 @@ export function createDemoGenerationAdapters(now: () => number): {
         urlsExpireAt: null,
       };
       const slow = SLOW_CUE.exec(storedQuote.request.prompt);
-      const runsFor = slow ? Math.min(300, Number(slow[1])) * 1_000 : undefined;
-      jobs.set(id, { job, createdAt: timestamp, ...(cue ? { fails: cue[2] } : {}), ...(runsFor ? { runsFor } : {}) });
+      const queued = QUEUE_CUE.exec(storedQuote.request.prompt);
+      const queuedFor = queued ? Math.min(300, Number(queued[1])) * 1_000 : undefined;
+      // Whatever it was asked to run for, it cannot finish before it starts.
+      const asked = slow ? Math.min(300, Number(slow[1])) * 1_000 : undefined;
+      const runsFor = queuedFor ? Math.max(asked ?? 2_500, queuedFor + 2_500) : asked;
+      jobs.set(id, {
+        job,
+        createdAt: timestamp,
+        ...(cue ? { fails: cue[2] } : {}),
+        ...(runsFor ? { runsFor } : {}),
+        ...(queuedFor ? { queuedFor } : {}),
+      });
       idempotentJobs.set(request.idempotencyKey, id);
       return job;
     },
@@ -218,6 +242,23 @@ export function createDemoGenerationAdapters(now: () => number): {
     // output itself keeps the button honest in demo mode.
     downloadUrl(jobId, index = 0) {
       return (jobs.get(jobId) ?? recalled.get(jobId))?.job.outputs[index]?.url ?? "";
+    },
+
+    /* The same three answers the route in issue #81 describes: a queued job is
+       cancelled, one a worker has claimed is too late, and one that has already
+       settled has nothing left to call off. */
+    async cancel(jobId) {
+      const stored = jobs.get(jobId) ?? recall(jobId);
+      if (!stored) throw new ApiError({ code: "job_not_found", message: "No such job.", status: 404 });
+      const job = currentJob(stored);
+      if (job.status === "running") {
+        throw new ApiError({ code: "job_started", message: "That generation has already started.", status: 409 });
+      }
+      if (job.status !== "queued" && job.status !== "draft") {
+        throw new ApiError({ code: "job_finished", message: "That generation has already finished.", status: 409 });
+      }
+      stored.cancelled = true;
+      stored.job = currentJob(stored);
     },
 
     // A hard delete here, where the server's is soft: the map is the demo's

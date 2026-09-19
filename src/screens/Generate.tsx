@@ -12,9 +12,9 @@ import { VendorMark } from "../components/VendorMark";
 import { Panel, PanelHead, PanelShell, Section } from "../components/Panel";
 import { RefBox } from "../components/RefBox";
 import { useIgnition } from "../components/Ignition";
-import { FailedVeil, RunningVeil, SubmitRefusalNote } from "../components/GenerationVeils";
+import { FailedVeil, RunningVeil, SubmitRefusalNote, type CancelOutcome } from "../components/GenerationVeils";
 import { GenerationMedia } from "../components/GenerationMedia";
-import { displayAspect, type Generation } from "../lib/gallery";
+import { displayAspect, isUnfinished, type Generation } from "../lib/gallery";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { allTags, insertTag, refTags, tagUsed } from "../lib/refTags";
 import { isVideoUrl, labelDir, promptDir } from "../lib/format";
@@ -71,6 +71,7 @@ export default function Generate({
   gens = [],
   onOpen,
   onRemove,
+  onCancel,
   onErrorAction,
 }: {
   family: Family;
@@ -98,6 +99,8 @@ export default function Generate({
   onOpen?: ((generation: Generation) => void) | undefined;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove?: ((generation: Generation) => void) | undefined;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((generation: Generation) => Promise<CancelOutcome>) | undefined;
   /** Where a refusal that has a way out leads. See `generationErrorAction`. */
   onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
@@ -606,10 +609,12 @@ export default function Generate({
               const shape = displayAspect(generation);
               const target = generation.id === mine[0]?.id ? reveal.target : undefined;
               const frame = { aspectRatio: `${shape.w} / ${shape.h}`, background: generation.grad };
-              /* A refused card carries its own remove control, so it cannot be
-                 a button: a button inside a button is invalid markup that
-                 browsers resolve by dropping one of them. */
-              if (generation.status === "failed") {
+              /* A card with a control on it cannot be a button: a button inside
+                 a button is invalid markup that browsers resolve by dropping
+                 one of them. That is the refused card's remove control and the
+                 queued card's cancel — and a queued generation has nothing to
+                 open until it starts. */
+              if (isUnfinished(generation.status) || generation.status === "queued") {
                 return (
                   <div
                     key={generation.id}
@@ -617,7 +622,11 @@ export default function Generate({
                     className="relative scroll-my-24 overflow-hidden rounded-[14px]"
                     style={{ ...frame, border: "1px solid var(--vg-border-subtle)" }}
                   >
-                    <FailedVeil gen={generation} onRemove={onRemove ? () => onRemove(generation) : undefined} />
+                    {isUnfinished(generation.status) ? (
+                      <FailedVeil gen={generation} onRemove={onRemove ? () => onRemove(generation) : undefined} />
+                    ) : (
+                      <RunningVeil gen={generation} onCancel={onCancel} />
+                    )}
                   </div>
                 );
               }

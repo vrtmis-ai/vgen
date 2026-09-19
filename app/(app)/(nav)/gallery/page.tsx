@@ -20,7 +20,7 @@ export default function GalleryPage() {
 }
 
 function GalleryScreen() {
-  const { gens, removeGeneration } = useGenerations();
+  const { gens, removeGeneration, cancelGeneration } = useGenerations();
   const { openResult, setTab } = useNavigation();
 
   return (
@@ -28,6 +28,7 @@ function GalleryScreen() {
       gens={gens}
       onOpen={(generation) => openResult(generation.id, { instant: true })}
       onRemove={(generation) => void removeGeneration(generation.id)}
+      onCancel={cancelGeneration ? (generation) => cancelGeneration(generation.id) : undefined}
       onBrowse={() => setTab("video")}
     />
   );

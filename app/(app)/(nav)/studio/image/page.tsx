@@ -5,7 +5,7 @@ import { useGenerations } from "../../../../../src/runtime/providers/Generations
 import { useNavigation } from "../../../../../src/runtime/providers/NavigationProvider";
 
 export default function StudioImagePage() {
-  const { gens, requestGeneration, removeGeneration, submitError } = useGenerations();
+  const { gens, requestGeneration, removeGeneration, submitError, cancelGeneration } = useGenerations();
   const { openModel, openWallet } = useNavigation();
 
   return (
@@ -16,6 +16,7 @@ export default function StudioImagePage() {
       }
       onOpenModel={openModel}
       onRemove={(generation) => void removeGeneration(generation.id)}
+      onCancel={cancelGeneration ? (generation) => cancelGeneration(generation.id) : undefined}
       /* Both refusals with a way out end at the same page: the wallet and the
          plan ladder are two sections of /plans. Kept as two targets anyway,
          because the notice's label promises different things and the day they
