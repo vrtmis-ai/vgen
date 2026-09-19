@@ -11,7 +11,7 @@ import { useNavigation } from "../../../../../src/runtime/providers/NavigationPr
    differently. They share the token layer and `useCreateState`, and nothing else. */
 export default function StudioVideoPage() {
   const { gens, requestGeneration, removeGeneration, submitError } = useGenerations();
-  const { openResult } = useNavigation();
+  const { openResult, openWallet } = useNavigation();
 
   return (
     <Studio
@@ -20,7 +20,12 @@ export default function StudioVideoPage() {
       onGenerate={(family, variant, prompt, input, refs) => requestGeneration(family.id, prompt, input, variant, { refs })}
       onOpen={(generation) => openResult(generation.id, { instant: true })}
       onRemove={(generation) => void removeGeneration(generation.id)}
+      /* Both refusals with a way out end at the same page: the wallet and the
+         plan ladder are two sections of /plans. Kept as two targets anyway,
+         because the notice's label promises different things and the day they
+         split, the screens will not need touching. */
       submitError={submitError}
+      onErrorAction={() => openWallet()}
     />
   );
 }

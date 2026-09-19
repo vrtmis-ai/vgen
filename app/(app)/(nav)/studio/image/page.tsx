@@ -6,7 +6,7 @@ import { useNavigation } from "../../../../../src/runtime/providers/NavigationPr
 
 export default function StudioImagePage() {
   const { gens, requestGeneration, removeGeneration, submitError } = useGenerations();
-  const { openModel } = useNavigation();
+  const { openModel, openWallet } = useNavigation();
 
   return (
     <StudioImage
@@ -16,7 +16,12 @@ export default function StudioImagePage() {
       }
       onOpenModel={openModel}
       onRemove={(generation) => void removeGeneration(generation.id)}
+      /* Both refusals with a way out end at the same page: the wallet and the
+         plan ladder are two sections of /plans. Kept as two targets anyway,
+         because the notice's label promises different things and the day they
+         split, the screens will not need touching. */
       submitError={submitError}
+      onErrorAction={() => openWallet()}
     />
   );
 }

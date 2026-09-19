@@ -113,6 +113,45 @@ const GENERATION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 
 const GENERATION_ERROR_FALLBACK = "ساخت محتوا انجام نشد؛ دوباره تلاش کنید.";
 
+/**
+ * A refusal, as the dock that pressed needs it: the sentence to print and the
+ * code that chose it.
+ *
+ * The code travels with the message because the message alone cannot be acted
+ * on. «اول کیف پول را شارژ کنید» is only advice until something on the screen
+ * goes to the wallet, and working out which button to draw from Persian prose
+ * is exactly the string-matching `docs/API.md` forbids.
+ */
+export interface GenerationRefusal {
+  code: string;
+  message: string;
+}
+
+/** Where a refusal can be resolved, for the notice's own button. */
+export interface GenerationErrorAction {
+  label: string;
+  target: "wallet" | "plans";
+}
+
+/**
+ * The two refusals with a way out, and nothing else.
+ *
+ * Deliberately short. A button that leads somewhere useless is worse than no
+ * button: «چند لحظه بعد دوباره تلاش کنید» has no destination, and offering one
+ * would send somebody looking for a fix that is just waiting. Only the refusals
+ * whose sentence already names a place get one, and the label repeats that
+ * place rather than saying "برو".
+ */
+const GENERATION_ERROR_ACTIONS: Readonly<Record<string, GenerationErrorAction>> = {
+  insufficient_credits: { label: "شارژ کیف پول", target: "wallet" },
+  allowance_spent: { label: "شارژ کیف پول", target: "wallet" },
+  tier_too_low: { label: "ارتقای پلن", target: "plans" },
+};
+
+export function generationErrorAction(code: string | undefined): GenerationErrorAction | null {
+  return (code ? GENERATION_ERROR_ACTIONS[code] : undefined) ?? null;
+}
+
 export function generationErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return GENERATION_ERROR_FALLBACK;
   return GENERATION_ERROR_MESSAGES[error.code] ?? GENERATION_ERROR_FALLBACK;

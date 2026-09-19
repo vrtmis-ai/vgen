@@ -6,7 +6,7 @@ import { defaultInput, variantControls, type Variant } from "../../data/models";
 import type { InputMap, RefMap } from "../../components/controls";
 import { loadGenerations, saveGenerations, uid, type GenStatus, type Generation } from "../../lib/gallery";
 import { currentAspect } from "../../features/generation/aspect";
-import { generationErrorMessage, validateGenerationInput } from "../../features/generation/validation";
+import { generationErrorMessage, validateGenerationInput, type GenerationRefusal } from "../../features/generation/validation";
 import { generationFromJob, mergeGenerations, sameGenerations } from "../../features/generation/fromJob";
 import { useCatalogFamilies } from "../../features/catalog/CatalogProvider";
 import { useCreateGeneration, useGalleryHistory, useGenerationJobs } from "../../features/generation/useGeneration";
@@ -85,8 +85,11 @@ interface Generations {
    * of those has its own sentence in `generationErrorMessage`, and each has a
    * different fix — so the dock prints it where the press happened rather than
    * replacing the studio with a page that says "something went wrong".
+   *
+   * The code rides along with the sentence: it is what lets the notice offer
+   * the wallet on a short balance and the plan ladder on a locked model.
    */
-  submitError: string | null;
+  submitError: GenerationRefusal | null;
   /** Cleared by the dock when the next press starts, or when it is dismissed. */
   clearSubmitError: () => void;
   regenerate: (previous: Generation) => Promise<void>;
@@ -120,7 +123,7 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   const createGeneration = useCreateGeneration();
   const queryClient = useQueryClient();
   const pendingRef = useRef(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<GenerationRefusal | null>(null);
 
   // Starts empty on both server and client, then loads once mounted. Reading
   // localStorage in the useState initialiser — as this did — runs during render,
@@ -375,7 +378,7 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
     (familyId: string, prompt: string, input: InputMap, variant: Variant, options?: GenerationRequestOptions) => {
       setSubmitError(null);
       void startGeneration(familyId, prompt, input, variant, options).catch((error: unknown) =>
-        setSubmitError(generationErrorMessage(error)),
+        setSubmitError({ code: error instanceof ApiError ? error.code : "unknown", message: generationErrorMessage(error) }),
       );
     },
     [startGeneration],

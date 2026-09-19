@@ -7,6 +7,7 @@ import { GenerationMedia } from "../components/GenerationMedia";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { PANEL_RING } from "../components/Panel";
 import { jobFailureMessage } from "../features/generation/validation";
+import { Note } from "../components/ui/note";
 import { useI18n } from "../lib/i18n";
 
 /**
@@ -125,7 +126,14 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
         onClick={onOpen}
         className="block w-full overflow-hidden rounded-bezel border border-line text-start active:scale-[0.98] transition-transform"
       >
-        <div className="relative w-full" style={{ aspectRatio: `${shape.w}/${shape.h}`, background: g.grad }}>
+        {/* A failed card drops the gradient. It is a stand-in for a picture,
+            and on a job that made none it is decoration the reason has to be
+            read through — the studios already cover a refused tile with the
+            same surface. */}
+        <div
+          className="relative w-full"
+          style={{ aspectRatio: `${shape.w}/${shape.h}`, background: failed ? "var(--vg-surface)" : g.grad }}
+        >
           <GenerationMedia gen={g} />
           {/* Where every studio sends a new generation, so this is where the
               wait is seen: black, with the brand's light moving through it. It
@@ -139,17 +147,14 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
                 {t("gal_making")}
               </span>
             ) : failed ? (
-              <>
-                <span className="flex items-center gap-1 rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
-                  <WarningCircle size={11} />
-                  {t("gal_failed")}
-                </span>
-                {/* The refund, said on the card rather than only on the result
-                    page. Every failure releases its hold and charges zero, and
-                    somebody who watched coins leave their wallet needs telling
-                    that the two cancelled out — here, where they are looking. */}
-                <span className="rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{t("gal_refunded")}</span>
-              </>
+              /* The refund, said on the card rather than only on the result
+                 page. Every failure releases its hold and charges zero, and
+                 somebody who watched coins leave their wallet needs telling that
+                 the two cancelled out — here, where they are looking. It is the
+                 only badge a failed card carries now: «انجام نشد» used to sit
+                 beside it and is said again, with its reason, in the notice at
+                 the foot of the card. */
+              <span className="rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{t("gal_refunded")}</span>
             ) : (
               <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
                 {t(g.kind === "video" ? "kind_video" : g.kind === "audio" ? "kind_audio" : "kind_image")}
@@ -160,8 +165,19 @@ function GenCard({ g, i, onOpen, onRemove, list }: { g: Generation; i: number; o
             <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{g.name}</span>
             {/* The reason, on a card that has nothing else to show. A failed
                 tile is an empty gradient with a badge on it, and "why" is what
-                the customer came to it for. */}
-            {failed && <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-white/85">{jobFailureMessage(g.error?.code)}</p>}
+                the customer came to it for. Drawn as the same notice the
+                studios and the result page use. */}
+            {failed && (
+              <Note type="error" size="small" fill align="start" label={t("gal_failed")} className="mt-1.5">
+                {/* Clamped in the style attribute, not with `line-clamp-2`:
+                    the utility sets its own `display`, and the `block` that was
+                    here beside it won — which let a long reason run the height
+                    of the card. */}
+                <span className="overflow-hidden" style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2 }}>
+                  {jobFailureMessage(g.error?.code)}
+                </span>
+              </Note>
+            )}
             {g.prompt && <p className="ltr mt-1.5 line-clamp-2 text-[11.5px] leading-snug text-white/85">{g.prompt}</p>}
           </div>
         </div>

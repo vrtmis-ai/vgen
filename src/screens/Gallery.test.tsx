@@ -57,7 +57,8 @@ describe("a refused generation on the wall", () => {
   it("says the coins came back, and why it failed", () => {
     show([failed]);
 
-    expect(screen.getByText("انجام نشد")).toBeInTheDocument();
+    // The notice's own label: «انجام نشد: <دلیل>».
+    expect(screen.getByText("انجام نشد:")).toBeInTheDocument();
     expect(screen.getByText("سکه‌ها برگشت")).toBeInTheDocument();
     // The reason comes from the code, which is the contract — never from the
     // provider's own message, which we do not forward.

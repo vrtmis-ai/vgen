@@ -217,6 +217,22 @@
   --vg-danger-bg: #93000a;
   --vg-info: var(--vg-accent);
 
+  /* Each status colour tinted, for the notice boxes in `Note`: a08 is the
+     fill, a30 the hairline around it. Same two steps as --vg-reward, and for
+     the same reason — a status box on this canvas wants its colour in the
+     border and a breath of it behind the text, never a solid fill. The
+     channels are restated rather than colour-mixed so the alphas stay legible
+     next to the hex they came from. */
+  --vg-success-a08: rgb(74 222 128 / 0.08);
+  --vg-success-a15: rgb(74 222 128 / 0.15);
+  --vg-success-a30: rgb(74 222 128 / 0.3);
+  --vg-warning-a08: rgb(251 191 36 / 0.08);
+  --vg-warning-a15: rgb(251 191 36 / 0.15);
+  --vg-warning-a30: rgb(251 191 36 / 0.3);
+  --vg-danger-a08: rgb(255 180 171 / 0.08);
+  --vg-danger-a15: rgb(255 180 171 / 0.15);
+  --vg-danger-a30: rgb(255 180 171 / 0.3);
+
   /* ---------------------------------------------------------------------
      4b. REWARD — what the product gives away
 

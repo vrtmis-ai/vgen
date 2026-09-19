@@ -26,7 +26,8 @@ import { CoinMark } from "../components/chrome";
 import { Panel, PanelHead, PanelShell, PanelTabs, Section } from "../components/Panel";
 import { ModelPicker } from "../components/ModelPicker";
 import { useIgnition } from "../components/Ignition";
-import { FailedVeil } from "../components/GenerationVeils";
+import { FailedVeil, SubmitRefusalNote } from "../components/GenerationVeils";
+import type { GenerationRefusal } from "../features/generation/validation";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { labelDir, promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
@@ -209,13 +210,16 @@ export default function StudioAudio({
   onGenerate,
   onRemove,
   submitError,
+  onErrorAction,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove: (g: Generation) => void;
   /** Why the last press did not become a job. See `GenerationsProvider`. */
-  submitError?: string | null | undefined;
+  submitError?: GenerationRefusal | null | undefined;
+  /** Where a refusal that has a way out leads. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -548,11 +552,7 @@ export default function StudioAudio({
             </button>
           )}
           {/* A refusal that never became a job, where the press happened. */}
-          {submitError && (
-            <p role="status" className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-danger)" }}>
-              {submitError}
-            </p>
-          )}
+          {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-2" />}
         </div>
       </PanelShell>
 

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Trash, WarningCircle } from "@phosphor-icons/react";
+import { Trash } from "@phosphor-icons/react";
 import type { Generation } from "../lib/gallery";
-import { jobFailureMessage } from "../features/generation/validation";
+import { generationErrorAction, jobFailureMessage, type GenerationRefusal } from "../features/generation/validation";
+import { Note, NoteAction } from "./ui/note";
 import { useI18n } from "../lib/i18n";
 
 /**
@@ -61,6 +62,11 @@ export function RunningVeil({ gen }: { gen: Generation }) {
  * here, in the words `jobFailureMessage` already chose for each code — each of
  * them also says the coins came back — with a way to clear it.
  *
+ * Said in a `Note`, which is the shape every failure in the app now takes: the
+ * status word in bold, the reason after it, and the one control that applies
+ * pinned to the end. On a tile that control is the bin, because a job that
+ * produced nothing has nothing else left to do with it.
+ *
  * The remove button means this must never sit inside another button. A card
  * that opens something keeps this as a sibling, the way کارهای من does.
  */
@@ -81,44 +87,87 @@ export function FailedVeil({
   const reason = jobFailureMessage(gen.error?.code);
   return (
     <div
-      className="absolute inset-0 flex flex-col gap-2 p-2.5"
+      className="absolute inset-0 flex flex-col justify-end p-2"
       style={{ background: "var(--vg-surface)", boxShadow: framed ? "inset 0 0 0 1px var(--vg-border-subtle)" : undefined }}
     >
-      <div className="flex items-start justify-between gap-2">
-        <span
-          className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
-          style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-secondary)" }}
-        >
-          <WarningCircle size={12} weight="bold" />
-          {t("gal_failed")}
-        </span>
-        {onRemove && (
-          <button
-            type="button"
-            onClick={() => {
-              setBusy(true);
-              onRemove();
-            }}
-            disabled={busy}
-            aria-label={`${t("gal_remove")} — ${gen.prompt.trim().slice(0, 40) || gen.name}`}
-            title={t("gal_remove")}
-            className="grid size-7 shrink-0 place-items-center rounded-lg transition-opacity disabled:opacity-40"
-            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+      <Note
+        type="error"
+        size="small"
+        fill
+        align="start"
+        /* On a tile too short for a reason (`lines: 0`) the status word is all
+           there is, so it goes in the body and the icon takes the label's
+           place — a bold «انجام نشد:» with nothing after the colon is a
+           sentence cut in half. */
+        label={lines > 0 ? t("gal_failed") : true}
+        action={
+          onRemove && (
+            <button
+              type="button"
+              onClick={() => {
+                setBusy(true);
+                onRemove();
+              }}
+              disabled={busy}
+              aria-label={`${t("gal_remove")} — ${gen.prompt.trim().slice(0, 40) || gen.name}`}
+              title={t("gal_remove")}
+              className="-me-0.5 grid size-6 shrink-0 place-items-center rounded-md transition-opacity disabled:opacity-40"
+              style={{ color: "var(--vg-text-muted)" }}
+            >
+              <Trash size={13} />
+            </button>
+          )
+        }
+      >
+        {lines > 0 ? (
+          // `title` carries the whole sentence where a short tile clamps it.
+          <span
+            title={reason}
+            className="block overflow-hidden"
+            style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: lines }}
           >
-            <Trash size={13} />
-          </button>
+            {reason}
+          </span>
+        ) : (
+          <span title={reason} className="font-semibold">
+            {t("gal_failed")}
+          </span>
         )}
-      </div>
-      {lines > 0 && (
-        // `title` carries the whole sentence where a short tile clamps it.
-        <p
-          title={reason}
-          className="mt-auto overflow-hidden text-[11.5px] leading-snug"
-          style={{ color: "var(--vg-text-secondary)", display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: lines }}
-        >
-          {reason}
-        </p>
-      )}
+      </Note>
     </div>
+  );
+}
+
+/**
+ * A press that never became a job, said under the button that made it.
+ *
+ * The other half of a failure, and the half that had nowhere to go: a refusal
+ * arrives before there is any card to draw it on. It used to replace the whole
+ * studio with a 503, then became a bare red line, and is now the same notice as
+ * every other failure — with the button its own sentence keeps asking for,
+ * where there is one to offer.
+ */
+export function SubmitRefusalNote({
+  refusal,
+  onAction,
+  className,
+}: {
+  refusal: GenerationRefusal;
+  onAction?: ((target: "wallet" | "plans") => void) | undefined;
+  className?: string;
+}) {
+  const action = generationErrorAction(refusal.code);
+  return (
+    <Note
+      type="error"
+      size="small"
+      fill
+      align="start"
+      role="status"
+      className={className}
+      action={action && onAction ? <NoteAction onClick={() => onAction(action.target)}>{action.label}</NoteAction> : undefined}
+    >
+      {refusal.message}
+    </Note>
   );
 }

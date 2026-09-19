@@ -13,7 +13,8 @@ import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
 import { useIgnition } from "../components/Ignition";
-import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
+import { FailedVeil, RunningVeil, SubmitRefusalNote } from "../components/GenerationVeils";
+import type { GenerationRefusal } from "../features/generation/validation";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { ModelChip } from "../components/ModelPicker";
 import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
@@ -158,6 +159,7 @@ export default function StudioImage({
   onOpenModel,
   onRemove,
   submitError,
+  onErrorAction,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean, refs: RefMap) => void;
@@ -165,7 +167,9 @@ export default function StudioImage({
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove: (g: Generation) => void;
   /** Why the last press did not become a job. See `GenerationsProvider`. */
-  submitError?: string | null | undefined;
+  submitError?: GenerationRefusal | null | undefined;
+  /** Where a refusal that has a way out leads. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -852,11 +856,7 @@ export default function StudioImage({
             {/* A refusal that never became a job — a short wallet, a full
                 account, a request that did not arrive. It belongs here, where
                 the press happened. */}
-            {submitError && (
-              <p role="status" className="mt-2.5 text-[11.5px]" style={{ color: "var(--vg-danger)" }}>
-                {submitError}
-              </p>
-            )}
+            {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-2.5" />}
           </div>
         </div>
       </div>

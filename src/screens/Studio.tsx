@@ -12,6 +12,7 @@ import { isVideoUrl } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
+import type { GenerationRefusal } from "../features/generation/validation";
 import { riseItem, riseParent } from "../lib/motion";
 import { useI18n, type TKey } from "../lib/i18n";
 
@@ -104,6 +105,7 @@ export default function Studio({
   onOpen,
   onRemove,
   submitError,
+  onErrorAction,
 }: {
   kind: ModelKind;
   gens: Generation[];
@@ -112,7 +114,9 @@ export default function Studio({
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove: (g: Generation) => void;
   /** Why the last press did not become a job; the dock prints it. */
-  submitError?: string | null | undefined;
+  submitError?: GenerationRefusal | null | undefined;
+  /** Where a refusal that has a way out leads. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const { t } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -145,7 +149,7 @@ export default function Studio({
       {/* See StudioImage. The visible heading below belongs to the empty state
           only, so once there is history this page had no h1 at all. */}
       <h1 className="sr-only">{kind === "video" ? "ساخت ویدیو" : "ساخت"}</h1>
-      <FormPanel families={families} onGenerate={generate} submitError={submitError} />
+      <FormPanel families={families} onGenerate={generate} submitError={submitError} onErrorAction={onErrorAction} />
 
       <main
         // @container so the header's view controls size against this canvas

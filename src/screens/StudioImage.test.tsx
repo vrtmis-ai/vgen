@@ -152,7 +152,7 @@ describe("the image wall, for jobs with no picture", () => {
     const refused = job({ status: "failed", error: { code: "content_policy", message: "" } });
     const { onRemove } = show([refused]);
 
-    expect(screen.getByText("انجام نشد")).toBeInTheDocument();
+    expect(screen.getByText("انجام نشد:")).toBeInTheDocument();
     // The code's own sentence — the one that tells somebody to change the words.
     expect(screen.getByText(/متن را عوض کنید/)).toBeInTheDocument();
 

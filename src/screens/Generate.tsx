@@ -12,14 +12,15 @@ import { VendorMark } from "../components/VendorMark";
 import { Panel, PanelHead, PanelShell, Section } from "../components/Panel";
 import { RefBox } from "../components/RefBox";
 import { useIgnition } from "../components/Ignition";
-import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
+import { FailedVeil, RunningVeil, SubmitRefusalNote } from "../components/GenerationVeils";
 import { GenerationMedia } from "../components/GenerationMedia";
 import { displayAspect, type Generation } from "../lib/gallery";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { allTags, insertTag, refTags, tagUsed } from "../lib/refTags";
 import { isVideoUrl, labelDir, promptDir } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
-import { generationErrorMessage, validateGenerationInput } from "../features/generation/validation";
+import { generationErrorMessage, validateGenerationInput, type GenerationRefusal } from "../features/generation/validation";
+import { ApiError } from "../adapters/http/client";
 
 /**
  * What to ask for, in the words the studio for that kind already uses.
@@ -70,6 +71,7 @@ export default function Generate({
   gens = [],
   onOpen,
   onRemove,
+  onErrorAction,
 }: {
   family: Family;
   initialVariantId?: string | undefined;
@@ -96,6 +98,8 @@ export default function Generate({
   onOpen?: ((generation: Generation) => void) | undefined;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove?: ((generation: Generation) => void) | undefined;
+  /** Where a refusal that has a way out leads. See `generationErrorAction`. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const firstVariant = family.variants.find((v) => v.id === initialVariantId) ?? family.variants[0]!;
   const [variant, setVariant] = useState<Variant>(firstVariant);
@@ -105,7 +109,7 @@ export default function Generate({
   const [refImages, setRefImages] = useState<RefMap>({});
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<GenerationReceipt | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<GenerationRefusal | null>(null);
   const promptBox = useRef<HTMLTextAreaElement>(null);
   /* Where the caret goes once an inserted tag has landed in the field. Held in
      a ref and applied in a layout effect, not straight after `setPrompt`: at
@@ -247,32 +251,32 @@ export default function Generate({
     try {
       const nextReceipt = await onGenerate(prompt.trim(), input, variant, refImages, assetRefs);
       if (nextReceipt) setReceipt(nextReceipt);
-      else setSubmitError("درخواست ساخته نشد؛ ورودی‌ها را دوباره بررسی کنید.");
+      else setSubmitError({ code: "invalid_request", message: "درخواست ساخته نشد؛ ورودی‌ها را دوباره بررسی کنید." });
     } catch (error: unknown) {
-      setSubmitError(generationErrorMessage(error));
+      setSubmitError({ code: error instanceof ApiError ? error.code : "unknown", message: generationErrorMessage(error) });
     } finally {
       setSubmitting(false);
     }
   }
 
-  /* The line under the button: whichever of these is true first. A refusal
-     outranks a price, and a missing file outranks both — the reason the button
-     will not work is worth more than the number it would have cost. */
-  const footnote = submitError
-    ? submitError
-    : receipt
-      ? `هزینهٔ نهایی سرور: ${n(receipt.coins)} · اعتبار قیمت تا ${new Date(receipt.expiresAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}`
-      : missingRequired
-        ? `${t("g_need_also")} ${missingRequired.label}`
-        : orphanNeeds
-          ? `${t("g_need_also")} ${orphanNeeds.label}`
-          : clipUnreadable
-            ? t("g_clip_unreadable")
-            : validation.issues[0]
-              ? validation.issues[0].message
-              : price != null
-                ? `≈ ${n(price)} ${t("g_est_for")}`
-                : t(refusal === "not_offered" ? "g_no_rate" : "g_no_price");
+  /* The line under the button: whichever of these is true first. A missing
+     file outranks the price — the reason the button will not work is worth more
+     than the number it would have cost. A refusal outranks all of them and is
+     not a footnote at all: it is drawn as a notice below, because the faint
+     grey this line is set in is the voice of a hint, not of an answer. */
+  const footnote = receipt
+    ? `هزینهٔ نهایی سرور: ${n(receipt.coins)} · اعتبار قیمت تا ${new Date(receipt.expiresAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}`
+    : missingRequired
+      ? `${t("g_need_also")} ${missingRequired.label}`
+      : orphanNeeds
+        ? `${t("g_need_also")} ${orphanNeeds.label}`
+        : clipUnreadable
+          ? t("g_clip_unreadable")
+          : validation.issues[0]
+            ? validation.issues[0].message
+            : price != null
+              ? `≈ ${n(price)} ${t("g_est_for")}`
+              : t(refusal === "not_offered" ? "g_no_rate" : "g_no_price");
 
   return (
     /* The studios' own shape: a dock that stays put and a canvas that fills
@@ -557,9 +561,13 @@ export default function Generate({
               </span>
             </button>
           )}
-          <p className="mt-1.5 text-center text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
-            {footnote}
-          </p>
+          {submitError ? (
+            <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-2" />
+          ) : (
+            <p className="mt-1.5 text-center text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+              {footnote}
+            </p>
+          )}
         </div>
       </PanelShell>
 

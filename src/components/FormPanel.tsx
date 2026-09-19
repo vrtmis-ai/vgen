@@ -16,6 +16,8 @@ import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
 import { CoinMark } from "./chrome";
 import { useImageFallback } from "../lib/useImageFallback";
+import { SubmitRefusalNote } from "./GenerationVeils";
+import type { GenerationRefusal } from "../features/generation/validation";
 
 /* ---------------------------------------------------------------------------
    The create panel — 320px on the inline start, measured off Higgsfield's own
@@ -102,11 +104,14 @@ export function FormPanel({
   families,
   onGenerate,
   submitError,
+  onErrorAction,
 }: {
   families: Family[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, refs: RefMap) => void;
   /** Why the last press did not become a job. See `GenerationsProvider`. */
-  submitError?: string | null | undefined;
+  submitError?: GenerationRefusal | null | undefined;
+  /** Where a refusal that has a way out leads. See `generationErrorAction`. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const { t, n } = useI18n();
   // A visitor sees the whole dock — models, controls, the price — and the one
@@ -506,11 +511,7 @@ export function FormPanel({
         )}
         {/* The refusal outranks every hint below it: those say what would make
             the next press better, and this says why the last one did not run. */}
-        {submitError && (
-          <p role="status" className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-danger, #ffb4ab)" }}>
-            {submitError}
-          </p>
-        )}
+        {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-2" />}
         {!submitError && price !== null && validation.issues[0] && (
           <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
             {validation.issues[0].message}

@@ -11,6 +11,7 @@ import { defaultInput, variantControls, type Family } from "../../data/models";
 import { loadGenerations, saveGenerations, type Generation } from "../../lib/gallery";
 import { GenerationsProvider, useGenerations } from "./GenerationsProvider";
 import { NavigationProvider } from "./NavigationProvider";
+import { SubmitRefusalNote } from "../../components/GenerationVeils";
 
 /* One stable push across the whole file rather than a fresh spy per
    `useRouter()` call. Where the provider sends the browser after a submit is
@@ -245,12 +246,18 @@ describe("the free-pipe preference reaches the quote", () => {
  * the list the canvas reads.
  */
 describe("submitting from a studio keeps you in the studio", () => {
+  const errorAction = vi.fn();
+
+  /* The dock as the three studios build it: the provider's refusal handed
+     straight to the notice that draws it. Rendered rather than stringified,
+     because half of what was added is the button — and a refusal whose code
+     does not survive the trip is a notice with nothing to press. */
   function Dock() {
     const { requestGeneration, submitError } = useGenerations();
     return (
       <>
         <button onClick={() => requestGeneration("nano-banana", "یک گربه", INPUT, VARIANT_WITH_REF)}>dock</button>
-        <output data-testid="submit-error">{submitError ?? ""}</output>
+        <div data-testid="submit-error">{submitError ? <SubmitRefusalNote refusal={submitError} onAction={errorAction} /> : ""}</div>
       </>
     );
   }
@@ -305,6 +312,28 @@ describe("submitting from a studio keeps you in the studio", () => {
 
     await waitFor(() => expect(screen.getByTestId("submit-error")).toHaveTextContent("اعتبار کیف پول"));
     expect(router.push).not.toHaveBeenCalled();
+
+    // And the way out of it, which only the code can choose.
+    screen.getByText("شارژ کیف پول").click();
+    expect(errorAction).toHaveBeenCalledWith("wallet");
+  });
+
+  /* Most refusals have no destination — waiting is the fix — and the notice
+     must not invent one. */
+  it("offers no button for a refusal that has nowhere to send anyone", async () => {
+    const services = createDemoServices();
+    renderDock({
+      ...services,
+      generation: {
+        ...services.generation,
+        quote: vi.fn().mockRejectedValue(new ApiError({ code: "rate_limited", message: "no", status: 429 })),
+      },
+    });
+
+    await act(async () => screen.getByText("dock").click());
+
+    await waitFor(() => expect(screen.getByTestId("submit-error")).toHaveTextContent("تعداد درخواست‌ها زیاد"));
+    expect(screen.queryByRole("button", { name: /کیف پول|پلن/ })).toBeNull();
   });
 
   it("says nothing about a refusal nobody has made yet", () => {
