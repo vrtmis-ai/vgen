@@ -91,7 +91,7 @@ const PLAN_TOOL_KEYS = [
   "pl_tool_chat",
 ] as const;
 
-function PlanFeatures({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
+function PlanFeatures({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n();
   return (
     <div className="border-t border-line pt-3">
@@ -103,9 +103,11 @@ function PlanFeatures({ plan, compact = false }: { plan: Plan; compact?: boolean
           </span>
         ))}
       </div>
-      <p className={`${compact ? "mt-2 text-[9px]" : "mt-2.5 text-[10px]"} leading-relaxed text-ink3`}>
-        {t(plan.tier >= 3 ? "pl_models_tier_3" : plan.tier >= 2 ? "pl_models_tier_2" : "pl_models_tier_1")}
-      </p>
+      {/* One sentence for every card. It used to be three, one per tier, and
+          they were the ladder's whole pitch — the cheap plan got "economy
+          models", the top one "full access". No model is locked to a plan any
+          more, so all three of those sentences became the same fact. */}
+      <p className={`${compact ? "mt-2 text-[9px]" : "mt-2.5 text-[10px]"} leading-relaxed text-ink3`}>{t("pl_models_all")}</p>
     </div>
   );
 }
@@ -124,8 +126,10 @@ function PlanFeatures({ plan, compact = false }: { plan: Plan; compact?: boolean
 function UnlimitedBenefit({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
   const { t, lang } = useI18n();
   const families = useCatalogFamilies();
-  if (plan.tier < 2) return null;
-  const isProTrial = plan.code === "pro";
+  // The window, not the tier: a plan that carries no days of it has no benefit
+  // to show, which is every pack.
+  if (plan.unlimitedDays <= 0) return null;
+  const isProTrial = plan.unlimitedDays < 30;
   /* The models come from the catalogue. This sentence used to name two of them
      as a literal string, and once a third gained the pipe it was quietly wrong
      — on the page whose whole job is saying what somebody is buying.
@@ -151,14 +155,24 @@ function UnlimitedBenefit({ plan, compact = false }: { plan: Plan; compact?: boo
 
 function PlanAccessList({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
   const { t, n } = useI18n();
+  /* Two rows went: "advanced models" and "flagship models", ticked on the
+     dearer plans and struck through on the cheap ones. They were the ladder's
+     main claim and they are not true any more — every plan reaches every
+     model. What a plan sells is coins, how long they last, how many
+     generations run at once, and the unlimited window. */
   const rows = [
     { key: "tools", active: true, label: t("pl_all_studios") },
-    { key: "advanced", active: plan.tier >= 2, label: t("pl_access_advanced") },
-    { key: "flagship", active: plan.tier >= 3, label: t("pl_access_flagship") },
+    { key: "models", active: true, label: t("pl_access_all_models") },
+    {
+      key: "coins",
+      active: true,
+      // The difference a pack is bought for, said on the card that is one.
+      label: plan.termDays === 0 ? t("pl_access_coins_forever") : t("pl_access_coins_term").replace("{n}", n(plan.termDays)),
+    },
     {
       key: "unlimited",
-      active: plan.tier >= 2,
-      label: t(plan.code === "pro" ? "pl_access_unlimited_7d" : plan.tier >= 3 ? "pl_access_unlimited_daily" : "pl_access_unlimited"),
+      active: plan.unlimitedDays > 0,
+      label: plan.unlimitedDays > 0 ? t("pl_access_unlimited_days").replace("{n}", n(plan.unlimitedDays)) : t("pl_access_unlimited"),
     },
     { key: "parallel", active: true, label: t("pl_parallel").replace("{n}", n(plan.maxConcurrentJobs)) },
     { key: "training", active: true, label: t("pl_benefit_training") },
@@ -188,7 +202,10 @@ function PlanAccessList({ plan, compact = false }: { plan: Plan; compact?: boole
 export type Cycle = "monthly" | "annual";
 
 /** What the buy button actually commits the user to, spelled out. */
-function buyKey(plan: Plan, cycle: Cycle): "pl_buy_30" | "pl_buy_12m" {
+function buyKey(plan: Plan, cycle: Cycle): "pl_buy_30" | "pl_buy_12m" | "pl_buy_pack" {
+  // A pack buys coins, not days. Saying "30 days" on it would name the one
+  // thing about it that is not true.
+  if (plan.termDays === 0) return "pl_buy_pack";
   return cycle === "annual" && plan.annualUsdPerMonth != null ? "pl_buy_12m" : "pl_buy_30";
 }
 
@@ -301,7 +318,12 @@ function Price({ plan, cycle, account }: { plan: Plan; cycle: Cycle; account?: P
         <span className="font-display text-[24px] font-semibold leading-none tabular-nums">{n(toman(perMonth, rate))}</span>
         <span className="text-[11.5px] text-ink2">{t("w_toman")}</span>
       </div>
-      <div className="mt-0.5 text-[10.5px] text-ink3">{t(annual ? "pl_per_month_equiv" : "pl_per_month")}</div>
+      {/* A pack is bought once, so there is no cadence to state: "در ماه"
+          under a price that recurs nowhere is the card promising a
+          subscription this plan stopped being. */}
+      <div className="mt-0.5 text-[10.5px] text-ink3">
+        {plan.termDays === 0 ? t("pl_one_off") : t(annual ? "pl_per_month_equiv" : "pl_per_month")}
+      </div>
       {annual && total != null && (
         <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink2">
           <CalendarCheck size={12} weight="fill" className="shrink-0 text-accent" />
@@ -460,7 +482,7 @@ export function PlanCard({
         <PlanAccessList plan={plan} compact />
 
         <UnlimitedBenefit plan={plan} compact />
-        <PlanFeatures plan={plan} compact />
+        <PlanFeatures compact />
 
         <div className="plans-flip-card__cta mt-auto shrink-0 border-t border-line pt-2">
           <button onClick={() => onSelect(plan)} className="plans-modern-cta w-full py-3 text-[13.5px] font-bold" disabled={current}>
@@ -495,7 +517,7 @@ export function EntryCard({
         </div>
         <PlanAccessList plan={plan} compact />
         <UnlimitedBenefit plan={plan} compact />
-        <PlanFeatures plan={plan} compact />
+        <PlanFeatures compact />
         <button
           onClick={() => onSelect(plan)}
           className="plans-modern-cta plans-flip-card__cta mt-auto w-full shrink-0 py-2.5 text-[12px] font-bold"

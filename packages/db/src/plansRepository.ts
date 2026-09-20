@@ -18,6 +18,7 @@ interface PlanRow {
   tier: number;
   micro_credits_per_term: string;
   term_days: number;
+  unlimited_days: number;
   price_amount: string;
   annual_price_amount: string | null;
   max_concurrent_jobs: number;
@@ -43,6 +44,7 @@ function toPlan(row: PlanRow): Plan {
     baseCoins,
     bonusCoins: row.presentation.bonusCoins ?? coinsPerTerm - baseCoins,
     termDays: row.term_days,
+    unlimitedDays: row.unlimited_days,
     monthlyUsd: Number(row.price_amount),
     annualUsdPerMonth: row.annual_price_amount === null ? null : Number(row.annual_price_amount),
     group: row.presentation.group === "main" ? "main" : "entry",
@@ -53,7 +55,7 @@ function toPlan(row: PlanRow): Plan {
 }
 
 const SELECT_COLUMNS = `
-  code, name, tier, micro_credits_per_term, term_days,
+  code, name, tier, micro_credits_per_term, term_days, unlimited_days,
   price_amount, annual_price_amount, max_concurrent_jobs, presentation
 `;
 

@@ -251,7 +251,10 @@ describe("Landing pricing", () => {
     const cheapest = [...PLAN_LADDER].sort((a, b) => effectiveUsd(a, false) - effectiveUsd(b, false))[0]!;
     const cheapestCard = screen.getByTestId(`plan-card-${cheapest.code}`);
     expect(cheapestCard).toHaveTextContent(toman(effectiveUsd(cheapest, false), RATE).toLocaleString("en-US"));
-    expect(within(cheapestCard).getByRole("button", { name: "Buy 30 days" })).toBeInTheDocument();
+    // The cheapest plan is a pack: it buys coins that never expire, so its
+    // button cannot promise thirty days of anything.
+    expect(cheapest.termDays).toBe(0);
+    expect(within(cheapestCard).getByRole("button", { name: "Buy the pack" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Professional plans" }));
 

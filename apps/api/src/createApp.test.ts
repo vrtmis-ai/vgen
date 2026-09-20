@@ -974,6 +974,7 @@ describe("the plan ladder", () => {
           baseCoins: 1000,
           bonusCoins: 100,
           termDays: 30,
+          unlimitedDays: 7,
           monthlyUsd: 49,
           annualUsdPerMonth: 39,
           group: "main" as const,

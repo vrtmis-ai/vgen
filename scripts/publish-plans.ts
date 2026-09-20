@@ -41,19 +41,25 @@ interface PlanRow {
   popular: boolean;
   sortOrder: number;
   maxConcurrentJobs: number;
+  /** Days a term lasts. 0 = a pack: the coins never expire and nothing lapses. */
+  termDays: number;
+  /** Days from purchase that the unlimited pipe is open. 0 = never. */
+  unlimitedDays: number;
 }
 
 const rows = (planList as { rows: PlanRow[] }).rows;
 
-/**
- * Every plan grants monthly, including the annual ones.
+/*
+ * The term is per plan now, and two kinds of thing live in this table.
  *
- * Annual is a payment cadence, not a longer grant: twelve months are paid up
- * front but the coins still arrive monthly and still expire after thirty days,
- * which is exactly where the annual margin comes from. A 365-day term would
- * hand someone a year of coins on day one.
+ * A subscription — Pro, Studio, Creator — grants monthly even when a year is
+ * paid up front: annual is a payment cadence, not a longer grant, and that
+ * thirty-day expiry is exactly where the annual margin comes from. A 365-day
+ * term would hand someone a year of coins on day one.
+ *
+ * A pack — the four entry plans — has `termDays: 0`. Its coins never expire
+ * and its perks never lapse, so there is no term to state. See migration 0033.
  */
-const TERM_DAYS = 30;
 
 /**
  * Prices are stored in USD.
@@ -116,11 +122,11 @@ try {
         insert into plans (
           code, name, tier, micro_credits_per_term, term_days,
           price_amount, currency, annual_price_amount,
-          max_resolution_px, max_concurrent_jobs, presentation, sort_order, is_public, is_active
+          max_resolution_px, max_concurrent_jobs, unlimited_days, presentation, sort_order, is_public, is_active
         ) values (
-          ${row.code}, ${row.name}, ${row.tier}, ${microCredits}, ${TERM_DAYS},
+          ${row.code}, ${row.name}, ${row.tier}, ${microCredits}, ${row.termDays},
           ${row.monthlyUsd}, ${CURRENCY}, ${row.annualUsdPerMonth},
-          ${UNCAPPED_RESOLUTION_PX}, ${row.maxConcurrentJobs}, ${tx.json(presentation)}, ${row.sortOrder}, true, true
+          ${UNCAPPED_RESOLUTION_PX}, ${row.maxConcurrentJobs}, ${row.unlimitedDays}, ${tx.json(presentation)}, ${row.sortOrder}, true, true
         )
         on conflict (code) do update set
           name = excluded.name,
@@ -132,6 +138,7 @@ try {
           annual_price_amount = excluded.annual_price_amount,
           max_resolution_px = excluded.max_resolution_px,
           max_concurrent_jobs = excluded.max_concurrent_jobs,
+          unlimited_days = excluded.unlimited_days,
           presentation = excluded.presentation,
           sort_order = excluded.sort_order,
           is_active = true
@@ -140,6 +147,7 @@ try {
           or plans.tier is distinct from excluded.tier
           or plans.micro_credits_per_term is distinct from excluded.micro_credits_per_term
           or plans.term_days is distinct from excluded.term_days
+          or plans.unlimited_days is distinct from excluded.unlimited_days
           or plans.price_amount is distinct from excluded.price_amount
           or plans.currency is distinct from excluded.currency
           or plans.annual_price_amount is distinct from excluded.annual_price_amount

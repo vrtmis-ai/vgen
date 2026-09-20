@@ -51,6 +51,19 @@ export function useSession(): Session {
   return session;
 }
 
+/**
+ * Coins this account can spend, or null when there is nobody to have any.
+ *
+ * Null covers two different situations on purpose, because both mean "do not
+ * gate on a balance": a visitor, who is asked to sign in rather than told they
+ * are short, and a surface rendered above the session gate, which is only ever
+ * a test harness. Spending decisions read this; nothing displays it, because
+ * the balance on screen comes from the wallet query itself.
+ */
+export function useSpendable(): number | null {
+  return useContext(SessionContext)?.wallet?.spendable ?? null;
+}
+
 /** True when there is nobody signed in — the one branch most screens need. */
 export function useIsVisitor(): boolean {
   return useSession().user === null;

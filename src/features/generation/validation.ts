@@ -32,23 +32,23 @@ export interface GenerationValidationResult {
  * Branch on `code`, never on `message` — `docs/API.md` is explicit that codes
  * are the contract and messages are prose. The codes below are the ones the API
  * actually sends, taken from the quote, submit and job-failure tables in that
- * file. The previous list predated all three routes going live and named three
- * codes nothing sends — `insufficient_balance`, `locked_model` and
- * `unsupported_combination` — while the real names for those same two refusals,
- * `insufficient_credits` and `tier_too_low`, fell through to "try again". They
- * are the two most likely refusals there are, and "try again" helps with
- * neither: one needs a top-up and the other needs an upgrade.
+ * file. The previous list predated all three routes going live and named codes
+ * nothing sends, while the real name for the likeliest refusal of all —
+ * `insufficient_credits` — fell through to "try again", which helps with
+ * nothing: it needs a top-up, and the notice now says so and offers the wallet.
+ *
+ * `tier_too_low` was here too, and it is gone with the gate: no model belongs
+ * to a plan, so the quote has no refusal to make about one.
  *
  * Grouped by what the person can do about it, because that is the only reason
  * the API keeps them apart: collapsing them into one code would leave the
  * screen guessing which.
  */
 const GENERATION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
-  // Fixed by spending money. 403 rather than 402 on tier is deliberate upstream:
-  // the account is not short of coins, it is on the wrong plan, and the fix is
-  // an upgrade rather than a top-up. So these two must not share a message.
+  // Fixed by spending money — and these two must not share a message: one is
+  // an empty wallet, the other is a free allowance that ran out while the
+  // wallet is perfectly able to pay for the next one.
   insufficient_credits: "اعتبار کیف پول برای این ساخت کافی نیست؛ اول کیف پول را شارژ کنید.",
-  tier_too_low: "این مدل در پلن فعلی شما نیست؛ برای استفاده از آن پلن را ارتقا دهید.",
   allowance_spent: "سهمیهٔ رایگان امروزتان تمام شد؛ از این پس این ساخت از سکه‌هایتان کم می‌کند.",
 
   // Fixed by changing the request.
@@ -127,6 +127,19 @@ export interface GenerationRefusal {
   message: string;
 }
 
+/**
+ * What a dock says when the price is above the balance.
+ *
+ * The same shape a refused submission produces, so the notice, its wallet
+ * button and its colour are the ones the customer would have seen a moment
+ * later anyway — this only moves the sentence to before the press. Written
+ * once because four docks ask the same question and four wordings of "you are
+ * short" is how a product starts sounding like four products.
+ */
+export function shortfallRefusal(price: number, balance: number, n: (value: number) => string): GenerationRefusal {
+  return { code: "insufficient_credits", message: `این ساخت ${n(price)} سکه است و موجودی‌ات ${n(balance)} سکه.` };
+}
+
 /** Where a refusal can be resolved, for the notice's own button. */
 export interface GenerationErrorAction {
   label: string;
@@ -145,7 +158,6 @@ export interface GenerationErrorAction {
 const GENERATION_ERROR_ACTIONS: Readonly<Record<string, GenerationErrorAction>> = {
   insufficient_credits: { label: "شارژ کیف پول", target: "wallet" },
   allowance_spent: { label: "شارژ کیف پول", target: "wallet" },
-  tier_too_low: { label: "ارتقای پلن", target: "plans" },
 };
 
 export function generationErrorAction(code: string | undefined): GenerationErrorAction | null {

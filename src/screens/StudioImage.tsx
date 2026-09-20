@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Plus, Minus, Sparkle, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock, X, SpeakerHigh } from "@phosphor-icons/react";
+import { Plus, Minus, Sparkle, DownloadSimple, ArrowsClockwise, ArrowsOut, X, SpeakerHigh } from "@phosphor-icons/react";
 import { variantRefs, type Family, type Variant } from "../data/models";
 import { groupOf } from "../lib/refSlots";
 import { insertTag, refTags, tagUsed } from "../lib/refTags";
@@ -14,16 +14,15 @@ import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
 import { useIgnition } from "../components/Ignition";
 import { FailedVeil, RunningVeil, SubmitRefusalNote, type CancelOutcome } from "../components/GenerationVeils";
+import { shortfallRefusal } from "../features/generation/validation";
 import type { GenerationRefusal } from "../features/generation/validation";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { ModelChip } from "../components/ModelPicker";
 import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
-import { unlimitedFit } from "../lib/unlimited";
 import { faNum, promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { useAppServices } from "../runtime/AppServices";
-import { useAccess } from "../lib/access";
 
 /* ---------------------------------------------------------------------------
    The image studio.
@@ -198,18 +197,21 @@ export default function StudioImage({
      was dead and the dock said nothing about why. */
   const [refs, setRefs] = useState<RefMap>({});
   const s = useCreateState(families, refs);
-  const access = useAccess();
   // A visitor sees the whole studio — models, controls, the price — and only
-  // the button that would spend turns into the way to get an account. The
-  // upgrade lock is skipped for them: they have no plan to upgrade from, and
-  // access.onUpgrade opens a wallet drawer nobody owns yet.
+  // the button that would spend turns into the way to get an account. Nothing
+  // about a balance is said to them: they have no wallet to be short of.
   const { user, signIn } = useSession();
   const visitor = user === null;
   // Reachable *and* chosen. Either alone leaves the button lying about cost.
-  const freeNow = s.preferUnlimited && unlimitedFit(s.variant, s.input, access.tier)?.available === true;
-  const locked = !access.can(s.family.id);
-  const need = locked ? access.needs(s.family.id) : null;
+  const freeNow = s.freeNow;
   const [count, setCount] = useState(1);
+  /* The one gate left on a generation, now that no model belongs to a plan.
+     `count` is this dock's own multiplier — it sends that many jobs — so the
+     comparison is against the whole press, not against one of them. */
+  const shortfall =
+    !freeNow && s.price !== null && s.spendable !== null && s.price * count > s.spendable
+      ? shortfallRefusal(s.price * count, s.spendable, n)
+      : null;
   const [viewing, setViewing] = useState<ViewerAsset | null>(null);
   const view = useViewMode("image", { mode: "grid", density: 4 });
 
@@ -715,6 +717,9 @@ export default function StudioImage({
                 because this dock is pinned to the bottom of the window and a
                 box under it lifts «بساز» out from under the pointer. */}
             {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-3" />}
+            {/* The same notice, before the press instead of after it: the price
+                of what is about to be sent, against what the wallet holds. */}
+            {!submitError && shortfall && <SubmitRefusalNote refusal={shortfall} onAction={onErrorAction} className="mt-3" />}
 
             <div className="mt-3 flex items-end gap-2">
               <div className="hide-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
@@ -791,18 +796,7 @@ export default function StudioImage({
                 <UnlimitedSwitch variant={s.variant} input={s.input} on={s.preferUnlimited} onChange={s.setPreferUnlimited} />
               </div>
 
-              {/* See FormPanel: a locked model buys an upgrade button, not a
-                  greyed-out price. */}
-              {locked && !visitor ? (
-                <button
-                  onClick={access.onUpgrade}
-                  className={`${CHIP_CLASS} justify-center px-4`}
-                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-                >
-                  <Lock size={14} weight="fill" />
-                  {need ? <bdi>ارتقا به {need.name}</bdi> : "ارتقای پلن"}
-                </button>
-              ) : (
+              {
                 /* One line and one height, like every control beside it.
                    It was 52px and two-line to fit the price underneath, which
                    made the primary action the one object in the row with its own
@@ -839,7 +833,7 @@ export default function StudioImage({
                     <span className="vg-numeric">{freeNow ? t("unl_free") : s.price === null ? "—" : n(s.price * count)}</span>
                   </span>
                 </button>
-              )}
+              }
             </div>
 
             {/* Why the button is off, on the one surface that never said.
@@ -848,7 +842,7 @@ export default function StudioImage({
                 — on Recraft, which cannot do anything at all without a picture.
                 It names the model because the dock is one click from being a
                 different one, and the answer changes with it. */}
-            {needsFile && !visitor && !locked && (
+            {needsFile && !visitor && (
               <p className="mt-2.5 text-[11.5px]" style={{ color: "var(--vg-primary-soft)" }}>
                 <bdi>{s.family.name}</bdi> روی یک {SLOT_NOUN[slot?.media ?? "image"]} کار می‌کند — با دکمهٔ + یکی اضافه کن.
               </p>

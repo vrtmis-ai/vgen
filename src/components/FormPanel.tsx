@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSession } from "../runtime/providers/SessionProvider";
-import { CaretLeft, Lock, Sparkle, PencilSimple } from "@phosphor-icons/react";
+import { CaretLeft, Sparkle, PencilSimple } from "@phosphor-icons/react";
 import { type Family, type Variant, variantRefs } from "../data/models";
 import { type InputMap, type RefMap } from "./controls";
 import { RefBox } from "./RefBox";
@@ -13,11 +13,10 @@ import type { Preset } from "../runtime/contracts/content";
 import { labelDir, promptDir } from "../lib/format";
 import { Panel, PanelHead, PanelShell, Section } from "./Panel";
 import { useI18n } from "../lib/i18n";
-import { useAccess } from "../lib/access";
 import { CoinMark } from "./chrome";
 import { useImageFallback } from "../lib/useImageFallback";
 import { SubmitRefusalNote } from "./GenerationVeils";
-import type { GenerationRefusal } from "../features/generation/validation";
+import { shortfallRefusal, type GenerationRefusal } from "../features/generation/validation";
 
 /* ---------------------------------------------------------------------------
    The create panel — 320px on the inline start, measured off Higgsfield's own
@@ -146,9 +145,8 @@ export function FormPanel({
   // while the shared version moved on.
   const s = useCreateState(families, refImages);
   const { family, variant, chips, input, prompt, price, ready, validation, isSubmitting } = s;
-  const access = useAccess();
-  const locked = !access.can(family.id);
-  const need = locked ? access.needs(family.id) : null;
+  // The wallet, asked before the press rather than after it. See useCreateState.
+  const shortfall = s.short && price !== null ? shortfallRefusal(price, s.spendable ?? 0, n) : null;
   const set = s.set;
   const setPrompt = s.setPrompt;
   const onFamily = s.setFamily;
@@ -449,64 +447,42 @@ export function FormPanel({
         {/* Above the button, so the floor the button is pinned to does not move
             under the pointer that just pressed it. See `SubmitRefusalNote`. */}
         {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
-        {/* A locked model gets an upgrade button, not a disabled create button.
-            Greying out the price would tell the user the job is unavailable
-            without saying it is their plan or what fixes it — and the moment
-            they are most likely to buy is the moment they wanted something. */}
-        {locked && !visitor ? (
-          <button
-            onClick={access.onUpgrade}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-bold"
-            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-          >
-            <Lock size={14} weight="fill" />
-            {need ? (
-              <>
-                ارتقا به <bdi>{need.name}</bdi>
-              </>
-            ) : (
-              "ارتقای پلن"
-            )}
-          </button>
-        ) : (
-          <button
-            disabled={!visitor && !ready}
-            onClick={(event) =>
-              visitor ? signIn() : ignition.ignite(event, () => onGenerate(family, variant, prompt.trim(), input, refImages))
-            }
-            aria-busy={ignition.igniting || undefined}
-            className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
-            style={{
-              background: "var(--vg-primary)",
-              // Light while the dark field is behind it, or the ink disappears.
-              color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
-              // A dark halo while it is light: the field sweeps in from the
-              // pressed point, so for a moment the label sits half on lime.
-              textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
-              /* The bloom is what makes this read as the lit thing on the
+        {/* No model is locked to a plan, so the only thing that can stop a
+            generation is its price against the balance — said here, where the
+            press would have been, with the wallet one tap away. */}
+        {!submitError && shortfall && <SubmitRefusalNote refusal={shortfall} onAction={onErrorAction} className="mb-2" />}
+        <button
+          disabled={!visitor && !ready}
+          onClick={(event) =>
+            visitor ? signIn() : ignition.ignite(event, () => onGenerate(family, variant, prompt.trim(), input, refImages))
+          }
+          aria-busy={ignition.igniting || undefined}
+          className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
+          style={{
+            background: "var(--vg-primary)",
+            // Light while the dark field is behind it, or the ink disappears.
+            color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
+            // A dark halo while it is light: the field sweeps in from the
+            // pressed point, so for a moment the label sits half on lime.
+            textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
+            /* The bloom is what makes this read as the lit thing on the
                  surface rather than a green rectangle — and it is now the only
                  filled accent in the column, so it can carry that alone. A
                  button that cannot be pressed does not glow. */
-              boxShadow: !visitor && !ready ? "none" : "var(--vg-glow-primary)",
-            }}
-          >
-            {ignition.layer}
-            {/* Positioned so it paints above the field. */}
-            <span className="relative flex items-center gap-2">
-              <Sparkle size={15} weight="fill" />
-              {visitor ? t("visitor_cta") : isSubmitting ? "در حال ثبت…" : "بساز"}
-              <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
-                <CoinMark size={12} />
-                <span className="vg-numeric">{price === null ? "—" : n(price)}</span>
-              </span>
+            boxShadow: !visitor && !ready ? "none" : "var(--vg-glow-primary)",
+          }}
+        >
+          {ignition.layer}
+          {/* Positioned so it paints above the field. */}
+          <span className="relative flex items-center gap-2">
+            <Sparkle size={15} weight="fill" />
+            {visitor ? t("visitor_cta") : isSubmitting ? "در حال ثبت…" : "بساز"}
+            <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
+              <CoinMark size={12} />
+              <span className="vg-numeric">{price === null ? "—" : n(price)}</span>
             </span>
-          </button>
-        )}
-        {locked && (
-          <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
-            <bdi>{family.name}</bdi> در پلن فعلی‌ات نیست.
-          </p>
-        )}
+          </span>
+        </button>
         {price === null && (
           <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
             این ترکیب قیمت‌گذاری نمی‌شود، پس فروخته نمی‌شود.

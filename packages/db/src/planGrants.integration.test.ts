@@ -27,13 +27,23 @@ afterAll(async () => {
    ledger, "unlimited access for staff" is what would have been built instead.
    --------------------------------------------------------------------------- */
 
-/** A real, active plan out of the seeded ladder. */
+/** A real, active subscription plan out of the seeded ladder — one with a term. */
 async function anyPlan(tx: Sql) {
   const [plan] = await tx<{ code: string; micro_credits_per_term: string; term_days: number; tier: number }[]>`
     select code, micro_credits_per_term, term_days, tier
-    from plans where is_active and micro_credits_per_term > 0 order by tier limit 1
+    from plans where is_active and micro_credits_per_term > 0 and term_days > 0 order by tier limit 1
   `;
-  if (!plan) throw new Error("the seeded plan ladder has no active priced plan");
+  if (!plan) throw new Error("the seeded plan ladder has no active priced subscription");
+  return plan;
+}
+
+/** A pack: the same table, `term_days` of 0, and the opposite promise. */
+async function anyPack(tx: Sql) {
+  const [plan] = await tx<{ code: string; micro_credits_per_term: string; term_days: number; tier: number }[]>`
+    select code, micro_credits_per_term, term_days, tier
+    from plans where is_active and micro_credits_per_term > 0 and term_days = 0 order by sort_order limit 1
+  `;
+  if (!plan) throw new Error("the seeded plan ladder has no active pack");
   return plan;
 }
 
@@ -124,6 +134,65 @@ describe("granting a plan", () => {
         select count(*)::text as n from credit_lots where account_id = ${accountId} and source = 'admin_grant'
       `;
       expect(lots?.n).toBe("1");
+    });
+  });
+
+  /* The four entry plans are packs, and everything that makes a term plan a
+     term plan is what a pack must not have: the coins do not expire, the
+     membership does not end, and buying one while something else is live is
+     just buying coins. */
+  it("grants a pack with no expiry on the coins at all", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const pack = await anyPack(tx);
+
+      const result = await new PostgresPlanGrantsRepository(tx).grant({ accountId, planCode: pack.code, grantedBy: userId });
+
+      expect(result.outcome).toBe("granted");
+      const [lot] = await tx<{ micro_credits_total: string; expires_at: Date | null }[]>`
+        select micro_credits_total, expires_at from credit_lots
+        where account_id = ${accountId} and source = 'admin_grant'
+      `;
+      expect(lot?.micro_credits_total).toBe(pack.micro_credits_per_term);
+      // The whole promise: null, not a date thirty days out.
+      expect(lot?.expires_at).toBeNull();
+      if (result.outcome !== "granted") return;
+      expect(result.grant.endsAt).toBeNull();
+    });
+  });
+
+  it("stacks packs, because a pack is coins rather than a membership", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const pack = await anyPack(tx);
+      const repository = new PostgresPlanGrantsRepository(tx);
+
+      const first = await repository.grant({ accountId, planCode: pack.code, grantedBy: userId });
+      const second = await repository.grant({ accountId, planCode: pack.code, grantedBy: userId });
+
+      expect(first.outcome).toBe("granted");
+      expect(second.outcome).toBe("granted");
+      const [lots] = await tx<{ count: string }[]>`
+        select count(*)::text as count from credit_lots where account_id = ${accountId} and source = 'admin_grant'
+      `;
+      expect(lots?.count).toBe("2");
+    });
+  });
+
+  it("still refuses a second subscription while a pack is live", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const pack = await anyPack(tx);
+      const plan = await anyPlan(tx);
+      const repository = new PostgresPlanGrantsRepository(tx);
+
+      await repository.grant({ accountId, planCode: pack.code, grantedBy: userId });
+      const subscription = await repository.grant({ accountId, planCode: plan.code, grantedBy: userId });
+
+      // A pack does not block a plan: it is not a membership to collide with.
+      expect(subscription.outcome).toBe("granted");
+      const blocked = await repository.grant({ accountId, planCode: plan.code, grantedBy: userId });
+      expect(blocked.outcome).toBe("already_active");
     });
   });
 

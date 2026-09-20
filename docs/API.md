@@ -1011,13 +1011,18 @@ who should do the other. Rule 2 above applies here too.
 ```
 
 **The monthly limit is not a rule this code remembers to apply — it is what a
-grant is.** One term of a plan means three rows: a `subscriptions` row, which is
-what the tier gate reads; a `credit_lots` row of exactly
+grant is.** One term of a subscription means three rows: a `subscriptions` row,
+which is what the perk tier reads; a `credit_lots` row of exactly
 `plans.micro_credits_per_term`, expiring when the term does; and a
 `credit_ledger` entry, because an off-ledger grant balances today and breaks the
 reconciliation that proves nothing has been lost. The ceiling enforces itself —
 the wallet sums lots and the hold path refuses to overdraw — so an account that
 spends its term in a week cannot start another generation until the next grant.
+
+**Granting a pack is the same call and the opposite promise.** `term_days = 0`
+writes the lot with no `expires_at`, ends the subscription row at `infinity`,
+and skips the "already active" refusal, because coins are not a membership to
+collide with. `endsAt` comes back null on those.
 
 This is **not** unlimited access. `unlimited_entitlements` exists for that, is
 per-model, and is a different decision.
@@ -1100,16 +1105,38 @@ Six things worth knowing:
   plan buys you out of. The ladder is monotonic with price and a unit test
   enforces that, because paying more must never buy less parallelism.
 
-**Tier gating.** `plans.tier` is compared against a family's `minTier`, a
-required field on every family in `GET /catalog`. An account with no plan is
-tier 1, not tier 0 — it holds a 12-coin signup gift and the cheapest tier-1
-models cost about a coin, so tier 1 is what makes that gift spendable.
+**No tier gating.** There was some, on both sides, and it is gone (owner's
+decision, 2026-09-20): a family's `minTier` no longer decides who may run it.
+Every model is open to every account — including one that has never bought
+anything — and the only thing between a customer and a generation is whether
+the wallet covers the price. `POST /generation/quotes` no longer answers
+`tier_too_low`, and nothing in the browser draws a padlock.
 
-**This is now enforced on the server**, in `POST /generation/quotes`. It used to
-be browser-only, which meant it was not enforced at all: `src/lib/access.tsx`
-draws a padlock and curl has never seen a padlock. Keep drawing the padlock —
-it is much better UX than a 403 — but the padlock is now a mirror of the rule
-rather than the rule.
+`plans.tier` and `minTier` both remain. The tier is what the unlimited pipe
+reads, through `unlimited_entitlements.min_tier`; `minTier` is how those grants
+are authored and how flagship a model is described. Neither is access control.
+
+**Two kinds of thing are sold from the `plans` table**, and `term_days` tells
+them apart:
+
+- **Packs** — Starter, Basic, Flow, Plus, the four `group: "entry"` rows —
+  have `term_days = 0`. The coins they grant never expire (`credit_lots`
+  written with a null `expires_at`), no membership lapses, and buying one while
+  something else is live is just buying more coins. There is no monthly ceiling
+  to run into, which is the whole promise.
+- **Subscriptions** — Pro, Studio, Creator — keep a thirty-day term. Their
+  coins expire with it, which is where the annual price gets its margin, and
+  that expiry is the monthly limit: the wallet sums lots with credit remaining
+  and the hold path refuses to overdraw.
+
+**The unlimited window.** `plans.unlimited_days` is how long after a
+subscription starts the free pipe is open: **7 on Pro, 30 on Studio and
+Creator, 0 on every pack.** The server reads it through
+`entitlementsRepository.unlimitedTierForAccount`, which answers 1 once the
+window has closed even though the subscription is still live — so a closed
+window reaches no entitlement and the quote comes back priced.
+`GET /wallet`'s `tier` is that same number, not the plan's tier, so the free
+switch leaves the dock on the day the quote stops coming back free.
 
 ### `GET /campaigns/active`
 
@@ -1326,12 +1353,13 @@ could name them is a request that could ask to be billed as something cheaper.
 | Status | Meaning                                                                |
 | ------ | ---------------------------------------------------------------------- |
 | 401    | Not signed in                                                          |
-| 403    | `tier_too_low` — body carries `requiredTier` and `currentTier`         |
 | 404    | `unknown_variant`                                                      |
 | 409    | `not_offered` / `no_price` — the variant exists, those settings do not |
 
-403 rather than 402 on tier: the account is not short of money, it is on the
-wrong plan, and the fix is an upgrade rather than a top-up.
+There is no 403 here any more. It carried `tier_too_low` — "this model needs a
+higher plan" — and no model needs one. A quote either prices the generation or
+says the combination is not sold; whether the account can afford the price is
+answered at submission, by the hold.
 
 ### `POST /jobs`
 
@@ -1761,14 +1789,17 @@ it lives in `unlimited_entitlements` rather than as a zero row in
 `model_prices`. A zero price would say "this costs nothing"; a grant says "this
 account may run this, N times a day, unmetered".
 
-Today: **Nano Banana Pro and Nano Banana 2, free on tier 3 (Studio and
-Creator), 50 a day per account.**
+Today: **Nano Banana Pro and Nano Banana 2, free to tier 2 and up — Pro,
+Studio and Creator — 50 a day per account, and only while the plan's unlimited
+window is open.**
 
-The grant sits one tier above the model's own `minTier` of 2 on purpose, and
-the gap is the point: tier 1 cannot reach Nano Banana at all, **tier 2 reaches
-it and pays**, tier 3 gets it free. Close that gap and nobody who can use the
-model ever pays for it — the grant would stop being a reason to upgrade and
-become a write-off of the revenue line.
+What keeps this a perk rather than a write-off is the clock, not the tier. The
+grant used to sit one tier above the model's own `minTier`, so that Pro reached
+the model and paid while the top two got it free. No model is gated by tier now,
+so that gap had nothing left to stand on: everyone can reach every model and the
+only question is who gets it free. `plans.unlimited_days` answers it — a week on
+Pro, a month on Studio and Creator — which bounds the giveaway in time and makes
+it a reason to buy again rather than a standing cost.
 
 What a UI needs to know:
 

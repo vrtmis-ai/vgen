@@ -11,14 +11,30 @@ export const PlanSchema = z.object({
   /** Stable identifier. This is what a subscription and an order point at. */
   code: z.string().min(1),
   name: z.string().min(1),
-  /** Access tier. Compared against a family's `minTier` to decide what may run. */
+  /**
+   * Perk tier.
+   *
+   * It no longer decides what may run — no model is locked to a plan any more,
+   * and the only gate left on a generation is whether the wallet can pay for
+   * it. What this still decides is the unlimited pipe: an entitlement names the
+   * lowest tier it opens to, and `unlimitedDays` says how long that stays open.
+   */
   tier: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   /** Coins granted each term — the total, bonus included. */
   coinsPerTerm: z.number().int().nonnegative(),
   /** The same total, split the way the card shows it: "500 + 25". */
   baseCoins: z.number().int().nonnegative(),
   bonusCoins: z.number().int().nonnegative(),
-  termDays: z.number().int().positive(),
+  /** Days a term lasts. 0 = a pack: the coins never expire and nothing lapses. */
+  termDays: z.number().int().nonnegative(),
+  /**
+   * Days from purchase that the unlimited pipe is open to this plan. 0 = never.
+   *
+   * Pro carries seven days of it, Studio and Creator a month. Time-boxed
+   * because the free pipe is a shared pool of upstream subscriptions: a perk
+   * with no end is paid for out of every other customer's queue.
+   */
+  unlimitedDays: z.number().int().nonnegative().default(0),
   monthlyUsd: z.number().nonnegative(),
   /**
    * Per-month price when twelve months are paid up front, or null when the plan

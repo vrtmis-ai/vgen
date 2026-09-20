@@ -140,6 +140,56 @@ describe("the tier gate", () => {
   });
 });
 
+/* The perk the three subscription plans are sold on, and the only thing a
+   tier still decides. It is bounded by a clock rather than by a plan: Pro
+   carries seven days of it, Studio and Creator a month, and a pack none. */
+describe("the unlimited window", () => {
+  /** A subscription that started `startedDaysAgo` ago on a plan with a window. */
+  async function subscribeWithWindow(tx: Sql, accountId: string, unlimitedDays: number, startedDaysAgo: number): Promise<void> {
+    const suffix = Math.random().toString(36).slice(2, 10);
+    const [plan] = await tx<{ id: string }[]>`
+      insert into plans (code, name, tier, micro_credits_per_term, price_amount, unlimited_days)
+      values (${`window-${suffix}`}, 'Windowed', 3, 1000000, 10, ${unlimitedDays})
+      returning id
+    `;
+    await tx`
+      insert into subscriptions (account_id, plan_id, status, starts_at, ends_at)
+      values (${accountId}, ${plan!.id}, 'active',
+              now() - (${startedDaysAgo} * interval '1 day'), now() + interval '30 days')
+    `;
+  }
+
+  it("reports the plan's tier while the window is open", async () => {
+    await inRollback(sql, async (tx) => {
+      const { accountId } = await makeUser(tx);
+      await subscribeWithWindow(tx, accountId, 7, 2);
+      expect(await new PostgresEntitlementsRepository(tx).unlimitedTierForAccount(accountId)).toBe(3);
+    });
+  });
+
+  /* The assertion the feature exists for: the subscription is still live — the
+     customer keeps their coins and their concurrency — and the free pipe has
+     closed. Reading `tierForAccount` here would still say 3, which is why the
+     two questions are asked separately. */
+  it("drops to tier 1 once the days are up, on a subscription that is still running", async () => {
+    await inRollback(sql, async (tx) => {
+      const { accountId } = await makeUser(tx);
+      await subscribeWithWindow(tx, accountId, 7, 8);
+      const repository = new PostgresEntitlementsRepository(tx);
+      expect(await repository.unlimitedTierForAccount(accountId)).toBe(1);
+      expect(await repository.tierForAccount(accountId)).toBe(3);
+    });
+  });
+
+  it("never opens for a plan that carries no window at all", async () => {
+    await inRollback(sql, async (tx) => {
+      const { accountId } = await makeUser(tx);
+      await subscribeWithWindow(tx, accountId, 0, 0);
+      expect(await new PostgresEntitlementsRepository(tx).unlimitedTierForAccount(accountId)).toBe(1);
+    });
+  });
+});
+
 describe("how many generations an account may run at once", () => {
   /** A job in flight, which is what the limit is counted against. */
   async function seedJob(tx: Sql, accountId: string, userId: string, status: string): Promise<void> {
@@ -150,10 +200,13 @@ describe("how many generations an account may run at once", () => {
     `;
   }
 
-  it("gives an account with no plan the floor of one", async () => {
+  /* Two, not one. The four entry plans are coin packs now — coins and no
+     membership — so an account that has paid for one has no subscription row
+     to read a limit off, and the floor is what it gets. */
+  it("gives an account with no subscription the base of two", async () => {
     await inRollback(sql, async (tx) => {
       const { accountId } = await makeUser(tx);
-      expect(await new PostgresEntitlementsRepository(tx).concurrencyFor(accountId)).toEqual({ limit: 1, running: 0 });
+      expect(await new PostgresEntitlementsRepository(tx).concurrencyFor(accountId)).toEqual({ limit: 2, running: 0 });
     });
   });
 

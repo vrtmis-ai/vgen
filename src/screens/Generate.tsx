@@ -1,12 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useSession } from "../runtime/providers/SessionProvider";
+import { useSession, useSpendable } from "../runtime/providers/SessionProvider";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, CaretDown, Lock, Sparkle, X } from "@phosphor-icons/react";
+import { ArrowRight, CaretDown, Sparkle, X } from "@phosphor-icons/react";
 import { defaultInput, variantControls, variantRefs, variantMaxPrompt, type Family, type ModelKind, type Variant } from "../data/models";
 import { priceCoins, priceRefusal } from "../data/pricing";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
-import { useAccess } from "../lib/access";
 import { ControlField, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
 import { Panel, PanelHead, PanelShell, Section } from "../components/Panel";
@@ -20,7 +19,12 @@ import { useRevealArrival } from "../lib/useRevealArrival";
 import { allTags, insertTag, refTags, tagUsed } from "../lib/refTags";
 import { isVideoUrl, labelDir, promptDir } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
-import { generationErrorMessage, validateGenerationInput, type GenerationRefusal } from "../features/generation/validation";
+import {
+  generationErrorMessage,
+  shortfallRefusal,
+  validateGenerationInput,
+  type GenerationRefusal,
+} from "../features/generation/validation";
 import { ApiError } from "../adapters/http/client";
 
 /**
@@ -284,12 +288,16 @@ export default function Generate({
   const clipUnreadable =
     videoFiles.some((f) => f.duration == null) &&
     priceCoins(variant, input, { chars, clipSeconds: 0 }) !== priceCoins(variant, input, { chars, clipSeconds: 1 });
-  // Same gate as the studios. See the CTA below for why this screen needs it.
-  const access = useAccess();
-  const locked = !access.can(family.id);
-  const need = locked ? access.needs(family.id) : null;
   const validation = validateGenerationInput({ family, variant, prompt, input, refs: refImages, assetRefs });
-  const canGenerate = validation.valid && !clipUnreadable && price != null;
+  /* The same gate as the studios, and the only one left: no model belongs to a
+     plan, so a generation is stopped by its price against the balance or by
+     nothing. Null is a visitor, who is asked to sign in rather than told they
+     are short. This screen has no unlimited switch — the free pipe is offered
+     in the image studio — so there is no free case to exempt. */
+  const spendable = useSpendable();
+  const short = price != null && spendable !== null && price > spendable;
+  const shortfall = short && price != null ? shortfallRefusal(price, spendable ?? 0, n) : null;
+  const canGenerate = validation.valid && !clipUnreadable && price != null && !short;
   const ignition = useIgnition();
 
   /* The references have names — `@Image1`, `@Video3` — and the prompt can point
@@ -599,55 +607,38 @@ export default function Generate({
               panel floor, so a box below would lift the button away from the
               pointer that just pressed it. See `SubmitRefusalNote`. */}
           {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
-          {/* A locked model gets an upgrade button, not a disabled create
-              button: greying out the price says the job is unavailable without
-              saying that it is the plan, or what fixes it. */}
-          {locked && !visitor ? (
-            <button
-              onClick={access.onUpgrade}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-bold"
-              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-            >
-              <Lock size={14} weight="fill" />
-              {need ? (
-                <>
-                  ارتقا به <bdi>{need.name}</bdi>
-                </>
-              ) : (
-                "ارتقای پلن"
+          {/* No model belongs to a plan any more: what stops a generation is
+              the price against the balance. */}
+          {!submitError && shortfall && <SubmitRefusalNote refusal={shortfall} onAction={onErrorAction} className="mb-2" />}
+          {/* The same field as the studios' «بساز» — every button that spends
+              coins on a generation lights the same way. See `useIgnition`. */}
+          <button
+            onClick={(event) => (visitor ? signIn() : ignition.ignite(event, () => void submit()))}
+            disabled={!visitor && (!canGenerate || submitting)}
+            aria-busy={ignition.igniting || submitting || undefined}
+            className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
+            style={{
+              background: "var(--vg-primary)",
+              // Light ink over the dark field, with a halo for the moment the
+              // label still sits half on lime — as the dock does.
+              color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
+              textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
+              boxShadow: !visitor && (!canGenerate || submitting) ? "none" : "var(--vg-glow-primary)",
+            }}
+          >
+            {ignition.layer}
+            {/* Positioned so it paints above the field. */}
+            <span className="relative flex items-center gap-2">
+              <Sparkle size={15} weight="fill" />
+              {visitor ? t("visitor_cta") : submitting ? "در حال ثبت…" : t("g_create")}
+              {price != null && !clipUnreadable && (
+                <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
+                  <CoinMark size={12} />
+                  <span className="vg-numeric">{n(price)}</span>
+                </span>
               )}
-            </button>
-          ) : (
-            /* The same field as the studios' «بساز» — every button that spends
-               coins on a generation lights the same way. See `useIgnition`. */
-            <button
-              onClick={(event) => (visitor ? signIn() : ignition.ignite(event, () => void submit()))}
-              disabled={!visitor && (!canGenerate || submitting)}
-              aria-busy={ignition.igniting || submitting || undefined}
-              className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
-              style={{
-                background: "var(--vg-primary)",
-                // Light ink over the dark field, with a halo for the moment the
-                // label still sits half on lime — as the dock does.
-                color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
-                textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
-                boxShadow: !visitor && (!canGenerate || submitting) ? "none" : "var(--vg-glow-primary)",
-              }}
-            >
-              {ignition.layer}
-              {/* Positioned so it paints above the field. */}
-              <span className="relative flex items-center gap-2">
-                <Sparkle size={15} weight="fill" />
-                {visitor ? t("visitor_cta") : submitting ? "در حال ثبت…" : t("g_create")}
-                {price != null && !clipUnreadable && (
-                  <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
-                    <CoinMark size={12} />
-                    <span className="vg-numeric">{n(price)}</span>
-                  </span>
-                )}
-              </span>
-            </button>
-          )}
+            </span>
+          </button>
           <p className="mt-1.5 text-center text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
             {footnote}
           </p>

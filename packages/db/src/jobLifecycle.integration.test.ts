@@ -28,8 +28,8 @@ afterAll(async () => {
 async function subscribe(tx: Sql, accountId: string, tier: number): Promise<void> {
   const suffix = Math.random().toString(36).slice(2, 10);
   const [plan] = await tx<{ id: string }[]>`
-    insert into plans (code, name, tier, micro_credits_per_term, price_amount, max_concurrent_jobs)
-    values (${`life-plan-${suffix}`}, 'Lifecycle Test Plan', ${tier}, 1000000, 10, 8)
+    insert into plans (code, name, tier, micro_credits_per_term, price_amount, max_concurrent_jobs, unlimited_days)
+    values (${`life-plan-${suffix}`}, 'Lifecycle Test Plan', ${tier}, 1000000, 10, 8, 30)
     returning id
   `;
   await tx`

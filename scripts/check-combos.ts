@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 import { reducePriceRows, type FullPriceRow } from "./priceList";
 import { FAMILIES, variantControls, type Control } from "../src/data/models";
 import { priceCoins } from "../src/data/pricing";
-import { MODEL_MIN_TIER, auditPlans } from "../src/data/plans";
+import { auditPlans } from "../src/data/plans";
 import { PLAN_LADDER } from "../src/data/planLadder";
 import type { InputMap, InputValue } from "../src/components/controls";
 
@@ -128,16 +128,6 @@ async function main() {
     process.exit(2);
   }
 
-  // A family with no tier entry used to fall through to tier 1 — the cheapest
-  // pack — which is the wrong direction to fail in. It now locks instead, so an
-  // omission costs a sale rather than the margin. Catch it here either way.
-  const untiered = FAMILIES.filter((f) => MODEL_MIN_TIER[f.id] == null);
-  if (untiered.length) {
-    console.error(`${untiered.length} families have no MODEL_MIN_TIER entry and will be locked:`);
-    for (const f of untiered) console.error(`  ${f.id.padEnd(16)} ${f.name}`);
-    console.error("Add them to plans.ts.\n");
-  }
-
   // Plan-table invariants: the ladder must not invert, no plan may clear less
   // than its cycle's margin floor, and the estimate anchors must still have rates. The
   // ladder check used to run as a bare call during module evaluation, so a bad
@@ -188,15 +178,14 @@ async function main() {
 ${drift}
 `);
 
-  if (untiered.length === 0 && planProblems.length === 0 && !drift) {
+  if (planProblems.length === 0 && !drift) {
     console.log("every priced combination resolves to a real price row ✅");
     console.log("every variant routes to a seeded feature ✅");
-    console.log("every family has a tier ✅");
     console.log("plan ladder holds and every plan clears the margin floor ✅");
     console.log("the browser's price list carries no supplier path and no cost ✅");
     process.exit(0);
   }
-  process.exit(2); // untiered families / plan problems / price-list drift
+  process.exit(2); // plan problems / price-list drift
 }
 
 /**

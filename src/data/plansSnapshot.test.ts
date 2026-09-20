@@ -70,11 +70,29 @@ describe("the committed plan snapshot", () => {
     }
   });
 
-  // Annual is a payment cadence, not a longer grant: twelve months are paid up
-  // front but coins still arrive monthly and still expire after thirty days,
-  // which is where the annual margin comes from. A 365-day term here would mean
-  // someone gets a year of coins on day one.
-  it("grants monthly on every plan, annual ones included", () => {
-    for (const plan of PLAN_LADDER) expect(plan.termDays).toBe(30);
+  /* Two kinds of thing are sold from one table, and the term is what tells
+     them apart. A subscription grants monthly even when a year is paid up
+     front — annual is a payment cadence, not a longer grant, and that
+     thirty-day expiry is where the annual margin comes from; a 365-day term
+     would hand someone a year of coins on day one. A pack has no term at all:
+     its coins never expire, which is the whole promise. */
+  it("grants monthly on a subscription and never expires a pack", () => {
+    for (const plan of PLAN_LADDER) {
+      expect(plan.termDays).toBe(plan.group === "entry" ? 0 : 30);
+    }
+  });
+
+  /* The perk the three subscription plans are sold on, and the reason it is
+     survivable: it runs out. Pro carries a week of it, the top two a month,
+     and a pack none — so "unlimited" is bounded by a date rather than by an
+     upstream pool everybody shares. */
+  it("opens the unlimited window only on the subscription plans", () => {
+    for (const plan of PLAN_LADDER) {
+      if (plan.group === "entry") expect(plan.unlimitedDays).toBe(0);
+      else expect(plan.unlimitedDays).toBeGreaterThan(0);
+      // Never longer than the term it rides on: a window outliving the
+      // subscription is a free model nobody is paying for any more.
+      expect(plan.unlimitedDays).toBeLessThanOrEqual(plan.termDays);
+    }
   });
 });

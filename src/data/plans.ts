@@ -204,74 +204,23 @@ export function auditPlans(plans: readonly Plan[]): string[] {
   return problems;
 }
 
-/* ---- model access gating (owner-tunable, single source of truth) ----------
-   tier 1 — everyday/economy models, every plan unlocks these
-   tier 2 — pro creator models (Pro and up)
-   tier 3 — flagship models (Studio / Creator only)
-   NOTE: real enforcement happens in the backend phase; the UI reads this map
-   to communicate access on plan cards (and later to lock model pages). */
 /**
- * Minimum tier per family, read off the catalogue.
+ * The tier a plan holds, for the one perk still decided by one.
  *
- * This used to be a hand-kept map beside the plan ladder, which made it a second
- * list of facts about the catalogue that nothing forced to agree with the
- * catalogue. Four families added later were missing from it entirely. `minTier`
- * is a field on the family now — declared where the family is, carried into
- * `provider_models.capabilities`, and served by `GET /catalog` — so a family
- * cannot exist without one.
- */
-export const MODEL_MIN_TIER: Record<string, Tier> = Object.fromEntries(FAMILIES.map((family) => [family.id, family.minTier]));
-
-/**
- * Minimum tier for a family. An unknown family LOCKS rather than unlocks.
+ * What used to live here was the model gate: a map of family -> minimum tier,
+ * the `minTierFor` that read it, `familyUnlocked`, `cheapestPlanFor` for the
+ * padlock's "buy this to unlock it", and `tierUnlockNames` for the plan card's
+ * list of what a tier opens. All of it is gone with the gate — every model is
+ * open to every account, and the only thing between a customer and a
+ * generation is whether the wallet covers the price.
  *
- * This defaulted to tier 1, which failed in the giveaway direction: four
- * families added later — gemini-omni, elevenlabs, topaz, recraft — were silently
- * available on the cheapest plan, and Gemini Omni costs up to 210 KIE credits a
- * video. Missing config should cost us a sale, never the margin. The type now
- * makes `minTier` required on a family, so the only way to reach the fallback
- * is to ask about a family that does not exist.
- */
-export function minTierFor(familyId: string): Tier {
-  return MODEL_MIN_TIER[familyId] ?? 3;
-}
-
-/**
- * The tier a user actually has.
- *
- * No plan is tier 1, not tier 0. A new account holds a 12-coin signup gift, and
- * the cheapest tier-1 models cost about one coin — so tier 1 is what makes that
- * gift a real trial rather than a number it cannot spend. Everything dearer is
- * exactly what we want them to see and be unable to reach yet.
+ * A family still declares a `minTier` and the catalogue still publishes it: it
+ * is how the unlimited entitlements are authored, and it describes how
+ * flagship a model is. It no longer decides who may run one.
  */
 export function tierForPlan(plans: readonly Plan[], planId: string | null | undefined): Tier {
   if (!planId) return 1;
   return plans.find((p) => p.code === planId)?.tier ?? 1;
-}
-
-/** Can this account run this family at all? */
-export function familyUnlocked(plans: readonly Plan[], familyId: string, planId: string | null | undefined): boolean {
-  return tierForPlan(plans, planId) >= minTierFor(familyId);
-}
-
-/**
- * The cheapest plan that unlocks this family — what the lock should point at.
- *
- * Cheapest rather than "the next tier up", because tiers are not a price ladder:
- * Plus is tier 1 at $25 while Pro is tier 2 at $49, so naming a tier tells the
- * user nothing about what to buy. Returns null only if nothing unlocks it,
- * which check-combos.ts already prevents.
- */
-export function cheapestPlanFor(plans: readonly Plan[], familyId: string): Plan | null {
-  const need = minTierFor(familyId);
-  return plans.filter((p) => p.tier >= need).sort((a, b) => a.monthlyUsd - b.monthlyUsd)[0] ?? null;
-}
-
-/** Family display names newly unlocked AT this tier (not cumulative). */
-export function tierUnlockNames(tier: Tier): string[] {
-  return FAMILIES.filter((f) => minTierFor(f.id) === tier)
-    .map((f) => f.name)
-    .filter((v, i, a) => a.indexOf(v) === i);
 }
 
 /* ---- "what can I make with this?" — derived from the real rate table ------

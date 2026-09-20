@@ -52,21 +52,6 @@ export function registerGenerationQuotesRoute(
 
     if (result.outcome === "quoted") return reply.code(200).send(GenerationQuoteSchema.parse(result.quote));
 
-    if (result.outcome === "tier_too_low") {
-      // 403 rather than 402: the account is not short of money, it is on the
-      // wrong plan, and the fix is an upgrade rather than a top-up. The tiers
-      // are in the body so the client can name the plan that would unlock it
-      // without a second round trip.
-      return reply.code(403).send({
-        error: {
-          code: result.outcome,
-          message: "This model needs a higher plan.",
-          requiredTier: result.requiredTier,
-          currentTier: result.currentTier,
-        },
-      });
-    }
-
     if (result.outcome === "unknown_variant" || result.outcome === "unknown_account") {
       return reply.code(404).send({ error: { code: result.outcome, message: "That model is not available." } });
     }

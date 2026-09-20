@@ -29,6 +29,14 @@ import { atomically } from "./transaction";
  * So "activate a plan for an admin, and it still has the monthly limit" is not
  * a rule this code has to remember to apply. It is what granting one term of a
  * plan means: the credits run out, and the next term is another grant.
+ *
+ * Unless the plan is a PACK. The four entry plans are packs now — `term_days`
+ * of 0 — and a pack is the opposite promise: the coins never expire, so the
+ * lot is written with no `expires_at` at all and the subscription that records
+ * the purchase never ends. Both follow from the one column, so there is no
+ * second kind of grant to keep in step, and a pack cannot be blocked by an
+ * active plan the way a second subscription is — buying coins twice is
+ * ordinary, holding two subscriptions is not.
  */
 
 export interface PlanGrant {
@@ -39,7 +47,8 @@ export interface PlanGrant {
   /** One term's worth, in coins. What the account may spend before it ends. */
   coins: number;
   startsAt: number;
-  endsAt: number;
+  /** Null on a pack, which never ends. */
+  endsAt: number | null;
   status: string;
 }
 
@@ -76,9 +85,15 @@ const toGrant = (row: SubscriptionRow, coins: number): PlanGrant => ({
   tier: row.tier,
   coins,
   startsAt: row.starts_at.getTime(),
-  endsAt: row.ends_at.getTime(),
+  // A pack's row ends at 'infinity', which `getTime()` reads as Infinity — a
+  // number JSON turns into null on the way out and a date formatter renders as
+  // "Invalid Date". Said once, here, so every reader gets the same null.
+  endsAt: Number.isFinite(row.ends_at.getTime()) ? row.ends_at.getTime() : null,
   status: row.status,
 });
+
+/** A pack: coins that never expire, sold as a plan but not a membership. */
+const isPack = (termDays: number): boolean => termDays === 0;
 
 /** micro-credits to coins, the same hundredth this system bills in. */
 const coinsOf = (microCredits: string | number): number => Number(microCredits) / 100;
@@ -119,27 +134,40 @@ export class PostgresPlanGrantsRepository {
       `;
       if (!plan) return { outcome: "unknown_plan" as const };
 
-      const [live] = await tx<SubscriptionRow[]>`
-        select sub.id, p.code as plan_code, p.name as plan_name, p.tier,
-               sub.micro_credits_granted, sub.starts_at, sub.ends_at, sub.status
-        from subscriptions sub
-        join plans p on p.id = sub.plan_id
-        where sub.account_id = ${input.accountId} and sub.status = 'active' and sub.ends_at > now()
-        limit 1
-      `;
+      /* Only a term plan can be "already active". Two live subscriptions make
+         `max(plan.tier)` the answer to "what plan is this" — true, and no help
+         to whoever later asks why the account holds two terms of credit. A
+         pack is not a membership, so buying one while a plan runs, or buying
+         several, is just buying coins. */
+      const [live] = isPack(plan.term_days)
+        ? []
+        : await tx<SubscriptionRow[]>`
+            select sub.id, p.code as plan_code, p.name as plan_name, p.tier,
+                   sub.micro_credits_granted, sub.starts_at, sub.ends_at, sub.status
+            from subscriptions sub
+            join plans p on p.id = sub.plan_id
+            where sub.account_id = ${input.accountId} and sub.status = 'active' and sub.ends_at > now()
+              and p.term_days > 0
+            limit 1
+          `;
       if (live) return { outcome: "already_active" as const, grant: toGrant(live, coinsOf(live.micro_credits_granted)) };
 
       const microCredits = plan.micro_credits_per_term;
 
-      /* The lot expires when the term does, and that is the monthly limit.
-         Not a counter somebody has to remember to check: the wallet sums lots
-         with credit remaining and the hold path refuses to overdraw, so an
-         account that spends its term's credits in a week simply cannot start
-         another generation until the next grant. */
+      /* On a term plan the lot expires when the term does, and that expiry IS
+         the monthly limit — not a counter somebody has to remember to check:
+         the wallet sums lots with credit remaining and the hold path refuses to
+         overdraw, so an account that spends its term's credits in a week cannot
+         start another generation until the next grant.
+
+         On a pack there is no expiry and no limit. `expires_at` is null, which
+         `walletRepository` already reads as "never" — the column was nullable
+         from the first migration precisely for a grant like this one. */
+      const expiry = isPack(plan.term_days) ? null : `${plan.term_days} days`;
       const [lot] = await tx<{ id: string }[]>`
         insert into credit_lots (account_id, source, micro_credits_total, micro_credits_remaining, expires_at)
         values (${input.accountId}, 'admin_grant', ${microCredits}, ${microCredits},
-                now() + (${plan.term_days} * interval '1 day'))
+                ${expiry === null ? null : tx`now() + ${expiry}::interval`})
         returning id
       `;
 
@@ -151,7 +179,12 @@ export class PostgresPlanGrantsRepository {
           -- retroactively change what this account was given, which is the
           -- same reason a purchase snapshots it.
           ${tx.json({ code: plan.code, name: plan.name, tier: plan.tier, microCreditsPerTerm: microCredits, termDays: plan.term_days })},
-          ${microCredits}, ${lot!.id}, 'active', now() + (${plan.term_days} * interval '1 day')
+          -- 'infinity' on a pack. The row is still worth writing: it is what
+          -- records the purchase and carries the perks, and a pack's perks are
+          -- exactly the ones that never lapse. The CHECK wants ends_at above
+          -- starts_at, which infinity satisfies.
+          ${microCredits}, ${lot!.id}, 'active',
+          ${isPack(plan.term_days) ? tx`'infinity'::timestamptz` : tx`now() + (${plan.term_days} * interval '1 day')`}
         )
         returning id, ${plan.code} as plan_code, ${plan.name} as plan_name, ${plan.tier}::smallint as tier,
                   micro_credits_granted, starts_at, ends_at, status

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Sparkle, Play, PencilSimple, CaretLeft, FolderSimple, Lock, SpeakerHigh, MusicNotes, Waveform } from "@phosphor-icons/react";
+import { Sparkle, Play, PencilSimple, CaretLeft, FolderSimple, SpeakerHigh, MusicNotes, Waveform } from "@phosphor-icons/react";
 import { type Family, type Variant } from "../data/models";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { ControlField, type InputMap } from "../components/controls";
@@ -14,13 +14,12 @@ import { ModelPicker } from "../components/ModelPicker";
 import { useIgnition } from "../components/Ignition";
 import { CancelButton, FailedVeil, SubmitRefusalNote, type CancelOutcome } from "../components/GenerationVeils";
 import { GenerationField } from "../components/GenerationField";
-import type { GenerationRefusal } from "../features/generation/validation";
+import { shortfallRefusal, type GenerationRefusal } from "../features/generation/validation";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { labelDir, promptDir } from "../lib/format";
 import { useI18n, type TKey } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { useAppServices } from "../runtime/AppServices";
-import { useAccess } from "../lib/access";
 import { WaveCard, clipsOf, downloadClip, useClipPlayer, type Clip } from "../components/AudioClip";
 
 /* ---------------------------------------------------------------------------
@@ -116,13 +115,14 @@ export default function StudioAudio({
   const families = audioFamilies.filter((family) => carries(family, section.code));
 
   const s = useCreateState(families);
-  const access = useAccess();
   // See StudioImage: a visitor gets the studio and a sign-in button in place
-  // of the one control that spends. The upgrade lock does not apply to them.
+  // of the one control that spends. Being short of coins is not their problem
+  // to be told about — signing in is.
   const { user, signIn } = useSession();
   const visitor = user === null;
-  const locked = !access.can(s.family.id);
-  const need = locked ? access.needs(s.family.id) : null;
+  // The wallet, asked before the press rather than after it. There is no
+  // padlock to draw any more — see `useCreateState`.
+  const shortfall = s.short && s.price !== null ? shortfallRefusal(s.price, s.spendable ?? 0, n) : null;
   const [pickVoice, setPickVoice] = useState(false);
   const [pickModel, setPickModel] = useState(false);
   const modelRow = useRef<HTMLDivElement>(null);
@@ -358,57 +358,42 @@ export default function StudioAudio({
           {/* A refusal that never became a job, above the button that made it —
               see `SubmitRefusalNote` for why above. */}
           {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
-          {/* See FormPanel. */}
-          {locked && !visitor ? (
-            <button
-              onClick={access.onUpgrade}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-bold"
-              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-            >
-              <Lock size={14} weight="fill" />
-              {need ? (
-                <>
-                  ارتقا به <bdi>{need.name}</bdi>
-                </>
-              ) : (
-                "ارتقای پلن"
-              )}
-            </button>
-          ) : (
-            <button
-              disabled={!visitor && !s.ready}
-              onClick={(event) =>
-                visitor
-                  ? signIn()
-                  : ignition.ignite(event, () => {
-                      reveal.arm();
-                      onGenerate(s.family, s.variant, s.prompt.trim(), s.input);
-                    })
-              }
-              aria-busy={ignition.igniting || undefined}
-              className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
-              style={{
-                background: "var(--vg-primary)",
-                color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
-                // A dark halo while it is light: the field sweeps in from the
-                // pressed point, so for a moment the label sits half on lime.
-                textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
-                // As in the video dock: the only filled accent in the column,
-                // and a button that cannot be pressed does not glow.
-                boxShadow: !visitor && !s.ready ? "none" : "var(--vg-glow-primary)",
-              }}
-            >
-              {ignition.layer}
-              <span className="relative flex items-center gap-2">
-                <Sparkle size={15} weight="fill" />
-                {visitor ? t("visitor_cta") : "بساز"}
-                <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
-                  <CoinMark size={12} />
-                  <span className="vg-numeric">{s.price === null ? "—" : n(s.price)}</span>
-                </span>
+          {/* See FormPanel: no model is locked to a plan, so the only thing
+              that can stop a generation is the price against the balance. */}
+          {!submitError && shortfall && <SubmitRefusalNote refusal={shortfall} onAction={onErrorAction} className="mb-2" />}
+          <button
+            disabled={!visitor && !s.ready}
+            onClick={(event) =>
+              visitor
+                ? signIn()
+                : ignition.ignite(event, () => {
+                    reveal.arm();
+                    onGenerate(s.family, s.variant, s.prompt.trim(), s.input);
+                  })
+            }
+            aria-busy={ignition.igniting || undefined}
+            className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
+            style={{
+              background: "var(--vg-primary)",
+              color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
+              // A dark halo while it is light: the field sweeps in from the
+              // pressed point, so for a moment the label sits half on lime.
+              textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
+              // As in the video dock: the only filled accent in the column,
+              // and a button that cannot be pressed does not glow.
+              boxShadow: !visitor && !s.ready ? "none" : "var(--vg-glow-primary)",
+            }}
+          >
+            {ignition.layer}
+            <span className="relative flex items-center gap-2">
+              <Sparkle size={15} weight="fill" />
+              {visitor ? t("visitor_cta") : "بساز"}
+              <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
+                <CoinMark size={12} />
+                <span className="vg-numeric">{s.price === null ? "—" : n(s.price)}</span>
               </span>
-            </button>
-          )}
+            </span>
+          </button>
         </div>
       </PanelShell>
 
