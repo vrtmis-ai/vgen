@@ -81,7 +81,7 @@ function GenCard({
       /* The remove control is a sibling of the card, not a child of it: the card
          is itself a button, and a button inside a button is invalid markup that
          browsers resolve by dropping one of them. */
-      <div className="relative mb-2 break-inside-avoid">
+      <div data-generation-card className="group relative mb-2 break-inside-avoid">
         <motion.button
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -158,7 +158,7 @@ function GenCard({
   return (
     // Same reason as the list branch: the remove control cannot live inside the
     // card, because the card is a button.
-    <div className="group relative mb-3 break-inside-avoid">
+    <div data-generation-card className="group relative mb-3 break-inside-avoid">
       <motion.button
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

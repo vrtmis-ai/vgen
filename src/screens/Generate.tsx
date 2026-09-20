@@ -642,6 +642,7 @@ export default function Generate({
                 <div
                   key={generation.id}
                   ref={target}
+                  data-generation-card
                   className="group relative scroll-my-24 overflow-hidden rounded-[14px] text-start"
                   style={{ ...frame, border: "1px solid var(--vg-border-subtle)" }}
                 >

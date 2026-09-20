@@ -74,6 +74,7 @@ function OutputCard({
   return (
     <motion.div
       variants={riseItem}
+      data-generation-card
       className="group relative overflow-hidden rounded-[20px]"
       style={{
         aspectRatio: `${gen.w} / ${gen.h}`,
@@ -362,6 +363,7 @@ export default function Studio({
                     ) : (
                       // The rail is a sibling of the open button, not a child.
                       <div
+                        data-generation-card
                         className="group relative min-w-0 flex-1 overflow-hidden rounded-2xl"
                         style={{ aspectRatio: `${g.w} / ${g.h}`, background: g.grad, maxHeight: "70dvh" }}
                       >

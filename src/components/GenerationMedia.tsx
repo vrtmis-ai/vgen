@@ -90,8 +90,16 @@ function CardVideo({ src, className }: { src: string; className: string }) {
        clip on hover, so a pointer travelling to the download button leaves the
        `<video>` and the clip would stop under the hand reaching for it.
        `pointerenter`/`pointerleave` do not fire on moves between a node's own
-       descendants, which is exactly the behaviour this wants. */
-    const card = element?.parentElement;
+       descendants, which is exactly the behaviour this wants.
+
+       Found by the marker rather than by `parentElement`, which was wrong
+       wherever the media is not a direct child of the card: on the model page
+       the clip sits inside the open button, and the rail is that button's
+       sibling, so the pointer left on its way to the controls — the exact
+       problem this listener exists to avoid. In کارهای من's list the parent is
+       a 56px thumbnail. Falls back to the parent so an unmarked caller keeps
+       its old behaviour rather than losing playback entirely. */
+    const card = element?.closest<HTMLElement>("[data-generation-card]") ?? element?.parentElement;
     if (!element || !card) return;
 
     // Rejects when the element is detached mid-gesture; nothing to recover.
