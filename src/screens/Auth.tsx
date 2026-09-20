@@ -16,6 +16,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { DotField } from "../components/DotField";
 import { AuthProviderMark } from "../components/AuthProviderMark";
+import { Wordmark } from "../components/brandMarks";
 import { BRAND } from "../data/brand";
 import { useAuth } from "../features/session/useAuth";
 import { useSession } from "../features/session/useSession";
@@ -493,6 +494,11 @@ export default function Auth({ mode }: { mode: AuthMode }) {
 
   const pillStyle = { borderColor: "var(--vg-border)", background: "rgb(255 255 255 / 0.02)", color: "var(--vg-text)" };
   const submitPill = "vg-ease w-full rounded-full py-3.5 text-[15px] font-bold enabled:active:scale-[0.99]";
+  /* The door gets the gleam — the same lit edge the landing's one paid action
+     wears, on the screen where somebody is deciding to come in. Only while it
+     can actually be pressed: a disabled button that shimmers is a button that
+     lies about being ready. */
+  const submitClass = (isDisabled: boolean) => `${submitPill}${isDisabled ? "" : " vg-gleam"}`;
   /* A disabled primary is not a faded primary. index.css already states the rule
      for `.btn-accent:disabled` — it must not read as tappable — and a dimmed
      accent still does, especially against a dark field where opacity mostly eats
@@ -501,9 +507,9 @@ export default function Auth({ mode }: { mode: AuthMode }) {
     isDisabled
       ? { background: "var(--vg-surface-raised)", color: "var(--vg-text-faint)", boxShadow: "none", cursor: "default" }
       : {
-          background: "var(--vg-primary)",
-          color: "var(--vg-text-on-primary)",
-          boxShadow: "0 0 44px rgb(var(--vg-primary-rgb) / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.25)",
+          // The fill and the ring come from `.vg-gleam`; this is the light it
+          // throws into the air around itself.
+          boxShadow: "inset 0 0 0 1px var(--vg-surface), 0 0 44px rgb(var(--vg-primary-rgb) / 0.24)",
         };
 
   const inviteField = inviteNeeded && (
@@ -605,10 +611,10 @@ export default function Auth({ mode }: { mode: AuthMode }) {
               <button
                 type="submit"
                 disabled={pending || !codeComplete || codeRefused}
-                className={submitPill}
+                className={submitClass(pending || !codeComplete || codeRefused)}
                 style={submitStyle(pending || !codeComplete || codeRefused)}
               >
-                {verifyPhone.isPending ? t("auth_verifying") : t("auth_verify")}
+                <span>{verifyPhone.isPending ? t("auth_verifying") : t("auth_verify")}</span>
               </button>
 
               <div className="flex items-center justify-between gap-3 px-1 text-[12.5px]">
@@ -673,8 +679,8 @@ export default function Auth({ mode }: { mode: AuthMode }) {
                 )}
               </PillField>
 
-              <button type="submit" disabled={pending} className={submitPill} style={submitStyle(pending)}>
-                {startPhoneVerification.isPending ? t("auth_sending") : t("auth_send_code")}
+              <button type="submit" disabled={pending} className={submitClass(pending)} style={submitStyle(pending)}>
+                <span>{startPhoneVerification.isPending ? t("auth_sending") : t("auth_send_code")}</span>
               </button>
             </form>
           ) : (
@@ -722,8 +728,8 @@ export default function Auth({ mode }: { mode: AuthMode }) {
 
               {inviteField}
 
-              <button type="submit" disabled={pending} className={submitPill} style={submitStyle(pending)}>
-                {pending ? t("auth_working") : t(mode === "signin" ? "auth_signin_submit" : "auth_signup_submit")}
+              <button type="submit" disabled={pending} className={submitClass(pending)} style={submitStyle(pending)}>
+                <span>{pending ? t("auth_working") : t(mode === "signin" ? "auth_signin_submit" : "auth_signup_submit")}</span>
               </button>
             </form>
           )}
@@ -846,12 +852,8 @@ export function AuthScene({ leaving = false, children }: { leaving?: boolean; ch
               is hidden during the code step, leaving somebody mid-OTP with no
               way back to the site except the browser's own button. */}
           <a href="/" aria-label={BRAND.name} className="mb-10 flex flex-col items-center text-center">
-            <span
-              className="text-[18px] font-light tracking-[0.34em]"
-              style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-              lang="en"
-            >
-              {BRAND.name}
+            <span style={{ color: "var(--vg-text)" }}>
+              <Wordmark height={22} />
             </span>
             <span
               className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.2em]"

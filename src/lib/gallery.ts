@@ -11,7 +11,29 @@ import { readStoredCollection, writeStoredCollection } from "../adapters/browser
  * carried all seven server states plus an `error`; this vocabulary was the part
  * that could not say what happened.
  */
-export type GenStatus = "running" | "done" | "failed";
+/**
+ * What a generation is doing, as the screens need to tell it apart.
+ *
+ * Narrower than the seven the API sends, and no longer three. `queued` came out
+ * of `running` because they are not the same thing to the person waiting: a
+ * queued job has not been given to a provider yet, so it can still be called
+ * off and nothing is being spent on it, and saying «در حال ساخت» over it is
+ * a claim about work that is not happening. `cancelled` came out of `failed`
+ * for the opposite reason — it is the one ending the customer chose, and the
+ * failure language, down to "no coins were taken", answers a question they did
+ * not ask.
+ */
+export type GenStatus = "queued" | "running" | "done" | "failed" | "cancelled";
+
+/** Still on its way to an answer: queued or running. */
+export function isPending(status: GenStatus): boolean {
+  return status === "queued" || status === "running";
+}
+
+/** Ended with nothing to show — refused, or called off. */
+export function isUnfinished(status: GenStatus): boolean {
+  return status === "failed" || status === "cancelled";
+}
 
 export interface Generation {
   /** Optimistic client key. Server calls must use jobId. */
@@ -123,7 +145,11 @@ const GenerationSchema: z.ZodType<Generation> = z.object({
   outputAssetId: z.string().min(1).optional(),
   outputUrlExpiresAt: z.number().int().nonnegative().optional(),
   phash: z.string().min(1).optional(),
-  status: z.enum(["running", "done", "failed"]),
+  /* Every value `GenStatus` can hold. A row whose status is not in this list
+     does not fail to parse — it is dropped, silently, which is what happened
+     to every queued generation the moment `queued` existed and this did not
+     know about it: submit, reload, and the card was gone. */
+  status: z.enum(["queued", "running", "done", "failed", "cancelled"]),
   error: z.object({ code: z.string().min(1), message: z.string() }).optional(),
   progress: z.number().min(0).max(100).optional(),
   createdAt: z.number().int().nonnegative(),

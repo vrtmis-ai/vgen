@@ -1,5 +1,17 @@
 # Brand assets
 
+## The marks
+
+`deev-mark.svg` (the winged D and its square) and `deev-wordmark.svg` (the full
+lockup) are traced from the artwork sheet, not redrawn: the wings keep their
+pixel steps and the letters keep the weights they were drawn with. The app does
+not load these files — `src/components/brandMarks.tsx` carries the same two
+paths inline so the letters can take `currentColor` — but they are the source of
+truth, and `public/favicon.svg`, `apple-icon.png`, `icon-512.png` and
+`favicon-32.png` are all built from the mark.
+
+The square is `#C6F52E` and never inherits colour. Everything else is ink.
+
 ## deev-mascot.png — NOT YET ADDED
 
 The landing hero has a slot for it and renders correctly without it: the frame's

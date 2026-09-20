@@ -10,6 +10,8 @@ import { AppServicesProvider } from "../runtime/AppServices";
 import { SessionProvider, type Session } from "../runtime/providers/SessionProvider";
 import type { Generation } from "../lib/gallery";
 import StudioImage from "./StudioImage";
+import { FailedVeil } from "../components/GenerationVeils";
+import type { GenerationRefusal } from "../features/generation/validation";
 
 /* ---------------------------------------------------------------------------
    The image dock's one required input.
@@ -32,7 +34,7 @@ const ACCOUNT: Session = {
   signOut: vi.fn(),
 };
 
-function show(gens: Generation[] = [], onRemove = vi.fn()) {
+function show(gens: Generation[] = [], onRemove = vi.fn(), submitError?: GenerationRefusal) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
@@ -40,7 +42,14 @@ function show(gens: Generation[] = [], onRemove = vi.fn()) {
         <LanguageProvider initialLang="fa">
           <CatalogProvider families={catalog.families}>
             <SessionProvider value={ACCOUNT}>
-              <StudioImage gens={gens} onGenerate={vi.fn()} onOpenModel={vi.fn()} onRegenerate={vi.fn()} onRemove={onRemove} />
+              <StudioImage
+                gens={gens}
+                onGenerate={vi.fn()}
+                onOpenModel={vi.fn()}
+                onRemove={onRemove}
+                submitError={submitError ?? null}
+                onErrorAction={vi.fn()}
+              />
             </SessionProvider>
           </CatalogProvider>
         </LanguageProvider>
@@ -152,7 +161,7 @@ describe("the image wall, for jobs with no picture", () => {
     const refused = job({ status: "failed", error: { code: "content_policy", message: "" } });
     const { onRemove } = show([refused]);
 
-    expect(screen.getByText("انجام نشد")).toBeInTheDocument();
+    expect(screen.getByText("انجام نشد:")).toBeInTheDocument();
     // The code's own sentence — the one that tells somebody to change the words.
     expect(screen.getByText(/متن را عوض کنید/)).toBeInTheDocument();
 
@@ -169,5 +178,82 @@ describe("the image wall, for jobs with no picture", () => {
     expect(screen.getByText(/در حال ساخت/)).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.queryByText(/٪/)).not.toBeInTheDocument();
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   Where the refusal lands.
+
+   Every dock in this product is pinned to the floor of its panel, so a notice
+   added underneath the create button pushes the button upwards — 52px in this
+   one, measured — and the thing you just pressed moves out from under the
+   pointer while the answer appears in the last strip of the window. Above it,
+   the panel grows the other way and nothing moves. The order in the document is
+   the whole claim, so that is what is asserted.
+   --------------------------------------------------------------------------- */
+describe("a refusal in the image dock", () => {
+  const refusal: GenerationRefusal = { code: "insufficient_credits", message: "اعتبار کیف پول برای این ساخت کافی نیست." };
+
+  it("is drawn above the create button, not below it", () => {
+    show([], vi.fn(), refusal);
+
+    const notice = screen.getByRole("status");
+    const create = screen.getByRole("button", { name: /بساز/ });
+
+    expect(notice).toHaveTextContent("اعتبار کیف پول");
+    // DOCUMENT_POSITION_FOLLOWING: the button comes after the notice.
+    expect(notice.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("offers the way out the code names", async () => {
+    show([], vi.fn(), refusal);
+
+    expect(await screen.findByRole("button", { name: "شارژ کیف پول" })).toBeInTheDocument();
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   The reason, on a tile with no room for it.
+
+   The wall's tiles shrink with the density control and with the window, and
+   below 110px the refusal keeps only its status word. `title` carried the
+   sentence, which is a tooltip, which is a thing a phone does not have — so on
+   the screen where the tiles are smallest, nobody could find out why.
+   --------------------------------------------------------------------------- */
+describe("a refused tile too short to print the reason", () => {
+  const refused: Generation = {
+    id: "g-short",
+    jobId: "job-short",
+    familyId: "nano-banana",
+    variantId: "nano-banana-pro",
+    name: "Nano Banana",
+    vendor: "Google",
+    grad: "linear-gradient(#000,#111)",
+    kind: "image",
+    prompt: "a portrait",
+    w: 1,
+    h: 1,
+    status: "failed",
+    error: { code: "content_policy", message: "" },
+    createdAt: 5,
+  };
+
+  it("opens the sentence on a press rather than only on hover", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AppServicesProvider services={createDemoServices()}>
+          <LanguageProvider initialLang="fa">
+            <FailedVeil gen={refused} lines={0} />
+          </LanguageProvider>
+        </AppServicesProvider>
+      </QueryClientProvider>,
+    );
+
+    const opener = screen.getByRole("button", { name: /انجام نشد — چرا/ });
+    expect(screen.queryByText(/این درخواست پذیرفته نشد/)).toBeNull();
+
+    await userEvent.click(opener);
+
+    expect(screen.getByText(/این درخواست پذیرفته نشد/)).toBeInTheDocument();
   });
 });

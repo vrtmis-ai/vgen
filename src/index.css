@@ -63,7 +63,7 @@
   /* Surfaces. The new ladder is five steps on a true-black canvas; the old one
      was five warm steps. Mapped by ROLE, not by lightness — the new system puts
      cards at level 1 alongside content, where the old one had chrome there. */
-  --color-bg: var(--vg-canvas); /* #090909 — page canvas, OLED-true */
+  --color-bg: var(--vg-canvas); /* #0a0c0d — the stage, near-black */
   --color-surface: var(--vg-surface); /* #121212 — nav, sticky bars */
   --color-card: var(--vg-surface); /* #121212 — feed cards, rows, tiles */
   --color-card2: var(--vg-surface-raised); /* #191919 — things inside a card */
@@ -1178,7 +1178,7 @@ input.vg-density {
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  opacity: 0.035;
+  opacity: 0.05;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
@@ -1236,59 +1236,60 @@ input.vg-density {
   inset-inline-end: -10%;
 }
 
-/* Studio canvas.
-   The ground the create canvas stands on, taken from the workflow-studio
-   prototype — which is where this product's instrument language was actually
-   worked out, on the product's own tokens.
+/* The stage.
 
-   Two layers, both pseudo-elements on the canvas itself rather than fixed
-   overlays, so the dock beside it stays flat and only the working area is lit.
-   `.vg-grain` above is the third and is applied separately, because it is
-   fixed by design and belongs to the page, not to this element.
+   The prototype is one lit ground with everything standing on it: a near-black
+   canvas, a dot grid to measure it by, and a light leak drifting across it.
+   That treatment used to be on the studio canvases alone, which made two
+   products out of one — a studio standing on a ground, and every other screen
+   floating on flat paint.
 
-   · The dot grid gives an empty canvas a measurable ground. The prototype ran
-     1px at 7% white on a 40px pitch against a #080808 canvas; ours is #0e1012,
-     which is lighter, so the same dot reads louder. 0.5px at 7% on a 28px
-     pitch matches the weight. It is masked out down the page so a grid of
-     outputs is never read through a ruled sheet.
+   It belongs to the page now, applied once in `Shell`, so every screen
+   inherits it and none has to ask. Three notes on the mechanics:
 
-   · The brand wash is the prototype's light leak: two off-centre radials that
-     drift against each other. Off-centre is the whole point — a glow centred
-     behind centred content reads as a spotlight on the content, offset it
-     reads as light coming from somewhere.
-   -------------------------------------------------------------------------- */
-.vg-canvas-field {
-  position: relative;
+   · Both layers are `fixed` at `z-index: -1`. Fixed, because a ground that
+     scrolls away under a long gallery is wallpaper rather than a stage.
+     Negative, so content paints above them without every screen root having to
+     declare a stacking order — which is what the `relative z-10` on the
+     screens that remembered was doing. It works because `Shell` paints no
+     background of its own: the body carries the canvas colour.
+
+   · The dots are 0.5px at 7% on a 28px pitch. The prototype ran 1px at 7% on a
+     darker canvas and the same dot reads louder on ours. Masked out down the
+     viewport, so a wall of outputs is never read through a ruled sheet.
+
+   · The leak is two off-centre radials drifting against each other over 34s.
+     Off-centre is the point: a glow centred behind centred content reads as a
+     spotlight on it; offset, it reads as light in the room. */
+/* Its own stacking context, and its own paint. A negative-z child is drawn
+   behind its stacking context's *content* but in front of that context's own
+   background — so the stage has to be the context and has to carry the canvas
+   colour. Without `isolation` the nearest context is the root, and the first
+   in-flow ancestor with a background paints straight over both layers: the
+   grid and the light were in the DOM, correct, and invisible. */
+.vg-stage {
   isolation: isolate;
-  /* The wash below is inset -20% so it has room to drift, which is 20% of the
-     canvas hanging outside it on every side. Unclipped that is a horizontal
-     scrollbar: `body { overflow-x: hidden }` hides the bar but the document
-     still measures wider than the viewport, and in RTL the page then opens
-     scrolled. `clip` rather than `hidden` because it clips without making this
-     a scroll container, which would break `position: sticky` for anything the
-     canvas grows to hold. */
-  overflow: clip;
+  background-color: var(--vg-canvas);
 }
-.vg-canvas-field::before {
+.vg-stage::before,
+.vg-stage::after {
   content: "";
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image: radial-gradient(circle, rgb(255 255 255 / 0.07) 0.5px, transparent 0.5px);
-  background-size: 28px 28px;
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 88%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 88%);
 }
-.vg-canvas-field::after {
-  content: "";
-  position: absolute;
-  inset: -20%;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(38% 42% at 26% 28%, rgb(var(--vg-primary-rgb) / 0.06), transparent 70%),
-    radial-gradient(34% 38% at 78% 62%, rgb(var(--vg-primary-rgb) / 0.035), transparent 72%);
+.vg-stage::before {
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.065) 1px, transparent 1px);
+  background-size: 30px 30px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 92%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 92%);
+}
+.vg-stage::after {
+  background-image:
+    radial-gradient(38% 42% at 28% 34%, rgb(var(--vg-primary-rgb) / 0.13), transparent 70%),
+    radial-gradient(34% 38% at 74% 62%, rgb(var(--vg-primary-rgb) / 0.09), transparent 72%),
+    radial-gradient(46% 40% at 56% 12%, rgb(120 180 60 / 0.07), transparent 74%);
   animation: vg-drift 34s var(--vg-ease) infinite alternate;
 }
 
@@ -1306,8 +1307,8 @@ input.vg-density {
 
 @media (prefers-reduced-motion: reduce) {
   /* The tokens zero `--vg-dur-*`, which transitions read but keyframes do not.
-     The wash stays; only its drift stops. */
-  .vg-canvas-field::after {
+     The light stays; only its drift stops. */
+  .vg-stage::after {
     animation: none;
   }
 }

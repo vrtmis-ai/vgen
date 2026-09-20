@@ -4,15 +4,17 @@ import { type Family, type Variant } from "../data/models";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { ControlField, type InputMap } from "../components/controls";
 import { useCreateState } from "../lib/useCreateState";
-import { type Generation } from "../lib/gallery";
+import { isPending, isUnfinished, type Generation } from "../lib/gallery";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import { VoicePicker } from "../components/VoicePicker";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { CoinMark } from "../components/chrome";
-import { Panel, PanelHead, PanelShell, PanelTabs, Section } from "../components/FormPanel";
+import { Panel, PanelHead, PanelShell, PanelTabs, Section } from "../components/Panel";
 import { ModelPicker } from "../components/ModelPicker";
 import { useIgnition } from "../components/Ignition";
-import { FailedVeil } from "../components/GenerationVeils";
+import { CancelButton, FailedVeil, SubmitRefusalNote, type CancelOutcome } from "../components/GenerationVeils";
+import { GenerationField } from "../components/GenerationField";
+import type { GenerationRefusal } from "../features/generation/validation";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { labelDir, promptDir } from "../lib/format";
 import { useI18n, type TKey } from "../lib/i18n";
@@ -88,11 +90,20 @@ export default function StudioAudio({
   gens,
   onGenerate,
   onRemove,
+  onCancel,
+  submitError,
+  onErrorAction,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove: (g: Generation) => void;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
+  /** Why the last press did not become a job. See `GenerationsProvider`. */
+  submitError?: GenerationRefusal | null | undefined;
+  /** Where a refusal that has a way out leads. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const { t, n } = useI18n();
   const services = useAppServices();
@@ -126,12 +137,12 @@ export default function StudioAudio({
   const mine = gens.filter((g) => g.kind === "audio" && families.some((family) => family.id === g.familyId));
   /* Running jobs stay out of the clip list and sit above it: a result is a
      waveform and a duration, and a job that has not finished has neither. */
-  const running = mine.filter((g) => g.status === "running");
+  const running = mine.filter((g) => isPending(g.status));
   /* `done`, not "not running". A refused job has no audio, and it was drawn as
      a clip anyway — a waveform, a play button and a made-up 00:12 — so a
      refusal looked like a result that would not play. Refusals get their own
      row now, with the reason, above the clips. */
-  const refused = mine.filter((g) => g.status === "failed");
+  const refused = mine.filter((g) => isUnfinished(g.status));
   // The press stays on this page, so bring the job it made into view.
   const reveal = useRevealArrival(mine[0]?.id);
   const clips: Clip[] = mine.filter((g) => g.status === "done").flatMap(clipsOf);
@@ -344,6 +355,9 @@ export default function StudioAudio({
           className="sticky bottom-0 mt-auto p-2.5"
           style={{ background: "var(--vg-canvas)", borderBlockStart: "1px solid var(--vg-border-subtle)" }}
         >
+          {/* A refusal that never became a job, above the button that made it —
+              see `SubmitRefusalNote` for why above. */}
+          {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
           {/* See FormPanel. */}
           {locked && !visitor ? (
             <button
@@ -435,15 +449,21 @@ export default function StudioAudio({
               {/* The same moving field as a running card on the other two
                   canvases. No bar: nothing on the server reports progress,
                   and this one sat at 0% for the whole job. */}
-              <div className="vg-gen-field" />
+              <GenerationField />
               <div className="relative min-w-0 flex-1">
                 <p className="text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-                  {t("r_making")}…
+                  {g.status === "queued" ? t("gal_queued") : `${t("r_making")}…`}
                 </p>
                 <p className="mt-0.5 truncate text-[12.5px]" style={{ color: "var(--vg-text)" }}>
                   {g.prompt || g.name}
                 </p>
               </div>
+              {/* A job nobody has started can still be called off. */}
+              {g.status === "queued" && onCancel && (
+                <div className="relative shrink-0">
+                  <CancelButton onCancel={() => onCancel(g)} />
+                </div>
+              )}
             </div>
           ))}
           {refused.map((g) => (

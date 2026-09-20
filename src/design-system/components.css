@@ -1020,6 +1020,21 @@
     transform: translate(-24%, -26%) scale(0.65);
   }
 }
+/* With the particle cloud on top, the two drifting blobs stop being the thing
+   being looked at and become the haze behind it — otherwise they are simply
+   brighter than the cloud and it reads as a smudge with sparkles in it. They
+   are not removed: they are the floor the cloud fades into at its edges, and
+   they are what the tile falls back to alone when the scene cannot load. */
+.vg-gen-field::before,
+.vg-gen-field::after {
+  opacity: 1;
+  transition: opacity 600ms var(--vg-ease);
+}
+.vg-gen-field--nebula::before,
+.vg-gen-field--nebula::after {
+  opacity: 0.18;
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* The light stays where it is; only its movement stops. */
   .vg-gen-field::before,
@@ -1241,4 +1256,268 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   The gleam — the light that runs a button's edge.
+
+   Three layers over one dark pill, and each has a job:
+
+   · the border itself is a conic gradient, so a bright arc travels the outline;
+   · `::before` is a field of dots inside the pill, masked to the quarter the
+     arc is passing through, so the light appears to fall on a surface;
+   · `::after` is a soft sheen crossing the face, rotating on its own clock.
+
+   Registered properties are what make any of it move: a conic gradient cannot
+   animate unless the angle it is built from is typed. They live here rather
+   than being injected per button — one stylesheet, however many buttons.
+
+   Each layer names its own animation in `--vg-gleam-run` *before* the shared
+   `animation` shorthand reads it. Getting that order wrong is what put the
+   angle sweep on the sheen and left the dots unmoved, which read as a green
+   bar swinging out of the side.
+   -------------------------------------------------------------------------- */
+@property --vg-gleam-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@property --vg-gleam-offset {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@property --vg-gleam-percent {
+  syntax: "<percentage>";
+  initial-value: 5%;
+  inherits: false;
+}
+@property --vg-gleam-shine {
+  syntax: "<color>";
+  initial-value: #ffffff;
+  inherits: false;
+}
+
+.vg-gleam {
+  --vg-gleam-duration: 3s;
+  --vg-gleam-ease: 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+  --vg-gleam-run: vg-gleam-angle linear infinite;
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  cursor: pointer;
+  outline-offset: 4px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--vg-text);
+  background:
+    linear-gradient(var(--vg-canvas), var(--vg-canvas)) padding-box,
+    conic-gradient(
+        from calc(var(--vg-gleam-angle) - var(--vg-gleam-offset)),
+        transparent,
+        var(--vg-primary) var(--vg-gleam-percent),
+        var(--vg-gleam-shine) calc(var(--vg-gleam-percent) * 2),
+        var(--vg-primary) calc(var(--vg-gleam-percent) * 3),
+        transparent calc(var(--vg-gleam-percent) * 4)
+      )
+      border-box;
+  box-shadow: inset 0 0 0 1px var(--vg-surface);
+  transition: var(--vg-gleam-ease);
+  transition-property: --vg-gleam-offset, --vg-gleam-percent, --vg-gleam-shine;
+  animation:
+    var(--vg-gleam-run) var(--vg-gleam-duration),
+    var(--vg-gleam-run) calc(var(--vg-gleam-duration) / 0.4) reverse paused;
+  animation-composition: add;
+}
+
+/* Layered above the fill, not under it. A `<button>` paints its own background
+   inside the stacking context it establishes, so a pseudo-element at
+   `z-index: -1` — which is how this effect is usually written — ends up behind
+   that fill and never shows: the dots and the sheen were both in the DOM,
+   correct, and invisible. They sit at 0 and the label sits above them. */
+.vg-gleam::before,
+.vg-gleam::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: 50%;
+  translate: -50% -50%;
+  z-index: 0;
+}
+
+.vg-gleam:active {
+  translate: 0 1px;
+}
+
+/* The dots, lit where the light is.
+
+   A field of them across the face, masked to the quarter the travelling arc is
+   passing through — so the grid appears under the light and fades behind it,
+   which is the effect: a surface catching a moving source rather than a
+   texture printed on a shape. The mask turns with the same angle the border
+   does, so the two are one light. */
+.vg-gleam::before {
+  --vg-gleam-dot: 2px;
+  --vg-gleam-space: calc(var(--vg-gleam-dot) * 2);
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  background: radial-gradient(circle at var(--vg-gleam-dot) var(--vg-gleam-dot), white calc(var(--vg-gleam-dot) / 4), transparent 0)
+    padding-box;
+  background-size: var(--vg-gleam-space) var(--vg-gleam-space);
+  background-repeat: space;
+  mask-image: conic-gradient(from calc(var(--vg-gleam-angle) + 45deg), black, transparent 10% 90%, black);
+  border-radius: inherit;
+  opacity: 0.4;
+  animation:
+    var(--vg-gleam-run) var(--vg-gleam-duration),
+    var(--vg-gleam-run) calc(var(--vg-gleam-duration) / 0.4) reverse paused;
+  animation-composition: add;
+}
+
+/* The sheen: a square the width of the button, turning behind the face, so the
+   light crosses the surface as well as the edge. Lime carries further than the
+   amber this came from, so it runs at half that opacity. */
+.vg-gleam::after {
+  --vg-gleam-run: vg-gleam-shimmer linear infinite;
+  width: 100%;
+  aspect-ratio: 1;
+  /* Softened, and blurred. The source turns a square the width of the button:
+     on the near-square button it came from that reads as a glow, and on a pill
+     four times wider than it is tall the same square cuts a hard diagonal
+     across the face. The blur is what keeps it light rather than a wedge. */
+  background: linear-gradient(-50deg, transparent 32%, rgb(var(--vg-primary-rgb) / 0.55) 50%, transparent 68%);
+  filter: blur(10px);
+  mask-image: radial-gradient(circle at bottom, transparent 40%, black);
+  opacity: 0.4;
+  animation:
+    var(--vg-gleam-run) var(--vg-gleam-duration),
+    var(--vg-gleam-run) calc(var(--vg-gleam-duration) / 0.4) reverse paused;
+  animation-composition: add;
+}
+
+.vg-gleam > span {
+  position: relative;
+  z-index: 2;
+}
+
+/* The bloom the label sits in on hover.
+
+   A radial with nothing but falloff, not the inset shadow this came from: an
+   inset shadow is drawn inside a box, so its box has edges — and at lime's
+   strength those edges read as a slab sitting in the button rather than light
+   under the words. It breathes, which is the original's move and the only part
+   of it worth keeping. */
+.vg-gleam > span::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: 50%;
+  translate: -50% -50%;
+  z-index: -1;
+  width: 190%;
+  height: 340%;
+  background: radial-gradient(55% 45% at 50% 82%, rgb(var(--vg-primary-rgb) / 0.5), transparent 72%);
+  filter: blur(6px);
+  opacity: 0;
+  transition: opacity var(--vg-gleam-ease);
+  animation: calc(var(--vg-gleam-duration) * 1.5) vg-gleam-breathe linear infinite;
+}
+
+/* Hover: the arc widens and warms, the face lights under the label, and the
+   button throws a little of that into the air around it. */
+.vg-gleam:is(:hover, :focus-visible) {
+  --vg-gleam-percent: 22%;
+  --vg-gleam-offset: 95deg;
+  --vg-gleam-shine: var(--vg-primary-soft);
+  box-shadow:
+    inset 0 0 0 1px var(--vg-surface),
+    0 0 42px rgb(var(--vg-primary-rgb) / 0.3);
+}
+
+.vg-gleam:is(:hover, :focus-visible),
+.vg-gleam:is(:hover, :focus-visible)::before,
+.vg-gleam:is(:hover, :focus-visible)::after {
+  animation-play-state: running, running;
+}
+
+.vg-gleam:is(:hover, :focus-visible) > span::before {
+  opacity: 1;
+}
+
+@keyframes vg-gleam-angle {
+  to {
+    --vg-gleam-angle: 360deg;
+  }
+}
+
+@keyframes vg-gleam-shimmer {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes vg-gleam-breathe {
+  from,
+  to {
+    scale: 1;
+  }
+  50% {
+    scale: 1.2;
+  }
+}
+
+/* Motion is the whole effect, so reduced motion keeps the lit edge and stops
+   every moving part — including the hover, which would otherwise start the
+   sweep the moment a pointer crossed the button. */
+@media (prefers-reduced-motion: reduce) {
+  .vg-gleam,
+  .vg-gleam::before,
+  .vg-gleam::after,
+  .vg-gleam > span::before {
+    animation: none !important;
+  }
+
+  .vg-gleam:is(:hover, :focus-visible) > span::before {
+    opacity: 0;
+  }
+
+  .vg-gleam {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   NOTICE ENTRANCE
+
+   A refusal arrives after a press, on a surface the eye has just left — it
+   goes looking at the canvas for the thing it asked for. Appearing in place is
+   not enough to catch that; a short rise is. 160ms and 4px, which is under the
+   threshold where motion becomes something you watch rather than something
+   that turns your head.
+
+   Once only. This is not a pulse: a box that keeps moving is a box that has to
+   be dismissed before the dock can be read.
+   --------------------------------------------------------------------------- */
+.vg-notice-in {
+  animation: vg-notice-rise 160ms var(--vg-ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+@keyframes vg-notice-rise {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vg-notice-in {
+    animation: none;
+  }
 }

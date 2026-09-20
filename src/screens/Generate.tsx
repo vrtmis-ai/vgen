@@ -9,17 +9,19 @@ import { useI18n } from "../lib/i18n";
 import { useAccess } from "../lib/access";
 import { ControlField, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
 import { VendorMark } from "../components/VendorMark";
-import { Panel, PanelHead, PanelShell, Section } from "../components/FormPanel";
+import { Panel, PanelHead, PanelShell, Section } from "../components/Panel";
 import { RefBox } from "../components/RefBox";
 import { useIgnition } from "../components/Ignition";
-import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
+import { FailedVeil, RunningVeil, SubmitRefusalNote, type CancelOutcome } from "../components/GenerationVeils";
+import { OutputActions } from "../components/OutputActions";
 import { GenerationMedia } from "../components/GenerationMedia";
-import { displayAspect, type Generation } from "../lib/gallery";
+import { displayAspect, isUnfinished, type Generation } from "../lib/gallery";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { allTags, insertTag, refTags, tagUsed } from "../lib/refTags";
 import { isVideoUrl, labelDir, promptDir } from "../lib/format";
 import { useImageFallback } from "../lib/useImageFallback";
-import { generationErrorMessage, validateGenerationInput } from "../features/generation/validation";
+import { generationErrorMessage, validateGenerationInput, type GenerationRefusal } from "../features/generation/validation";
+import { ApiError } from "../adapters/http/client";
 
 /**
  * What to ask for, in the words the studio for that kind already uses.
@@ -99,6 +101,10 @@ export default function Generate({
   gens = [],
   onOpen,
   onRemove,
+  onCancel,
+  onRegenerate,
+  onToVideo,
+  onErrorAction,
 }: {
   family: Family;
   initialVariantId?: string | undefined;
@@ -134,6 +140,13 @@ export default function Generate({
   onOpen?: ((generation: Generation) => void) | undefined;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove?: ((generation: Generation) => void) | undefined;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((generation: Generation) => Promise<CancelOutcome>) | undefined;
+  /** The action rail on a finished card. */
+  onRegenerate?: ((generation: Generation) => void) | undefined;
+  onToVideo?: ((generation: Generation) => void) | undefined;
+  /** Where a refusal that has a way out leads. See `generationErrorAction`. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const firstVariant = family.variants.find((v) => v.id === initialVariantId) ?? family.variants[0]!;
   const [variant, setVariant] = useState<Variant>(firstVariant);
@@ -143,7 +156,7 @@ export default function Generate({
   const [refImages, setRefImages] = useState<RefMap>({});
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<GenerationReceipt | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<GenerationRefusal | null>(null);
   const promptBox = useRef<HTMLTextAreaElement>(null);
   /* Where the caret goes once an inserted tag has landed in the field. Held in
      a ref and applied in a layout effect, not straight after `setPrompt`: at
@@ -319,38 +332,37 @@ export default function Generate({
     try {
       const nextReceipt = await onGenerate(prompt.trim(), input, variant, refImages, assetRefs);
       if (nextReceipt) setReceipt(nextReceipt);
-      else setSubmitError("درخواست ساخته نشد؛ ورودی‌ها را دوباره بررسی کنید.");
+      else setSubmitError({ code: "invalid_request", message: "درخواست ساخته نشد؛ ورودی‌ها را دوباره بررسی کنید." });
     } catch (error: unknown) {
-      setSubmitError(generationErrorMessage(error));
+      setSubmitError({ code: error instanceof ApiError ? error.code : "unknown", message: generationErrorMessage(error) });
     } finally {
       setSubmitting(false);
     }
   }
 
-  /* The line under the button: whichever of these is true first. A refusal
-     outranks a price, and a missing file outranks both — the reason the button
-     will not work is worth more than the number it would have cost. */
-  const footnote = submitError
-    ? submitError
-    : receipt
-      ? `هزینهٔ نهایی سرور: ${n(receipt.coins)} · اعتبار قیمت تا ${new Date(receipt.expiresAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}`
-      : missingRequired
-        ? `${t("g_need_also")} ${missingRequired.label}`
-        : orphanNeeds
-          ? `${t("g_need_also")} ${orphanNeeds.label}`
-          : clipUnreadable
-            ? t("g_clip_unreadable")
-            : validation.issues[0]
-              ? validation.issues[0].message
-              : price != null
-                ? `≈ ${n(price)} ${t("g_est_for")}`
-                : t(refusal === "not_offered" ? "g_no_rate" : "g_no_price");
+  /* The line under the button: whichever of these is true first. A missing
+     file outranks the price — the reason the button will not work is worth more
+     than the number it would have cost. A refusal outranks all of them and is
+     not a footnote at all: it is drawn as a notice below, because the faint
+     grey this line is set in is the voice of a hint, not of an answer. */
+  const footnote = receipt
+    ? `هزینهٔ نهایی سرور: ${n(receipt.coins)} · اعتبار قیمت تا ${new Date(receipt.expiresAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}`
+    : missingRequired
+      ? `${t("g_need_also")} ${missingRequired.label}`
+      : orphanNeeds
+        ? `${t("g_need_also")} ${orphanNeeds.label}`
+        : clipUnreadable
+          ? t("g_clip_unreadable")
+          : validation.issues[0]
+            ? validation.issues[0].message
+            : price != null
+              ? `≈ ${n(price)} ${t("g_est_for")}`
+              : t(refusal === "not_offered" ? "g_no_rate" : "g_no_price");
 
   return (
-    /* The studios' own shape: a dock that stays put and a canvas that fills the
-       rest, stacking on a phone. `vg-grain` belongs to the page, so it grains
-       both. */
-    <div className="vg-grain flex flex-col md:flex-row md:items-start">
+    /* The studios' own shape: a dock that stays put and a canvas that fills
+       the rest, stacking on a phone. Both stand on the page's stage. */
+    <div className="flex flex-col md:flex-row md:items-start">
       {/* The page's own title, for a screen reader arriving on a route change.
           The dock names the model on screen. */}
       <h1 className="sr-only">
@@ -583,6 +595,10 @@ export default function Generate({
           className="sticky bottom-0 mt-auto p-2.5"
           style={{ background: "var(--vg-canvas)", borderBlockStart: "1px solid var(--vg-border-subtle)" }}
         >
+          {/* Above the button, not under it — the footer is pinned to the
+              panel floor, so a box below would lift the button away from the
+              pointer that just pressed it. See `SubmitRefusalNote`. */}
+          {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
           {/* A locked model gets an upgrade button, not a disabled create
               button: greying out the price says the job is unavailable without
               saying that it is the plan, or what fixes it. */}
@@ -640,7 +656,7 @@ export default function Generate({
 
       {/* The canvas: what this model has made for this account. */}
       <main
-        className="vg-canvas-field @container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
+        className="@container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
         style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}
       >
         <div className="mb-4 flex items-baseline justify-between gap-3">
@@ -673,10 +689,12 @@ export default function Generate({
               const shape = displayAspect(generation);
               const target = generation.id === mine[0]?.id ? reveal.target : undefined;
               const frame = { aspectRatio: `${shape.w} / ${shape.h}`, background: generation.grad };
-              /* A refused card carries its own remove control, so it cannot be
-                 a button: a button inside a button is invalid markup that
-                 browsers resolve by dropping one of them. */
-              if (generation.status === "failed") {
+              /* A card with a control on it cannot be a button: a button inside
+                 a button is invalid markup that browsers resolve by dropping
+                 one of them. That is the refused card's remove control and the
+                 queued card's cancel — and a queued generation has nothing to
+                 open until it starts. */
+              if (isUnfinished(generation.status) || generation.status === "queued") {
                 return (
                   <div
                     key={generation.id}
@@ -684,21 +702,41 @@ export default function Generate({
                     className="relative scroll-my-24 overflow-hidden rounded-[14px]"
                     style={{ ...frame, border: "1px solid var(--vg-border-subtle)" }}
                   >
-                    <FailedVeil gen={generation} onRemove={onRemove ? () => onRemove(generation) : undefined} />
+                    {isUnfinished(generation.status) ? (
+                      <FailedVeil gen={generation} onRemove={onRemove ? () => onRemove(generation) : undefined} />
+                    ) : (
+                      <RunningVeil gen={generation} onCancel={onCancel} />
+                    )}
                   </div>
                 );
               }
               return (
-                <button
+                // The rail has buttons of its own, so the card is a box with an
+                // open button filling it rather than a button itself.
+                <div
                   key={generation.id}
                   ref={target}
-                  onClick={() => onOpen?.(generation)}
-                  aria-label={`باز کردن — ${generation.prompt.trim().slice(0, 60) || generation.name}`}
-                  className="relative scroll-my-24 overflow-hidden rounded-[14px] text-start"
+                  data-generation-card
+                  className="group relative scroll-my-24 overflow-hidden rounded-[14px] text-start"
                   style={{ ...frame, border: "1px solid var(--vg-border-subtle)" }}
                 >
-                  <GenerationMedia gen={generation} />
+                  <button
+                    type="button"
+                    onClick={() => onOpen?.(generation)}
+                    aria-label={`باز کردن — ${generation.prompt.trim().slice(0, 60) || generation.name}`}
+                    className="absolute inset-0"
+                  >
+                    <GenerationMedia gen={generation} />
+                  </button>
                   {generation.status === "running" && <RunningVeil gen={generation} />}
+                  {generation.status === "done" && (
+                    <OutputActions
+                      gen={generation}
+                      {...(onOpen ? { onOpen: () => onOpen(generation) } : {})}
+                      {...(onRegenerate ? { onRegenerate: () => onRegenerate(generation) } : {})}
+                      {...(onToVideo ? { onToVideo: () => onToVideo(generation) } : {})}
+                    />
+                  )}
                   {generation.prompt && generation.status === "done" && (
                     <span
                       className="absolute inset-x-0 bottom-0 p-2"
@@ -709,7 +747,7 @@ export default function Generate({
                       </span>
                     </span>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>

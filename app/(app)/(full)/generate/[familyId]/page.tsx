@@ -15,8 +15,8 @@ export default function GeneratePage() {
   const params = useParams<{ familyId: string }>();
   const searchParams = useSearchParams();
   const families = useCatalogFamilies();
-  const { gens, startGeneration, removeGeneration } = useGenerations();
-  const { goBack, openResult } = useNavigation();
+  const { gens, startGeneration, removeGeneration, cancelGeneration, regenerate } = useGenerations();
+  const { goBack, openResult, openWallet, openModel } = useNavigation();
 
   /* "Generate again" arrives as `?again=<generation id>`, and what it restores
      is the *inputs* of that generation rather than its output. The settings
@@ -72,6 +72,14 @@ export default function GeneratePage() {
       gens={gens}
       onOpen={(generation) => openResult(generation.id, { instant: generation.status !== "running" })}
       onRemove={(generation) => void removeGeneration(generation.id)}
+      onCancel={cancelGeneration ? (generation) => cancelGeneration(generation.id) : undefined}
+      onRegenerate={(generation) => void regenerate(generation)}
+      /* Carries the picture, not just the destination — as the result page's
+         own button does. */
+      onToVideo={(generation) => openModel("seedance", generation.prompt, generation.id)}
+      /* The wallet and the plan ladder are two sections of the same page today;
+         see the studios. */
+      onErrorAction={() => openWallet()}
       onGenerate={async (prompt, input, variant, refs, assetRefs) => {
         const started = await startGeneration(family.id, prompt, input, variant, { refs, assetRefs });
         /* The page stays. It used to leave for کارهای من here, the studios'

@@ -8,7 +8,49 @@ import { ApiError } from "../../runtime/apiError";
 interface StoredJob {
   job: GenerationJob;
   createdAt: number;
+  /** The code this job is rehearsing a failure for; see `FAILURE_CUE`. */
+  fails?: string;
+  /** How long it stays running, for looking at what is drawn while it does. */
+  runsFor?: number;
+  /** How long it waits before a worker takes it. */
+  queuedFor?: number;
+  /** Set by `cancel`, which is the one ending the customer chooses. */
+  cancelled?: boolean;
 }
+
+/**
+ * How to see a failure without one happening.
+ *
+ * A generation can fail in a dozen ways — the provider refusing the words, the
+ * request never reaching it, the file coming back unstorable — and each one has
+ * its own sentence in `features/generation/validation`. None of them were
+ * reachable in demo mode, so the screens that carry them were the only screens
+ * nobody could look at. A prompt that starts with `fail:<code>` settles the job
+ * with that code; `throw:<code>` refuses the submission instead, which is the
+ * other half — a request that never became a job at all.
+ *
+ * Demo mode only. Nothing reads these prefixes in production, where the codes
+ * come from the worker.
+ */
+const FAILURE_CUE = /^\s*(fail|throw):([a-z_]+)/i;
+
+/**
+ * How to look at a generation that is still being made.
+ *
+ * A demo job settles in two and a half seconds, which is the right length for
+ * trying the product and far too short for looking at the surface it draws
+ * while it runs. A prompt starting with `slow:<seconds>` holds it there.
+ * Capped at five minutes, and demo only, like `FAILURE_CUE` above it.
+ */
+const SLOW_CUE = /^\s*slow:(\d{1,3})/i;
+
+/**
+ * The same, for the state before it: `queue:<seconds>` holds the job in the
+ * queue that long before a worker takes it. A demo job is queued for a quarter
+ * of a second, which is not long enough to read the word, let alone press the
+ * button that calls it off.
+ */
+const QUEUE_CUE = /^\s*queue:(\d{1,3})/i;
 
 /**
  * A stand-in placeholder, so a demo gallery has something to draw.
@@ -89,8 +131,22 @@ export function createDemoGenerationAdapters(now: () => number): {
    */
   function currentJob(stored: StoredJob): GenerationJob {
     const elapsed = Math.max(0, now() - stored.createdAt);
-    if (elapsed <= 250) return stored.job;
-    if (elapsed < 2_500) return { ...stored.job, status: "running", updatedAt: now() };
+    // Called off while it waited: it stops here and nothing was charged.
+    if (stored.cancelled) return { ...stored.job, status: "cancelled", updatedAt: now(), outputs: [] };
+    if (elapsed <= (stored.queuedFor ?? 250)) return stored.job;
+    if (elapsed < (stored.runsFor ?? 2_500)) return { ...stored.job, status: "running", updatedAt: now() };
+    if (stored.fails) {
+      /* Settled the way the worker settles a refusal: a code, a fixed sentence,
+         no outputs, and — the part that matters to whoever paid — nothing
+         charged. */
+      return {
+        ...stored.job,
+        status: "failed",
+        updatedAt: now(),
+        outputs: [],
+        error: { code: stored.fails, message: "Demo failure rehearsal." },
+      };
+    }
     return {
       ...stored.job,
       status: "succeeded",
@@ -135,6 +191,12 @@ export function createDemoGenerationAdapters(now: () => number): {
       const storedQuote = quotes.get(request.quoteId);
       if (!storedQuote) throw new Error("Demo quote was not found");
       if (storedQuote.quote.expiresAt < now()) throw new Error("Demo quote has expired");
+      const cue = FAILURE_CUE.exec(storedQuote.request.prompt);
+      if (cue && cue[1]?.toLowerCase() === "throw") {
+        // A submission that never becomes a job: the shape a screen sees when
+        // the request is refused, or never arrives at all.
+        throw new ApiError({ code: cue[2] ?? "submit_failed", message: "Demo submission refusal.", status: 422 });
+      }
       const timestamp = now();
       // Its start in the id, so a later page load can still answer for it.
       const id = `demo-job-${timestamp.toString(36)}-${++jobSequence}`;
@@ -154,7 +216,19 @@ export function createDemoGenerationAdapters(now: () => number): {
         outputs: [],
         urlsExpireAt: null,
       };
-      jobs.set(id, { job, createdAt: timestamp });
+      const slow = SLOW_CUE.exec(storedQuote.request.prompt);
+      const queued = QUEUE_CUE.exec(storedQuote.request.prompt);
+      const queuedFor = queued ? Math.min(300, Number(queued[1])) * 1_000 : undefined;
+      // Whatever it was asked to run for, it cannot finish before it starts.
+      const asked = slow ? Math.min(300, Number(slow[1])) * 1_000 : undefined;
+      const runsFor = queuedFor ? Math.max(asked ?? 2_500, queuedFor + 2_500) : asked;
+      jobs.set(id, {
+        job,
+        createdAt: timestamp,
+        ...(cue ? { fails: cue[2] } : {}),
+        ...(runsFor ? { runsFor } : {}),
+        ...(queuedFor ? { queuedFor } : {}),
+      });
       idempotentJobs.set(request.idempotencyKey, id);
       return job;
     },
@@ -182,6 +256,23 @@ export function createDemoGenerationAdapters(now: () => number): {
     // the settings, which is everything a demo generation had.
     async references() {
       return [];
+    },
+
+    /* The same three answers the route in issue #81 describes: a queued job is
+       cancelled, one a worker has claimed is too late, and one that has already
+       settled has nothing left to call off. */
+    async cancel(jobId) {
+      const stored = jobs.get(jobId) ?? recall(jobId);
+      if (!stored) throw new ApiError({ code: "job_not_found", message: "No such job.", status: 404 });
+      const job = currentJob(stored);
+      if (job.status === "running") {
+        throw new ApiError({ code: "job_started", message: "That generation has already started.", status: 409 });
+      }
+      if (job.status !== "queued" && job.status !== "draft") {
+        throw new ApiError({ code: "job_finished", message: "That generation has already finished.", status: 409 });
+      }
+      stored.cancelled = true;
+      stored.job = currentJob(stored);
     },
 
     // A hard delete here, where the server's is soft: the map is the demo's

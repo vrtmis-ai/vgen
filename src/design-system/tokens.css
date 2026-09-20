@@ -16,7 +16,13 @@
      In near-black, shadows are invisible; elevation is expressed as surface
      lightness. Each step is a real level, not decoration.
      --------------------------------------------------------------------- */
-  --vg-canvas: #0e1012; /* level 0 — page background            */
+  /* Level 0, and the one the whole ladder is read against. Taken down from
+     #0e1012 to sit nearer the prototype's #080808: the studio work put every
+     screen on a lit stage, and a canvas only two steps under `--vg-surface`
+     left the panels standing on it with nothing between them. Darker here
+     raises the contrast of everything printed on it, so nothing that passed
+     before stops passing. */
+  --vg-canvas: #0a0c0d; /* level 0 — page background            */
   /* The create panel's own ground. Measured off their audio panel: it sits a
      step above the canvas so the column reads as a separate surface without a
      divider doing the work. */
@@ -210,6 +216,22 @@
   --vg-danger: #ffb4ab;
   --vg-danger-bg: #93000a;
   --vg-info: var(--vg-accent);
+
+  /* Each status colour tinted, for the notice boxes in `Note`: a08 is the
+     fill, a30 the hairline around it. Same two steps as --vg-reward, and for
+     the same reason — a status box on this canvas wants its colour in the
+     border and a breath of it behind the text, never a solid fill. The
+     channels are restated rather than colour-mixed so the alphas stay legible
+     next to the hex they came from. */
+  --vg-success-a08: rgb(74 222 128 / 0.08);
+  --vg-success-a15: rgb(74 222 128 / 0.15);
+  --vg-success-a30: rgb(74 222 128 / 0.3);
+  --vg-warning-a08: rgb(251 191 36 / 0.08);
+  --vg-warning-a15: rgb(251 191 36 / 0.15);
+  --vg-warning-a30: rgb(251 191 36 / 0.3);
+  --vg-danger-a08: rgb(255 180 171 / 0.08);
+  --vg-danger-a15: rgb(255 180 171 / 0.15);
+  --vg-danger-a30: rgb(255 180 171 / 0.3);
 
   /* ---------------------------------------------------------------------
      4b. REWARD — what the product gives away

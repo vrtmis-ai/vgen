@@ -3,11 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../lib/i18n";
 import type { Generation } from "../lib/gallery";
+import Gallery from "./Gallery";
 import { AppServicesProvider } from "../runtime/AppServices";
 import { createDemoServices } from "../adapters/demo/demoServices";
-import { createDemoCatalogService } from "../adapters/demo/catalog";
-import { CatalogProvider } from "../features/catalog/CatalogProvider";
-import Gallery from "./Gallery";
 
 /* ---------------------------------------------------------------------------
    کارهای من, on the two things a refused generation has to say.
@@ -48,27 +46,17 @@ const failed: Generation = {
   createdAt: 2,
 };
 
-const catalog = await createDemoCatalogService(() => 0).list();
-
-/** A generation with a file behind it, which is what opens the panel. */
-const finished: Generation = { ...base, outputUrl: "blob:the-file", outW: 1920, outH: 1080 };
-
-function mount(gens: Generation[], handlers: Partial<Parameters<typeof Gallery>[0]> = {}) {
-  const props = { onOpen: vi.fn(), onOpenModel: vi.fn(), onRegenerate: vi.fn(), onRemove: vi.fn(), onBrowse: vi.fn(), ...handlers };
+/* Services, because a finished card can now be downloaded from the wall and
+   the action rail asks for the route that saves rather than the one the browser
+   opens in a tab. */
+function show(gens: Generation[], onRemove = vi.fn()) {
   render(
     <AppServicesProvider services={createDemoServices()}>
       <LanguageProvider initialLang="fa">
-        <CatalogProvider families={catalog.families}>
-          <Gallery gens={gens} {...props} />
-        </CatalogProvider>
+        <Gallery gens={gens} onOpen={vi.fn()} onRemove={onRemove} onBrowse={vi.fn()} />
       </LanguageProvider>
     </AppServicesProvider>,
   );
-  return props;
-}
-
-function show(gens: Generation[], onRemove = vi.fn()) {
-  mount(gens, { onRemove });
   return onRemove;
 }
 
@@ -76,7 +64,8 @@ describe("a refused generation on the wall", () => {
   it("says the coins came back, and why it failed", () => {
     show([failed]);
 
-    expect(screen.getByText("انجام نشد")).toBeInTheDocument();
+    // The notice's own label: «انجام نشد: <دلیل>».
+    expect(screen.getByText("انجام نشد:")).toBeInTheDocument();
     expect(screen.getByText("سکه‌ها برگشت")).toBeInTheDocument();
     // The reason comes from the code, which is the contract — never from the
     // provider's own message, which we do not forward.
@@ -98,37 +87,34 @@ describe("a refused generation on the wall", () => {
     expect(screen.queryByRole("button", { name: "حذف از کارهای من" })).not.toBeInTheDocument();
     expect(screen.queryByText("سکه‌ها برگشت")).not.toBeInTheDocument();
   });
+});
 
-  /* The wall used to send every card to the result page, so the same picture
-     offered a download, a reference and a replay in the studio and none of them
-     here. It is the same file either way. */
-  it("opens the same panel the studio does", async () => {
-    const { onOpen } = mount([finished]);
+/* A sound has no frame, and the wall is built out of frames. It used to draw
+   one anyway — a coloured tile at a made-up 16:9 that played nothing — so the
+   one thing you can do with a finished sound was the one thing كارهای من did
+   not offer. Two takes, two cards: a Suno request answers with both, and a
+   wall that lists the first is a wall that hides half of what was paid for. */
+const takes: Generation = {
+  ...base,
+  id: "g3",
+  jobId: "job-3",
+  familyId: "suno-sounds",
+  name: "Suno Sounds",
+  kind: "audio",
+  prompt: "باران روی سقف حلبی",
+  outputUrl: "blob:take-1",
+  durationMs: 5_184,
+  moreOutputs: [{ url: "blob:take-2", durationMs: 2_400 }],
+};
 
-    await userEvent.click(screen.getByRole("button", { name: /a small red boat/ }));
+describe("a finished sound on the wall", () => {
+  it("is a clip per take, playable where it sits", () => {
+    show([takes]);
 
-    expect(screen.getByRole("dialog", { name: "نمایش دارایی" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /دانلود/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /دوباره بساز/ })).toBeInTheDocument();
-    // The result page is for the ones with nothing to show.
-    expect(onOpen).not.toHaveBeenCalled();
-  });
-
-  it("sends a job with no file to the result page, which can say why", async () => {
-    const { onOpen } = mount([failed]);
-
-    await userEvent.click(screen.getByRole("button", { name: /a small red boat/ }));
-
-    expect(onOpen).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
-  it("replays a generation by its own id and model", async () => {
-    const { onRegenerate } = mount([finished]);
-
-    await userEvent.click(screen.getByRole("button", { name: /a small red boat/ }));
-    await userEvent.click(screen.getByRole("button", { name: /دوباره بساز/ }));
-
-    expect(onRegenerate).toHaveBeenCalledWith("seedance", "g1");
+    expect(screen.getByRole("button", { name: "پخش — SUNO SOUNDS · 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "پخش — SUNO SOUNDS · 2" })).toBeInTheDocument();
+    // The length the server measured, not a placeholder: every clip read 00:12.
+    expect(screen.getByText("00:05")).toBeInTheDocument();
+    expect(screen.getByText("00:02")).toBeInTheDocument();
   });
 });

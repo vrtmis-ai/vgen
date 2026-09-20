@@ -47,10 +47,14 @@ function withProviders(ui: React.ReactNode, families: CatalogSnapshot["families"
 // This used to be seeded through localStorage; language now arrives as a prop
 // from the server, which is what lets <html dir> be correct in the first byte.
 describe("Landing authentication actions", () => {
-  it("renders the DEEV product name", () => {
+  /* The name is drawn now rather than set — the header carries the traced
+     lockup — so what has to hold is that the brand is still announced, and
+     still the way back to the top. A logo with no accessible name is a button
+     a screen reader calls "button". */
+  it("names the product in its header, mark or no mark", () => {
     render(withProviders(<Landing plans={PLAN_LADDER} onSignIn={vi.fn()} onSignUp={vi.fn()} />));
 
-    expect(within(screen.getByRole("banner")).getByText("DEEV")).toBeInTheDocument();
+    expect(within(screen.getByRole("banner")).getByRole("button", { name: "DEEV" })).toBeInTheDocument();
   });
 
   it("opens the same model menus the app's bar opens", async () => {

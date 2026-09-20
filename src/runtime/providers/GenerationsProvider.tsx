@@ -2,11 +2,11 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { variantControls, type Variant } from "../../data/models";
+import { defaultInput, variantControls, type Variant } from "../../data/models";
 import type { InputMap, RefMap } from "../../components/controls";
-import { loadGenerations, saveGenerations, uid, type GenStatus, type Generation } from "../../lib/gallery";
+import { isPending, isUnfinished, loadGenerations, saveGenerations, uid, type GenStatus, type Generation } from "../../lib/gallery";
 import { currentAspect } from "../../features/generation/aspect";
-import { validateGenerationInput } from "../../features/generation/validation";
+import { generationErrorMessage, validateGenerationInput, type GenerationRefusal } from "../../features/generation/validation";
 import { generationFromJob, mergeGenerations, moreOutputsOf, sameGenerations } from "../../features/generation/fromJob";
 import { useCatalogFamilies } from "../../features/catalog/CatalogProvider";
 import { useCreateGeneration, useGalleryHistory, useGenerationJobs } from "../../features/generation/useGeneration";
@@ -16,6 +16,7 @@ import type { GenerationQuote } from "../contracts/generation";
 import { appQueryKeys } from "../../features/session/useSession";
 import { useAppServices } from "../AppServices";
 import { useIsVisitor } from "./SessionProvider";
+import { useNavigation } from "./NavigationProvider";
 
 interface StartedGeneration {
   generation: Generation;
@@ -78,6 +79,33 @@ interface Generations {
   /** Fire-and-forget start used by the studio docks, which have no result to await. */
   requestGeneration: (familyId: string, prompt: string, input: InputMap, variant: Variant, options?: GenerationRequestOptions) => void;
   /**
+   * Why the last press did not become a job, in the words the customer needs.
+   *
+   * A submission can be refused before anything exists to show: the wallet is
+   * short, the plan does not carry the model, the account already has as many
+   * running as it may, the quote went stale, the network never answered. Each
+   * of those has its own sentence in `generationErrorMessage`, and each has a
+   * different fix — so the dock prints it where the press happened rather than
+   * replacing the studio with a page that says "something went wrong".
+   *
+   * The code rides along with the sentence: it is what lets the notice offer
+   * the wallet on a short balance and the plan ladder on a locked model.
+   */
+  submitError: GenerationRefusal | null;
+  /** Cleared by the dock when the next press starts, or when it is dismissed. */
+  clearSubmitError: () => void;
+  /**
+   * Call off a generation that has not started.
+   *
+   * Absent when this deployment's API cannot — see `AppServices` — and a screen
+   * reads that absence as "do not offer it" rather than offering a control that
+   * fails. Resolves to what happened, because the two refusals mean different
+   * things on screen: a job that started cannot be stopped, and a job that
+   * finished did not need to be.
+   */
+  cancelGeneration?: ((id: string) => Promise<"cancelled" | "started" | "finished" | "error">) | undefined;
+  regenerate: (previous: Generation) => Promise<void>;
+  /**
    * Take one generation out of the account's history, here and on the server.
    *
    * Local-only would not hold: the wall is merged with `GET /gallery` on every
@@ -96,17 +124,19 @@ const GenerationsContext = createContext<Generations | null>(null);
  *
  * It also owns the polling for those generations' jobs, which is why the job
  * error gate lives here rather than in the layout above: whoever owns a query
- * owns its failure state. The same goes for `operationError`, which can only be
- * produced by `startGeneration`.
+ * owns its failure state. `submitError` is the same idea one step earlier: only
+ * `startGeneration` can produce it, so it is held here and read by the dock
+ * that pressed.
  */
 export function GenerationsProvider({ children }: { children: ReactNode }) {
   const families = useCatalogFamilies();
+  const navigation = useNavigation();
   const visitor = useIsVisitor();
   const services = useAppServices();
   const createGeneration = useCreateGeneration();
   const queryClient = useQueryClient();
   const pendingRef = useRef(false);
-  const [operationError, setOperationError] = useState<Error | null>(null);
+  const [submitError, setSubmitError] = useState<GenerationRefusal | null>(null);
 
   // Starts empty on both server and client, then loads once mounted. Reading
   // localStorage in the useState initialiser — as this did — runs during render,
@@ -180,12 +210,12 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
     const soon = Date.now() + 2 * 60 * 1000;
     return gens.flatMap((generation) => {
       if (!generation.jobId) return [];
-      // A failed job is over and has no file, so both clauses below would have
-      // matched it forever. It is asked about once, when it is still `running`
-      // here and already `failed` on the server; after that there is nothing
-      // left to learn.
-      if (generation.status === "failed") return [];
-      if (generation.status === "running" || !generation.outputAssetId) return [generation.jobId];
+      // A job that ended with nothing — refused or called off — has no file, so
+      // both clauses below would have matched it forever. It is asked about
+      // once, when it is still pending here and already settled on the server;
+      // after that there is nothing left to learn.
+      if (isUnfinished(generation.status)) return [];
+      if (isPending(generation.status) || !generation.outputAssetId) return [generation.jobId];
       // An output with no recorded expiry predates that field, so its age is
       // unknown and the safe reading is "assume it has gone".
       if (generation.outputUrl && (generation.outputUrlExpiresAt ?? 0) < soon) return [generation.jobId];
@@ -241,14 +271,21 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
            seconds, and the card it belongs to span for as long as the tab was
            open — the poll stops (the server calls it settled, so
            `refetchInterval` returns false) but nothing ever corrected the word.
-           `cancelled` and `expired` join `failed`: all three are over, and all
-           three end in a refund. */
+           `expired` joins `failed` — a window that closed with nothing made.
+           `cancelled` is its own word now, because it is the one ending the
+           customer asked for, and `queued` is its own because a job waiting for
+           a worker is not a job being worked on. Kept identical to
+           `generationFromJob`, which does this for the server's own list. */
         const status: GenStatus =
           job.status === "succeeded"
             ? "done"
-            : job.status === "failed" || job.status === "cancelled" || job.status === "expired"
-              ? "failed"
-              : "running";
+            : job.status === "cancelled"
+              ? "cancelled"
+              : job.status === "failed" || job.status === "expired"
+                ? "failed"
+                : job.status === "running"
+                  ? "running"
+                  : "queued";
         const output = job.outputs[0];
         const outputUrl = output?.url ?? generation.outputUrl;
         // Kept alongside the URL because the URL cannot be kept: it is signed
@@ -359,7 +396,11 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
           prompt,
           w: aspect.w,
           h: aspect.h,
-          status: "running",
+          /* Queued, which is what the server just created. It used to say
+             "running" and skip a state the customer can act on: while a job is
+             queued it can still be called off, and «در حال ساخت» over it is a
+             claim about work that has not started. */
+          status: "queued",
           createdAt: job.createdAt,
         };
         setGens((previous) => [generation, ...previous]);
@@ -387,14 +428,70 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
      same place with its reason. None of that needs anything from here beyond
      the job being in `gens`, which it is before this promise settles.
 
-     A request that throws still takes over the screen below, as before. */
+     A refusal is answered in the dock rather than by the page. It used to raise
+     a full-screen 503 reading "درخواست ساخت کامل نشد" — which is true of a
+     short wallet, a busy account and a dropped connection alike, and tells
+     somebody with 2 coins left nothing they can act on. The codes have always
+     been specific; only the screen was not. */
   const requestGeneration = useCallback(
     (familyId: string, prompt: string, input: InputMap, variant: Variant, options?: GenerationRequestOptions) => {
+      setSubmitError(null);
       void startGeneration(familyId, prompt, input, variant, options).catch((error: unknown) =>
-        setOperationError(error instanceof Error ? error : new Error(String(error))),
+        setSubmitError({ code: error instanceof ApiError ? error.code : "unknown", message: generationErrorMessage(error) }),
       );
     },
     [startGeneration],
+  );
+
+  const clearSubmitError = useCallback(() => setSubmitError(null), []);
+
+  /* Optimism has no place here: the whole question is whether the worker took
+     the job a moment before the press, and only the server knows. So the card
+     keeps saying «در صف» until the API answers, and the button says it is
+     working. On 409 the local row is corrected from the job itself rather than
+     guessed at — `job_started` means it is running now, `job_finished` means
+     the poll is about to catch up anyway. */
+  const cancelService = services.generation.cancel;
+  const cancelGeneration = useCallback(
+    async (id: string): Promise<"cancelled" | "started" | "finished" | "error"> => {
+      if (!cancelService) return "error";
+      const generation = gens.find((candidate) => candidate.id === id);
+      const jobId = generation?.jobId;
+      if (!jobId) return "error";
+      try {
+        await cancelService(jobId);
+        setGens((previous) =>
+          previous.map((candidate) => (candidate.id === id ? { ...candidate, status: "cancelled", outputUrl: undefined } : candidate)),
+        );
+        await queryClient.invalidateQueries({ queryKey: ["gallery-history"] });
+        return "cancelled";
+      } catch (error: unknown) {
+        // Not corrected here. The poll is already asking about this job every
+        // second and will say «در حال ساخت» on its own; writing "running" from
+        // a refusal would be the provider asserting a state it never observed.
+        if (error instanceof ApiError && error.code === "job_started") return "started";
+        if (error instanceof ApiError && error.code === "job_finished") return "finished";
+        return "error";
+      }
+    },
+    [cancelService, gens, queryClient],
+  );
+
+  const regenerate = useCallback(
+    async (previous: Generation) => {
+      const family = families.find((candidate) => candidate.id === previous.familyId);
+      const variant = family?.variants.find((candidate) => candidate.id === previous.variantId);
+      if (!family || !variant) return;
+      // No options: a regeneration repeats the prompt and the controls, not the
+      // attachments, and it leaves the free-pipe decision to the server exactly
+      // as the original did.
+      const started = await startGeneration(family.id, previous.prompt, defaultInput(variantControls(family, variant)), variant);
+      if (!started) return;
+      // replace-in-place: back from the new result returns to where the user
+      // was before the previous result, not to a chain of stale results
+      navigation.openResult(started.generation.id, { replace: true });
+    },
+    [families, navigation, startGeneration],
   );
 
   const removeGeneration = useCallback(
@@ -422,22 +519,33 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<Generations>(
-    () => ({ gens, hydrated, startGeneration, requestGeneration, removeGeneration, markDone }),
-    [gens, hydrated, markDone, removeGeneration, requestGeneration, startGeneration],
+    () => ({
+      gens,
+      hydrated,
+      startGeneration,
+      requestGeneration,
+      submitError,
+      clearSubmitError,
+      ...(cancelService ? { cancelGeneration } : {}),
+      regenerate,
+      removeGeneration,
+      markDone,
+    }),
+    [
+      gens,
+      hydrated,
+      markDone,
+      regenerate,
+      removeGeneration,
+      requestGeneration,
+      startGeneration,
+      submitError,
+      clearSubmitError,
+      cancelService,
+      cancelGeneration,
+    ],
   );
 
-  if (operationError) {
-    return (
-      <SystemState
-        kind="service"
-        title="ساخت شروع نشد"
-        description="درخواست ساخت کامل نشد و اعتباری در این صفحه کسر نشده است. به فضای کار برگرد و دوباره تلاش کن."
-        primaryLabel="بازگشت به فضای کار"
-        onPrimary={() => setOperationError(null)}
-        requestId={operationError instanceof ApiError ? operationError.requestId : undefined}
-      />
-    );
-  }
   if (jobQueries.error) {
     return (
       <SystemState

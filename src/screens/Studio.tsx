@@ -7,11 +7,13 @@ import { VendorMark } from "../components/VendorMark";
 import type { InputMap, RefMap } from "../components/controls";
 import { FormPanel } from "../components/FormPanel";
 import { ViewControls, useViewMode } from "../components/ViewControls";
-import { type Generation } from "../lib/gallery";
-import { isVideoUrl } from "../lib/format";
+import { isPending, isUnfinished, type Generation } from "../lib/gallery";
 import { useImageFallback } from "../lib/useImageFallback";
 import { useRevealArrival } from "../lib/useRevealArrival";
-import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
+import { FailedVeil, RunningVeil, type CancelOutcome } from "../components/GenerationVeils";
+import { GenerationMedia } from "../components/GenerationMedia";
+import { OutputActions } from "../components/OutputActions";
+import type { GenerationRefusal } from "../features/generation/validation";
 import { riseItem, riseParent } from "../lib/motion";
 import { useI18n, type TKey } from "../lib/i18n";
 
@@ -51,29 +53,67 @@ const STEPS: { title: TKey; body: TKey; Icon: typeof SlidersHorizontal; art?: st
   { title: "st_step3_title", body: "st_step3_body", Icon: Sparkle },
 ];
 
-function OutputCard({ gen, onRemove }: { gen: Generation; onRemove?: (() => void) | undefined }) {
+function OutputCard({
+  gen,
+  onRemove,
+  onCancel,
+  onOpen,
+  onRegenerate,
+  onToVideo,
+}: {
+  gen: Generation;
+  onRemove?: (() => void) | undefined;
+  onCancel?: ((generation: Generation) => Promise<CancelOutcome>) | undefined;
+  onOpen?: (() => void) | undefined;
+  onRegenerate?: (() => void) | undefined;
+  onToVideo?: (() => void) | undefined;
+}) {
   const [failed, onError] = useImageFallback();
   const url = gen.outputUrl;
-  const refused = gen.status === "failed";
+  const refused = isUnfinished(gen.status);
   return (
     <motion.div
       variants={riseItem}
-      className="relative overflow-hidden rounded-[20px]"
+      data-generation-card
+      className="group relative overflow-hidden rounded-[20px]"
       style={{
         aspectRatio: `${gen.w} / ${gen.h}`,
         background: failed || !url ? gen.grad : "var(--vg-surface)",
         border: "1px solid var(--vg-border-subtle)",
       }}
     >
+      {/* `gen.kind`, not the URL. An output link is signed and ends in a query
+          string, so `isVideoUrl` never matched one and every clip on this
+          canvas was handed to an `<img>` that cannot decode it — a card that
+          had produced a video showed nothing at all. `GenerationMedia` reads
+          the catalogue's own word for what was made, and gives the clip its
+          hover behaviour: still until the pointer arrives, then playing the
+          real file. */}
       {url &&
         !failed &&
-        (isVideoUrl(url) ? (
-          <video src={url} muted loop playsInline className="absolute inset-0 size-full object-cover" />
+        (gen.kind === "video" ? (
+          <GenerationMedia gen={gen} />
         ) : (
           <img src={url} alt={gen.prompt} loading="lazy" onError={onError} className="absolute inset-0 size-full object-cover" />
         ))}
 
-      {gen.status === "running" && <RunningVeil gen={gen} />}
+      {/* The card opens from a button that fills it rather than by being one.
+          The action rail has buttons of its own, and a button inside a button
+          is invalid markup that browsers resolve by dropping one of them. */}
+      {onOpen && !refused && (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="absolute inset-0 z-10"
+          aria-label={`باز کردن — ${gen.prompt.trim().slice(0, 60) || gen.name}`}
+        />
+      )}
+
+      {isPending(gen.status) && <RunningVeil gen={gen} onCancel={onCancel} />}
+
+      {gen.status === "done" && (
+        <OutputActions gen={gen} onOpen={onOpen} onRegenerate={onRegenerate} onToVideo={onToVideo} className="z-20" />
+      )}
 
       {/* It drew the model's gradient and its name here, which is exactly what
           a card waiting for its file looks like — a refusal read as a
@@ -103,6 +143,11 @@ export default function Studio({
   onGenerate,
   onOpen,
   onRemove,
+  onCancel,
+  onRegenerate,
+  onToVideo,
+  submitError,
+  onErrorAction,
 }: {
   kind: ModelKind;
   gens: Generation[];
@@ -110,6 +155,16 @@ export default function Studio({
   onOpen: (g: Generation) => void;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove: (g: Generation) => void;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
+  /** The action rail on a finished card: repeat this generation. */
+  onRegenerate?: ((g: Generation) => void) | undefined;
+  /** The action rail on a finished still: hand it to a video model. */
+  onToVideo?: ((g: Generation) => void) | undefined;
+  /** Why the last press did not become a job; the dock prints it. */
+  submitError?: GenerationRefusal | null | undefined;
+  /** Where a refusal that has a way out leads. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const { t } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -138,24 +193,19 @@ export default function Studio({
   return (
     // The panel is a flex sibling of the canvas rather than a fixed overlay, so
     // it can simply stack above the canvas below `md` with no second layout.
-    /* `vg-grain` is fixed by design — it belongs to the page, not to this
-       element — so it grains the dock as well as the canvas. That is the
-       prototype's arrangement too: its noise layer sits on the stage, and the
-       nodes are on the stage. */
-    <div className="vg-grain flex flex-col md:flex-row md:items-start">
+    <div className="flex flex-col md:flex-row md:items-start">
       {/* See StudioImage. The visible heading below belongs to the empty state
           only, so once there is history this page had no h1 at all. */}
       <h1 className="sr-only">{kind === "video" ? "ساخت ویدیو" : "ساخت"}</h1>
-      <FormPanel families={families} onGenerate={generate} />
+      <FormPanel families={families} onGenerate={generate} submitError={submitError} onErrorAction={onErrorAction} />
 
       <main
         // @container so the header's view controls size against this canvas
         // rather than the viewport — see ViewControls and StudioAudio.
-        /* The canvas is a lit ground, not a hole. `vg-canvas-field` puts the
-           dot grid and the brand wash behind it — see index.css. Empty is the
-           state this screen opens in, and an empty dark rectangle reads as a
-           thing that failed to load. */
-        className="vg-canvas-field @container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
+        /* No ground of its own: the page is the lit ground now (`.vg-stage`
+           in Shell), and this canvas paints nothing so it shows through. The
+           dock beside it is opaque, which is what keeps the two apart. */
+        className="@container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
         style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}
       >
         {/* Their canvas heads with two pill tabs on the leading side and the
@@ -263,26 +313,22 @@ export default function Studio({
                 className="mt-4 grid gap-3"
                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(1300 / view.cols)}px, 1fr))` }}
               >
-                {mine.map((g) =>
-                  /* A refused card is not a button: it carries its own remove
-                     control, and a button inside a button is invalid markup
-                     that browsers resolve by dropping one of them. Its reason
-                     is already on it, so there is nothing to open. */
-                  g.status === "failed" ? (
-                    <div key={g.id} ref={g.id === mine[0]?.id ? reveal.target : undefined} className="scroll-my-24">
-                      <OutputCard gen={g} onRemove={() => onRemove(g)} />
-                    </div>
-                  ) : (
-                    <button
-                      key={g.id}
-                      ref={g.id === mine[0]?.id ? reveal.target : undefined}
-                      onClick={() => onOpen(g)}
-                      className="scroll-my-24 text-start"
-                    >
-                      <OutputCard gen={g} />
-                    </button>
-                  ),
-                )}
+                {mine.map((g) => (
+                  /* No card here is a button. Each carries controls of its own
+                     — remove on a refusal, cancel in the queue, the action rail
+                     on a finished one — and the card opens from a button that
+                     fills it, inside `OutputCard`. */
+                  <div key={g.id} ref={g.id === mine[0]?.id ? reveal.target : undefined} className="scroll-my-24">
+                    <OutputCard
+                      gen={g}
+                      onRemove={() => onRemove(g)}
+                      onCancel={onCancel}
+                      onOpen={() => onOpen(g)}
+                      {...(onRegenerate ? { onRegenerate: () => onRegenerate(g) } : {})}
+                      {...(onToVideo ? { onToVideo: () => onToVideo(g) } : {})}
+                    />
+                  </div>
+                ))}
               </motion.div>
             ) : (
               /* Their list row is not a compact strip — it is the media at full
@@ -296,34 +342,54 @@ export default function Studio({
                     ref={g.id === mine[0]?.id ? reveal.target : undefined}
                     className="flex scroll-my-24 flex-col gap-3 lg:flex-row lg:items-start"
                   >
-                    {g.status === "failed" ? (
-                      // Not a button, for the same reason as the grid above.
+                    {/* A card with a control on it cannot be a button: a button
+                        inside a button is invalid markup that browsers resolve
+                        by dropping one of them. That is the refused card's
+                        remove control, and now also the queued card's cancel —
+                        and a queued generation has nothing to open in any case,
+                        so it loses nothing by not being pressable until it
+                        starts. */}
+                    {isUnfinished(g.status) || g.status === "queued" ? (
                       <div
                         className="relative min-w-0 flex-1 overflow-hidden rounded-2xl"
                         style={{ aspectRatio: `${g.w} / ${g.h}`, maxHeight: "70dvh", border: "1px solid var(--vg-border-subtle)" }}
                       >
-                        <FailedVeil gen={g} onRemove={() => onRemove(g)} />
+                        {isUnfinished(g.status) ? (
+                          <FailedVeil gen={g} onRemove={() => onRemove(g)} />
+                        ) : (
+                          <RunningVeil gen={g} onCancel={onCancel} />
+                        )}
                       </div>
                     ) : (
-                      <button
-                        onClick={() => onOpen(g)}
-                        className="relative min-w-0 flex-1 overflow-hidden rounded-2xl"
+                      // The rail is a sibling of the open button, not a child.
+                      <div
+                        data-generation-card
+                        className="group relative min-w-0 flex-1 overflow-hidden rounded-2xl"
                         style={{ aspectRatio: `${g.w} / ${g.h}`, background: g.grad, maxHeight: "70dvh" }}
-                        aria-label={`باز کردن — ${g.prompt.trim() ? g.prompt.trim().slice(0, 60) : g.name}`}
                       >
-                        {/* `g.kind`, not the file extension. An output URL is
-                            signed and ends in a query string, so `.mp4$` never
-                            matches one and every clip was handed to an `<img>`. */}
-                        {g.outputUrl &&
-                          (g.kind === "video" ? (
-                            <video src={g.outputUrl} muted loop playsInline className="absolute inset-0 size-full object-cover" />
-                          ) : (
-                            <img src={g.outputUrl} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-                          ))}
+                        <button
+                          onClick={() => onOpen(g)}
+                          className="absolute inset-0"
+                          aria-label={`باز کردن — ${g.prompt.trim() ? g.prompt.trim().slice(0, 60) : g.name}`}
+                        >
+                          {/* `g.kind`, not the file extension — an output URL is
+                              signed and ends in a query string, so `.mp4$` never
+                              matches one. Through `GenerationMedia` now, which
+                              is also where the clip's hover behaviour lives. */}
+                          <GenerationMedia gen={g} />
+                        </button>
                         {/* The grid's field, not the flat 45% scrim it replaced
                             there and that this view had kept. */}
                         {g.status === "running" && <RunningVeil gen={g} />}
-                      </button>
+                        {g.status === "done" && (
+                          <OutputActions
+                            gen={g}
+                            onOpen={() => onOpen(g)}
+                            {...(onRegenerate ? { onRegenerate: () => onRegenerate(g) } : {})}
+                            {...(onToVideo ? { onToVideo: () => onToVideo(g) } : {})}
+                          />
+                        )}
+                      </div>
                     )}
 
                     <div className="flex w-full shrink-0 flex-col lg:w-[240px] lg:self-stretch">

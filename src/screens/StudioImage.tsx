@@ -1,19 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Plus, Minus, Sparkle, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock, X, SpeakerHigh } from "@phosphor-icons/react";
+import { Plus, Minus, Sparkle, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock, X, SpeakerHigh } from "@phosphor-icons/react";
 import { variantRefs, type Family, type Variant } from "../data/models";
 import { groupOf } from "../lib/refSlots";
 import { insertTag, refTags, tagUsed } from "../lib/refTags";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { addRefFiles, moveRefFile, slotAccept, type InputMap, type RefMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
-import { type Generation } from "../lib/gallery";
+import { isPending, isUnfinished, type Generation } from "../lib/gallery";
 import { CoinMark } from "../components/chrome";
 import { AssetViewer, downloadAsset, viewerAsset, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
 import { useIgnition } from "../components/Ignition";
-import { FailedVeil, RunningVeil } from "../components/GenerationVeils";
+import { FailedVeil, RunningVeil, SubmitRefusalNote, type CancelOutcome } from "../components/GenerationVeils";
+import type { GenerationRefusal } from "../features/generation/validation";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { ModelChip } from "../components/ModelPicker";
 import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
@@ -98,11 +99,13 @@ function chipOptions(c: ChipControl) {
 function TileActions({
   onOpen,
   onDownload,
+  onRegenerate,
   inline,
   of,
 }: {
   onOpen: () => void;
   onDownload: () => void;
+  onRegenerate?: (() => void) | undefined;
   inline?: boolean;
   /**
    * What this stack acts on, for the accessible name.
@@ -131,10 +134,16 @@ function TileActions({
       }
       style={inline ? undefined : { insetInlineEnd: "0.375rem" }}
     >
+      {/* Two of these four were wired to `() => {}`: a heart with no likes
+          endpoint behind it, and a "regenerate" that regenerated nothing. The
+          heart is gone rather than stubbed — a button that does nothing teaches
+          people not to press the ones that do — and the repeat now repeats.
+          See `components/OutputActions`, which is this rail on every other
+          canvas; this one stays local because the wall's tiles are viewer
+          assets rather than generations. */}
       {[
-        { Icon: Heart, label: "پسندیدن", on: () => {} },
         { Icon: DownloadSimple, label: "دانلود", on: onDownload },
-        { Icon: ArrowsClockwise, label: "دوباره بساز", on: () => {} },
+        ...(onRegenerate ? [{ Icon: ArrowsClockwise, label: "دوباره بساز", on: onRegenerate }] : []),
         { Icon: ArrowsOut, label: "بزرگ کن", on: onOpen },
       ].map(({ Icon, label, on }) => (
         <button
@@ -156,15 +165,25 @@ export default function StudioImage({
   gens,
   onGenerate,
   onOpenModel,
-  onRegenerate,
   onRemove,
+  onCancel,
+  onRegenerate,
+  submitError,
+  onErrorAction,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean, refs: RefMap) => void;
   onOpenModel: (familyId: string, prompt?: string, fromGenerationId?: string) => void;
-  onRegenerate: (familyId: string, generationId: string) => void;
   /** Offered on a refused generation only, as in کارهای من. */
   onRemove: (g: Generation) => void;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
+  /** Repeat a finished generation, from the tile it is drawn on. */
+  onRegenerate?: ((g: Generation) => void) | undefined;
+  /** Why the last press did not become a job. See `GenerationsProvider`. */
+  submitError?: GenerationRefusal | null | undefined;
+  /** Where a refusal that has a way out leads. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -279,7 +298,7 @@ export default function StudioImage({
      forty-two times would be forty-two progress bars for one generation. It
      also has no picture yet, so it cannot take part in a layout whose whole
      job is arranging pictures. */
-  const running = mine.filter((g) => g.status === "running");
+  const running = mine.filter((g) => isPending(g.status));
   /* `done`, not "not running". A refused generation has no file, so it fell to
      the `art()` placeholder below and appeared on the wall as somebody else's
      stock photograph — the studio claiming a picture where the provider had
@@ -337,6 +356,13 @@ export default function StudioImage({
   const pictures = new Map(shaped.map((t, i) => [t.key, { ...t, name: names[i]! }]));
   /* A tile for something with no picture: a job still running, or one that
      was refused. Shaped by what was asked for, since nothing arrived. */
+  /* The wall's tiles are viewer assets, and an asset's id is the id of the
+     generation it came from. That is the whole mapping back. */
+  const regenerateTile = (assetId: string) => {
+    const generation = mine.find((candidate) => candidate.id === assetId);
+    if (generation) onRegenerate?.(generation);
+  };
+
   const placeholder = (g: Generation, state: "pending" | "refused") => ({
     key: g.id,
     ratio: g.w / g.h,
@@ -351,7 +377,7 @@ export default function StudioImage({
   const tiles = [
     ...running.map((g) => placeholder(g, "pending")),
     ...mine.flatMap((g) =>
-      g.status === "failed" ? [placeholder(g, "refused")] : g.status === "done" && pictures.has(g.id) ? [pictures.get(g.id)!] : [],
+      isUnfinished(g.status) ? [placeholder(g, "refused")] : g.status === "done" && pictures.has(g.id) ? [pictures.get(g.id)!] : [],
     ),
   ];
 
@@ -467,7 +493,7 @@ export default function StudioImage({
                   // Clear of the sticky bar above and the dock floating below.
                   style={{ background: t.pending.grad, scrollMarginBlock: "6rem 14rem" }}
                 >
-                  <RunningVeil gen={t.pending} />
+                  <RunningVeil gen={t.pending} onCancel={onCancel} />
                 </div>
               ) : t.refused ? (
                 <div
@@ -493,7 +519,12 @@ export default function StudioImage({
                       style={{ background: "rgba(0,0,0,0.25)" }}
                     />
                   </button>
-                  <TileActions onOpen={() => setViewing(t.asset)} onDownload={() => download(t.asset)} of={t.name} />
+                  <TileActions
+                    onOpen={() => setViewing(t.asset)}
+                    onDownload={() => download(t.asset)}
+                    {...(onRegenerate ? { onRegenerate: () => regenerateTile(t.asset.id) } : {})}
+                    of={t.name}
+                  />
                 </div>
               )
             }
@@ -511,7 +542,7 @@ export default function StudioImage({
           }}
           onRegenerate={(a) => {
             setViewing(null);
-            onRegenerate(a.familyId, a.id);
+            regenerateTile(a.id);
           }}
           onDownload={download}
         />
@@ -678,6 +709,12 @@ export default function StudioImage({
                 )}
               </div>
             </div>
+
+            {/* A refusal that never became a job — a short wallet, a full
+                account, a request that did not arrive. Above the control row,
+                because this dock is pinned to the bottom of the window and a
+                box under it lifts «بساز» out from under the pointer. */}
+            {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-3" />}
 
             <div className="mt-3 flex items-end gap-2">
               <div className="hide-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
