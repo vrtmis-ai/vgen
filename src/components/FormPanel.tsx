@@ -146,7 +146,13 @@ export function FormPanel({
   const s = useCreateState(families, refImages);
   const { family, variant, chips, input, prompt, price, ready, validation, isSubmitting } = s;
   // The wallet, asked before the press rather than after it. See useCreateState.
+  /* Held until the press, not shown beside it. The price is already on the
+     button; a permanently red dock nags somebody who is still writing. The
+     press is what asks, so the press is what gets answered — and it clears
+     itself the moment the balance is no longer the problem. */
+  const [pressed, setPressed] = useState<GenerationRefusal | null>(null);
   const shortfall = s.short && price !== null ? shortfallRefusal(price, s.spendable ?? 0, n) : null;
+  const refusal = submitError ?? (shortfall ? pressed : null);
   const set = s.set;
   const setPrompt = s.setPrompt;
   const onFamily = s.setFamily;
@@ -446,16 +452,20 @@ export function FormPanel({
       >
         {/* Above the button, so the floor the button is pinned to does not move
             under the pointer that just pressed it. See `SubmitRefusalNote`. */}
-        {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
         {/* No model is locked to a plan, so the only thing that can stop a
-            generation is its price against the balance — said here, where the
-            press would have been, with the wallet one tap away. */}
-        {!submitError && shortfall && <SubmitRefusalNote refusal={shortfall} onAction={onErrorAction} className="mb-2" />}
+            generation is its price against the balance — and that is answered
+            on the press, with the wallet one tap away. */}
+        {refusal && <SubmitRefusalNote refusal={refusal} onAction={onErrorAction} className="mb-2" />}
         <button
           disabled={!visitor && !ready}
-          onClick={(event) =>
-            visitor ? signIn() : ignition.ignite(event, () => onGenerate(family, variant, prompt.trim(), input, refImages))
-          }
+          onClick={(event) => {
+            if (visitor) return signIn();
+            // Answered here rather than at the API: the sum is local, so there
+            // is nothing to ask and nothing to wait for.
+            if (shortfall) return setPressed(shortfall);
+            setPressed(null);
+            ignition.ignite(event, () => onGenerate(family, variant, prompt.trim(), input, refImages));
+          }}
           aria-busy={ignition.igniting || undefined}
           className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
           style={{

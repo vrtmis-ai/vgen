@@ -127,10 +127,14 @@ describe("a balance that cannot cover the price", () => {
     expect(result.current.ready).toBe(true);
   });
 
-  it("is short, and not ready, when it does not", () => {
+  /* `short` is reported; it is not a gate. A balance too small to cover the
+     price leaves the button pressable and lets the press answer «سکه کافی
+     نیست» — a dark primary control is the one thing on the dock that cannot
+     say why it is dark, and on a phone there is no hover to recover that. */
+  it("is short, and still ready, when it does not", () => {
     const result = withBalance(0.01);
     expect(result.current.short).toBe(true);
-    expect(result.current.ready).toBe(false);
+    expect(result.current.ready).toBe(true);
   });
 
   /* A visitor has no wallet to be short of. The dock turns its button into a

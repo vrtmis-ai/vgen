@@ -123,6 +123,9 @@ export default function StudioAudio({
   // The wallet, asked before the press rather than after it. There is no
   // padlock to draw any more — see `useCreateState`.
   const shortfall = s.short && s.price !== null ? shortfallRefusal(s.price, s.spendable ?? 0, n) : null;
+  // Held until the press answers it. See FormPanel.
+  const [pressed, setPressed] = useState<GenerationRefusal | null>(null);
+  const refusal = submitError ?? (shortfall ? pressed : null);
   const [pickVoice, setPickVoice] = useState(false);
   const [pickModel, setPickModel] = useState(false);
   const modelRow = useRef<HTMLDivElement>(null);
@@ -357,20 +360,21 @@ export default function StudioAudio({
         >
           {/* A refusal that never became a job, above the button that made it —
               see `SubmitRefusalNote` for why above. */}
-          {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
           {/* See FormPanel: no model is locked to a plan, so the only thing
-              that can stop a generation is the price against the balance. */}
-          {!submitError && shortfall && <SubmitRefusalNote refusal={shortfall} onAction={onErrorAction} className="mb-2" />}
+              that can stop a generation is the price against the balance, and
+              the press is what asks. */}
+          {refusal && <SubmitRefusalNote refusal={refusal} onAction={onErrorAction} className="mb-2" />}
           <button
             disabled={!visitor && !s.ready}
-            onClick={(event) =>
-              visitor
-                ? signIn()
-                : ignition.ignite(event, () => {
-                    reveal.arm();
-                    onGenerate(s.family, s.variant, s.prompt.trim(), s.input);
-                  })
-            }
+            onClick={(event) => {
+              if (visitor) return signIn();
+              if (shortfall) return setPressed(shortfall);
+              setPressed(null);
+              ignition.ignite(event, () => {
+                reveal.arm();
+                onGenerate(s.family, s.variant, s.prompt.trim(), s.input);
+              });
+            }}
             aria-busy={ignition.igniting || undefined}
             className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
             style={{

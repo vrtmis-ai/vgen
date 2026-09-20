@@ -297,7 +297,10 @@ export default function Generate({
   const spendable = useSpendable();
   const short = price != null && spendable !== null && price > spendable;
   const shortfall = short && price != null ? shortfallRefusal(price, spendable ?? 0, n) : null;
-  const canGenerate = validation.valid && !clipUnreadable && price != null && !short;
+  /* The balance is not in here. It does not make the button unpressable — it
+     makes the press answer «سکه کافی نیست» rather than start a job. See
+     `useCreateState`, which the studios read the same rule from. */
+  const canGenerate = validation.valid && !clipUnreadable && price != null;
   const ignition = useIgnition();
 
   /* The references have names — `@Image1`, `@Video3` — and the prompt can point
@@ -334,6 +337,13 @@ export default function Generate({
 
   async function submit() {
     if (!canGenerate || submitting) return;
+    /* Answered from here rather than from the API: the sum is local, so there
+       is nothing to ask and nothing to wait for. The notice is the same one a
+       server refusal would draw, in the same place. */
+    if (shortfall) {
+      setSubmitError(shortfall);
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
     reveal.arm();
@@ -607,9 +617,10 @@ export default function Generate({
               panel floor, so a box below would lift the button away from the
               pointer that just pressed it. See `SubmitRefusalNote`. */}
           {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
+          {/* No standing notice beside the button: the price is already on it,
+              and a permanently red dock nags somebody who is still writing. */}
           {/* No model belongs to a plan any more: what stops a generation is
               the price against the balance. */}
-          {!submitError && shortfall && <SubmitRefusalNote refusal={shortfall} onAction={onErrorAction} className="mb-2" />}
           {/* The same field as the studios' «بساز» — every button that spends
               coins on a generation lights the same way. See `useIgnition`. */}
           <button
