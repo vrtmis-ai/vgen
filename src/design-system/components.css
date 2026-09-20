@@ -1195,23 +1195,6 @@
   color: var(--vg-accent);
 }
 
-/* Informational banner — tips, model notes, quota reminders. */
-.vg-note {
-  display: flex;
-  gap: var(--vg-space-3);
-  padding: var(--vg-space-3) var(--vg-space-4);
-  border: 1px solid var(--vg-accent-a20);
-  border-inline-start: 3px solid var(--vg-accent-strong);
-  border-radius: var(--vg-radius-md);
-  background: var(--vg-accent-a10);
-  color: var(--vg-text-secondary);
-  font-size: var(--vg-body-size);
-}
-.vg-note__icon {
-  color: var(--vg-accent);
-  flex: 0 0 auto;
-}
-
 /* Inline link. */
 .vg-link {
   color: var(--vg-accent);
