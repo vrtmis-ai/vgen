@@ -15,6 +15,8 @@ import { FailedVeil, RunningVeil, SubmitRefusalNote, type CancelOutcome } from "
 import { OutputActions } from "../components/OutputActions";
 import { GenerationMedia } from "../components/GenerationMedia";
 import { displayAspect, isUnfinished, type Generation } from "../lib/gallery";
+import { promptCap, useAutoGrow } from "../lib/useAutoGrow";
+import { PromptExpandButton } from "../components/PromptExpand";
 import { useRevealArrival } from "../lib/useRevealArrival";
 import { allTags, insertTag, refTags, tagUsed } from "../lib/refTags";
 import { isVideoUrl, labelDir, promptDir } from "../lib/format";
@@ -162,6 +164,10 @@ export default function Generate({
   const [receipt, setReceipt] = useState<GenerationReceipt | null>(null);
   const [submitError, setSubmitError] = useState<GenerationRefusal | null>(null);
   const promptBox = useRef<HTMLTextAreaElement>(null);
+  // See `useAutoGrow`, and the dock this page's panel is modelled on.
+  const [promptOpen, setPromptOpen] = useState(false);
+  const promptWants = useAutoGrow(promptBox, prompt, promptCap(promptOpen, 21));
+  const promptOverflows = promptWants > promptCap(false, 21);
   /* Where the caret goes once an inserted tag has landed in the field. Held in
      a ref and applied in a layout effect, not straight after `setPrompt`: at
      that moment React has not written the new value, so a selection range into
@@ -525,9 +531,13 @@ export default function Generate({
                     {t("g_prompt_hint")}
                   </span>
                 )}
+                {(promptOverflows || promptOpen) && (
+                  <PromptExpandButton open={promptOpen} onToggle={() => setPromptOpen((open) => !open)} controls="model-prompt" />
+                )}
               </div>
               <textarea
                 ref={promptBox}
+                id="model-prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 dir={promptDir(prompt)}

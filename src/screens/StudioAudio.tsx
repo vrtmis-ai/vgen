@@ -5,6 +5,8 @@ import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { ControlField, type InputMap } from "../components/controls";
 import { useCreateState } from "../lib/useCreateState";
 import { isPending, isUnfinished, type Generation } from "../lib/gallery";
+import { promptCap, useAutoGrow } from "../lib/useAutoGrow";
+import { PromptExpandButton } from "../components/PromptExpand";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import { VoicePicker } from "../components/VoicePicker";
 import { ViewControls, useViewMode } from "../components/ViewControls";
@@ -122,6 +124,11 @@ export default function StudioAudio({
   const visitor = user === null;
   // The wallet, asked before the press rather than after it. There is no
   // padlock to draw any more — see `useCreateState`.
+  // See `useAutoGrow`: the script is the job on this dock more than anywhere.
+  const promptBox = useRef<HTMLTextAreaElement>(null);
+  const [promptOpen, setPromptOpen] = useState(false);
+  const promptWants = useAutoGrow(promptBox, s.prompt, promptCap(promptOpen, 21));
+  const promptOverflows = promptWants > promptCap(false, 21);
   const shortfall = s.short && s.price !== null ? shortfallRefusal(s.price, s.spendable ?? 0, n) : null;
   // Held until the press answers it. See FormPanel.
   const [pressed, setPressed] = useState<GenerationRefusal | null>(null);
@@ -260,11 +267,18 @@ export default function StudioAudio({
                 <span className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
                   {section.field}
                 </span>
-                <span className="vg-numeric text-[10.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                  {maxPrompt === null ? n(s.prompt.length) : `${n(s.prompt.length)} / ${n(maxPrompt)}`}
+                <span className="flex items-center gap-1">
+                  <span className="vg-numeric text-[10.5px]" style={{ color: "var(--vg-text-muted)" }}>
+                    {maxPrompt === null ? n(s.prompt.length) : `${n(s.prompt.length)} / ${n(maxPrompt)}`}
+                  </span>
+                  {(promptOverflows || promptOpen) && (
+                    <PromptExpandButton open={promptOpen} onToggle={() => setPromptOpen((open) => !open)} controls="audio-prompt" />
+                  )}
                 </span>
               </div>
               <textarea
+                ref={promptBox}
+                id="audio-prompt"
                 value={s.prompt}
                 onChange={(e) => s.setPrompt(e.target.value)}
                 rows={4}

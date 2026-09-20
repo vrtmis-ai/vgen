@@ -20,6 +20,8 @@ import { useRevealArrival } from "../lib/useRevealArrival";
 import { ModelChip } from "../components/ModelPicker";
 import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
 import { faNum, promptDir } from "../lib/format";
+import { promptCap, useAutoGrow } from "../lib/useAutoGrow";
+import { PromptExpandButton } from "../components/PromptExpand";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { useAppServices } from "../runtime/AppServices";
@@ -235,6 +237,13 @@ export default function StudioImage({
   const tags =
     slot && groupOf(slot) === "reference" && !s.family.noPrompt ? (refTags([slot], { [slot.key]: picked.length })[slot.key] ?? []) : [];
   const promptBox = useRef<HTMLTextAreaElement>(null);
+  /* The prompt box grows with the prompt, and opens to half the window when
+     the writing is the job rather than a caption. Collapsed again the moment
+     it is not, because the wall behind it is what the dock is for. */
+  const [promptOpen, setPromptOpen] = useState(false);
+  const promptWants = useAutoGrow(promptBox, s.prompt, promptCap(promptOpen));
+  const promptOverflows = promptWants > promptCap(false);
+
   // See FormPanel: the caret is placed once the inserted text is in the field.
   const pendingCaret = useRef<number | null>(null);
   useLayoutEffect(() => {
@@ -672,8 +681,18 @@ export default function StudioImage({
                   that could not affect the result. The panel has always
                   disabled it on these models; this surface never did. */}
               <div className="flex min-w-0 flex-1 flex-col">
+                {/* Above the box, not inside it. Pinned to a corner it sat on
+                    the first line of the prompt — and `dir` follows the text,
+                    so an English prompt starts at the very edge the button was
+                    pinned to. The row only exists while the button does. */}
+                {(promptOverflows || promptOpen) && (
+                  <div className="mb-1 flex justify-end">
+                    <PromptExpandButton open={promptOpen} onToggle={() => setPromptOpen((open) => !open)} controls="image-prompt" />
+                  </div>
+                )}
                 <textarea
                   ref={promptBox}
+                  id="image-prompt"
                   value={s.prompt}
                   onChange={(e) => s.setPrompt(e.target.value)}
                   rows={2}

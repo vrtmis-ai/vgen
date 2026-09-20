@@ -11,6 +11,8 @@ import { ModelPicker } from "./ModelPicker";
 import { PresetPicker } from "./PresetPicker";
 import type { Preset } from "../runtime/contracts/content";
 import { labelDir, promptDir } from "../lib/format";
+import { promptCap, useAutoGrow } from "../lib/useAutoGrow";
+import { PromptExpandButton } from "./PromptExpand";
 import { Panel, PanelHead, PanelShell, Section } from "./Panel";
 import { useI18n } from "../lib/i18n";
 import { CoinMark } from "./chrome";
@@ -155,6 +157,13 @@ export function FormPanel({
   const refusal = submitError ?? (shortfall ? pressed : null);
   const set = s.set;
   const setPrompt = s.setPrompt;
+  /* The box grows with what is written in it, and opens further on request.
+     See `useAutoGrow`: at `rows={3}` a long prompt simply left the panel, with
+     the scrollbar hidden and no handle to pull. */
+  const [promptOpen, setPromptOpen] = useState(false);
+  const promptWants = useAutoGrow(promptBox, prompt, promptCap(promptOpen, 21));
+  const promptOverflows = promptWants > promptCap(false, 21);
+
   const onFamily = s.setFamily;
 
   /* The slots this model actually offers. `variantRefs` resolves the variant's
@@ -247,11 +256,17 @@ export function FormPanel({
             {/* Follows the field: `dir="auto"` below sends the text to the other
                 edge the moment a Latin character is typed, and a caption left on
                 the far side is what makes a symmetrically padded box look wrong. */}
-            <p className="mb-1 text-[11px]" dir={labelDir(prompt)} style={{ color: "var(--vg-text-muted)" }}>
-              پرامپت
-            </p>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <p className="text-[11px]" dir={labelDir(prompt)} style={{ color: "var(--vg-text-muted)" }}>
+                پرامپت
+              </p>
+              {(promptOverflows || promptOpen) && (
+                <PromptExpandButton open={promptOpen} onToggle={() => setPromptOpen((open) => !open)} controls="video-prompt" />
+              )}
+            </div>
             <textarea
               ref={promptBox}
+              id="video-prompt"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={3}
