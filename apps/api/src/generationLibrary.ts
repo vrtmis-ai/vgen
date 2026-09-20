@@ -82,7 +82,9 @@ export class GenerationLibraryService implements GenerationLibraryApplication {
     // for nothing. Better a link that opens than no link at all.
     if (output.externalUrl) return output.externalUrl;
     const extension = EXTENSIONS[output.mimeType];
-    const filename = `vgen-${record.id}${extension ? `.${extension}` : ""}`;
+    // Numbered past the first: a Suno job is two takes, and two files of one
+    // name land as "vgen-….mp3" and "vgen-… (1).mp3".
+    const filename = `vgen-${record.id}${index > 0 ? `-${index + 1}` : ""}${extension ? `.${extension}` : ""}`;
     return this.store.signedUrl(output.key, this.expirySeconds, { downloadAs: filename });
   }
 

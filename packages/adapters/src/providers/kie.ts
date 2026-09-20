@@ -7,6 +7,7 @@ import {
   type GenerationRequest,
   type GenerationSubmission,
   type JsonObject,
+  type JsonValue,
   type Modality,
 } from "./types";
 
@@ -76,6 +77,25 @@ export function kieRequestBody(model: string, params: JsonObject): JsonObject {
     const { prompt, ...rest } = params;
     input = { ...rest, text: prompt ?? "" };
   }
+  // Gemini TTS takes a cast and a script — `speakers` and `dialogue_turns` —
+  // where the catalogue has one voice and a prompt. One speaker, one turn. An
+  // empty style or scene is the catalogue's "none" and is not a value the API
+  // knows, so it is left out.
+  if (model.startsWith("google/") && model.endsWith("-tts")) {
+    const { prompt, voice_name, accent, style, pace, scene, ...rest } = params;
+    const speaker: Record<string, JsonValue> = { speaker_id: "Speaker 1", voice_name: voice_name ?? "Kore", accent: accent ?? "Neutral" };
+    if (style) speaker.style = style;
+    if (pace) speaker.pace = pace;
+    input = {
+      ...rest,
+      ...(scene ? { scene } : {}),
+      speakers: [speaker],
+      dialogue_turns: [{ speaker_id: "Speaker 1", text: prompt ?? "" }],
+    };
+  }
+  // Required, and the catalogue only fills non-custom mode: the prompt is a
+  // description, and Suno writes the lyrics from it.
+  if (model === "ai-music-api/generate") input = { custom_mode: false, ...input };
   // Kling 3 requires the field, and the catalogue has no control for it: on,
   // the model reads its shots from a `multi_prompt` this screen cannot build.
   if (model === "kling-3.0/video") input = { multi_shots: false, ...input };
@@ -235,8 +255,16 @@ export class KieGenerationProvider implements GenerationProvider {
         parsed = null;
       }
     }
-    const urls = asRecord(parsed).resultUrls;
-    if (!Array.isArray(urls)) return [];
+    const result = asRecord(parsed);
+    // Suno answers in its own shape, found on a live task: every take under
+    // `data`, each with its own `audio_url`, and no `resultUrls` at all. Read
+    // the usual way it was a success with nothing in it.
+    const urls = Array.isArray(result.resultUrls)
+      ? result.resultUrls
+      : Array.isArray(result.data)
+        ? result.data.map((take) => asRecord(take).audio_url)
+        : null;
+    if (!urls) return [];
     return urls.filter((url): url is string => typeof url === "string" && url.length > 0).map((url) => describeOutput(url, this.modality));
   }
 }

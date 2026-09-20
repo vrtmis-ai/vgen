@@ -81,6 +81,30 @@
       "isOffered": true
     },
     {
+      "variantId": "gemini-2-5-pro-tts",
+      "externalModelId": "google/gemini-2-5-pro-tts",
+      "featureCode": "speech_generate",
+      "selector": {},
+      "pricingMode": "derived",
+      "quantity": "characters",
+      "providerUnits": 24,
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-3-1-flash-tts",
+      "externalModelId": "google/gemini-3-1-flash-tts",
+      "featureCode": "speech_generate",
+      "selector": {},
+      "pricingMode": "derived",
+      "quantity": "characters",
+      "providerUnits": 24,
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "gemini-omni-video",
       "externalModelId": "gemini-omni-video",
       "featureCode": "video_generate",
@@ -1525,6 +1549,30 @@
       "quantity": "none",
       "providerUnits": 5.5,
       "microCredits": 1100000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "suno-music",
+      "externalModelId": "ai-music-api/generate",
+      "featureCode": "music_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 12,
+      "microCredits": 2400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "suno-sounds",
+      "externalModelId": "ai-music-api/sounds",
+      "featureCode": "sound_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 2.5,
+      "microCredits": 500000,
       "maxBillableUnits": null,
       "isOffered": true
     },

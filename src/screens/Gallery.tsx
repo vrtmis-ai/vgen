@@ -6,6 +6,7 @@ import { useAppServices } from "../runtime/AppServices";
 import { displayAspect, type Generation } from "../lib/gallery";
 import type { ModelKind } from "../data/models";
 import { GenerationMedia } from "../components/GenerationMedia";
+import { WaveCard, clipsOf, downloadClip, useClipPlayer } from "../components/AudioClip";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { jobFailureMessage } from "../features/generation/validation";
 import { useI18n } from "../lib/i18n";
@@ -206,6 +207,7 @@ export default function Gallery({
   const [filter, setFilter] = useState<Filter>("all");
   const [viewing, setViewing] = useState<ViewerAsset | null>(null);
   const view = useViewMode("gallery", { mode: "grid", density: 1 });
+  const player = useClipPlayer();
 
   /* A finished generation opens the panel; anything else opens the result page.
      The panel is built around a file — its size, its model, and the four things
@@ -248,7 +250,11 @@ export default function Gallery({
             return (
               <button
                 key={f.key}
-                onClick={() => setFilter(f.key)}
+                onClick={() => {
+                  // The clip playing may be one this filter hides.
+                  player.stop();
+                  setFilter(f.key);
+                }}
                 aria-pressed={on}
                 className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
                 style={{
@@ -290,9 +296,32 @@ export default function Gallery({
            aspect ratios and a fixed row height would letterbox half of them.
            The density stepper drives the column count directly. */
         <div className="[column-fill:_balance] gap-3" style={{ columnCount: view.mode === "list" ? 1 : view.cols }}>
-          {shown.map((g, i) => (
-            <GenCard key={g.id} g={g} i={i} onOpen={() => open(g)} onRemove={() => onRemove(g)} list={view.mode === "list"} />
-          ))}
+          {shown.map((g, i) =>
+            /* A finished sound is played where it sits, one card per take. The
+               viewer is built around a picture — dimensions, "to video", image
+               tools — and has nothing to say about a file you listen to. */
+            g.kind === "audio" && g.status === "done" && g.outputUrl ? (
+              clipsOf(g).map((clip) => (
+                <div
+                  key={clip.id}
+                  // In the list the row is drawn as the other rows are, a card;
+                  // its own divider would sit on the card's bottom edge.
+                  className={`break-inside-avoid ${view.mode === "list" ? "mb-2 overflow-hidden rounded-xl border border-line [&>div]:border-b-0" : "mb-3"}`}
+                  style={view.mode === "list" ? { background: "var(--vg-surface)" } : undefined}
+                >
+                  <WaveCard
+                    clip={clip}
+                    list={view.mode === "list"}
+                    audio={player.audioOf(clip)}
+                    onPlay={() => player.toggle(clip)}
+                    onDownload={clip.jobId ? () => downloadClip(services.generation.downloadUrl, clip) : undefined}
+                  />
+                </div>
+              ))
+            ) : (
+              <GenCard key={g.id} g={g} i={i} onOpen={() => open(g)} onRemove={() => onRemove(g)} list={view.mode === "list"} />
+            ),
+          )}
         </div>
       )}
 

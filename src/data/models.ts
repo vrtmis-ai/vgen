@@ -436,6 +436,116 @@ const elevenCommonControls: Control[] = [
   { kind: "slider", key: "style", label: "اغراق در لحن", min: 0, max: 1, step: 0.05, def: 0, advanced: true },
 ];
 
+// Gemini TTS. Google's thirty prebuilt voices, each with the one-word character
+// Google gives it. KIE hosts no preview clips for these the way it does for
+// ElevenLabs, so they are a list rather than a picker that plays.
+//
+// The API takes speakers and dialogue turns; the KIE adapter builds both from
+// these flat settings and the prompt, as one speaker. See `kieRequestBody`.
+const GEMINI_VOICES: [string, string][] = [
+  ["Kore", "محکم"],
+  ["Zephyr", "روشن"],
+  ["Puck", "سرزنده"],
+  ["Charon", "آموزشی"],
+  ["Fenrir", "پرهیجان"],
+  ["Leda", "جوان"],
+  ["Orus", "محکم"],
+  ["Aoede", "سبک"],
+  ["Callirrhoe", "آرام"],
+  ["Autonoe", "روشن"],
+  ["Enceladus", "نفس‌دار"],
+  ["Iapetus", "شفاف"],
+  ["Umbriel", "آرام"],
+  ["Algieba", "نرم"],
+  ["Despina", "نرم"],
+  ["Erinome", "شفاف"],
+  ["Algenib", "خش‌دار"],
+  ["Rasalgethi", "آموزشی"],
+  ["Laomedeia", "سرزنده"],
+  ["Achernar", "لطیف"],
+  ["Alnilam", "محکم"],
+  ["Schedar", "یکنواخت"],
+  ["Gacrux", "پخته"],
+  ["Pulcherrima", "رک"],
+  ["Achird", "صمیمی"],
+  ["Zubenelgenubi", "خودمانی"],
+  ["Vindemiatrix", "ملایم"],
+  ["Sadachbia", "پرشور"],
+  ["Sadaltager", "کاردان"],
+  ["Sulafat", "گرم"],
+];
+
+const geminiTtsControls: Control[] = [
+  {
+    kind: "segment",
+    key: "voice_name",
+    label: "صدا",
+    def: "Kore",
+    options: GEMINI_VOICES.map(([value, note]) => ({ value, label: `${value} — ${note}` })),
+  },
+  {
+    kind: "segment",
+    key: "style",
+    label: "حالت",
+    // Empty means "no style", and the adapter leaves the field out.
+    def: "",
+    options: [
+      { value: "", label: "معمولی" },
+      { value: "Vocal Smile", label: "با لبخند" },
+      { value: "Newscaster", label: "گوینده‌ی خبر" },
+      { value: "Empathetic", label: "همدلانه" },
+      { value: "Whisper", label: "نجوا" },
+      { value: "Promo/Hype", label: "تبلیغاتی" },
+      { value: "Deadpan", label: "بی‌احساس" },
+    ],
+  },
+  {
+    kind: "segment",
+    key: "pace",
+    label: "ریتم",
+    def: "Natural",
+    options: [
+      { value: "Natural", label: "طبیعی" },
+      { value: "Rapid Fire", label: "تند" },
+      { value: "The Drift", label: "آرام و کشیده" },
+      { value: "Staccato", label: "بریده‌بریده" },
+    ],
+  },
+  // Required by the API on every speaker. It shapes English; Persian reads the
+  // same under all of them, so it waits under advanced at Neutral.
+  {
+    kind: "segment",
+    key: "accent",
+    label: "لهجه‌ی انگلیسی",
+    def: "Neutral",
+    advanced: true,
+    options: [
+      { value: "Neutral", label: "خنثی" },
+      { value: "American (Gen)", label: "آمریکایی" },
+      { value: "British (RP)", label: "بریتانیایی" },
+      { value: "Australian", label: "استرالیایی" },
+      { value: "Transatlantic", label: "ترنس‌آتلانتیک" },
+    ],
+  },
+  { kind: "text", key: "scene", label: "فضا", placeholder: "مثلاً: کتاب صوتی، لحن گرم و آرام", advanced: true },
+];
+
+// Suno runs its versions as a field of one endpoint rather than as separate
+// models, and KIE prices all three the same, so the version is a setting here
+// rather than a variant with a price row of its own.
+const sunoVersion = (advanced: boolean): Control => ({
+  kind: "segment",
+  key: "model",
+  label: "نسخه",
+  def: "V6",
+  advanced,
+  options: [
+    { value: "V6", label: "V6" },
+    { value: "V6_MINI", label: "V6 Mini" },
+    { value: "V6_WILD", label: "V6 Wild" },
+  ],
+});
+
 // Both Motion Control models take the same inputs. `mode` is 720p/1080p here —
 // the docs' prose says "use std for 720p or pro for 1080p" but the Options list,
 // which is machine-generated and has been the reliable half elsewhere, says
@@ -1513,6 +1623,57 @@ export const FAMILIES: Family[] = [
         badge: "کیفیت",
       },
     ],
+  },
+  {
+    // Billed by KIE per million tokens, which a quote cannot know in advance.
+    // Priced per 1000 characters instead, from a measured run: 47 Persian
+    // characters, 5.5s of audio, 0.77 credits — about 16 per 1000. The rate
+    // row carries 24, so a slow pace or a long pause does not sell at a loss.
+    id: "gemini-tts",
+    name: "Gemini TTS",
+    vendor: "Google",
+    kind: "audio",
+    minTier: 1,
+    blurb: "گفتار با حالت و ریتم دلخواه — فارسی را هم می‌خواند",
+    badge: "صدا",
+    grad: "linear-gradient(135deg,#60a5fa,#312e81)",
+    maxPrompt: 5000,
+    controls: geminiTtsControls,
+    variants: [
+      { id: "gemini-3-1-flash-tts", featureCode: "speech_generate", label: "3.1 Flash", badge: "سریع" },
+      { id: "gemini-2-5-pro-tts", featureCode: "speech_generate", label: "2.5 Pro", badge: "کیفیت" },
+    ],
+  },
+  {
+    // One request is two takes of the song, and both come back. Non-custom
+    // mode: the prompt is a description and Suno writes the lyrics from it.
+    // Writing your own lyrics is custom mode, which also needs a style and a
+    // title, and is not offered yet.
+    id: "suno",
+    name: "Suno",
+    vendor: "Suno",
+    kind: "audio",
+    minTier: 1,
+    blurb: "آهنگ کامل با خواننده یا بی‌کلام، از یک توصیف",
+    badge: "موسیقی",
+    grad: "linear-gradient(135deg,#fb923c,#7c2d12)",
+    maxPrompt: 3000,
+    controls: [{ kind: "toggle", key: "instrumental", label: "بی‌کلام", def: false }, sunoVersion(false)],
+    variants: [{ id: "suno-music", featureCode: "music_generate", label: "آهنگ" }],
+  },
+  {
+    // Also two takes per request.
+    id: "suno-sounds",
+    name: "Suno Sounds",
+    vendor: "Suno",
+    kind: "audio",
+    minTier: 1,
+    blurb: "افکت صوتی کوتاه از یک جمله",
+    badge: "افکت",
+    grad: "linear-gradient(135deg,#34d399,#064e3b)",
+    maxPrompt: 500,
+    controls: [{ kind: "toggle", key: "sound_loop", label: "قابل تکرار (لوپ)", def: false }, sunoVersion(true)],
+    variants: [{ id: "suno-sounds", featureCode: "sound_generate", label: "افکت" }],
   },
 
   // ----------------------------- TOOLS ---------------------------------------

@@ -7,7 +7,7 @@ import type { InputMap, RefMap } from "../../components/controls";
 import { loadGenerations, saveGenerations, uid, type GenStatus, type Generation } from "../../lib/gallery";
 import { currentAspect } from "../../features/generation/aspect";
 import { validateGenerationInput } from "../../features/generation/validation";
-import { generationFromJob, mergeGenerations, sameGenerations } from "../../features/generation/fromJob";
+import { generationFromJob, mergeGenerations, moreOutputsOf, sameGenerations } from "../../features/generation/fromJob";
 import { useCatalogFamilies } from "../../features/catalog/CatalogProvider";
 import { useCreateGeneration, useGalleryHistory, useGenerationJobs } from "../../features/generation/useGeneration";
 import { SystemState } from "../../components/SystemState";
@@ -265,9 +265,15 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
         const outW = output?.width ?? generation.outW;
         const outH = output?.height ?? generation.outH;
         const error = job.error ?? generation.error;
+        // Measured by the server from the bytes. The audio studio drew every
+        // clip as 00:12 without it.
+        const durationMs = output?.durationMs ?? generation.durationMs;
+        const moreOutputs = job.outputs.length > 1 ? moreOutputsOf(job) : generation.moreOutputs;
         if (
           generation.status === status &&
           generation.outputUrl === outputUrl &&
+          generation.durationMs === durationMs &&
+          JSON.stringify(generation.moreOutputs) === JSON.stringify(moreOutputs) &&
           generation.outputAssetId === outputAssetId &&
           generation.outputUrlExpiresAt === outputUrlExpiresAt &&
           generation.outW === outW &&
@@ -284,6 +290,8 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
           ...(outputAssetId ? { outputAssetId } : {}),
           ...(outputUrlExpiresAt ? { outputUrlExpiresAt } : {}),
           ...(outW && outH ? { outW, outH } : {}),
+          ...(durationMs ? { durationMs } : {}),
+          ...(moreOutputs ? { moreOutputs } : {}),
           ...(error ? { error } : {}),
         };
       });

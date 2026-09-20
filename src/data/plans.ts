@@ -418,7 +418,9 @@ export function buildBenchmarks(): Benchmark[] {
 
       for (const step of steps) {
         const input: InputMap = axis && step ? { ...base, [axis.key]: step.value } : base;
-        const ctx = { chars: family.kind === "audio" ? BENCH_CHARS : 0, clipSeconds: 0 };
+        // Speech is priced by its script; music and effects by the request.
+        const perChars = variant.featureCode === "speech_generate";
+        const ctx = { chars: perChars ? BENCH_CHARS : 0, clipSeconds: 0 };
         const coins = priceCoins(variant, input, ctx);
         if (coins == null) continue; // not sold in that combination
 
@@ -426,7 +428,7 @@ export function buildBenchmarks(): Benchmark[] {
         const parts: string[] = [];
         if (step) parts.push(step.label);
         if (base.duration != null) parts.push(`${base.duration} ثانیه`);
-        if (family.kind === "audio") parts.push("۱۰۰۰ نویسه");
+        if (perChars) parts.push("۱۰۰۰ نویسه");
 
         out.push({
           key: `${variant.id}:${step?.value ?? "-"}`,

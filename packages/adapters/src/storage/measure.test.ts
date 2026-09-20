@@ -106,6 +106,10 @@ const FIXTURES: Record<string, string> = {
     "AaUAAAHAAAACNgAAAeYAAALgAAAAdgAAAFEAAANCAAAAlAAAAE0AAABbAAAD+QAAALIAAABpAAAAaAAAAtcAAADTAAAATgAAAGUAAAEmAAAAFHN0" +
     "Y28AAAAAAAAAAQAAADAAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28A" +
     "AAAdZGF0YQAAAAEAAAAATGF2ZjYyLjEyLjEwMQ==",
+  // The header of a real Gemini TTS result, cut at the start of its samples:
+  // 24kHz mono 16-bit, a `data` chunk declaring 263040 bytes. Python's `wave`
+  // reads the whole file as 131520 frames, 5.48s.
+  wav: "UklGRqQDBABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YYADBAA=",
 };
 
 const bytesOf = (key: string) => new Uint8Array(Buffer.from(FIXTURES[key]!, "base64"));
@@ -171,13 +175,12 @@ describe("measure", () => {
     expect(measure(bytes)).toEqual({ width: null, height: null, durationMs: null });
   });
 
-  /**
-   * WebM, OGG and WAV are readable formats this deliberately does not read —
-   * no provider we have integrated returns them. If one starts to, this test is
-   * the reminder that the answer is a parser, not a guess from the request.
-   */
-  it("says nothing about a format it does not claim to read", () => {
-    // A WAV: RIFF like WebP, so it also guards the WEBP check at byte 8.
+  it("reads a wav's duration from its byte rate and data size", () => {
+    expect(measure(bytesOf("wav"))).toEqual({ width: null, height: null, durationMs: 5480 });
+  });
+
+  it("returns nulls for a wav with no format chunk", () => {
+    // RIFF like WebP, so it also guards the WEBP check at byte 8.
     const wav = new Uint8Array(64);
     wav.set([0x52, 0x49, 0x46, 0x46], 0);
     wav.set([0x57, 0x41, 0x56, 0x45], 8);

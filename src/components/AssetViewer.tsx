@@ -61,6 +61,8 @@ export interface ViewerAsset {
    */
   jobId?: string | undefined;
   url: string;
+  /** Absent means an image, which is what every caller but the gallery holds. */
+  kind?: Generation["kind"] | undefined;
   prompt: string;
   familyId: string;
   w: number;
@@ -85,6 +87,7 @@ export function viewerAsset(gen: Generation, placeholderUrl?: string): ViewerAss
     id: gen.id,
     ...(gen.jobId ? { jobId: gen.jobId } : {}),
     url: gen.outputUrl ?? placeholderUrl ?? "",
+    kind: gen.kind,
     prompt: gen.prompt,
     familyId: gen.familyId,
     w: shape.w,
@@ -249,12 +252,23 @@ export function AssetViewer({
       style={{ background: "rgba(9,9,9,0.94)" }}
     >
       <div className="relative flex min-w-0 flex-1 items-center justify-center p-6">
-        <img
-          src={asset.url}
-          alt={asset.prompt}
-          className="max-h-full rounded-xl object-contain"
-          style={{ maxWidth: full ? "100%" : "min(100%, 46vh * var(--ar, 1))", aspectRatio: `${asset.w} / ${asset.h}` }}
-        />
+        {/* A clip in an <img> is a broken-image icon: the gallery opens videos here too. */}
+        {asset.kind === "video" ? (
+          <video
+            src={asset.url}
+            controls
+            playsInline
+            className="max-h-full rounded-xl object-contain"
+            style={{ maxWidth: full ? "100%" : "min(100%, 46vh * var(--ar, 1))", aspectRatio: `${asset.w} / ${asset.h}` }}
+          />
+        ) : (
+          <img
+            src={asset.url}
+            alt={asset.prompt}
+            className="max-h-full rounded-xl object-contain"
+            style={{ maxWidth: full ? "100%" : "min(100%, 46vh * var(--ar, 1))", aspectRatio: `${asset.w} / ${asset.h}` }}
+          />
+        )}
         <div className="absolute bottom-6 flex gap-1.5" style={{ insetInlineEnd: "1.5rem" }}>
           <button
             onClick={() => setFull((v) => !v)}

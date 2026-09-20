@@ -186,5 +186,17 @@
   },
   "recraft-remove-bg": {
     "model": "recraft/remove-background"
+  },
+  "gemini-3-1-flash-tts": {
+    "model": "google/gemini-3-1-flash-tts"
+  },
+  "gemini-2-5-pro-tts": {
+    "model": "google/gemini-2-5-pro-tts"
+  },
+  "suno-music": {
+    "model": "ai-music-api/generate"
+  },
+  "suno-sounds": {
+    "model": "ai-music-api/sounds"
   }
 }

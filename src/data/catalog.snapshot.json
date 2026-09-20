@@ -3769,6 +3769,351 @@
       ]
     },
     {
+      "id": "gemini-tts",
+      "name": "Gemini TTS",
+      "vendor": "Google",
+      "kind": "audio",
+      "minTier": 1,
+      "blurb": "گفتار با حالت و ریتم دلخواه — فارسی را هم می‌خواند",
+      "badge": "صدا",
+      "grad": "linear-gradient(135deg,#60a5fa,#312e81)",
+      "maxPrompt": 5000,
+      "controls": [
+        {
+          "kind": "segment",
+          "key": "voice_name",
+          "label": "صدا",
+          "options": [
+            {
+              "value": "Kore",
+              "label": "Kore — محکم"
+            },
+            {
+              "value": "Zephyr",
+              "label": "Zephyr — روشن"
+            },
+            {
+              "value": "Puck",
+              "label": "Puck — سرزنده"
+            },
+            {
+              "value": "Charon",
+              "label": "Charon — آموزشی"
+            },
+            {
+              "value": "Fenrir",
+              "label": "Fenrir — پرهیجان"
+            },
+            {
+              "value": "Leda",
+              "label": "Leda — جوان"
+            },
+            {
+              "value": "Orus",
+              "label": "Orus — محکم"
+            },
+            {
+              "value": "Aoede",
+              "label": "Aoede — سبک"
+            },
+            {
+              "value": "Callirrhoe",
+              "label": "Callirrhoe — آرام"
+            },
+            {
+              "value": "Autonoe",
+              "label": "Autonoe — روشن"
+            },
+            {
+              "value": "Enceladus",
+              "label": "Enceladus — نفس‌دار"
+            },
+            {
+              "value": "Iapetus",
+              "label": "Iapetus — شفاف"
+            },
+            {
+              "value": "Umbriel",
+              "label": "Umbriel — آرام"
+            },
+            {
+              "value": "Algieba",
+              "label": "Algieba — نرم"
+            },
+            {
+              "value": "Despina",
+              "label": "Despina — نرم"
+            },
+            {
+              "value": "Erinome",
+              "label": "Erinome — شفاف"
+            },
+            {
+              "value": "Algenib",
+              "label": "Algenib — خش‌دار"
+            },
+            {
+              "value": "Rasalgethi",
+              "label": "Rasalgethi — آموزشی"
+            },
+            {
+              "value": "Laomedeia",
+              "label": "Laomedeia — سرزنده"
+            },
+            {
+              "value": "Achernar",
+              "label": "Achernar — لطیف"
+            },
+            {
+              "value": "Alnilam",
+              "label": "Alnilam — محکم"
+            },
+            {
+              "value": "Schedar",
+              "label": "Schedar — یکنواخت"
+            },
+            {
+              "value": "Gacrux",
+              "label": "Gacrux — پخته"
+            },
+            {
+              "value": "Pulcherrima",
+              "label": "Pulcherrima — رک"
+            },
+            {
+              "value": "Achird",
+              "label": "Achird — صمیمی"
+            },
+            {
+              "value": "Zubenelgenubi",
+              "label": "Zubenelgenubi — خودمانی"
+            },
+            {
+              "value": "Vindemiatrix",
+              "label": "Vindemiatrix — ملایم"
+            },
+            {
+              "value": "Sadachbia",
+              "label": "Sadachbia — پرشور"
+            },
+            {
+              "value": "Sadaltager",
+              "label": "Sadaltager — کاردان"
+            },
+            {
+              "value": "Sulafat",
+              "label": "Sulafat — گرم"
+            }
+          ],
+          "def": "Kore"
+        },
+        {
+          "kind": "segment",
+          "key": "style",
+          "label": "حالت",
+          "options": [
+            {
+              "value": "",
+              "label": "معمولی"
+            },
+            {
+              "value": "Vocal Smile",
+              "label": "با لبخند"
+            },
+            {
+              "value": "Newscaster",
+              "label": "گوینده‌ی خبر"
+            },
+            {
+              "value": "Empathetic",
+              "label": "همدلانه"
+            },
+            {
+              "value": "Whisper",
+              "label": "نجوا"
+            },
+            {
+              "value": "Promo/Hype",
+              "label": "تبلیغاتی"
+            },
+            {
+              "value": "Deadpan",
+              "label": "بی‌احساس"
+            }
+          ],
+          "def": ""
+        },
+        {
+          "kind": "segment",
+          "key": "pace",
+          "label": "ریتم",
+          "options": [
+            {
+              "value": "Natural",
+              "label": "طبیعی"
+            },
+            {
+              "value": "Rapid Fire",
+              "label": "تند"
+            },
+            {
+              "value": "The Drift",
+              "label": "آرام و کشیده"
+            },
+            {
+              "value": "Staccato",
+              "label": "بریده‌بریده"
+            }
+          ],
+          "def": "Natural"
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "accent",
+          "label": "لهجه‌ی انگلیسی",
+          "options": [
+            {
+              "value": "Neutral",
+              "label": "خنثی"
+            },
+            {
+              "value": "American (Gen)",
+              "label": "آمریکایی"
+            },
+            {
+              "value": "British (RP)",
+              "label": "بریتانیایی"
+            },
+            {
+              "value": "Australian",
+              "label": "استرالیایی"
+            },
+            {
+              "value": "Transatlantic",
+              "label": "ترنس‌آتلانتیک"
+            }
+          ],
+          "def": "Neutral"
+        },
+        {
+          "advanced": true,
+          "kind": "text",
+          "key": "scene",
+          "label": "فضا",
+          "placeholder": "مثلاً: کتاب صوتی، لحن گرم و آرام"
+        }
+      ],
+      "variants": [
+        {
+          "id": "gemini-3-1-flash-tts",
+          "featureCode": "speech_generate",
+          "label": "3.1 Flash",
+          "badge": "سریع"
+        },
+        {
+          "id": "gemini-2-5-pro-tts",
+          "featureCode": "speech_generate",
+          "label": "2.5 Pro",
+          "badge": "کیفیت"
+        }
+      ]
+    },
+    {
+      "id": "suno",
+      "name": "Suno",
+      "vendor": "Suno",
+      "kind": "audio",
+      "minTier": 1,
+      "blurb": "آهنگ کامل با خواننده یا بی‌کلام، از یک توصیف",
+      "badge": "موسیقی",
+      "grad": "linear-gradient(135deg,#fb923c,#7c2d12)",
+      "maxPrompt": 3000,
+      "controls": [
+        {
+          "kind": "toggle",
+          "key": "instrumental",
+          "label": "بی‌کلام",
+          "def": false
+        },
+        {
+          "advanced": false,
+          "kind": "segment",
+          "key": "model",
+          "label": "نسخه",
+          "options": [
+            {
+              "value": "V6",
+              "label": "V6"
+            },
+            {
+              "value": "V6_MINI",
+              "label": "V6 Mini"
+            },
+            {
+              "value": "V6_WILD",
+              "label": "V6 Wild"
+            }
+          ],
+          "def": "V6"
+        }
+      ],
+      "variants": [
+        {
+          "id": "suno-music",
+          "featureCode": "music_generate",
+          "label": "آهنگ"
+        }
+      ]
+    },
+    {
+      "id": "suno-sounds",
+      "name": "Suno Sounds",
+      "vendor": "Suno",
+      "kind": "audio",
+      "minTier": 1,
+      "blurb": "افکت صوتی کوتاه از یک جمله",
+      "badge": "افکت",
+      "grad": "linear-gradient(135deg,#34d399,#064e3b)",
+      "maxPrompt": 500,
+      "controls": [
+        {
+          "kind": "toggle",
+          "key": "sound_loop",
+          "label": "قابل تکرار (لوپ)",
+          "def": false
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "model",
+          "label": "نسخه",
+          "options": [
+            {
+              "value": "V6",
+              "label": "V6"
+            },
+            {
+              "value": "V6_MINI",
+              "label": "V6 Mini"
+            },
+            {
+              "value": "V6_WILD",
+              "label": "V6 Wild"
+            }
+          ],
+          "def": "V6"
+        }
+      ],
+      "variants": [
+        {
+          "id": "suno-sounds",
+          "featureCode": "sound_generate",
+          "label": "افکت"
+        }
+      ]
+    },
+    {
       "id": "topaz",
       "name": "Topaz",
       "vendor": "Topaz Labs",

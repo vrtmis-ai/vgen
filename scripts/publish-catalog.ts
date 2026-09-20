@@ -70,6 +70,8 @@ const MODALITY_BY_FEATURE: Record<string, string> = {
   image_to_video: "video",
   video_edit: "video",
   speech_generate: "audio",
+  music_generate: "audio",
+  sound_generate: "audio",
   chat: "text",
 };
 

@@ -1,0 +1,177 @@
+{
+  "models": ["google/gemini-3-1-flash-tts"],
+  "title": "Gemini 3.1 Flash Text to speech",
+  "docUrl": "https://docs.kie.ai/market/google/gemini-3-1-flash-tts.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-19",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Gemini 3.1 Flash Text to speech — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "temperature": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 2,
+        "default": 1,
+        "description": "Sampling temperature, e.g., 1"
+      },
+      "scene": {
+        "type": "string",
+        "default": "",
+        "description": "Scene description, e.g., \"A quiet, warm room with a fireplace crackling softly.\""
+      },
+      "sample_context": {
+        "type": "string",
+        "default": "",
+        "description": "Sample context/overall tone, e.g., \"Audiobook style narration. Tone is gentle and inviting.\""
+      },
+      "speakers": {
+        "type": "array",
+        "description": "List of speaker configurations",
+        "items": {
+          "type": "object",
+          "properties": {
+            "speaker_id": {
+              "type": "string",
+              "description": "Speaker identifier, e.g., \"Speaker 1\" or \"Speaker 2\";Must be 「Speaker N」format"
+            },
+            "voice_name": {
+              "type": "string",
+              "description": "Voice name, e.g., \"Zephyr\", \"Fenrir\", \"Puck\"",
+              "enum": [
+                "Achernar",
+                "Achird",
+                "Algenib",
+                "Algieba",
+                "Alnilam",
+                "Aoede",
+                "Autonoe",
+                "Callirrhoe",
+                "Charon",
+                "Despina",
+                "Enceladus",
+                "Erinome",
+                "Fenrir",
+                "Gacrux",
+                "Iapetus",
+                "Kore",
+                "Laomedeia",
+                "Leda",
+                "Orus",
+                "Puck",
+                "Pulcherrima",
+                "Rasalgethi",
+                "Sadachbia",
+                "Sadaltager",
+                "Schedar",
+                "Sulafat",
+                "Umbriel",
+                "Vindemiatrix",
+                "Zephyr",
+                "Zubenelgenubi"
+              ]
+            },
+            "audio_profile": {
+              "type": "string",
+              "description": "Audio profile description, e.g., \"A warm and soothing narrator\" or \"A stern and weary gatekeeper\""
+            },
+            "accent": {
+              "type": "string",
+              "description": "Accent, e.g., \"British (RP)\" or \"American (Gen)\"",
+              "enum": [
+                "Neutral",
+                "American (Gen)",
+                "American (Valley)",
+                "American (South)",
+                "British (RP)",
+                "British (Brixton)",
+                "Transatlantic",
+                "Australian"
+              ]
+            },
+            "style": {
+              "type": "string",
+              "description": "Emotional style, e.g., \"Gentle\" or \"Deadpan\"",
+              "enum": ["Vocal Smile", "Newscaster", "Whisper", "Empathetic", "Promo/Hype", "Deadpan"]
+            },
+            "pace": {
+              "type": "string",
+              "description": "Pace, e.g., \"Slow\" or \"Natural\"",
+              "enum": ["Natural", "Rapid Fire", "The Drift", "Staccato"]
+            }
+          },
+          "required": ["speaker_id", "voice_name", "accent"]
+        }
+      },
+      "dialogue_turns": {
+        "type": "array",
+        "description": "List of dialogue turns, output in sequential order",
+        "items": {
+          "type": "object",
+          "properties": {
+            "speaker_id": {
+              "type": "string",
+              "description": "Corresponding speaker identifier, e.g., \"Speaker 1\""
+            },
+            "text": {
+              "type": "string",
+              "description": "The text spoken by the speaker, which may contain tone tags, e.g., \"Once upon a time, in a quiet valley hidden away...\"",
+              "maxLength": 10000
+            }
+          },
+          "required": ["speaker_id", "text"]
+        }
+      }
+    },
+    "required": ["speakers", "dialogue_turns"]
+  },
+  "examples": [
+    {
+      "model": "google/gemini-3-1-flash-tts",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "temperature": 1,
+        "scene": "A dark, crumbling dungeon...",
+        "sample_context": "Fantasy RPG style...",
+        "speakers": [
+          {
+            "speaker_id": "Speaker 1",
+            "voice_name": "Fenrir",
+            "audio_profile": "A stern and weary gatekeeper",
+            "accent": "British (RP)",
+            "style": "Deadpan",
+            "pace": "Natural"
+          },
+          {
+            "speaker_id": "Speaker 2",
+            "voice_name": "Puck",
+            "audio_profile": "A determined and courageous traveler seeking answers.",
+            "accent": "American (Gen)",
+            "style": "Empathetic",
+            "pace": "Staccato"
+          }
+        ],
+        "dialogue_turns": [
+          {
+            "speaker_id": "Speaker 1",
+            "text": "[shouting] Halt, traveler! The northern pass is sealed by order of the council."
+          },
+          {
+            "speaker_id": "Speaker 2",
+            "text": "[determination] I carry a message for the elder. Step aside, or I will force my way through."
+          },
+          {
+            "speaker_id": "Speaker 1",
+            "text": "[caution] No one passes. [pensive] The elder is... he's no longer receiving visitors."
+          },
+          {
+            "speaker_id": "Speaker 2",
+            "text": "It's too late. [whispers] The shadow... it reached him first. [urgency] You need to leave. [shouting] Now."
+          }
+        ]
+      }
+    }
+  ]
+}

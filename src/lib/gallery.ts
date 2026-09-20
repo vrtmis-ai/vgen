@@ -48,6 +48,13 @@ export interface Generation {
   /** URL in Vgen-owned storage, not an expiring provider URL. */
   outputUrl?: string | undefined;
   /**
+   * Every output after the first, for the models that answer with more than
+   * one. Suno sends two takes per request; the audio studio lists each, and
+   * everywhere else shows the first. They expire with `outputUrl` — one
+   * response signs them all.
+   */
+  moreOutputs?: { url: string; durationMs?: number | undefined }[] | undefined;
+  /**
    * The stored asset behind `outputUrl`, so this generation can be an *input*
    * to the next one. "To video" hands a finished image to a video model as its
    * opening frame, and the quote names references by asset id — the URL is
@@ -112,6 +119,7 @@ const GenerationSchema: z.ZodType<Generation> = z.object({
   outH: z.number().int().positive().optional(),
   durationMs: z.number().int().nonnegative().optional(),
   outputUrl: z.string().min(1).optional(),
+  moreOutputs: z.array(z.object({ url: z.string().min(1), durationMs: z.number().int().nonnegative().optional() })).optional(),
   outputAssetId: z.string().min(1).optional(),
   outputUrlExpiresAt: z.number().int().nonnegative().optional(),
   phash: z.string().min(1).optional(),

@@ -176,6 +176,31 @@ function openApiOf(markdown: string): Record<string, unknown> | null {
   }
 }
 
+/**
+ * A parameter's spec, or its spec one array down when the adapter nests it.
+ *
+ * Gemini TTS is why: voice, accent, style and pace are settings of a speaker,
+ * so the adapter moves them into `speakers[0]` and the schema documents them
+ * under `speakers.items`. One level, because that is as deep as anything goes.
+ */
+function propertyOf(props: Record<string, unknown>, key: string): unknown {
+  if (props[key]) return props[key];
+  for (const spec of Object.values(props)) {
+    const inner = asRecord(asRecord(asRecord(spec).items).properties)[key];
+    if (inner) return inner;
+  }
+  return undefined;
+}
+
+/** The value a setting was sent as, found the same way `propertyOf` finds its spec. */
+function sentValue(sent: Record<string, unknown>, key: string): unknown {
+  if (key in sent) return sent[key];
+  for (const value of Object.values(sent)) {
+    if (Array.isArray(value) && key in asRecord(value[0])) return asRecord(value[0])[key];
+  }
+  return undefined;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -334,7 +359,7 @@ function audit(schemas: ModelSchema[]): string[] {
       };
 
       for (const control of controls) {
-        const spec = props[control.key];
+        const spec = propertyOf(props, control.key);
         if (!spec) {
           problems.push(`${variant.id}: control "${control.key}" is not a parameter of ${model}`);
           continue;
@@ -342,7 +367,9 @@ function audit(schemas: ModelSchema[]): string[] {
         const enumValues = asRecord(spec).enum as unknown[] | undefined;
         if (!enumValues || !("options" in control)) continue;
         for (const option of control.options) {
-          if (!enumValues.includes(sentAs({ [control.key]: option.value })[control.key])) {
+          const value = sentValue(sentAs({ [control.key]: option.value }), control.key);
+          // Absent is the adapter leaving a "none" out, which no enum can refuse.
+          if (value !== undefined && !enumValues.includes(value)) {
             problems.push(`${variant.id}: ${control.key}="${option.value}" is not in ${model}'s enum`);
           }
         }

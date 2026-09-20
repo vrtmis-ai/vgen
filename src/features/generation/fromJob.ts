@@ -56,12 +56,18 @@ export function generationFromJob(job: GenerationJob, families: readonly Family[
     ...(output?.width && output.height ? { outW: output.width, outH: output.height } : {}),
     ...(output?.durationMs ? { durationMs: output.durationMs } : {}),
     ...(output?.url ? { outputUrl: output.url } : {}),
+    ...(job.outputs.length > 1 ? { moreOutputs: moreOutputsOf(job) } : {}),
     ...(output?.assetId ? { outputAssetId: output.assetId } : {}),
     ...(output?.url && job.urlsExpireAt ? { outputUrlExpiresAt: job.urlsExpireAt } : {}),
     status,
     ...(job.error ? { error: job.error } : {}),
     createdAt: job.createdAt,
   };
+}
+
+/** The outputs after the first — a Suno request's second take. See `moreOutputs`. */
+export function moreOutputsOf(job: GenerationJob): NonNullable<Generation["moreOutputs"]> {
+  return job.outputs.slice(1).map((output) => ({ url: output.url, ...(output.durationMs ? { durationMs: output.durationMs } : {}) }));
 }
 
 /**
@@ -109,6 +115,8 @@ export function sameGenerations(left: readonly Generation[], right: readonly Gen
       gen.outputAssetId === other.outputAssetId &&
       gen.outW === other.outW &&
       gen.outH === other.outH &&
+      gen.durationMs === other.durationMs &&
+      gen.moreOutputs?.[0]?.url === other.moreOutputs?.[0]?.url &&
       gen.error?.code === other.error?.code
     );
   });

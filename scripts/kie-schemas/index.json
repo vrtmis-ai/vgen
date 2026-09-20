@@ -1,7 +1,19 @@
 {
-  "fetchedAt": "2026-09-13",
+  "fetchedAt": "2026-09-19",
   "source": "https://docs.kie.ai/llms.txt",
   "models": [
+    {
+      "model": "ai-music-api/generate",
+      "title": "Generate Music",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/suno-api/generate-music.md"
+    },
+    {
+      "model": "ai-music-api/sounds",
+      "title": "Generate sounds",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/suno-api/generate-sounds.md"
+    },
     {
       "model": "bytedance/seedance-1.5-pro",
       "title": "Bytedance Seedance 1.5 Pro",
@@ -61,6 +73,18 @@
       "title": "Gemini Omni Video",
       "endpoint": "/api/v1/jobs/createTask",
       "docUrl": "https://docs.kie.ai/market/gemini-omni-video.md"
+    },
+    {
+      "model": "google/gemini-2-5-pro-tts",
+      "title": "Gemini 2.5 Pro Text to Speech",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/google/gemini-2-5-pro-tts.md"
+    },
+    {
+      "model": "google/gemini-3-1-flash-tts",
+      "title": "Gemini 3.1 Flash Text to speech",
+      "endpoint": "/api/v1/jobs/createTask",
+      "docUrl": "https://docs.kie.ai/market/google/gemini-3-1-flash-tts.md"
     },
     {
       "model": "google/imagen4",

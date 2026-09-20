@@ -157,7 +157,8 @@ recommended first. Do not sort them.
 
 **New field: `variant.featureCode`.** It names the section of the product a
 variant belongs to — `image_generate`, `image_edit`, `video_generate`,
-`image_to_video`, `video_edit`, `speech_generate`. A screen mostly does not need
+`image_to_video`, `video_edit`, `speech_generate`, `music_generate`,
+`sound_generate`. A screen mostly does not need
 it, but it is the honest way to answer "is this thing a generator or an
 editor?", and it is what a job gets filed under. It is required, so it is always
 there.
@@ -169,6 +170,9 @@ Two consequences worth knowing, because neither is guessable from the family:
 - Both `hailuo` variants are `image_to_video` — there is no text-only path
   through them, and their `image_url` slot is `required: true`. Their neighbours
   in `kling` and `wan` are `video_generate` and take an image optionally.
+- `suno` (`music_generate`) and `suno-sounds` (`sound_generate`) answer one
+  request with two takes, so a finished job's `outputs` holds two audio files.
+  Read all of them: the first is not the only thing that was paid for.
 
 **Where it comes from.** `provider_models`, grouped by the `family` column, with
 everything a screen renders in `capabilities`. Not a table of frozen JSON

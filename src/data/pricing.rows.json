@@ -69,6 +69,26 @@
       "isOffered": true
     },
     {
+      "variantId": "gemini-2-5-pro-tts",
+      "featureCode": "speech_generate",
+      "selector": {},
+      "pricingMode": "derived",
+      "quantity": "characters",
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-3-1-flash-tts",
+      "featureCode": "speech_generate",
+      "selector": {},
+      "pricingMode": "derived",
+      "quantity": "characters",
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "gemini-omni-video",
       "featureCode": "video_generate",
       "selector": {
@@ -1309,6 +1329,26 @@
       "pricingMode": "fixed",
       "quantity": "none",
       "microCredits": 1100000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "suno-music",
+      "featureCode": "music_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 2400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "suno-sounds",
+      "featureCode": "sound_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 500000,
       "maxBillableUnits": null,
       "isOffered": true
     },

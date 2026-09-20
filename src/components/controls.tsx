@@ -4,7 +4,7 @@ import { Plus, X, Play, Pause, SpeakerHigh } from "@phosphor-icons/react";
 import type { Control, RefSlot, SlotMedia } from "../data/models";
 import { voicePreviewUrl } from "../features/content/labels";
 import { usePublishedContent } from "../features/content/ContentProvider";
-import { faNum } from "../lib/format";
+import { faNum, promptDir } from "../lib/format";
 
 export type InputValue = string | number | boolean;
 export type InputMap = Record<string, InputValue>;
@@ -78,6 +78,26 @@ function Segmented({
   value: string;
   onChange: (v: string) => void;
 }) {
+  // One unwrapped row fits about six in the dock's column. Past that — Gemini's
+  // thirty voices — the platform's own list is the control that scrolls.
+  if (control.options.length > 6) {
+    return (
+      <FieldShell label={control.label}>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={control.label}
+          className="w-full rounded-2xl border border-line bg-card2 px-3 py-2.5 text-[12.5px] text-ink"
+        >
+          {control.options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </FieldShell>
+    );
+  }
   return (
     <FieldShell label={control.label}>
       <div className="flex gap-1.5 rounded-2xl bg-card2 p-1">
@@ -177,11 +197,14 @@ function NegText({
         onChange={(e) => onChange(e.target.value)}
         placeholder={control.placeholder}
         rows={2}
+        // As the prompt boxes do: the first letter typed decides the edge. This
+        // was forced left-to-right under a Persian placeholder.
+        dir={promptDir(value)}
         /* No `focus:outline-none`. The app-wide ring is
            `:where(…):focus-visible`, which has zero specificity, so a Tailwind
            `focus:outline-none` beat it and left a border tint as the only
            focus signal — and on `:focus`, so it also fired on a plain click. */
-        className="ltr w-full resize-none rounded-2xl border border-line bg-card2 p-3 text-[13px] text-ink placeholder:text-ink3 focus-visible:border-line2"
+        className="w-full resize-none rounded-2xl border border-line bg-card2 p-3 text-[13px] text-ink placeholder:text-ink3 focus-visible:border-line2"
       />
     </FieldShell>
   );
