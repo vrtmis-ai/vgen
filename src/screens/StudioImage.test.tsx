@@ -10,6 +10,7 @@ import { AppServicesProvider } from "../runtime/AppServices";
 import { SessionProvider, type Session } from "../runtime/providers/SessionProvider";
 import type { Generation } from "../lib/gallery";
 import StudioImage from "./StudioImage";
+import { FailedVeil } from "../components/GenerationVeils";
 import type { GenerationRefusal } from "../features/generation/validation";
 
 /* ---------------------------------------------------------------------------
@@ -208,5 +209,51 @@ describe("a refusal in the image dock", () => {
     show([], vi.fn(), refusal);
 
     expect(await screen.findByRole("button", { name: "شارژ کیف پول" })).toBeInTheDocument();
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   The reason, on a tile with no room for it.
+
+   The wall's tiles shrink with the density control and with the window, and
+   below 110px the refusal keeps only its status word. `title` carried the
+   sentence, which is a tooltip, which is a thing a phone does not have — so on
+   the screen where the tiles are smallest, nobody could find out why.
+   --------------------------------------------------------------------------- */
+describe("a refused tile too short to print the reason", () => {
+  const refused: Generation = {
+    id: "g-short",
+    jobId: "job-short",
+    familyId: "nano-banana",
+    variantId: "nano-banana-pro",
+    name: "Nano Banana",
+    vendor: "Google",
+    grad: "linear-gradient(#000,#111)",
+    kind: "image",
+    prompt: "a portrait",
+    w: 1,
+    h: 1,
+    status: "failed",
+    error: { code: "content_policy", message: "" },
+    createdAt: 5,
+  };
+
+  it("opens the sentence on a press rather than only on hover", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AppServicesProvider services={createDemoServices()}>
+          <LanguageProvider initialLang="fa">
+            <FailedVeil gen={refused} lines={0} />
+          </LanguageProvider>
+        </AppServicesProvider>
+      </QueryClientProvider>,
+    );
+
+    const opener = screen.getByRole("button", { name: /انجام نشد — چرا/ });
+    expect(screen.queryByText(/این درخواست پذیرفته نشد/)).toBeNull();
+
+    await userEvent.click(opener);
+
+    expect(screen.getByText(/این درخواست پذیرفته نشد/)).toBeInTheDocument();
   });
 });

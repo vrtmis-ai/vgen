@@ -136,6 +136,12 @@ export function CancelButton({ onCancel, className }: { onCancel: () => CancelPr
  *
  * The remove button means this must never sit inside another button. A card
  * that opens something keeps this as a sibling, the way کارهای من does.
+ *
+ * On a tile too short to print the reason, the status word becomes the way to
+ * read it: pressing it opens the sentence over the tile. `title` was carrying
+ * that alone, and a tooltip is a thing a touch screen does not have — the wall
+ * shrinks to 110px tiles on a phone, which is exactly where nobody could find
+ * out why their generation failed.
  */
 export function FailedVeil({
   gen,
@@ -156,6 +162,9 @@ export function FailedVeil({
      answers a question they did not ask. */
   const cancelled = gen.status === "cancelled";
   const reason = cancelled ? t("gal_cancelled_note") : jobFailureMessage(gen.error?.code);
+  const [opened, setOpened] = useState(false);
+  // A tile with no room for the sentence, until it is asked for.
+  const compact = lines <= 0 && !opened;
   return (
     <div
       className="absolute inset-0 flex flex-col justify-end p-2"
@@ -170,7 +179,7 @@ export function FailedVeil({
            there is, so it goes in the body and the icon takes the label's
            place — a bold «انجام نشد:» with nothing after the colon is a
            sentence cut in half. */
-        label={lines > 0 ? t(cancelled ? "gal_cancelled" : "gal_failed") : true}
+        label={compact ? true : t(cancelled ? "gal_cancelled" : "gal_failed")}
         action={
           onRemove && (
             <button
@@ -190,18 +199,28 @@ export function FailedVeil({
           )
         }
       >
-        {lines > 0 ? (
-          // `title` carries the whole sentence where a short tile clamps it.
+        {compact ? (
+          /* The status word, and the press that opens the reason. A button
+             rather than a `title`, because the tiles this branch draws are the
+             small ones and small tiles are what a phone gets. */
+          <button
+            type="button"
+            onClick={() => setOpened(true)}
+            title={reason}
+            aria-expanded={false}
+            aria-label={`${t(cancelled ? "gal_cancelled" : "gal_failed")} — ${t("gal_why")}`}
+            className="font-semibold underline decoration-dotted underline-offset-2"
+          >
+            {t(cancelled ? "gal_cancelled" : "gal_failed")}
+          </button>
+        ) : (
+          // `title` still carries the whole sentence where a tile clamps it.
           <span
             title={reason}
             className="block overflow-hidden"
-            style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: lines }}
+            style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: lines > 0 ? lines : 4 }}
           >
             {reason}
-          </span>
-        ) : (
-          <span title={reason} className="font-semibold">
-            {t(cancelled ? "gal_cancelled" : "gal_failed")}
           </span>
         )}
       </Note>
