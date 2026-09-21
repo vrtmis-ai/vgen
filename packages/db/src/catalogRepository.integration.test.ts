@@ -429,8 +429,8 @@ describe("Postgres catalog repository", () => {
         variant: {
           ...base.variant,
           refs: [
-            { key: "start_frame", label: "start", max: 1, group: "frame" },
-            { key: "character", label: "character", max: 2 },
+            { key: "start_frame", role: "first_frame", label: "start", max: 1, group: "frame" },
+            { key: "character", role: "reference", label: "character", max: 2 },
           ],
         },
       };
@@ -442,7 +442,8 @@ describe("Postgres catalog repository", () => {
       const snapshot = await new PostgresCatalogRepository(tx).list();
       const refs = snapshot.families.find((family) => family.id === "grouped")?.variants[0]?.refs;
 
-      expect(refs?.[0]).toMatchObject({ key: "start_frame", group: "frame" });
+      expect(refs?.[0]).toMatchObject({ key: "start_frame", group: "frame", role: "first_frame" });
+      expect(refs?.[1]).toMatchObject({ role: "reference" });
       // Absent stays absent rather than being defaulted to "reference" here.
       // The default belongs to whoever renders it; writing it in would make
       // every existing slot look like it had been edited.

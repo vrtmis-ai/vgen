@@ -114,16 +114,12 @@ export function dependenciesMet(slots: RefSlot[], filled: Record<string, number>
 }
 
 /**
- * The one word a tile wears once a file has been given this frame's part:
- * "فریم شروع (اختیاری)" → "شروع".
+ * The one word a frame tile wears: which end of the clip it is.
  *
- * Derived rather than declared, because `RefSlot` has no field for it and
- * `src/data/` is shared — adding one is a conversation with the backend owner,
- * not a unilateral edit. The test asserts this against every frame slot in the
- * catalogue, so a re-labelled slot fails there rather than dropping a
- * parenthetical onto a 72px tile.
+ * Read from the slot's declared role. It used to be parsed out of the label —
+ * the last word of "فریم شروع (اختیاری)" — which held only as long as nobody
+ * re-worded one.
  */
-export function roleWord(slot: RefSlot): string {
-  const withoutAside = slot.label.replace(/\s*\([^)]*\)\s*$/, "").trim();
-  return withoutAside.split(/\s+/).pop() || slot.label;
+export function frameWord(slot: RefSlot): string {
+  return slot.role === "last_frame" ? "پایان" : "شروع";
 }

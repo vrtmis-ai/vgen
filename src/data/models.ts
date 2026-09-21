@@ -46,11 +46,26 @@ export type Control =
 /** What a slot accepts. Absent means image, which is what most slots take. */
 export type SlotMedia = "image" | "video" | "audio";
 
+/**
+ * What a slot's file is *for*, whatever the provider calls the field.
+ *
+ * `key` is the provider's field name and cannot be tidied — `image_url` is the
+ * opening frame on one model and reference material on another, and the same
+ * opening frame is `first_frame_url` here and `first_frame` there. The role is
+ * the fact the key does not carry: it names a tile without parsing its label,
+ * and it is what lets «this file is the opening frame» move between two
+ * entrances of one model that spell the field differently.
+ *
+ * A frame slot (`group: "frame"`) is always `first_frame` or `last_frame`.
+ */
+export type SlotRole = "reference" | "first_frame" | "last_frame" | "source_video" | "source_audio" | "mask";
+
 export interface RefSlot {
   /** `frame` is a position in the clip; `reference` is material to draw from.
    *  Absent means reference. See the contract for why they are separate. */
   group?: "reference" | "frame";
   key: string;
+  role: SlotRole;
   label: string;
   max: number;
   /** Image unless stated. Drives the file picker's filter and the preview. */
@@ -256,7 +271,7 @@ const gptImage25Controls: Control[] = [
  * `required`, because `input_urls` is Required in KIE's schema: without it the
  * job is refused after the hold is taken. 16 is their `maxItems`.
  */
-const gptImage25Refs: RefSlot[] = [{ key: "input_urls", label: "تصاویر ورودی", max: 16, required: true }];
+const gptImage25Refs: RefSlot[] = [{ key: "input_urls", role: "reference", label: "تصاویر ورودی", max: 16, required: true }];
 
 /** Kling 3 Turbo's, minus aspect_ratio, which only its text model has. */
 const klingTurboControls: Control[] = [
@@ -588,7 +603,7 @@ export const FAMILIES: Family[] = [
     badge: "محبوب",
     grad: "linear-gradient(135deg,#f6d365,#fda085)",
     cover: "https://file.aiquickdraw.com/custom-page/akr/section-images/1756223371764w82dsmi4.png",
-    refs: [{ key: "image_input", label: "تصاویر ورودی (اختیاری)", max: 8 }],
+    refs: [{ key: "image_input", role: "reference", label: "تصاویر ورودی (اختیاری)", max: 8 }],
     controls: [
       {
         kind: "aspect",
@@ -636,7 +651,7 @@ export const FAMILIES: Family[] = [
         label: "نسخه ۲",
         badge: "جدید",
         unlimited: { dailyCap: 50, minTier: 3, limits: { resolution: ["1K", "2K"] } },
-        refs: [{ key: "image_input", label: "تصاویر ورودی (اختیاری)", max: 14 }],
+        refs: [{ key: "image_input", role: "reference", label: "تصاویر ورودی (اختیاری)", max: 14 }],
         controls: [
           {
             kind: "aspect",
@@ -938,9 +953,9 @@ export const FAMILIES: Family[] = [
     // (25 vs 41 credits/s at 720p); pricing still quotes the dearer one, so that
     // difference lands in our margin rather than the user's bill.
     refs: [
-      { key: "reference_image_urls", label: "تصاویر مرجع / سوژه (اختیاری)", max: 9, maxMb: 30 },
-      { key: "reference_video_urls", label: "ویدیوی مرجع (اختیاری)", max: 3, media: "video", maxMb: 50 },
-      { key: "reference_audio_urls", label: "صدای مرجع (اختیاری)", max: 3, media: "audio", maxMb: 15 },
+      { key: "reference_image_urls", role: "reference", label: "تصاویر مرجع / سوژه (اختیاری)", max: 9, maxMb: 30 },
+      { key: "reference_video_urls", role: "reference", label: "ویدیوی مرجع (اختیاری)", max: 3, media: "video", maxMb: 50 },
+      { key: "reference_audio_urls", role: "reference", label: "صدای مرجع (اختیاری)", max: 3, media: "audio", maxMb: 15 },
     ],
     controls: seedanceControls(["480p", "720p", "1080p", "4k"]),
     variants: [
@@ -993,7 +1008,7 @@ export const FAMILIES: Family[] = [
         id: "seedance-1-5-pro",
         featureCode: "video_generate",
         label: "۱٫۵ Pro",
-        refs: [{ key: "input_urls", label: "تصاویر ورودی (اختیاری)", max: 2 }],
+        refs: [{ key: "input_urls", role: "reference", label: "تصاویر ورودی (اختیاری)", max: 2 }],
         controls: [
           {
             kind: "aspect",
@@ -1031,10 +1046,18 @@ export const FAMILIES: Family[] = [
        two files you just added is which, and silently made the order you
        happened to pick them in the thing that decided. */
     refs: [
-      { group: "frame", key: "image_url_start", label: "فریم شروع (اختیاری)", max: 1, sends: { key: "image_urls", at: 0 } },
+      {
+        group: "frame",
+        key: "image_url_start",
+        role: "first_frame",
+        label: "فریم شروع (اختیاری)",
+        max: 1,
+        sends: { key: "image_urls", at: 0 },
+      },
       {
         group: "frame",
         key: "image_url_end",
+        role: "last_frame",
         label: "فریم پایان (اختیاری)",
         max: 1,
         requires: "image_url_start",
@@ -1097,7 +1120,7 @@ export const FAMILIES: Family[] = [
         featureCode: "image_to_video",
         label: "۳٫۰ Turbo تصویر",
         badge: "سریع",
-        refs: [{ key: "image_urls", label: "تصویر ورودی (الزامی)", max: 1, required: true, maxMb: 10 }],
+        refs: [{ key: "image_urls", role: "reference", label: "تصویر ورودی (الزامی)", max: 1, required: true, maxMb: 10 }],
         controls: klingTurboControls,
       },
       {
@@ -1116,7 +1139,7 @@ export const FAMILIES: Family[] = [
         id: "kling-2-6-i2v",
         featureCode: "image_to_video",
         label: "۲٫۶ تصویر",
-        refs: [{ key: "image_urls", label: "تصویر ورودی (الزامی)", max: 1, required: true, maxMb: 10 }],
+        refs: [{ key: "image_urls", role: "reference", label: "تصویر ورودی (الزامی)", max: 1, required: true, maxMb: 10 }],
         controls: kling26Controls,
       },
       {
@@ -1128,8 +1151,8 @@ export const FAMILIES: Family[] = [
         label: "Motion Control",
         badge: "جدید",
         refs: [
-          { key: "input_urls", label: "تصویر شخصیت (الزامی)", max: 1, required: true, maxMb: 10 },
-          { key: "video_urls", label: "ویدیوی حرکت (الزامی)", max: 1, required: true, media: "video", maxMb: 100 },
+          { key: "input_urls", role: "reference", label: "تصویر شخصیت (الزامی)", max: 1, required: true, maxMb: 10 },
+          { key: "video_urls", role: "source_video", label: "ویدیوی حرکت (الزامی)", max: 1, required: true, media: "video", maxMb: 100 },
         ],
         controls: motionControlControls,
       },
@@ -1139,8 +1162,8 @@ export const FAMILIES: Family[] = [
         label: "Motion Control ۲٫۶",
         badge: "ارزان",
         refs: [
-          { key: "input_urls", label: "تصویر شخصیت (الزامی)", max: 1, required: true, maxMb: 10 },
-          { key: "video_urls", label: "ویدیوی حرکت (الزامی)", max: 1, required: true, media: "video", maxMb: 100 },
+          { key: "input_urls", role: "reference", label: "تصویر شخصیت (الزامی)", max: 1, required: true, maxMb: 10 },
+          { key: "video_urls", role: "source_video", label: "ویدیوی حرکت (الزامی)", max: 1, required: true, media: "video", maxMb: 100 },
         ],
         controls: motionControlControls,
       },
@@ -1162,8 +1185,24 @@ export const FAMILIES: Family[] = [
         featureCode: "image_to_video",
         label: "۲٫۵ Turbo تصویر",
         refs: [
-          { key: "image_url", group: "frame" as const, label: "فریم شروع (الزامی)", max: 1, required: true, maxMb: 10 },
-          { key: "tail_image_url", group: "frame" as const, label: "فریم پایان (اختیاری)", max: 1, requires: "image_url", maxMb: 10 },
+          {
+            key: "image_url",
+            role: "first_frame",
+            group: "frame" as const,
+            label: "فریم شروع (الزامی)",
+            max: 1,
+            required: true,
+            maxMb: 10,
+          },
+          {
+            key: "tail_image_url",
+            role: "last_frame",
+            group: "frame" as const,
+            label: "فریم پایان (اختیاری)",
+            max: 1,
+            requires: "image_url",
+            maxMb: 10,
+          },
         ],
         controls: kling25TurboControls,
       },
@@ -1219,8 +1258,24 @@ export const FAMILIES: Family[] = [
         featureCode: "image_to_video",
         label: "H3 تصویر",
         refs: [
-          { key: "first_frame_url", group: "frame" as const, label: "فریم شروع (الزامی)", max: 1, required: true, maxMb: 20 },
-          { key: "last_frame_url", group: "frame" as const, label: "فریم پایان (اختیاری)", max: 1, requires: "first_frame_url", maxMb: 20 },
+          {
+            key: "first_frame_url",
+            role: "first_frame",
+            group: "frame" as const,
+            label: "فریم شروع (الزامی)",
+            max: 1,
+            required: true,
+            maxMb: 20,
+          },
+          {
+            key: "last_frame_url",
+            role: "last_frame",
+            group: "frame" as const,
+            label: "فریم پایان (اختیاری)",
+            max: 1,
+            requires: "first_frame_url",
+            maxMb: 20,
+          },
         ],
         controls: [
           QUALITY("2K", ["768P", "2K"]),
@@ -1236,8 +1291,8 @@ export const FAMILIES: Family[] = [
         featureCode: "image_to_video",
         label: "H3 مرجع",
         refs: [
-          { key: "reference_image_urls", label: "تصاویر مرجع / سوژه (الزامی)", max: 5, required: true, maxMb: 30 },
-          { key: "reference_audio_urls", label: "صدای مرجع (اختیاری)", max: 3, media: "audio", maxMb: 15 },
+          { key: "reference_image_urls", role: "reference", label: "تصاویر مرجع / سوژه (الزامی)", max: 5, required: true, maxMb: 30 },
+          { key: "reference_audio_urls", role: "reference", label: "صدای مرجع (اختیاری)", max: 3, media: "audio", maxMb: 15 },
         ],
       },
     ],
@@ -1271,7 +1326,7 @@ export const FAMILIES: Family[] = [
         featureCode: "image_to_video",
         maxPrompt: 800,
         label: "۲٫۵ تصویر",
-        refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
+        refs: [{ key: "image_url", role: "reference", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
         controls: wan25Controls.filter((control) => control.key !== "aspect_ratio"),
       },
       {
@@ -1286,7 +1341,7 @@ export const FAMILIES: Family[] = [
         id: "wan-2-6-i2v",
         featureCode: "image_to_video",
         label: "۲٫۶ تصویر",
-        refs: [{ key: "image_urls", label: "تصویر ورودی (الزامی)", max: 1, required: true, maxMb: 10 }],
+        refs: [{ key: "image_urls", role: "reference", label: "تصویر ورودی (الزامی)", max: 1, required: true, maxMb: 10 }],
         controls: wan26Controls,
       },
       {
@@ -1294,6 +1349,9 @@ export const FAMILIES: Family[] = [
         id: "wan-2-7",
         featureCode: "video_generate",
         label: "۲٫۷",
+        // The text-to-video endpoint's one file field (#98): a soundtrack the
+        // clip is made to. 50MB, as the same model's driving audio.
+        refs: [{ key: "audio_url", role: "source_audio", label: "صدای ویدیو (اختیاری)", max: 1, media: "audio", maxMb: 50 }],
         controls: [
           {
             kind: "aspect",
@@ -1314,9 +1372,25 @@ export const FAMILIES: Family[] = [
         featureCode: "image_to_video",
         label: "۲٫۷ تصویر",
         refs: [
-          { key: "first_frame_url", group: "frame" as const, label: "فریم شروع (الزامی)", max: 1, required: true, maxMb: 30 },
-          { key: "last_frame_url", group: "frame" as const, label: "فریم پایان (اختیاری)", max: 1, requires: "first_frame_url", maxMb: 30 },
-          { key: "driving_audio_url", label: "صدای هدایت‌گر (اختیاری)", max: 1, media: "audio", maxMb: 50 },
+          {
+            key: "first_frame_url",
+            role: "first_frame",
+            group: "frame" as const,
+            label: "فریم شروع (الزامی)",
+            max: 1,
+            required: true,
+            maxMb: 30,
+          },
+          {
+            key: "last_frame_url",
+            role: "last_frame",
+            group: "frame" as const,
+            label: "فریم پایان (اختیاری)",
+            max: 1,
+            requires: "first_frame_url",
+            maxMb: 30,
+          },
+          { key: "driving_audio_url", role: "source_audio", label: "صدای هدایت‌گر (اختیاری)", max: 1, media: "audio", maxMb: 50 },
         ],
         controls: wan27Controls,
       },
@@ -1334,8 +1408,8 @@ export const FAMILIES: Family[] = [
         label: "۲٫۷ ویرایش",
         badge: "ویدیو",
         refs: [
-          { key: "video_url", label: "ویدیوی ورودی (الزامی)", max: 1, required: true, media: "video", maxMb: 100 },
-          { key: "reference_image", label: "تصویر مرجع (اختیاری)", max: 1, maxMb: 30 },
+          { key: "video_url", role: "source_video", label: "ویدیوی ورودی (الزامی)", max: 1, required: true, media: "video", maxMb: 100 },
+          { key: "reference_image", role: "reference", label: "تصویر مرجع (اختیاری)", max: 1, maxMb: 30 },
         ],
         controls: [
           {
@@ -1396,8 +1470,8 @@ export const FAMILIES: Family[] = [
         featureCode: "image_to_video",
         label: "۲٫۷ مرجع",
         refs: [
-          { key: "reference_image", label: "تصاویر مرجع (الزامی)", max: 5, required: true },
-          { key: "first_frame", group: "frame" as const, label: "فریم شروع (اختیاری)", max: 1 },
+          { key: "reference_image", role: "reference", label: "تصاویر مرجع (الزامی)", max: 5, required: true },
+          { key: "first_frame", role: "first_frame", group: "frame" as const, label: "فریم شروع (اختیاری)", max: 1 },
         ],
         controls: [
           {
@@ -1446,7 +1520,7 @@ export const FAMILIES: Family[] = [
         id: "hailuo-2-3",
         featureCode: "image_to_video",
         label: "۲٫۳ Pro",
-        refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
+        refs: [{ key: "image_url", role: "reference", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
         controls: hailuo23Controls,
       },
       {
@@ -1454,7 +1528,7 @@ export const FAMILIES: Family[] = [
         featureCode: "image_to_video",
         label: "۲٫۳ استاندارد",
         badge: "ارزان",
-        refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
+        refs: [{ key: "image_url", role: "reference", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
         controls: hailuo23Controls,
       },
     ],
@@ -1474,7 +1548,7 @@ export const FAMILIES: Family[] = [
     badge: "جدید",
     grad: "linear-gradient(135deg,#34d399,#3b82f6)",
     // The API documents no cap on the number of images; this is a UI limit.
-    refs: [{ key: "image_urls", label: "تصاویر ورودی (اختیاری)", max: 4 }],
+    refs: [{ key: "image_urls", role: "reference", label: "تصاویر ورودی (اختیاری)", max: 4 }],
     controls: [
       { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "16:9", options: [ratios.l169, ratios.p916] },
       // 720p and 1080p cost exactly the same at every duration, so 720p is
@@ -1523,10 +1597,18 @@ export const FAMILIES: Family[] = [
        and last — which is why the end slot names the start as its dependency
        rather than being independently fillable. */
     refs: [
-      { group: "frame", key: "image_url_start", label: "فریم شروع (اختیاری)", max: 1, sends: { key: "imageUrls", at: 0 } },
+      {
+        group: "frame",
+        key: "image_url_start",
+        role: "first_frame",
+        label: "فریم شروع (اختیاری)",
+        max: 1,
+        sends: { key: "imageUrls", at: 0 },
+      },
       {
         group: "frame",
         key: "image_url_end",
+        role: "last_frame",
         label: "فریم پایان (اختیاری)",
         max: 1,
         requires: "image_url_start",
@@ -1689,7 +1771,7 @@ export const FAMILIES: Family[] = [
     badge: "ابزار",
     grad: "linear-gradient(135deg,#64748b,#1e293b)",
     noPrompt: true,
-    refs: [{ key: "image_url", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
+    refs: [{ key: "image_url", role: "reference", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
     controls: [
       // The schema's enum is 1/2/4. 8x was offered here and priced, and KIE
       // refuses it. 1x is left out rather than sold at a made-up price: the rate
@@ -1713,7 +1795,9 @@ export const FAMILIES: Family[] = [
         id: "topaz-video-upscale",
         featureCode: "video_edit",
         label: "ویدیو",
-        refs: [{ key: "video_url", label: "ویدیوی ورودی (الزامی)", max: 1, required: true, media: "video", maxMb: 50 }],
+        refs: [
+          { key: "video_url", role: "source_video", label: "ویدیوی ورودی (الزامی)", max: 1, required: true, media: "video", maxMb: 50 },
+        ],
         controls: [
           {
             kind: "segment",
@@ -1741,7 +1825,7 @@ export const FAMILIES: Family[] = [
     grad: "linear-gradient(135deg,#a78bfa,#4c1d95)",
     noPrompt: true,
     // Note the field is `image` here, where Topaz calls the same thing image_url.
-    refs: [{ key: "image", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
+    refs: [{ key: "image", role: "reference", label: "تصویر ورودی (الزامی)", max: 1, required: true }],
     controls: [],
     variants: [
       { id: "recraft-crisp-upscale", featureCode: "image_edit", label: "بزرگ‌نمایی", badge: "ارزان" },
