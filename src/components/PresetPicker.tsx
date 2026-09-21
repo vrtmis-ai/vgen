@@ -125,7 +125,7 @@ export function PresetPicker({
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="جستجوی افکت"
-              className="w-full bg-transparent text-[12.5px] outline-none"
+              className="vg-field-pad w-full bg-transparent text-[12.5px] outline-none"
               style={{ color: "var(--vg-text)" }}
             />
           </div>

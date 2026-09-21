@@ -28,8 +28,11 @@ afterAll(async () => {
 async function subscribe(tx: Sql, accountId: string, tier: number): Promise<void> {
   const suffix = Math.random().toString(36).slice(2, 10);
   const [plan] = await tx<{ id: string }[]>`
-    insert into plans (code, name, tier, micro_credits_per_term, price_amount)
-    values (${`quote-plan-${suffix}`}, 'Quote Test Plan', ${tier}, 1000000, 10)
+    -- A month of unlimited, as Studio and Creator carry: the free pipe is
+    -- reachable only while a plan's window is open, so a plan seeded without
+    -- one is a plan whose grants never apply.
+    insert into plans (code, name, tier, micro_credits_per_term, price_amount, unlimited_days)
+    values (${`quote-plan-${suffix}`}, 'Quote Test Plan', ${tier}, 1000000, 10, 30)
     returning id
   `;
   await tx`
@@ -90,30 +93,34 @@ describe("quoting a generation", () => {
     });
   });
 
-  // The assertion this whole phase exists for. Before it, a free account could
-  // curl its way onto a flagship model and the only thing stopping it was a
-  // padlock drawn in the browser.
-  it("locks a tier-3 model against an account with no plan", async () => {
+  /* There used to be a padlock here, and its removal is the decision.
+     A family's `minTier` no longer decides who may run it: every model is
+     open to every account, and the wallet is the only thing in the way. The
+     two assertions that follow are the same request from the two sides of
+     the gate that was — both of them quote now, at the same price. */
+  it("quotes a flagship model for an account with no plan at all", async () => {
     await inRollback(sql, async (tx) => {
       const { userId } = await makeUser(tx);
       const { variantId, params } = await variantAtTier(tx, 3);
       const result = await new PostgresQuotesRepository(tx).create({ userId, variantId, params });
 
-      expect(result.outcome).toBe("tier_too_low");
-      if (result.outcome !== "tier_too_low") return;
-      expect(result.requiredTier).toBe(3);
-      expect(result.currentTier).toBe(1);
+      expect(result.outcome).toBe("quoted");
+      if (result.outcome !== "quoted") return;
+      // Priced, not free: taking the lock off a model does not give it away.
+      expect(result.quote.coins).toBeGreaterThan(0);
     });
   });
 
-  it("opens that same model once the account is on a plan that reaches it", async () => {
+  it("charges the same for it on a top plan, because the plan buys coins and not access", async () => {
     await inRollback(sql, async (tx) => {
       const { userId, accountId } = await makeUser(tx);
-      await subscribe(tx, accountId, 3);
       const { variantId, params } = await variantAtTier(tx, 3);
-      const result = await new PostgresQuotesRepository(tx).create({ userId, variantId, params });
+      const unplanned = await new PostgresQuotesRepository(tx).create({ userId, variantId, params });
+      await subscribe(tx, accountId, 3);
+      const planned = await new PostgresQuotesRepository(tx).create({ userId, variantId, params });
 
-      expect(result.outcome).toBe("quoted");
+      if (unplanned.outcome !== "quoted" || planned.outcome !== "quoted") throw new Error("expected two quotes");
+      expect(planned.quote.coins).toBe(unplanned.quote.coins);
     });
   });
 
@@ -303,10 +310,13 @@ describe("quoting a model covered by an unlimited grant", () => {
   });
 
   /** And below the model's own tier there is nothing to buy at any price. */
-  it("locks an account that cannot reach the model at all", async () => {
+  /* The account the grant does not reach is charged, not refused. It used to
+     be locked out of the model entirely — the grant sits on a flagship family
+     — and now the only difference a plan makes here is the price. */
+  it("charges an account the grant does not reach, rather than refusing it", async () => {
     await inRollback(sql, async (tx) => {
       const granted = await grantedVariant(tx);
-      if (!granted || granted.modelMinTier <= 1) return;
+      if (!granted) return;
       const { userId } = await makeUser(tx);
 
       const result = await new PostgresQuotesRepository(tx).create({
@@ -314,7 +324,11 @@ describe("quoting a model covered by an unlimited grant", () => {
         variantId: granted.variantId,
         params: granted.params,
       });
-      expect(result.outcome).toBe("tier_too_low");
+
+      expect(result.outcome).toBe("quoted");
+      if (result.outcome !== "quoted") return;
+      expect(result.quote.coins).toBeGreaterThan(0);
+      expect(result.quote.unlimited).toBeUndefined();
     });
   });
 

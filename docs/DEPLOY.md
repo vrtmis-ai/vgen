@@ -280,11 +280,11 @@ container changes nothing.
 so Fastify reports the proxy's address as the client's. Symptom is sporadic
 429s under mild traffic.
 
-**Sign-in does nothing.** `KAVENEGAR_API_KEY` and `KAVENEGAR_TEMPLATE` are
-required — the API refuses to start in production without a real SMS gateway
-rather than printing customers' codes into the logs. Google and Microsoft are
-configured independently and neither is reliably reachable from Iran, so phone
-OTP is the route that has to work.
+**There is no phone option on the sign-in screen.** `KAVENEGAR_API_KEY` or
+`KAVENEGAR_TEMPLATE` is empty, which is correct until eNamad clears. Set both
+and restart the API. **The phone option is there but codes never arrive**: both
+are set but the template is not approved, or holds a placeholder. Empty them
+until it is.
 
 **Reference images fail while plain prompts succeed.**
 `OBJECT_STORAGE_PUBLIC_ENDPOINT` is unset or private. The provider cannot fetch

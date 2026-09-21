@@ -106,9 +106,30 @@ export interface UserRow {
   coinsPurchased: number;
   coinsSpent: number;
   jobs: number;
+  /**
+   * The same jobs, split by what they produced.
+   *
+   * `jobs` alone answers "how busy" and nothing else — an account that made 400
+   * pictures and one that made 400 videos are the same row, at forty times the
+   * cost. `jobs.feature_id -> features.modality` has always carried this; it was
+   * never grouped by.
+   */
+  images: number;
+  videos: number;
+  audio: number;
   providerCostUsd: number;
   lastJobAt: number | null;
   activeBans: number;
+  /**
+   * What they are paying for, if anything.
+   *
+   * Absent for everyone on the free tier. The tier gate reads `subscriptions`
+   * five levels down in the app, and this screen — the one place staff look to
+   * answer "who is this" — never joined it, so an admin could see somebody's
+   * balance and not what plan produced it.
+   */
+  planName: string | null;
+  planTier: number | null;
 }
 
 export type UserSort = "spent" | "purchased" | "balance" | "created";
@@ -392,6 +413,11 @@ export class PostgresAnalyticsRepository {
         coalesce(balance.lifetime_purchased, 0) / 1e6 as coins_purchased,
         coalesce(balance.lifetime_spent, 0) / 1e6     as coins_spent,
         coalesce(activity.jobs, 0)                    as jobs,
+        coalesce(activity.images, 0)                  as images,
+        coalesce(activity.videos, 0)                  as videos,
+        coalesce(activity.audio, 0)                   as audio,
+        plan_row.plan_name,
+        plan_row.plan_tier,
         coalesce(activity.provider_cost_usd, 0)       as provider_cost_usd,
         activity.last_job_at,
         (select count(*) from bans
@@ -402,9 +428,33 @@ export class PostgresAnalyticsRepository {
       join accounts account on account.id = account_user.personal_account_id
       left join account_balances balance on balance.account_id = account.id
       left join lateral (
-        select count(*) as jobs, sum(provider_cost_usd) as provider_cost_usd, max(created_at) as last_job_at
-        from jobs where jobs.account_id = account.id and jobs.deleted_at is null
+        select
+          count(*) as jobs,
+          -- Counted by what the feature produces, not by the model's family: a
+          -- family can serve more than one modality, and the feature is what
+          -- the job was actually priced and routed as.
+          count(*) filter (where feature.modality = 'image') as images,
+          count(*) filter (where feature.modality = 'video') as videos,
+          count(*) filter (where feature.modality = 'audio') as audio,
+          sum(jobs.provider_cost_usd) as provider_cost_usd,
+          max(jobs.created_at) as last_job_at
+        from jobs
+        join features feature on feature.id = jobs.feature_id
+        where jobs.account_id = account.id and jobs.deleted_at is null
       ) activity on true
+      -- The live plan, highest tier first: an account can hold more than one
+      -- subscription, and the one that decides what they can reach is the best
+      -- of them. Same rule the entitlements repository uses for the tier gate.
+      left join lateral (
+        select plan.name as plan_name, plan.tier as plan_tier
+        from subscriptions subscription
+        join plans plan on plan.id = subscription.plan_id
+        where subscription.account_id = account.id
+          and subscription.status = 'active'
+          and subscription.ends_at > now()
+        order by plan.tier desc
+        limit 1
+      ) plan_row on true
       where account_user.deleted_at is null
         and (
           ${term}::text is null
@@ -433,6 +483,11 @@ export class PostgresAnalyticsRepository {
         coalesce(balance.lifetime_purchased, 0) / 1e6 as coins_purchased,
         coalesce(balance.lifetime_spent, 0) / 1e6     as coins_spent,
         coalesce(activity.jobs, 0)                    as jobs,
+        coalesce(activity.images, 0)                  as images,
+        coalesce(activity.videos, 0)                  as videos,
+        coalesce(activity.audio, 0)                   as audio,
+        plan_row.plan_name,
+        plan_row.plan_tier,
         coalesce(activity.provider_cost_usd, 0)       as provider_cost_usd,
         activity.last_job_at,
         (select count(*) from bans
@@ -442,9 +497,33 @@ export class PostgresAnalyticsRepository {
       join accounts account on account.id = account_user.personal_account_id
       left join account_balances balance on balance.account_id = account.id
       left join lateral (
-        select count(*) as jobs, sum(provider_cost_usd) as provider_cost_usd, max(created_at) as last_job_at
-        from jobs where jobs.account_id = account.id and jobs.deleted_at is null
+        select
+          count(*) as jobs,
+          -- Counted by what the feature produces, not by the model's family: a
+          -- family can serve more than one modality, and the feature is what
+          -- the job was actually priced and routed as.
+          count(*) filter (where feature.modality = 'image') as images,
+          count(*) filter (where feature.modality = 'video') as videos,
+          count(*) filter (where feature.modality = 'audio') as audio,
+          sum(jobs.provider_cost_usd) as provider_cost_usd,
+          max(jobs.created_at) as last_job_at
+        from jobs
+        join features feature on feature.id = jobs.feature_id
+        where jobs.account_id = account.id and jobs.deleted_at is null
       ) activity on true
+      -- The live plan, highest tier first: an account can hold more than one
+      -- subscription, and the one that decides what they can reach is the best
+      -- of them. Same rule the entitlements repository uses for the tier gate.
+      left join lateral (
+        select plan.name as plan_name, plan.tier as plan_tier
+        from subscriptions subscription
+        join plans plan on plan.id = subscription.plan_id
+        where subscription.account_id = account.id
+          and subscription.status = 'active'
+          and subscription.ends_at > now()
+        order by plan.tier desc
+        limit 1
+      ) plan_row on true
       where account_user.id = ${userId} and account_user.deleted_at is null
     `;
     const row = page[0];
@@ -543,6 +622,11 @@ function toUserRow(row: Record<string, string | Date | null>): UserRow {
     coinsPurchased: n(row.coins_purchased as string),
     coinsSpent: n(row.coins_spent as string),
     jobs: n(row.jobs as string),
+    images: n(row.images as string),
+    videos: n(row.videos as string),
+    audio: n(row.audio as string),
+    planName: row.plan_name === null || row.plan_name === undefined ? null : String(row.plan_name),
+    planTier: row.plan_tier === null || row.plan_tier === undefined ? null : n(row.plan_tier as string),
     providerCostUsd: n(row.provider_cost_usd as string),
     lastJobAt: row.last_job_at === null ? null : (row.last_job_at as Date).getTime(),
     activeBans: n(row.active_bans as string),

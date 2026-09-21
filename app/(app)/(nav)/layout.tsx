@@ -26,7 +26,7 @@ import { grantedTotal } from "../../../src/lib/credits";
  * the same read with nothing to wait on.
  */
 export default function NavLayout({ children }: { children: ReactNode }) {
-  const { tab, setTab, openWallet, openProfile, openModel } = useNavigation();
+  const { tab, setTab, goHome, openWallet, openProfile, openModel } = useNavigation();
   const { user, wallet, signIn, signOut } = useSession();
   const { gens } = useGenerations();
   const { lang, setLang, t } = useI18n();
@@ -39,6 +39,7 @@ export default function NavLayout({ children }: { children: ReactNode }) {
       <TopBar
         active={tab}
         onNav={setTab}
+        onHome={goHome}
         menus={menus}
         onOpenModel={openModel}
         coins={wallet?.spendable ?? null}

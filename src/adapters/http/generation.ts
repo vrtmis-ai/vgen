@@ -1,5 +1,6 @@
+import { z } from "zod";
 import type { AppServices } from "../../runtime/AppServices";
-import { GenerationJobSchema, GenerationQuoteSchema } from "../../runtime/contracts/generation";
+import { GenerationJobSchema, GenerationQuoteSchema, JobReferencesSchema } from "../../runtime/contracts/generation";
 import type { HttpClient } from "./client";
 
 /**
@@ -16,7 +17,7 @@ import type { HttpClient } from "./client";
  * or price is a request that could ask to be billed as something cheaper. So
  * the mapping happens here rather than in a screen.
  */
-export function createHttpGenerationService(client: HttpClient): AppServices["generation"] {
+export function createHttpGenerationService(client: HttpClient, baseUrl: string): AppServices["generation"] {
   return {
     quote(request, options) {
       return client.request("/generation/quotes", {
@@ -74,6 +75,46 @@ export function createHttpGenerationService(client: HttpClient): AppServices["ge
     getJob(jobId, options) {
       return client.request(`/generation/jobs/${encodeURIComponent(jobId)}`, {
         schema: GenerationJobSchema,
+        signal: options?.signal,
+      });
+    },
+    /* Built here rather than fetched, because the browser is the one that has
+       to follow it: the route answers 302 to a signed link carrying
+       `Content-Disposition: attachment`, and only a real navigation turns that
+       into a saved file. The session travels as a cookie, and the API is
+       same-site with the app, so a top-level request to it is authenticated
+       without this layer doing anything. */
+    downloadUrl(jobId, index = 0) {
+      return `${baseUrl.replace(/\/+$/, "")}/generation/jobs/${encodeURIComponent(jobId)}/outputs/${index}/download`;
+    },
+    async references(jobId, options) {
+      const { references } = await client.request(`/generation/jobs/${encodeURIComponent(jobId)}/references`, {
+        schema: JobReferencesSchema,
+        signal: options?.signal,
+      });
+      return references;
+    },
+    /* Present only where the API has the route. `POST .../cancel` is issue #81
+       and is not merged; shipping a button that 404s would be worse than
+       shipping none, and `cancel` being undefined is how every screen asks. */
+    ...(process.env.NEXT_PUBLIC_JOB_CANCEL === "1"
+      ? {
+          async cancel(jobId: string, options?: { signal?: AbortSignal }) {
+            await client.request(`/generation/jobs/${encodeURIComponent(jobId)}/cancel`, {
+              method: "POST",
+              schema: z.object({ status: z.literal("cancelled") }),
+              signal: options?.signal,
+            });
+          },
+        }
+      : {}),
+    async remove(jobId, options) {
+      await client.request(`/generation/jobs/${encodeURIComponent(jobId)}`, {
+        method: "DELETE",
+        // Answers `{ outcome: "removed" }` rather than 204, matching the admin
+        // deletes: the outcome is a fact worth naming, and a body is what makes
+        // the refusals ("still running") readable in the same shape.
+        schema: z.object({ outcome: z.literal("removed") }),
         signal: options?.signal,
       });
     },

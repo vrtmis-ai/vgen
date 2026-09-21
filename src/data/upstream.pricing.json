@@ -81,6 +81,30 @@
       "isOffered": true
     },
     {
+      "variantId": "gemini-2-5-pro-tts",
+      "externalModelId": "google/gemini-2-5-pro-tts",
+      "featureCode": "speech_generate",
+      "selector": {},
+      "pricingMode": "derived",
+      "quantity": "characters",
+      "providerUnits": 24,
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gemini-3-1-flash-tts",
+      "externalModelId": "google/gemini-3-1-flash-tts",
+      "featureCode": "speech_generate",
+      "selector": {},
+      "pricingMode": "derived",
+      "quantity": "characters",
+      "providerUnits": 24,
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "gemini-omni-video",
       "externalModelId": "gemini-omni-video",
       "featureCode": "video_generate",
@@ -331,6 +355,174 @@
       "isOffered": true
     },
     {
+      "variantId": "gpt-image-2-5-flare",
+      "externalModelId": "gpt-image-2-5-flare-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 6,
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-flare",
+      "externalModelId": "gpt-image-2-5-flare-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 10,
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-flare",
+      "externalModelId": "gpt-image-2-5-flare-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst",
+      "externalModelId": "gpt-image-2-5-sunburst-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 6,
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst",
+      "externalModelId": "gpt-image-2-5-sunburst-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 10,
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst",
+      "externalModelId": "gpt-image-2-5-sunburst-text-to-image",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-flare-edit",
+      "externalModelId": "gpt-image-2-5-flare-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 6,
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-flare-edit",
+      "externalModelId": "gpt-image-2-5-flare-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 10,
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-flare-edit",
+      "externalModelId": "gpt-image-2-5-flare-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst-edit",
+      "externalModelId": "gpt-image-2-5-sunburst-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 6,
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst-edit",
+      "externalModelId": "gpt-image-2-5-sunburst-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 10,
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst-edit",
+      "externalModelId": "gpt-image-2-5-sunburst-image-to-image",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "grok-image",
       "externalModelId": "grok-imagine/text-to-image",
       "featureCode": "image_generate",
@@ -569,6 +761,18 @@
       "isOffered": true
     },
     {
+      "variantId": "kling-2-5-turbo-i2v",
+      "externalModelId": "kling/v2-5-turbo-image-to-video-pro",
+      "featureCode": "image_to_video",
+      "selector": {},
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 8.4,
+      "microCredits": 1680000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "kling-2-6-motion",
       "externalModelId": "kling-2.6/motion-control",
       "featureCode": "image_to_video",
@@ -657,6 +861,34 @@
       "isOffered": true
     },
     {
+      "variantId": "kling-2-6-i2v",
+      "externalModelId": "kling-2.6/image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "sound": "false"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 11,
+      "microCredits": 2200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-2-6-i2v",
+      "externalModelId": "kling-2.6/image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "sound": "true"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 22,
+      "microCredits": 4400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "kling-3-motion",
       "externalModelId": "kling-3.0/motion-control",
       "featureCode": "image_to_video",
@@ -734,6 +966,34 @@
       "variantId": "kling-3-turbo",
       "externalModelId": "kling/v3-turbo-text-to-video",
       "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 18,
+      "microCredits": 3600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-turbo-i2v",
+      "externalModelId": "kling/v3-turbo-image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 22.5,
+      "microCredits": 4500000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-turbo-i2v",
+      "externalModelId": "kling/v3-turbo-image-to-video",
+      "featureCode": "image_to_video",
       "selector": {
         "resolution": "720p"
       },
@@ -843,8 +1103,8 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "providerUnits": 26,
-      "microCredits": 5200000,
+      "providerUnits": 13,
+      "microCredits": 2600000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -853,12 +1113,68 @@
       "externalModelId": "minimax-h3/text-to-video",
       "featureCode": "video_generate",
       "selector": {
-        "resolution": "768p"
+        "resolution": "768P"
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "providerUnits": 16,
-      "microCredits": 3200000,
+      "providerUnits": 8,
+      "microCredits": 1600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "minimax-h3-i2v",
+      "externalModelId": "minimax-h3/image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 13,
+      "microCredits": 2600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "minimax-h3-i2v",
+      "externalModelId": "minimax-h3/image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "768P"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 8,
+      "microCredits": 1600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "minimax-h3-ref",
+      "externalModelId": "minimax-h3/reference-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 13,
+      "microCredits": 2600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "minimax-h3-ref",
+      "externalModelId": "minimax-h3/reference-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "768P"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 8,
+      "microCredits": 1600000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1237,6 +1553,30 @@
       "isOffered": true
     },
     {
+      "variantId": "suno-music",
+      "externalModelId": "ai-music-api/generate",
+      "featureCode": "music_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 12,
+      "microCredits": 2400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "suno-sounds",
+      "externalModelId": "ai-music-api/sounds",
+      "featureCode": "sound_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 2.5,
+      "microCredits": 500000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "topaz-image-upscale",
       "externalModelId": "topaz/image-upscale",
       "featureCode": "image_edit",
@@ -1261,20 +1601,6 @@
       "quantity": "none",
       "providerUnits": 20,
       "microCredits": 4000000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "topaz-image-upscale",
-      "externalModelId": "topaz/image-upscale",
-      "featureCode": "image_edit",
-      "selector": {
-        "upscale_factor": "8"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "providerUnits": 40,
-      "microCredits": 8000000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1475,6 +1801,34 @@
       "isOffered": true
     },
     {
+      "variantId": "wan-2-5-i2v",
+      "externalModelId": "wan/2-5-image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 20,
+      "microCredits": 4000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-5-i2v",
+      "externalModelId": "wan/2-5-image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 12,
+      "microCredits": 2400000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "wan-2-6",
       "externalModelId": "wan/2-6-text-to-video",
       "featureCode": "video_generate",
@@ -1565,6 +1919,96 @@
       "isOffered": true
     },
     {
+      "variantId": "wan-2-6-i2v",
+      "externalModelId": "wan/2-6-image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "10",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 209.5,
+      "microCredits": 41900000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6-i2v",
+      "externalModelId": "wan/2-6-image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "10",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 140,
+      "microCredits": 28000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6-i2v",
+      "externalModelId": "wan/2-6-image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "15",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 315,
+      "microCredits": 63000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6-i2v",
+      "externalModelId": "wan/2-6-image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "15",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 210,
+      "microCredits": 42000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6-i2v",
+      "externalModelId": "wan/2-6-image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "5",
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 104.5,
+      "microCredits": 20900000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-6-i2v",
+      "externalModelId": "wan/2-6-image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "5",
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 70,
+      "microCredits": 14000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "wan-2-7-r2v",
       "externalModelId": "wan/2-7-r2v",
       "featureCode": "image_to_video",
@@ -1638,6 +2082,34 @@
       "variantId": "wan-2-7",
       "externalModelId": "wan/2-7-text-to-video",
       "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 16,
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-i2v",
+      "externalModelId": "wan/2-7-image-to-video",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "providerUnits": 24,
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-i2v",
+      "externalModelId": "wan/2-7-image-to-video",
+      "featureCode": "image_to_video",
       "selector": {
         "resolution": "720p"
       },

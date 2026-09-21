@@ -1,10 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Lock, MagnifyingGlass } from "@phosphor-icons/react";
+import { Check, MagnifyingGlass } from "@phosphor-icons/react";
 import { type Family, type Variant } from "../data/models";
 import { variantMeta } from "../lib/useCreateState";
 import { priceCoins } from "../data/pricing";
-import { useAccess } from "../lib/access";
 import { VendorMark } from "./VendorMark";
 import { CoinMark } from "./chrome";
 import { useI18n } from "../lib/i18n";
@@ -41,26 +40,20 @@ function Meta({ children }: { children: React.ReactNode }) {
   );
 }
 
+/* Every row is pickable. There used to be a locked variety — a padlock, a
+   dimmed mark and the name of the plan where the price goes — and it is gone
+   with the gate behind it: no model belongs to a plan, so a list of models is
+   a list of prices. What a row cannot say is whether this account can afford
+   it; that is the dock's job, once a model is chosen and its settings are. */
 function Row({
   family,
   variant,
   selected,
-  locked,
   onPick,
 }: {
   family: Family;
   variant?: Variant | undefined;
   selected: boolean;
-  /**
-   * Above the account's plan tier.
-   *
-   * The row stays in the list and stays clickable — it routes to plans instead
-   * of loading the model. Hiding locked models would make the ladder invisible
-   * exactly to the people it is meant to sell to, and it is the same rule the
-   * asset viewer already follows for tools we have no model for: visible, with
-   * the reason on it.
-   */
-  locked: boolean;
   onPick: () => void;
 }) {
   const { t, n } = useI18n();
@@ -68,8 +61,6 @@ function Row({
   const meta = useMemo(() => variantMeta(family, v), [family, v]);
   // Quoted at the variant's own defaults, which is what the panel will load.
   const coins = useMemo(() => priceCoins(v, {}, { chars: 0, clipSeconds: 0 }), [v]);
-  const access = useAccess();
-  const need = useMemo(() => (locked ? access.needs(family.id) : null), [locked, access, family.id]);
 
   return (
     <button
@@ -79,16 +70,13 @@ function Row({
       className="flex h-[52px] w-full items-center gap-2.5 rounded-xl px-2.5 text-start transition-colors hover:bg-white/[0.06]"
       style={selected ? { background: "var(--vg-primary-a14)" } : undefined}
     >
-      <span className="relative shrink-0" style={{ opacity: locked ? 0.45 : 1 }}>
+      <span className="relative shrink-0">
         <VendorMark vendor={family.vendor} size={22} />
       </span>
 
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex items-center gap-1.5">
-          <bdi
-            className="truncate text-[12.5px] font-medium"
-            style={{ color: locked ? "var(--vg-text-muted)" : selected ? "var(--vg-primary-soft)" : "var(--vg-text)" }}
-          >
+          <bdi className="truncate text-[12.5px] font-medium" style={{ color: selected ? "var(--vg-primary-soft)" : "var(--vg-text)" }}>
             {variant ? `${family.name} ${v.label}` : family.name}
           </bdi>
           {v.badge && (
@@ -138,26 +126,14 @@ function Row({
         )}
       </span>
 
-      {/* The plan that unlocks it replaces the price. A coin figure on a model
-          you cannot run is answering a question the user has not reached yet;
-          the name of the plan is the only useful thing to say here. */}
-      {locked
-        ? need && (
-            <span
-              className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold"
-              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-secondary)" }}
-            >
-              <Lock size={10} weight="fill" />
-              <bdi>{need.name}</bdi>
-            </span>
-          )
-        : coins != null && (
-            <span className="flex shrink-0 items-center gap-1 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
-              <CoinMark size={11} />
-              <span className="vg-numeric">{n(coins)}</span>
-            </span>
-          )}
-      {selected && !locked && <Check size={13} weight="bold" style={{ color: "var(--vg-primary-soft)" }} />}
+      {/* What it costs at its own defaults. */}
+      {coins != null && (
+        <span className="flex shrink-0 items-center gap-1 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
+          <CoinMark size={11} />
+          <span className="vg-numeric">{n(coins)}</span>
+        </span>
+      )}
+      {selected && <Check size={13} weight="bold" style={{ color: "var(--vg-primary-soft)" }} />}
     </button>
   );
 }
@@ -237,7 +213,6 @@ export function ModelPicker({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [q, setQ] = useState("");
-  const access = useAccess();
   const pos = useFloatingPosition(anchor, ref, q);
   useFloatingDismiss({ anchor, surfaceRef: ref, onClose });
 
@@ -283,7 +258,7 @@ export function ModelPicker({
           onChange={(e) => setQ(e.target.value)}
           placeholder="جستجوی مدل"
           autoFocus
-          className="w-full bg-transparent text-[13px] outline-none"
+          className="vg-field-pad w-full bg-transparent text-[13px] outline-none"
           style={{ color: "var(--vg-text)" }}
         />
       </div>
@@ -300,10 +275,8 @@ export function ModelPicker({
                 family={family}
                 variant={v}
                 selected={v.id === variant.id}
-                locked={!access.can(family.id)}
                 onPick={() => {
                   onClose();
-                  if (!access.can(family.id)) return access.onUpgrade();
                   onPickVariant(v.id);
                 }}
               />
@@ -321,10 +294,8 @@ export function ModelPicker({
                 key={f.id}
                 family={f}
                 selected={false}
-                locked={!access.can(f.id)}
                 onPick={() => {
                   onClose();
-                  if (!access.can(f.id)) return access.onUpgrade();
                   onPickFamily(f);
                 }}
               />

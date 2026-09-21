@@ -91,5 +91,6 @@ export interface GenerationProvider {
   /** Matches providers.code, which is how the runner finds this adapter. */
   readonly code: string;
   submit(request: GenerationRequest): Promise<GenerationSubmission>;
-  poll(externalJobId: string, apiKey: string): Promise<GenerationOutcome>;
+  /** `externalModelId` for a provider whose status endpoint depends on the model. */
+  poll(externalJobId: string, apiKey: string, externalModelId?: string): Promise<GenerationOutcome>;
 }

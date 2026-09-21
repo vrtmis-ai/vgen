@@ -62,6 +62,17 @@ export interface GrantAvailability {
  */
 const TEHRAN_TODAY = `(now() at time zone 'Asia/Tehran')::date`;
 
+/**
+ * Simultaneous generations for an account with no subscription.
+ *
+ * Two, not one. The four entry plans are coin packs now — coins and no
+ * membership — so the customers who have paid the least have no subscription
+ * row to read a limit off, and two at a time is the owner's rule for everyone
+ * below the three subscription plans. A gift account gets the same, bounded by
+ * its twenty coins rather than by this.
+ */
+export const BASE_CONCURRENT_JOBS = 2;
+
 export class PostgresEntitlementsRepository {
   constructor(private readonly sql: Sql) {}
 
@@ -75,6 +86,12 @@ export class PostgresEntitlementsRepository {
    * No subscription is tier 1 rather than tier 0, the same fallback
    * `plansRepository.tierFor` makes — a new account holds a signup gift and
    * tier 1 is what makes that gift spendable.
+   *
+   * This no longer decides what an account may RUN. Models are not locked to
+   * plans any more — the only gate on a generation is whether the wallet can
+   * pay for it — so a family's `minTier` is catalogue trivia and the quote
+   * path stopped comparing against it. What a tier still buys is the unlimited
+   * pipe, through `unlimitedTierForAccount`, which puts a clock on it.
    */
   async tierForAccount(accountId: string): Promise<Tier> {
     const [row] = await this.sql<{ tier: number }[]>`
@@ -89,13 +106,41 @@ export class PostgresEntitlementsRepository {
   }
 
   /**
+   * The tier the unlimited pipe sees — the plan's own, but only while its
+   * window is open.
+   *
+   * Pro carries unlimited for seven days of its term, Studio and Creator for a
+   * month, and a pack never carries it at all. Expressed as a tier rather than
+   * as a separate "is the window open" flag so nothing downstream has to learn
+   * a second concept: `findGrant` already asks whether a tier reaches an
+   * entitlement, and a closed window simply stops reaching one.
+   *
+   * Measured from `starts_at`, so buying again opens a new window. That is the
+   * point of selling the perk by the term rather than by the account.
+   */
+  async unlimitedTierForAccount(accountId: string): Promise<Tier> {
+    const [row] = await this.sql<{ tier: number }[]>`
+      select coalesce(max(plan.tier), 1) as tier
+      from subscriptions sub
+      join plans plan on plan.id = sub.plan_id
+      where sub.account_id = ${accountId}
+        and sub.status = 'active'
+        and sub.ends_at > now()
+        and plan.unlimited_days > 0
+        and now() < sub.starts_at + (plan.unlimited_days * interval '1 day')
+    `;
+    return (row?.tier as Tier | undefined) ?? 1;
+  }
+
+  /**
    * How many generations this account may run at once, and how many it is
    * running.
    *
    * The limit follows `v_account_entitlements` exactly: the best of every live
    * plan, raised — never lowered — by an `account_limits` override, with a
-   * floor of one. An account with no plan gets that floor, which makes the
-   * signup gift a trial rather than a batch pipeline.
+   * floor of `BASE_CONCURRENT_JOBS`. An account with no subscription gets that
+   * floor — which now includes everyone holding a coin pack, because a pack
+   * grants coins and no membership to read a limit off.
    *
    * Counted from `jobs` rather than tracked in a counter column, because a
    * counter is a second source of truth that drifts the first time a worker
@@ -123,12 +168,16 @@ export class PostgresEntitlementsRepository {
     const [row] = await (tx as Sql)<{ limit: number; running: number }[]>`
       select
         greatest(
+          -- The base only stands in for a plan that is not there. A plan that
+          -- states a limit keeps it, including one lower than the base: the
+          -- floor is for accounts with nothing to read, not a veto on the
+          -- ladder.
           coalesce((
             select max(plan.max_concurrent_jobs)
             from subscriptions sub
             join plans plan on plan.id = sub.plan_id
             where sub.account_id = ${accountId} and sub.status = 'active' and sub.ends_at > now()
-          ), 0),
+          ), ${BASE_CONCURRENT_JOBS}),
           coalesce((select max_concurrent_jobs from account_limits where account_id = ${accountId}), 0),
           1
         )::int as limit,
@@ -139,7 +188,7 @@ export class PostgresEntitlementsRepository {
             and deleted_at is null
         )::int as running
     `;
-    return { limit: row?.limit ?? 1, running: row?.running ?? 0 };
+    return { limit: row?.limit ?? BASE_CONCURRENT_JOBS, running: row?.running ?? 0 };
   }
 
   /**

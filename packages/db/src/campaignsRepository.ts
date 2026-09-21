@@ -28,7 +28,7 @@ export interface ActiveCampaignRepository {
 
 /** Just enough of the plans repository to fold. Structural, so tests need no database. */
 export interface PlanLadderPort {
-  list(): Promise<Plan[]>;
+  list(): Promise<{ plans: Plan[] }>;
 }
 
 interface CampaignRow {
@@ -76,7 +76,7 @@ export class PostgresCampaignsRepository implements ActiveCampaignRepository {
     // The rest of the time this route costs one indexed query and no fold.
     // `list()` is the memoised public document the plans route serves, so even
     // during a festival this is not a second read of the ladder.
-    const plans = await this.plans.list();
+    const { plans } = await this.plans.list();
 
     return {
       id: row.code,

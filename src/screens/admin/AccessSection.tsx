@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import type { AdminApi } from "../../features/admin/adminApi";
+import type { AdminApi, AdminInvite } from "../../features/admin/adminApi";
+import { ApiError } from "../../runtime/apiError";
 import { useEarlyAccess, useInviteMutations, useInvites, usePromoMutations, usePromos } from "../../features/admin/useAdmin";
 import { Cell, Muted, Table } from "./primitives";
 
@@ -52,12 +53,34 @@ function EarlyAccess({ api, canWrite }: { api: AdminApi; canWrite: boolean }) {
   );
 }
 
+/** The last moment of a calendar day, in the browser's own zone. A code "valid until the 20th" works on the 20th. */
+const endOfDay = (day: string) => new Date(`${day}T23:59:59`);
+/** `yyyy-mm-dd` for a date input, in local time. */
+const dayOf = (ms: number) => {
+  const date = new Date(ms);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+const faDate = (ms: number) => new Date(ms).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
+
+/** Why a code does or does not admit anyone, in the order the server checks. */
+function statusOf(invite: AdminInvite, now: number): string {
+  if (invite.revokedAt !== null) return "باطل";
+  if (invite.startsAt > now) return "هنوز شروع نشده";
+  if (invite.expiresAt !== null && invite.expiresAt <= now) return "منقضی";
+  if (invite.maxRedemptions !== null && invite.redemptionCount >= invite.maxRedemptions) return "ظرفیت پر";
+  return "فعال";
+}
+
 function Invites({ api, canWrite }: { api: AdminApi; canWrite: boolean }) {
   const invites = useInvites(api, true);
-  const { create, remove } = useInviteMutations(api);
+  const { create, update, remove } = useInviteMutations(api);
   const [code, setCode] = useState("");
   const [coins, setCoins] = useState("");
   const [count, setCount] = useState("1");
+  const [maxUses, setMaxUses] = useState("1");
+  const [expiry, setExpiry] = useState(() => dayOf(Date.now() + 30 * 86_400_000));
+  const [editing, setEditing] = useState<{ id: string; maxUses: string; expiry: string } | null>(null);
+  const now = Date.now();
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -68,8 +91,19 @@ function Invites({ api, canWrite }: { api: AdminApi; canWrite: boolean }) {
       ...(code.trim() && batch === 1 ? { code: code.trim() } : {}),
       ...(Number(coins) > 0 ? { grantCoins: Number(coins) } : {}),
       ...(batch > 1 ? { count: batch } : {}),
+      maxRedemptions: Number(maxUses),
+      expiresAt: endOfDay(expiry).toISOString(),
     });
     setCode("");
+  };
+
+  const save = (event: FormEvent) => {
+    event.preventDefault();
+    if (!editing) return;
+    update.mutate(
+      { id: editing.id, input: { maxRedemptions: Number(editing.maxUses), expiresAt: endOfDay(editing.expiry).toISOString() } },
+      { onSuccess: () => setEditing(null) },
+    );
   };
 
   return (
@@ -77,10 +111,22 @@ function Invites({ api, canWrite }: { api: AdminApi; canWrite: boolean }) {
       <Heading>کدهای دعوت</Heading>
 
       {canWrite ? (
-        <form onSubmit={submit} className="mt-2 flex flex-wrap items-center gap-2">
-          <Field value={code} onChange={setCode} placeholder="کد دلخواه (اختیاری)" ltr />
-          <Field value={coins} onChange={setCoins} placeholder="سکه‌ی هدیه" ltr width="w-28" />
-          <Field value={count} onChange={setCount} placeholder="تعداد" ltr width="w-20" />
+        <form onSubmit={submit} className="mt-2 flex flex-wrap items-end gap-2">
+          <Labelled label="کد دلخواه (اختیاری)">
+            <Field value={code} onChange={setCode} placeholder="کد دلخواه (اختیاری)" ltr />
+          </Labelled>
+          <Labelled label="چند نفر می‌توانند استفاده کنند">
+            <Field value={maxUses} onChange={setMaxUses} placeholder="ظرفیت" ltr width="w-24" type="number" min={1} required />
+          </Labelled>
+          <Labelled label={expiry ? `تاریخ انقضا — ${faDate(endOfDay(expiry).getTime())}` : "تاریخ انقضا"}>
+            <Field value={expiry} onChange={setExpiry} placeholder="تاریخ انقضا" ltr width="w-40" type="date" min={dayOf(now)} required />
+          </Labelled>
+          <Labelled label="سکه‌ی هدیه">
+            <Field value={coins} onChange={setCoins} placeholder="سکه‌ی هدیه" ltr width="w-24" />
+          </Labelled>
+          <Labelled label="تعداد کد">
+            <Field value={count} onChange={setCount} placeholder="تعداد" ltr width="w-20" />
+          </Labelled>
           <Action busy={create.isPending}>ساخت</Action>
           {create.error ? <Problem /> : null}
         </form>
@@ -92,34 +138,108 @@ function Invites({ api, canWrite }: { api: AdminApi; canWrite: boolean }) {
         <Muted>کدها خوانده نشدند.</Muted>
       ) : (
         <div className="mt-3">
-          <Table head={["کد", "هدیه", "استفاده", "کاربران", "سکه‌ی خرج‌شده", ""]}>
-            {invites.data.map((invite) => (
-              <tr key={invite.id} className="border-t" style={{ borderColor: "var(--vg-border-subtle)" }}>
-                <Cell>
-                  <span dir="ltr">{invite.code}</span>
-                  {!invite.isUsable ? (
-                    <span className="ms-2 text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
-                      {invite.revokedAt === null ? "تمام‌شده" : "باطل"}
+          <Table head={["کد", "وضعیت", "استفاده‌شده / ظرفیت", "انقضا", "هدیه", "سکه‌ی خرج‌شده", ""]}>
+            {invites.data.map((invite) =>
+              editing?.id === invite.id ? (
+                <tr key={invite.id} className="border-t" style={{ borderColor: "var(--vg-border-subtle)" }}>
+                  <Cell>
+                    <span dir="ltr">{invite.code}</span>
+                  </Cell>
+                  <Cell dim>{statusOf(invite, now)}</Cell>
+                  <Cell>
+                    <span className="inline-flex items-center gap-1">
+                      <span dir="ltr">{invite.redemptionCount} /</span>
+                      <Field
+                        value={editing.maxUses}
+                        onChange={(next) => setEditing({ ...editing, maxUses: next })}
+                        placeholder="ظرفیت"
+                        ltr
+                        width="w-20"
+                        type="number"
+                        min={Math.max(invite.redemptionCount, 1)}
+                        form={`invite-${invite.id}`}
+                        required
+                      />
                     </span>
-                  ) : null}
-                </Cell>
-                <Cell dim>{invite.grantCoins}</Cell>
-                <Cell dim>
-                  {invite.redemptionCount}
-                  {invite.maxRedemptions === null ? "" : ` / ${invite.maxRedemptions}`}
-                </Cell>
-                <Cell dim>{invite.usersJoined}</Cell>
-                <Cell dim>{invite.coinsSpent}</Cell>
-                <Cell>
-                  {canWrite ? (
-                    <button onClick={() => remove.mutate(invite.id)} className="text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
-                      برداشتن
-                    </button>
-                  ) : null}
-                </Cell>
-              </tr>
-            ))}
+                  </Cell>
+                  <Cell>
+                    <Field
+                      value={editing.expiry}
+                      onChange={(next) => setEditing({ ...editing, expiry: next })}
+                      placeholder="تاریخ انقضا"
+                      ltr
+                      width="w-40"
+                      type="date"
+                      form={`invite-${invite.id}`}
+                      required
+                    />
+                  </Cell>
+                  <Cell dim>{invite.grantCoins}</Cell>
+                  <Cell dim>{invite.coinsSpent}</Cell>
+                  <Cell>
+                    <form id={`invite-${invite.id}`} onSubmit={save} className="inline-flex items-center gap-2">
+                      <Action busy={update.isPending}>ذخیره</Action>
+                      <button
+                        type="button"
+                        onClick={() => setEditing(null)}
+                        className="text-[12px]"
+                        style={{ color: "var(--vg-text-faint)" }}
+                      >
+                        انصراف
+                      </button>
+                    </form>
+                  </Cell>
+                </tr>
+              ) : (
+                <tr key={invite.id} className="border-t" style={{ borderColor: "var(--vg-border-subtle)" }}>
+                  <Cell>
+                    <span dir="ltr">{invite.code}</span>
+                  </Cell>
+                  <Cell dim>{statusOf(invite, now)}</Cell>
+                  <Cell dim>
+                    <span dir="ltr">
+                      {invite.redemptionCount} / {invite.maxRedemptions ?? "∞"}
+                    </span>
+                  </Cell>
+                  <Cell dim>{invite.expiresAt === null ? "بدون انقضا" : faDate(invite.expiresAt)}</Cell>
+                  <Cell dim>{invite.grantCoins}</Cell>
+                  <Cell dim>{invite.coinsSpent}</Cell>
+                  <Cell>
+                    {canWrite ? (
+                      <span className="inline-flex gap-3">
+                        {invite.revokedAt === null ? (
+                          <button
+                            onClick={() => {
+                              update.reset();
+                              setEditing({
+                                id: invite.id,
+                                maxUses: String(invite.maxRedemptions ?? Math.max(invite.redemptionCount, 1)),
+                                expiry: dayOf(invite.expiresAt ?? now + 30 * 86_400_000),
+                              });
+                            }}
+                            className="text-[12px]"
+                            style={{ color: "var(--vg-text-secondary)" }}
+                          >
+                            ویرایش
+                          </button>
+                        ) : null}
+                        <button onClick={() => remove.mutate(invite.id)} className="text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
+                          برداشتن
+                        </button>
+                      </span>
+                    ) : null}
+                  </Cell>
+                </tr>
+              ),
+            )}
           </Table>
+          {update.error ? (
+            <Muted>
+              {update.error instanceof ApiError && update.error.code === "limit_below_used"
+                ? "ظرفیت نمی‌تواند کمتر از تعداد کسانی باشد که تا الان از این کد استفاده کرده‌اند."
+                : "ذخیره نشد."}
+            </Muted>
+          ) : null}
           {remove.data ? <Muted>{remove.data === "deleted" ? "حذف شد." : "استفاده شده بود، پس باطل شد."}</Muted> : null}
         </div>
       )}
@@ -229,12 +349,21 @@ function Field({
   placeholder,
   ltr = false,
   width = "w-40",
+  type = "text",
+  min,
+  required = false,
+  form,
 }: {
   value: string;
   onChange: (next: string) => void;
   placeholder: string;
   ltr?: boolean;
   width?: string;
+  type?: "text" | "number" | "date";
+  min?: number | string | undefined;
+  required?: boolean;
+  /** For a field that sits in a table row, outside the form it submits with. */
+  form?: string | undefined;
 }) {
   return (
     <input
@@ -242,10 +371,24 @@ function Field({
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       aria-label={placeholder}
+      type={type}
+      {...(min === undefined ? {} : { min })}
+      {...(form === undefined ? {} : { form })}
+      required={required}
       {...(ltr ? { dir: "ltr" as const } : {})}
       className={`h-8 rounded-lg px-2 text-[12px] ${width}`}
       style={{ background: "var(--vg-surface)", color: "var(--vg-text)", border: "1px solid var(--vg-border-subtle)" }}
     />
+  );
+}
+
+/** A visible label over a field. A placeholder alone vanishes the moment a date is picked. */
+function Labelled({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1 text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+      {label}
+      {children}
+    </label>
   );
 }
 

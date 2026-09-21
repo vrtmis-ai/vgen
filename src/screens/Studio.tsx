@@ -7,9 +7,13 @@ import { VendorMark } from "../components/VendorMark";
 import type { InputMap, RefMap } from "../components/controls";
 import { FormPanel } from "../components/FormPanel";
 import { ViewControls, useViewMode } from "../components/ViewControls";
-import { type Generation } from "../lib/gallery";
-import { isVideoUrl } from "../lib/format";
+import { isPending, isUnfinished, type Generation } from "../lib/gallery";
 import { useImageFallback } from "../lib/useImageFallback";
+import { useRevealArrival } from "../lib/useRevealArrival";
+import { FailedVeil, RunningVeil, type CancelOutcome } from "../components/GenerationVeils";
+import { GenerationMedia } from "../components/GenerationMedia";
+import { OutputActions } from "../components/OutputActions";
+import type { GenerationRefusal } from "../features/generation/validation";
 import { riseItem, riseParent } from "../lib/motion";
 import { useI18n, type TKey } from "../lib/i18n";
 
@@ -49,76 +53,86 @@ const STEPS: { title: TKey; body: TKey; Icon: typeof SlidersHorizontal; art?: st
   { title: "st_step3_title", body: "st_step3_body", Icon: Sparkle },
 ];
 
-function OutputCard({ gen }: { gen: Generation }) {
-  const { t, n } = useI18n();
-  const percent = Math.round(gen.progress ?? 0);
+function OutputCard({
+  gen,
+  onRemove,
+  onCancel,
+  onOpen,
+  onRegenerate,
+  onToVideo,
+}: {
+  gen: Generation;
+  onRemove?: (() => void) | undefined;
+  onCancel?: ((generation: Generation) => Promise<CancelOutcome>) | undefined;
+  onOpen?: (() => void) | undefined;
+  onRegenerate?: (() => void) | undefined;
+  onToVideo?: (() => void) | undefined;
+}) {
   const [failed, onError] = useImageFallback();
   const url = gen.outputUrl;
-  const running = gen.status === "running";
+  const refused = isUnfinished(gen.status);
   return (
     <motion.div
       variants={riseItem}
-      className="relative overflow-hidden rounded-[20px]"
+      data-generation-card
+      className="group relative overflow-hidden rounded-[20px]"
       style={{
         aspectRatio: `${gen.w} / ${gen.h}`,
         background: failed || !url ? gen.grad : "var(--vg-surface)",
         border: "1px solid var(--vg-border-subtle)",
       }}
     >
+      {/* `gen.kind`, not the URL. An output link is signed and ends in a query
+          string, so `isVideoUrl` never matched one and every clip on this
+          canvas was handed to an `<img>` that cannot decode it — a card that
+          had produced a video showed nothing at all. `GenerationMedia` reads
+          the catalogue's own word for what was made, and gives the clip its
+          hover behaviour: still until the pointer arrives, then playing the
+          real file. */}
       {url &&
         !failed &&
-        (isVideoUrl(url) ? (
-          <video src={url} muted loop playsInline className="absolute inset-0 size-full object-cover" />
+        (gen.kind === "video" ? (
+          <GenerationMedia gen={gen} />
         ) : (
-          <img src={url} alt={gen.prompt} onError={onError} className="absolute inset-0 size-full object-cover" />
+          <img src={url} alt={gen.prompt} loading="lazy" onError={onError} className="absolute inset-0 size-full object-cover" />
         ))}
 
-      {running && (
-        /* A real determinate bar, driven by the job's own progress rather than
-           a fixed 18-second animation that finished whenever it felt like it.
-           A generation is money already spent, so it gets a number. */
-        <div className="absolute inset-0 grid place-items-center" style={{ background: "rgba(0,0,0,0.45)" }}>
-          <div className="w-2/3">
-            {/* A progressbar, not a div that happens to be N% wide.
-                The percentage was in the caption and nowhere else, so a screen
-                reader got a stray number with no role, no range and no update as
-                the job advanced — on the one screen where the whole point is
-                telling somebody how far along the thing they paid for is. */}
-            <div
-              role="progressbar"
-              aria-label={t("r_making")}
-              aria-valuenow={percent}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuetext={`${n(percent)}٪`}
-              className="h-1 w-full overflow-hidden rounded-full"
-              style={{ background: "rgba(255,255,255,0.12)" }}
-            >
-              <div
-                className="h-full transition-[width] duration-200 ease-out"
-                style={{ width: `${percent}%`, background: "var(--vg-primary)" }}
-              />
-            </div>
-            {/* aria-hidden: the bar above already carries the figure, and a
-                screen reader announcing both says it twice every tick. */}
-            <p aria-hidden className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-              {t("r_making")}… <span className="vg-numeric">{n(percent)}٪</span>
-            </p>
-          </div>
-        </div>
+      {/* The card opens from a button that fills it rather than by being one.
+          The action rail has buttons of its own, and a button inside a button
+          is invalid markup that browsers resolve by dropping one of them. */}
+      {onOpen && !refused && (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="absolute inset-0 z-10"
+          aria-label={`باز کردن — ${gen.prompt.trim().slice(0, 60) || gen.name}`}
+        />
       )}
 
-      <div
-        className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5"
-        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72), transparent)" }}
-      >
-        <span className="truncate text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-          {gen.name}
-        </span>
-        <span className="vg-numeric shrink-0 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-          {gen.w}×{gen.h}
-        </span>
-      </div>
+      {isPending(gen.status) && <RunningVeil gen={gen} onCancel={onCancel} />}
+
+      {gen.status === "done" && (
+        <OutputActions gen={gen} onOpen={onOpen} onRegenerate={onRegenerate} onToVideo={onToVideo} className="z-20" />
+      )}
+
+      {/* It drew the model's gradient and its name here, which is exactly what
+          a card waiting for its file looks like — a refusal read as a
+          generation that was still coming. */}
+      {refused ? (
+        <FailedVeil gen={gen} onRemove={onRemove} />
+      ) : (
+        <div
+          className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5"
+          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72), transparent)" }}
+        >
+          <span className="truncate text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
+            {gen.name}
+          </span>
+          <span className="vg-numeric shrink-0 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+            {gen.w}×{gen.h}
+          </span>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -128,11 +142,29 @@ export default function Studio({
   gens,
   onGenerate,
   onOpen,
+  onRemove,
+  onCancel,
+  onRegenerate,
+  onToVideo,
+  submitError,
+  onErrorAction,
 }: {
   kind: ModelKind;
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, refs: RefMap) => void;
   onOpen: (g: Generation) => void;
+  /** Offered on a refused generation only, as in کارهای من. */
+  onRemove: (g: Generation) => void;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
+  /** The action rail on a finished card: repeat this generation. */
+  onRegenerate?: ((g: Generation) => void) | undefined;
+  /** The action rail on a finished still: hand it to a video model. */
+  onToVideo?: ((g: Generation) => void) | undefined;
+  /** Why the last press did not become a job; the dock prints it. */
+  submitError?: GenerationRefusal | null | undefined;
+  /** Where a refusal that has a way out leads. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const { t } = useI18n();
   const catalogFamilies = useCatalogFamilies();
@@ -148,6 +180,15 @@ export default function Studio({
   }, [families, family.id]);
 
   const mine = gens.filter((g) => g.kind === kind);
+  // The press stays on this page now, so the job has to be found on it: on a
+  // phone this canvas is under the form, and a scrolled history hides its head.
+  const reveal = useRevealArrival(mine[0]?.id);
+  const generate: typeof onGenerate = (...args) => {
+    reveal.arm();
+    // The explainer tab would hide the card the press just made.
+    setCanvasTab("history");
+    onGenerate(...args);
+  };
 
   return (
     // The panel is a flex sibling of the canvas rather than a fixed overlay, so
@@ -156,11 +197,14 @@ export default function Studio({
       {/* See StudioImage. The visible heading below belongs to the empty state
           only, so once there is history this page had no h1 at all. */}
       <h1 className="sr-only">{kind === "video" ? "ساخت ویدیو" : "ساخت"}</h1>
-      <FormPanel families={families} onGenerate={onGenerate} />
+      <FormPanel families={families} onGenerate={generate} submitError={submitError} onErrorAction={onErrorAction} />
 
       <main
         // @container so the header's view controls size against this canvas
         // rather than the viewport — see ViewControls and StudioAudio.
+        /* No ground of its own: the page is the lit ground now (`.vg-stage`
+           in Shell), and this canvas paints nothing so it shows through. The
+           dock beside it is opaque, which is what keeps the two apart. */
         className="@container min-w-0 flex-1 px-4 pb-16 pt-5 md:px-8"
         style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}
       >
@@ -182,7 +226,7 @@ export default function Studio({
                 key={k}
                 onClick={() => setCanvasTab(k)}
                 aria-pressed={canvasTab === k}
-                className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
+                className="flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold transition-colors"
                 style={{
                   background: canvasTab === k ? "var(--vg-surface-overlay)" : "transparent",
                   color: canvasTab === k ? "var(--vg-text)" : "var(--vg-text-muted)",
@@ -244,7 +288,7 @@ export default function Studio({
                     }}
                   >
                     {step.art ? (
-                      <img src={step.art} alt="" className="size-full object-cover" />
+                      <img src={step.art} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
                     ) : (
                       <step.Icon size={26} weight="light" style={{ color: "var(--vg-text-muted)" }} />
                     )}
@@ -270,9 +314,20 @@ export default function Studio({
                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(1300 / view.cols)}px, 1fr))` }}
               >
                 {mine.map((g) => (
-                  <button key={g.id} onClick={() => onOpen(g)} className="text-start">
-                    <OutputCard gen={g} />
-                  </button>
+                  /* No card here is a button. Each carries controls of its own
+                     — remove on a refusal, cancel in the queue, the action rail
+                     on a finished one — and the card opens from a button that
+                     fills it, inside `OutputCard`. */
+                  <div key={g.id} ref={g.id === mine[0]?.id ? reveal.target : undefined} className="scroll-my-24">
+                    <OutputCard
+                      gen={g}
+                      onRemove={() => onRemove(g)}
+                      onCancel={onCancel}
+                      onOpen={() => onOpen(g)}
+                      {...(onRegenerate ? { onRegenerate: () => onRegenerate(g) } : {})}
+                      {...(onToVideo ? { onToVideo: () => onToVideo(g) } : {})}
+                    />
+                  </div>
                 ))}
               </motion.div>
             ) : (
@@ -282,30 +337,60 @@ export default function Studio({
                  is a denser grid, which is the one thing a list should not be. */
               <div className="mt-4 flex flex-col gap-6">
                 {mine.map((g) => (
-                  <div key={g.id} className="flex flex-col gap-3 lg:flex-row lg:items-start">
-                    <button
-                      onClick={() => onOpen(g)}
-                      className="relative min-w-0 flex-1 overflow-hidden rounded-2xl"
-                      style={{ aspectRatio: `${g.w} / ${g.h}`, background: g.grad, maxHeight: "70dvh" }}
-                      aria-label={`باز کردن — ${g.prompt.trim() ? g.prompt.trim().slice(0, 60) : g.name}`}
-                    >
-                      {/* `g.kind`, not the file extension. An output URL is
-                          signed and ends in a query string, so `.mp4$` never
-                          matches one and every clip was handed to an `<img>`. */}
-                      {g.outputUrl &&
-                        (g.kind === "video" ? (
-                          <video src={g.outputUrl} muted loop playsInline className="absolute inset-0 size-full object-cover" />
+                  <div
+                    key={g.id}
+                    ref={g.id === mine[0]?.id ? reveal.target : undefined}
+                    className="flex scroll-my-24 flex-col gap-3 lg:flex-row lg:items-start"
+                  >
+                    {/* A card with a control on it cannot be a button: a button
+                        inside a button is invalid markup that browsers resolve
+                        by dropping one of them. That is the refused card's
+                        remove control, and now also the queued card's cancel —
+                        and a queued generation has nothing to open in any case,
+                        so it loses nothing by not being pressable until it
+                        starts. */}
+                    {isUnfinished(g.status) || g.status === "queued" ? (
+                      <div
+                        className="relative min-w-0 flex-1 overflow-hidden rounded-2xl"
+                        style={{ aspectRatio: `${g.w} / ${g.h}`, maxHeight: "70dvh", border: "1px solid var(--vg-border-subtle)" }}
+                      >
+                        {isUnfinished(g.status) ? (
+                          <FailedVeil gen={g} onRemove={() => onRemove(g)} />
                         ) : (
-                          <img src={g.outputUrl} alt="" className="absolute inset-0 size-full object-cover" />
-                        ))}
-                      {g.status === "running" && (
-                        <span className="absolute inset-0 grid place-items-center" style={{ background: "rgba(0,0,0,0.45)" }}>
-                          <span className="text-[12px]" style={{ color: "var(--vg-text-secondary)" }}>
-                            در حال ساخت…
-                          </span>
-                        </span>
-                      )}
-                    </button>
+                          <RunningVeil gen={g} onCancel={onCancel} />
+                        )}
+                      </div>
+                    ) : (
+                      // The rail is a sibling of the open button, not a child.
+                      <div
+                        data-generation-card
+                        className="group relative min-w-0 flex-1 overflow-hidden rounded-2xl"
+                        style={{ aspectRatio: `${g.w} / ${g.h}`, background: g.grad, maxHeight: "70dvh" }}
+                      >
+                        <button
+                          onClick={() => onOpen(g)}
+                          className="absolute inset-0"
+                          aria-label={`باز کردن — ${g.prompt.trim() ? g.prompt.trim().slice(0, 60) : g.name}`}
+                        >
+                          {/* `g.kind`, not the file extension — an output URL is
+                              signed and ends in a query string, so `.mp4$` never
+                              matches one. Through `GenerationMedia` now, which
+                              is also where the clip's hover behaviour lives. */}
+                          <GenerationMedia gen={g} />
+                        </button>
+                        {/* The grid's field, not the flat 45% scrim it replaced
+                            there and that this view had kept. */}
+                        {g.status === "running" && <RunningVeil gen={g} />}
+                        {g.status === "done" && (
+                          <OutputActions
+                            gen={g}
+                            onOpen={() => onOpen(g)}
+                            {...(onRegenerate ? { onRegenerate: () => onRegenerate(g) } : {})}
+                            {...(onToVideo ? { onToVideo: () => onToVideo(g) } : {})}
+                          />
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex w-full shrink-0 flex-col lg:w-[240px] lg:self-stretch">
                       <p className="flex items-center gap-1.5 text-[12.5px] font-bold" style={{ color: "var(--vg-text)" }}>

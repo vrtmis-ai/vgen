@@ -1,0 +1,38 @@
+{
+  "models": ["topaz/image-upscale"],
+  "title": "Topaz - Image Upscale",
+  "docUrl": "https://docs.kie.ai/market/topaz/image-upscale.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Topaz - Image Upscale — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "image_url": {
+        "description": "Url of the image to be upscaled (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 10.0MB)",
+        "type": "string",
+        "examples": ["https://static.aiquickdraw.com/tools/example/1762752805607_mErUj1KR.png"]
+      },
+      "upscale_factor": {
+        "type": "string",
+        "description": "Factor to upscale the video by (e.g. 2.0 doubles width and height)",
+        "enum": ["1", "2", "4"],
+        "default": "2",
+        "examples": ["2"]
+      }
+    },
+    "required": ["image_url", "upscale_factor"]
+  },
+  "examples": [
+    {
+      "model": "topaz/image-upscale",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "image_url": "https://static.aiquickdraw.com/tools/example/1762752805607_mErUj1KR.png",
+        "upscale_factor": "2"
+      }
+    }
+  ]
+}

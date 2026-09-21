@@ -11,6 +11,7 @@ const JOB_ID = "22222222-2222-4222-8222-222222222222";
 const POST_ID = "33333333-3333-4333-8333-333333333333";
 
 function appFor(outcome: ShareOutcome, identity: unknown = SIGNED_IN) {
+  const report = vi.fn(async () => "recorded" as const);
   const share = vi.fn(async () => outcome);
   const app = Fastify({ logger: false });
   // The same handler createApp installs, so a rejected body is the 400 the
@@ -20,9 +21,9 @@ function appFor(outcome: ShareOutcome, identity: unknown = SIGNED_IN) {
     app,
     { getCurrent: vi.fn(async () => identity) } as never,
     { list: vi.fn(async () => ({ posts: [] })) },
-    { share },
+    { share, report },
   );
-  return { app, share };
+  return { app, share, report };
 }
 
 const shared = (): ShareOutcome => ({ outcome: "shared", post: { id: POST_ID, status: "pending" } });
@@ -110,7 +111,15 @@ describe("sharing into the feed", () => {
 function adminAppFor(
   decided: { status: string } | null,
   permission: { granted: boolean } = { granted: true },
-): { app: FastifyInstance; audit: ReturnType<typeof vi.fn>; decide: ReturnType<typeof vi.fn> } {
+  removed: { status: string } | null = { status: "approved" },
+): {
+  app: FastifyInstance;
+  audit: ReturnType<typeof vi.fn>;
+  decide: ReturnType<typeof vi.fn>;
+  takeDown: ReturnType<typeof vi.fn>;
+  reportedPosts: ReturnType<typeof vi.fn>;
+  resolveReports: ReturnType<typeof vi.fn>;
+} {
   const audit = vi.fn(async () => {});
   const decide = vi.fn(async () => decided);
   const guard: AdminGuard = {
@@ -123,8 +132,15 @@ function adminAppFor(
   };
   const app = Fastify({ logger: false });
   registerErrorHandling(app);
-  registerAdminCommunityRoutes(app, { moderation: { listPending: vi.fn(async () => ({ posts: [] })), decide } }, guard);
-  return { app, audit, decide };
+  const takeDown = vi.fn(async () => removed);
+  const reportedPosts = vi.fn(async () => []);
+  const resolveReports = vi.fn(async () => 2);
+  registerAdminCommunityRoutes(
+    app,
+    { moderation: { listPending: vi.fn(async () => ({ posts: [] })), decide, takeDown, reportedPosts, resolveReports } },
+    guard,
+  );
+  return { app, audit, decide, takeDown, reportedPosts, resolveReports };
 }
 
 describe("deciding on what was shared", () => {
@@ -197,5 +213,93 @@ describe("deciding on what was shared", () => {
     expect(listed.statusCode).toBe(404);
     expect(decided.statusCode).toBe(404);
     expect(decide).not.toHaveBeenCalled();
+  });
+});
+
+/* The gap the compliance audit found. `decide()` matches `status = 'pending'`,
+   which is right for a queue and means an approved post could not be
+   un-published through any route at all — complying with a takedown order
+   required a hand-written UPDATE against production. */
+describe("taking a published post down", () => {
+  const remove = (app: FastifyInstance, payload: unknown) =>
+    app.inject({ method: "DELETE", url: "/api/v1/admin/community/posts/post-1", payload: payload as never });
+
+  it("removes it and writes down why", async () => {
+    const { app, audit, takeDown } = adminAppFor({ status: "approved" });
+
+    const response = await remove(app, { reason: "court order 1404/123" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: "post-1", visible: false });
+    expect(takeDown).toHaveBeenCalledWith("post-1", "court order 1404/123");
+    // Audited like the approval it reverses. This is the action somebody may
+    // have to produce a record of, months later, to somebody outside.
+    expect(audit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ action: "community.post.takedown", targetId: "post-1" }),
+    );
+  });
+
+  it("refuses a removal with no recorded ground", async () => {
+    const { app, takeDown } = adminAppFor({ status: "approved" });
+
+    // Six months later a removal with no reason is indistinguishable from an
+    // accident, which is why this is required where a rejection's is optional.
+    expect((await remove(app, {})).statusCode).toBe(400);
+    expect((await remove(app, { reason: "x" })).statusCode).toBe(400);
+    expect(takeDown).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for a post that is already gone", async () => {
+    const { app, audit } = adminAppFor(null, { granted: true }, null);
+
+    const response = await remove(app, { reason: "already handled" });
+
+    expect(response.statusCode).toBe(404);
+    // No second audit entry claiming a second takedown. A repeated call is a
+    // stale screen, not a new event.
+    expect(audit).not.toHaveBeenCalled();
+  });
+
+  it("does not let an admin without the permission remove anything", async () => {
+    const { app, takeDown } = adminAppFor({ status: "approved" }, { granted: false });
+
+    const response = await remove(app, { reason: "court order 1404/123" });
+
+    expect(response.statusCode).toBe(404);
+    expect(takeDown).not.toHaveBeenCalled();
+  });
+});
+
+/* A report puts a post in front of a person. It hides nothing on its own — a
+   report that un-publishes is a heckler's veto with one click, and the first
+   use anybody finds for one is aiming it at a competitor. */
+describe("reporting a post", () => {
+  const report = (app: FastifyInstance, payload: unknown) =>
+    app.inject({ method: "POST", url: "/api/v1/community/posts/post-1/report", payload: payload as never });
+
+  it("records a report from a signed-in visitor", async () => {
+    const { app, report: spy } = appFor({ outcome: "shared", post: { id: POST_ID } } as never);
+
+    const response = await report(app, { category: "illegal", note: "این نباید اینجا باشد" });
+
+    expect(response.statusCode).toBe(200);
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ postId: "post-1", category: "illegal", note: "این نباید اینجا باشد" }));
+  });
+
+  it("defaults the category rather than refusing a bare press", async () => {
+    const { app, report: spy } = appFor({ outcome: "shared", post: { id: POST_ID } } as never);
+
+    expect((await report(app, {})).statusCode).toBe(200);
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ category: "other" }));
+  });
+
+  it("does not take reports from strangers", async () => {
+    const { app, report: spy } = appFor({ outcome: "shared", post: { id: POST_ID } } as never, { status: "anonymous" });
+
+    expect((await report(app, {})).statusCode).toBe(401);
+    // Attributable, so one person cannot file a thousand.
+    expect(spy).not.toHaveBeenCalled();
   });
 });

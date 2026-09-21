@@ -1,22 +1,28 @@
-import { useState } from "react";
-import { Plus, Minus, Sparkle, Heart, DownloadSimple, ArrowsClockwise, ArrowsOut, Lock } from "@phosphor-icons/react";
-import { type Family, type Variant } from "../data/models";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Plus, Minus, Sparkle, DownloadSimple, ArrowsClockwise, ArrowsOut, X, SpeakerHigh } from "@phosphor-icons/react";
+import { variantRefs, type Family, type Variant } from "../data/models";
+import { groupOf } from "../lib/refSlots";
+import { insertTag, refTags, tagUsed } from "../lib/refTags";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
-import type { InputMap } from "../components/controls";
+import { addRefFiles, moveRefFile, slotAccept, type InputMap, type RefMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
-import { type Generation } from "../lib/gallery";
+import { isPending, isUnfinished, type Generation } from "../lib/gallery";
 import { CoinMark } from "../components/chrome";
-import { AssetViewer, type ViewerAsset } from "../components/AssetViewer";
+import { AssetViewer, downloadAsset, viewerAsset, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { JustifiedRows } from "../components/JustifiedRows";
+import { useIgnition } from "../components/Ignition";
+import { FailedVeil, RunningVeil, SubmitRefusalNote, type CancelOutcome } from "../components/GenerationVeils";
+import { shortfallRefusal } from "../features/generation/validation";
+import type { GenerationRefusal } from "../features/generation/validation";
+import { useRevealArrival } from "../lib/useRevealArrival";
 import { ModelChip } from "../components/ModelPicker";
 import { UnlimitedSwitch } from "../components/UnlimitedSwitch";
-import { unlimitedFit } from "../lib/unlimited";
-import { promptDir } from "../lib/format";
+import { faNum, promptDir } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
-import { useAccess } from "../lib/access";
+import { useAppServices } from "../runtime/AppServices";
 
 /* ---------------------------------------------------------------------------
    The image studio.
@@ -75,6 +81,9 @@ function tileNames(assets: ViewerAsset[], familyName: (familyId: string) => stri
 const CHIP_CLASS = "flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold";
 const CHIP_STYLE: React.CSSProperties = { background: "var(--vg-surface-overlay)", color: "var(--vg-text)" };
 
+/** What to call the file a slot is asking for. Topaz upscales clips too. */
+const SLOT_NOUN: Record<"image" | "video" | "audio", string> = { image: "تصویر", video: "ویدیو", audio: "فایل صوتی" };
+
 function chipOptions(c: ChipControl) {
   return c.kind === "slider"
     ? sliderSteps(c).map((v) => ({ value: (c.asString ? String(v) : v) as string | number, label: `${v}${c.unit ? ` ${c.unit}` : ""}` }))
@@ -89,11 +98,13 @@ function chipOptions(c: ChipControl) {
 function TileActions({
   onOpen,
   onDownload,
+  onRegenerate,
   inline,
   of,
 }: {
   onOpen: () => void;
   onDownload: () => void;
+  onRegenerate?: (() => void) | undefined;
   inline?: boolean;
   /**
    * What this stack acts on, for the accessible name.
@@ -122,10 +133,16 @@ function TileActions({
       }
       style={inline ? undefined : { insetInlineEnd: "0.375rem" }}
     >
+      {/* Two of these four were wired to `() => {}`: a heart with no likes
+          endpoint behind it, and a "regenerate" that regenerated nothing. The
+          heart is gone rather than stubbed — a button that does nothing teaches
+          people not to press the ones that do — and the repeat now repeats.
+          See `components/OutputActions`, which is this rail on every other
+          canvas; this one stays local because the wall's tiles are viewer
+          assets rather than generations. */}
       {[
-        { Icon: Heart, label: "پسندیدن", on: () => {} },
         { Icon: DownloadSimple, label: "دانلود", on: onDownload },
-        { Icon: ArrowsClockwise, label: "دوباره بساز", on: () => {} },
+        ...(onRegenerate ? [{ Icon: ArrowsClockwise, label: "دوباره بساز", on: onRegenerate }] : []),
         { Icon: ArrowsOut, label: "بزرگ کن", on: onOpen },
       ].map(({ Icon, label, on }) => (
         <button
@@ -147,29 +164,135 @@ export default function StudioImage({
   gens,
   onGenerate,
   onOpenModel,
+  onRemove,
+  onCancel,
+  onRegenerate,
+  submitError,
+  onErrorAction,
 }: {
   gens: Generation[];
-  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean) => void;
-  onOpenModel: (familyId: string, prompt?: string) => void;
+  onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap, preferUnlimited: boolean, refs: RefMap) => void;
+  onOpenModel: (familyId: string, prompt?: string, fromGenerationId?: string) => void;
+  /** Offered on a refused generation only, as in کارهای من. */
+  onRemove: (g: Generation) => void;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
+  /** Repeat a finished generation, from the tile it is drawn on. */
+  onRegenerate?: ((g: Generation) => void) | undefined;
+  /** Why the last press did not become a job. See `GenerationsProvider`. */
+  submitError?: GenerationRefusal | null | undefined;
+  /** Where a refusal that has a way out leads. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const { t, n } = useI18n();
   const catalogFamilies = useCatalogFamilies();
+  const services = useAppServices();
   const families = catalogFamilies.filter((f) => f.kind === "image");
-  const s = useCreateState(families);
-  const access = useAccess();
+
+  /* The model's input files.
+     Held above `useCreateState` because the hook validates against them: a slot
+     marked `required` — Recraft and Topaz both have one — is satisfied only by
+     something actually attached, and the hook used to be handed `{}`. That made
+     `ready` false for as long as either model was selected, so the create button
+     was dead and the dock said nothing about why. */
+  const [refs, setRefs] = useState<RefMap>({});
+  const s = useCreateState(families, refs);
   // A visitor sees the whole studio — models, controls, the price — and only
-  // the button that would spend turns into the way to get an account. The
-  // upgrade lock is skipped for them: they have no plan to upgrade from, and
-  // access.onUpgrade opens a wallet drawer nobody owns yet.
+  // the button that would spend turns into the way to get an account. Nothing
+  // about a balance is said to them: they have no wallet to be short of.
   const { user, signIn } = useSession();
   const visitor = user === null;
   // Reachable *and* chosen. Either alone leaves the button lying about cost.
-  const freeNow = s.preferUnlimited && unlimitedFit(s.variant, s.input, access.tier)?.available === true;
-  const locked = !access.can(s.family.id);
-  const need = locked ? access.needs(s.family.id) : null;
+  const freeNow = s.freeNow;
   const [count, setCount] = useState(1);
+  /* The one gate left on a generation, now that no model belongs to a plan.
+     `count` is this dock's own multiplier — it sends that many jobs — so the
+     comparison is against the whole press, not against one of them. */
+  const shortfall =
+    !freeNow && s.price !== null && s.spendable !== null && s.price * count > s.spendable
+      ? shortfallRefusal(s.price * count, s.spendable, n)
+      : null;
   const [viewing, setViewing] = useState<ViewerAsset | null>(null);
   const view = useViewMode("image", { mode: "grid", density: 4 });
+
+  /* The one slot this model takes, if it takes one.
+     Every image family in the catalogue declares at most a single input slot —
+     Recraft and Topaz one required image, Nano Banana up to eight optional
+     ones — so the dock drives that slot directly instead of growing the tabbed
+     slot grid the video panel needs. If an image model ever declares two, this
+     picks the first and the second becomes unreachable, which is the moment to
+     move this surface onto `RefUpload`. */
+  const slot = variantRefs(s.family, s.variant)[0];
+  const picked = slot ? (refs[slot.key] ?? []) : [];
+  /* The pictures have names the prompt can use — `@Image1`, `@Image2` — as in
+     the video dock. Nano Banana takes up to fourteen, and "put the jacket from
+     the second one on the person in the first" is exactly the sentence an edit
+     model needs the names for. A frame slot gets none (a position, not
+     material), and neither does a model that takes no prompt. */
+  const tags =
+    slot && groupOf(slot) === "reference" && !s.family.noPrompt ? (refTags([slot], { [slot.key]: picked.length })[slot.key] ?? []) : [];
+  const promptBox = useRef<HTMLTextAreaElement>(null);
+  // See FormPanel: the caret is placed once the inserted text is in the field.
+  const pendingCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const at = pendingCaret.current;
+    if (at === null) return;
+    pendingCaret.current = null;
+    promptBox.current?.focus();
+    promptBox.current?.setSelectionRange(at, at);
+  }, [s.prompt]);
+  function insertAtCaret(tag: string) {
+    const at = promptBox.current?.selectionStart ?? s.prompt.length;
+    const next = insertTag(s.prompt, at, tag);
+    pendingCaret.current = next.caret;
+    s.setPrompt(next.prompt);
+  }
+  const needsFile = slot?.required === true && picked.length === 0;
+  const pickRef = useRef<HTMLInputElement>(null);
+  const [tooBig, setTooBig] = useState<string | null>(null);
+  /* Which tile is being carried. The row is the model's input array and its
+     order is the order the provider receives, so "these two are the wrong way
+     round" is a real thing to want to fix. */
+  const [dragAt, setDragAt] = useState<number | null>(null);
+  // See FormPanel: the field lights across «بساز», then the job is sent.
+  const ignition = useIgnition();
+
+  /* Files belong to the model that asked for them.
+     Switching model has to drop them — the next model's slot has a different
+     name and the API would be handed a file for a field it does not have — and
+     revoke their object URLs with them, or the tab leaks a blob per upload. */
+  const variantId = s.variant.id;
+  useEffect(() => {
+    setTooBig(null);
+    setRefs((previous) => {
+      for (const files of Object.values(previous)) for (const file of files) URL.revokeObjectURL(file.url);
+      // Identity matters: returning a fresh {} every time would re-render, and
+      // this effect's own dependency is stable, so it would settle — but the
+      // wall below re-lays out on every render and it is not free.
+      return Object.keys(previous).length === 0 ? previous : {};
+    });
+  }, [variantId]);
+
+  async function addFiles(files: File[]) {
+    if (!slot || files.length === 0) return;
+    const next = await addRefFiles(slot, picked, files);
+    setTooBig(next.rejected);
+    setRefs({ [slot.key]: next.files });
+  }
+
+  function reorder(from: number, to: number) {
+    if (!slot) return;
+    const next = moveRefFile(picked, from, to);
+    if (next !== picked) setRefs({ [slot.key]: next });
+  }
+
+  function dropFile(index: number) {
+    if (!slot) return;
+    const file = picked[index];
+    if (file) URL.revokeObjectURL(file.url);
+    setTooBig(null);
+    setRefs({ [slot.key]: picked.filter((_, at) => at !== index) });
+  }
 
   const mine = gens.filter((g) => g.kind === "image");
   /* Jobs still running are held out of the wall and put in front of it.
@@ -177,23 +300,29 @@ export default function StudioImage({
      forty-two times would be forty-two progress bars for one generation. It
      also has no picture yet, so it cannot take part in a layout whose whole
      job is arranging pictures. */
-  const running = mine.filter((g) => g.status === "running");
-  const finished = mine.filter((g) => g.status !== "running");
+  const running = mine.filter((g) => isPending(g.status));
+  /* `done`, not "not running". A refused generation has no file, so it fell to
+     the `art()` placeholder below and appeared on the wall as somebody else's
+     stock photograph — the studio claiming a picture where the provider had
+     produced none.
+
+     Refusals are not dropped, though. They used to be — "a failure belongs in
+     کارهای من" — which only worked while «بساز» sent the browser there. It no
+     longer does, and a job that vanished from this wall would read as lost.
+     They are tiles of their own below, in the order they were made. */
+  const finished = mine.filter((g) => g.status === "done");
+  // The press stays on this page, so bring the job it made into view.
+  const reveal = useRevealArrival(mine[0]?.id);
   /* No stand-in library.
      This used to fall back to the seeded examples so the dock would not float
      over nothing. It filled the create surface with forty-two pictures the
      account did not make — a promise on arrival, and a gallery over the one
      screen that is supposed to be a workbench. An empty canvas is the correct
      first state, not a hole to be papered over; see the empty branch below. */
-  const wall: ViewerAsset[] = finished.map((g) => ({
-    id: g.id,
-    url: g.outputUrl ?? art(g.id),
-    prompt: g.prompt,
-    familyId: g.familyId,
-    w: g.w,
-    h: g.h,
-    createdAt: g.createdAt,
-  }));
+  // Shared with كارهای من, which opens the same panel over the same rows. The
+  // two had drifted: this one corrected the frame to the size that came back
+  // while the gallery still used the size that was asked for.
+  const wall: ViewerAsset[] = finished.map((g) => viewerAsset(g, art(g.id)));
 
   /* Mixed ratios on purpose: the wall is only worth a justified layout if the
      items actually differ, and the seeded stand-ins were all one shape. Real
@@ -218,6 +347,7 @@ export default function StudioImage({
     ratio: base.w / base.h,
     asset: base,
     pending: null as Generation | null,
+    refused: null as Generation | null,
   }));
   // Named as a set, not one at a time: whether a name needs an ordinal is a
   // fact about the whole wall, so it cannot be decided from inside one tile.
@@ -225,29 +355,35 @@ export default function StudioImage({
     shaped.map((t) => t.asset),
     (familyId) => catalogFamilies.find((family) => family.id === familyId)?.name,
   );
+  const pictures = new Map(shaped.map((t, i) => [t.key, { ...t, name: names[i]! }]));
+  /* A tile for something with no picture: a job still running, or one that
+     was refused. Shaped by what was asked for, since nothing arrived. */
+  /* The wall's tiles are viewer assets, and an asset's id is the id of the
+     generation it came from. That is the whole mapping back. */
+  const regenerateTile = (assetId: string) => {
+    const generation = mine.find((candidate) => candidate.id === assetId);
+    if (generation) onRegenerate?.(generation);
+  };
+
+  const placeholder = (g: Generation, state: "pending" | "refused") => ({
+    key: g.id,
+    ratio: g.w / g.h,
+    asset: { id: g.id, url: "", prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h } as ViewerAsset,
+    pending: state === "pending" ? g : null,
+    refused: state === "refused" ? g : null,
+    name: g.prompt.trim().slice(0, 60) || g.name,
+  });
   // Running jobs first, newest at the head, so the thing the user just paid for
-  // is the thing they are looking at.
+  // is the thing they are looking at. Then everything settled, newest first —
+  // a refusal sits where it happened rather than pinned above the pictures.
   const tiles = [
-    ...running.map((g) => ({
-      key: g.id,
-      ratio: g.w / g.h,
-      asset: { id: g.id, url: "", prompt: g.prompt, familyId: g.familyId, w: g.w, h: g.h } as ViewerAsset,
-      pending: g,
-      name: g.prompt.trim().slice(0, 60) || g.name,
-    })),
-    ...shaped.map((t, i) => ({ ...t, name: names[i]! })),
+    ...running.map((g) => placeholder(g, "pending")),
+    ...mine.flatMap((g) =>
+      isUnfinished(g.status) ? [placeholder(g, "refused")] : g.status === "done" && pictures.has(g.id) ? [pictures.get(g.id)!] : [],
+    ),
   ];
 
-  // No blob, no fetch: the asset is a remote URL and `download` on an anchor is
-  // the whole mechanism. It becomes a real save once outputs live in our own
-  // storage and the response carries Content-Disposition.
-  const download = (a: ViewerAsset) => {
-    const el = document.createElement("a");
-    el.href = a.url;
-    el.download = `vgen-${a.id}.jpg`;
-    el.rel = "noopener";
-    el.click();
-  };
+  const download = (a: ViewerAsset) => downloadAsset(services.generation.downloadUrl, a);
 
   return (
     // @container is required, not decorative: ViewControls asks `@xl` whether
@@ -258,13 +394,9 @@ export default function StudioImage({
       {/* Size only, no list. This surface is a wall of frames — it exists so you
           can scan pictures, and a list of them is the same wall with the
           pictures made small. The reference does not offer one here either. */}
-      {/* Nothing to size when there is nothing on the wall.
-
-          The offset reads the banner: 2.75rem is the top bar, and the strip
-          above it publishes its own height. Without the second term this row
-          slid under the bar whenever the banner was open. */}
+      {/* Nothing to size when there is nothing on the wall. */}
       {tiles.length > 0 && (
-        <div className="sticky top-[calc(2.75rem+var(--vg-banner-height,0px))] z-20 flex justify-start px-3 py-2">
+        <div className="sticky top-11 z-20 flex justify-start px-3 py-2">
           <ViewControls mode="grid" density={view.density} onMode={() => {}} onDensity={view.setDensity} modes={false} />
         </div>
       )}
@@ -352,24 +484,33 @@ export default function StudioImage({
             items={tiles}
             targetHeight={view.rowHeight}
             gap={2}
-            render={(t) =>
+            render={(t, size) =>
               /* A job with no picture yet: the tile holds its place in the wall
                and shows the bar. Not clickable and no action stack — there is
                nothing to open, download or recreate until it lands. */
               t.pending ? (
-                <div className="relative grid size-full place-items-center overflow-hidden" style={{ background: t.pending.grad }}>
-                  <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
-                  <div className="relative w-2/3 max-w-[180px]">
-                    <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
-                      <div
-                        className="h-full transition-[width] duration-200 ease-out"
-                        style={{ width: `${Math.round(t.pending.progress ?? 0)}%`, background: "var(--vg-primary)" }}
-                      />
-                    </div>
-                    <p className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-                      در حال ساخت… <span className="vg-numeric">{Math.round(t.pending.progress ?? 0)}%</span>
-                    </p>
-                  </div>
+                <div
+                  ref={t.key === mine[0]?.id ? reveal.target : undefined}
+                  className="relative size-full overflow-hidden"
+                  // Clear of the sticky bar above and the dock floating below.
+                  style={{ background: t.pending.grad, scrollMarginBlock: "6rem 14rem" }}
+                >
+                  <RunningVeil gen={t.pending} onCancel={onCancel} />
+                </div>
+              ) : t.refused ? (
+                <div
+                  ref={t.key === mine[0]?.id ? reveal.target : undefined}
+                  className="relative size-full overflow-hidden"
+                  style={{ scrollMarginBlock: "6rem 14rem" }}
+                >
+                  {/* Rows shrink with the density control; a short tile keeps
+                      the badge and the remove button and clamps the sentence. */}
+                  <FailedVeil
+                    gen={t.refused}
+                    onRemove={() => t.refused && onRemove(t.refused)}
+                    lines={size.height < 110 ? 0 : size.height < 150 ? 2 : 4}
+                    framed
+                  />
                 </div>
               ) : (
                 <div className="group relative size-full overflow-hidden" style={{ background: "var(--vg-surface)" }}>
@@ -380,7 +521,12 @@ export default function StudioImage({
                       style={{ background: "rgba(0,0,0,0.25)" }}
                     />
                   </button>
-                  <TileActions onOpen={() => setViewing(t.asset)} onDownload={() => download(t.asset)} of={t.name} />
+                  <TileActions
+                    onOpen={() => setViewing(t.asset)}
+                    onDownload={() => download(t.asset)}
+                    {...(onRegenerate ? { onRegenerate: () => regenerateTile(t.asset.id) } : {})}
+                    of={t.name}
+                  />
                 </div>
               )
             }
@@ -392,9 +538,13 @@ export default function StudioImage({
         <AssetViewer
           asset={viewing}
           onClose={() => setViewing(null)}
-          onOpenModel={(id, prompt) => {
+          onOpenModel={(id, prompt, from) => {
             setViewing(null);
-            onOpenModel(id, prompt);
+            onOpenModel(id, prompt, from);
+          }}
+          onRegenerate={(a) => {
+            setViewing(null);
+            regenerateTile(a.id);
           }}
           onDownload={download}
         />
@@ -405,23 +555,171 @@ export default function StudioImage({
         <div className="pointer-events-auto w-full max-w-[1120px] rounded-[26px] p-[2px]" style={{ background: "var(--vg-border)" }}>
           <div className="rounded-3xl p-4 md:p-5" style={{ background: "rgba(18,18,18,0.96)", backdropFilter: "blur(11px)" }}>
             <div className="flex items-start gap-3">
-              <button
-                aria-label="افزودن تصویر مرجع"
-                className="grid size-8 shrink-0 place-items-center rounded-[10px]"
-                style={{ background: "var(--vg-surface-raised)", color: "var(--vg-text)" }}
-              >
-                <Plus size={15} weight="bold" />
-              </button>
-              <textarea
-                value={s.prompt}
-                onChange={(e) => s.setPrompt(e.target.value)}
-                rows={2}
-                dir={promptDir(s.prompt)}
-                placeholder="تصویری که در ذهن داری را توصیف کن."
-                className="hide-scrollbar min-h-[52px] w-full resize-none bg-transparent text-[13.5px] leading-6 outline-none"
-                style={{ color: "var(--vg-text)" }}
-              />
+              {/* The button that did nothing.
+                  It was markup — no handler, no file input, no slot behind it —
+                  on the surface where Recraft and Topaz cannot run without one.
+                  It now drives this model's own slot, and hides on the models
+                  that take no file at all rather than offering an upload with
+                  nowhere to put it. */}
+              {slot && (
+                <div className="flex shrink-0 items-center gap-2">
+                  {picked.map((file, index) => (
+                    /* Draggable, and arrow-movable with the keyboard — dragging
+                       is a pointer gesture and cannot be the only way to do
+                       this. In RTL the row runs right to left, so ArrowRight is
+                       the way back through it and ArrowLeft the way on. */
+                    <span
+                      key={file.url}
+                      role="listitem"
+                      tabIndex={0}
+                      aria-label={`${slot.label} ${faNum(index + 1)} — برای جابه‌جایی از کلیدهای جهت‌دار استفاده کنید`}
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("application/x-deev-ref", String(index));
+                        setDragAt(index);
+                      }}
+                      onDragEnd={() => setDragAt(null)}
+                      onDragOver={(event) => {
+                        if (dragAt === null) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={(event) => {
+                        if (dragAt === null) return;
+                        event.preventDefault();
+                        reorder(dragAt, index);
+                        setDragAt(null);
+                      }}
+                      onKeyDown={(event) => {
+                        const to = event.key === "ArrowRight" ? index - 1 : event.key === "ArrowLeft" ? index + 1 : null;
+                        if (to === null) return;
+                        event.preventDefault();
+                        reorder(index, to);
+                      }}
+                      className="vg-tile relative grid size-8 cursor-grab place-items-center overflow-hidden rounded-[10px] active:cursor-grabbing"
+                      style={{ background: "var(--vg-surface-raised)", opacity: dragAt === index ? 0.35 : 1 }}
+                    >
+                      {(slot.media ?? "image") === "image" && <img src={file.url} alt="" className="size-full object-cover" />}
+                      {/* The tile's number, so it can be matched to its name in
+                          the row under the prompt. A 32px tile has no room for
+                          "@Image2" and every room for "2". */}
+                      {tags.length > 1 && (
+                        <span
+                          aria-hidden
+                          className="vg-tag pointer-events-none absolute bottom-0 grid h-3.5 min-w-3.5 place-items-center rounded-tl px-0.5 text-[9px] leading-none"
+                          style={{ insetInlineEnd: 0, background: "rgba(0,0,0,0.7)", color: "var(--vg-text)" }}
+                        >
+                          {index + 1}
+                        </span>
+                      )}
+                      {slot.media === "video" && (
+                        <video src={file.url} muted playsInline preload="metadata" className="size-full object-cover" />
+                      )}
+                      {slot.media === "audio" && <SpeakerHigh size={14} style={{ color: "var(--vg-text-muted)" }} />}
+                      <button
+                        onClick={() => dropFile(index)}
+                        aria-label={`حذف ${slot.label}`}
+                        className="absolute inset-0 grid place-items-center opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100"
+                        style={{ background: "rgba(0,0,0,0.6)", color: "var(--vg-text)" }}
+                      >
+                        <X size={13} weight="bold" />
+                      </button>
+                    </span>
+                  ))}
+                  {picked.length < slot.max && (
+                    <button
+                      onClick={() => pickRef.current?.click()}
+                      aria-label={`افزودن ${slot.label}`}
+                      className="grid size-8 place-items-center rounded-[10px]"
+                      style={{
+                        background: "var(--vg-surface-raised)",
+                        // The only thing standing between the customer and a
+                        // generation on a model that requires a file, so it says
+                        // so rather than sitting quiet beside the prompt box.
+                        color: needsFile ? "var(--vg-primary-soft)" : "var(--vg-text)",
+                        ...(needsFile ? { boxShadow: "inset 0 0 0 1px var(--vg-primary-a40)" } : {}),
+                      }}
+                    >
+                      <Plus size={15} weight="bold" />
+                    </button>
+                  )}
+                  <input
+                    ref={pickRef}
+                    type="file"
+                    accept={slotAccept(slot)}
+                    multiple={slot.max > 1}
+                    hidden
+                    onChange={(e) => {
+                      // Copied out before the input is cleared: resetting `value`
+                      // empties the live FileList itself. Clearing is what lets a
+                      // removed file be picked again.
+                      const files = Array.from(e.target.files ?? []);
+                      e.target.value = "";
+                      void addFiles(files);
+                    }}
+                  />
+                </div>
+              )}
+              {/* Recraft and Topaz take no prompt at all — they upscale or cut
+                  out the picture you hand them. The dock asked for one anyway
+                  and sent it: a real job went up as `{image: […], prompt:
+                  "recraft this"}`. KIE ignores the stray field, so nothing
+                  broke, but the box invited the customer to write something
+                  that could not affect the result. The panel has always
+                  disabled it on these models; this surface never did. */}
+              <div className="flex min-w-0 flex-1 flex-col">
+                <textarea
+                  ref={promptBox}
+                  value={s.prompt}
+                  onChange={(e) => s.setPrompt(e.target.value)}
+                  rows={2}
+                  dir={promptDir(s.prompt)}
+                  disabled={s.family.noPrompt}
+                  placeholder={s.family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط تصویر بده." : "تصویری که در ذهن داری را توصیف کن."}
+                  className="hide-scrollbar vg-field-inset min-h-[52px] w-full resize-none bg-transparent text-[13.5px] leading-6 outline-none disabled:opacity-40"
+                  style={{ color: "var(--vg-text)" }}
+                />
+                {/* The names, under the hand that is writing. Lime once the prompt
+                  uses one. Shown for a single picture too, as the video dock
+                  does: naming even one input measurably changes what an edit
+                  model does with it, because "the image" leaves it to decide
+                  what the sentence is about. */}
+                {tags.length > 0 && (
+                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                    <span className="shrink-0 text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+                      اشاره به
+                    </span>
+                    {tags.map((tag) => {
+                      const pointed = tagUsed(s.prompt, tag);
+                      return (
+                        <button
+                          key={tag}
+                          onClick={() => insertAtCaret(tag)}
+                          aria-label={`درج ${tag} در پرامپت`}
+                          className="vg-tag rounded px-1.5 py-0.5 font-semibold"
+                          style={{
+                            background: pointed ? "var(--vg-primary-a18)" : "var(--vg-surface-overlay)",
+                            color: pointed ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                          }}
+                        >
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* A refusal that never became a job — a short wallet, a full
+                account, a request that did not arrive. Above the control row,
+                because this dock is pinned to the bottom of the window and a
+                box under it lifts «بساز» out from under the pointer. */}
+            {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-3" />}
+            {/* The same notice, before the press instead of after it: the price
+                of what is about to be sent, against what the wallet holds. */}
+            {!submitError && shortfall && <SubmitRefusalNote refusal={shortfall} onAction={onErrorAction} className="mt-3" />}
 
             <div className="mt-3 flex items-end gap-2">
               <div className="hide-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
@@ -498,18 +796,7 @@ export default function StudioImage({
                 <UnlimitedSwitch variant={s.variant} input={s.input} on={s.preferUnlimited} onChange={s.setPreferUnlimited} />
               </div>
 
-              {/* See FormPanel: a locked model buys an upgrade button, not a
-                  greyed-out price. */}
-              {locked && !visitor ? (
-                <button
-                  onClick={access.onUpgrade}
-                  className={`${CHIP_CLASS} justify-center px-4`}
-                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-                >
-                  <Lock size={14} weight="fill" />
-                  {need ? <bdi>ارتقا به {need.name}</bdi> : "ارتقای پلن"}
-                </button>
-              ) : (
+              {
                 /* One line and one height, like every control beside it.
                    It was 52px and two-line to fit the price underneath, which
                    made the primary action the one object in the row with its own
@@ -519,13 +806,26 @@ export default function StudioImage({
                    colour is enough: it is the only lime in the dock. */
                 <button
                   disabled={!visitor && !s.ready}
-                  onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited))}
-                  className={`${CHIP_CLASS} justify-center px-4 transition-opacity disabled:opacity-35`}
-                  style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+                  onClick={(event) =>
+                    visitor
+                      ? signIn()
+                      : ignition.ignite(event, () => {
+                          reveal.arm();
+                          onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, refs);
+                        })
+                  }
+                  aria-busy={ignition.igniting || undefined}
+                  className={`${CHIP_CLASS} relative justify-center overflow-hidden px-4 transition-opacity disabled:opacity-35`}
+                  style={{
+                    background: "var(--vg-primary)",
+                    color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
+                    textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
+                  }}
                 >
-                  <Sparkle size={14} weight="fill" />
-                  {visitor ? t("visitor_cta") : "بساز"}
-                  <span className="flex items-center gap-1 opacity-90">
+                  {ignition.layer}
+                  <Sparkle size={14} weight="fill" className="relative" />
+                  <span className="relative">{visitor ? t("visitor_cta") : "بساز"}</span>
+                  <span className="relative flex items-center gap-1 opacity-90">
                     <CoinMark size={11} />
                     {/* The local table prices the metered pipe. When the other
                         one is chosen and reachable, the figure is not a smaller
@@ -533,8 +833,25 @@ export default function StudioImage({
                     <span className="vg-numeric">{freeNow ? t("unl_free") : s.price === null ? "—" : n(s.price * count)}</span>
                   </span>
                 </button>
-              )}
+              }
             </div>
+
+            {/* Why the button is off, on the one surface that never said.
+                A model with a required slot quotes and prices normally and then
+                refuses to submit, so a dead "بساز" was the entire explanation
+                — on Recraft, which cannot do anything at all without a picture.
+                It names the model because the dock is one click from being a
+                different one, and the answer changes with it. */}
+            {needsFile && !visitor && (
+              <p className="mt-2.5 text-[11.5px]" style={{ color: "var(--vg-primary-soft)" }}>
+                <bdi>{s.family.name}</bdi> روی یک {SLOT_NOUN[slot?.media ?? "image"]} کار می‌کند — با دکمهٔ + یکی اضافه کن.
+              </p>
+            )}
+            {tooBig && (
+              <p className="mt-2.5 text-[11.5px]" style={{ color: "var(--vg-danger)" }}>
+                فایل بزرگ‌تر از {tooBig} رد شد.
+              </p>
+            )}
           </div>
         </div>
       </div>

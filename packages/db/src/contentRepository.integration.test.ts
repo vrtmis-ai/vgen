@@ -277,3 +277,26 @@ describe("the site banner switch", () => {
     });
   });
 });
+
+describe("the early access flag on the served document", () => {
+  it("fails closed when the row is missing, as the signup gate does", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`delete from feature_flags where code = 'early_access'`;
+
+      expect((await new PostgresContentRepository(tx).list()).flags.earlyAccess).toBe(true);
+    });
+  });
+
+  it("follows the admin switch through the cached document", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      const content = new PostgresContentRepository(tx);
+      await access.setEarlyAccess(true, null);
+      expect((await content.list()).flags.earlyAccess).toBe(true);
+
+      await access.setEarlyAccess(false, null);
+
+      expect((await content.list()).flags.earlyAccess).toBe(false);
+    });
+  });
+});

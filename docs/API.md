@@ -30,23 +30,26 @@ That was not true until this change: three generation calls were pointing at
 paths the API does not serve, in a job shape no server ever sent, and the
 gallery had no route at all.
 
-| `AppServices` call      | Frontend requests          | Server route          | Status   |
-| ----------------------- | -------------------------- | --------------------- | -------- |
-| `session.getCurrent()`  | `GET /session`             | `routes/session.ts`   | **Live** |
-| `auth.*` (5 methods)    | `POST /auth/*`             | `routes/auth.ts`      | **Live** |
-| `catalog.list()`        | `GET /catalog`             | `routes/catalog.ts`   | **Live** |
-| `content.list()`        | `GET /content`             | `routes/content.ts`   | **Live** |
-| `community.list()`      | `GET /community`           | `routes/community.ts` | **Live** |
-| `community.share()`     | `POST /community`          | `routes/community.ts` | **Live** |
-| `plans.list()`          | `GET /plans`               | `routes/plans.ts`     | **Live** |
-| `wallet.getCurrent()`   | `GET /wallet`              | `routes/wallet.ts`    | **Live** |
-| `generation.quote()`    | `POST /generation/quotes`  | `routes/quotes.ts`    | **Live** |
-| `generation.create()`   | `POST /jobs`               | `routes/jobs.ts`      | **Live** |
-| `generation.getJob()`   | `GET /generation/jobs/:id` | `routes/jobs.ts`      | **Live** |
-| `gallery.list()`        | `GET /gallery`             | `routes/gallery.ts`   | **Live** |
-| `assets.upload()`       | `POST /assets`             | `routes/assets.ts`    | **Live** |
-| `campaign.getActive()`  | `GET /campaigns/active`    | `routes/campaigns.ts` | **Live** |
-| `payment.createOrder()` | `POST /payments/orders`    | `routes/payments.ts`  | **Live** |
+| `AppServices` call         | Frontend requests                                  | Server route          | Status   |
+| -------------------------- | -------------------------------------------------- | --------------------- | -------- |
+| `session.getCurrent()`     | `GET /session`                                     | `routes/session.ts`   | **Live** |
+| `auth.*` (5 methods)       | `POST /auth/*`                                     | `routes/auth.ts`      | **Live** |
+| `catalog.list()`           | `GET /catalog`                                     | `routes/catalog.ts`   | **Live** |
+| `content.list()`           | `GET /content`                                     | `routes/content.ts`   | **Live** |
+| `community.list()`         | `GET /community`                                   | `routes/community.ts` | **Live** |
+| `community.share()`        | `POST /community`                                  | `routes/community.ts` | **Live** |
+| `plans.list()`             | `GET /plans`                                       | `routes/plans.ts`     | **Live** |
+| `wallet.getCurrent()`      | `GET /wallet`                                      | `routes/wallet.ts`    | **Live** |
+| `generation.quote()`       | `POST /generation/quotes`                          | `routes/quotes.ts`    | **Live** |
+| `generation.create()`      | `POST /jobs`                                       | `routes/jobs.ts`      | **Live** |
+| `generation.getJob()`      | `GET /generation/jobs/:id`                         | `routes/jobs.ts`      | **Live** |
+| `generation.downloadUrl()` | `GET /generation/jobs/:id/outputs/:index/download` | `routes/jobs.ts`      | **Live** |
+| `generation.references()`  | `GET /generation/jobs/:id/references`              | `routes/jobs.ts`      | **Live** |
+| `generation.remove()`      | `DELETE /generation/jobs/:id`                      | `routes/jobs.ts`      | **Live** |
+| `gallery.list()`           | `GET /gallery`                                     | `routes/gallery.ts`   | **Live** |
+| `assets.upload()`          | `POST /assets`                                     | `routes/assets.ts`    | **Live** |
+| `campaign.getActive()`     | `GET /campaigns/active`                            | `routes/campaigns.ts` | **Live** |
+| `payment.createOrder()`    | `POST /payments/orders`                            | `routes/payments.ts`  | **Live** |
 
 So `production` mode is complete end to end: sign in, browse the catalogue, see
 a price, submit a generation, watch it run, and see the file it produced. The
@@ -92,9 +95,9 @@ Who, if anyone, is signed in, and how anyone could sign in. Never 401s —
 anonymous is a normal answer.
 
 ```jsonc
-{ "status": "anonymous", "host": "web", "authProviders": ["google"] }
+{ "status": "anonymous", "host": "web", "authProviders": ["google"], "phoneSignIn": false }
 // or
-{ "status": "authed", "host": "web", "authProviders": ["google", "microsoft"],
+{ "status": "authed", "host": "web", "authProviders": ["google", "microsoft"], "phoneSignIn": true,
   "user": { "id": "…", "methods": ["email"], "emailNormalized": "a@b.c",
             "displayName": "…", "locale": "fa", "isTeam": false } }
 ```
@@ -121,10 +124,18 @@ follow:
 - **It is on the anonymous arm too**, which is the arm that matters — the only
   people who need it are the ones who have not signed in.
 
-Locally neither is configured, so the list is `[]` and the sign-in screen shows
-phone and email only. That is correct, not a bug: **neither Google nor Microsoft
-is dependably reachable from Iran without a VPN**, so phone OTP is the route
-most people will take regardless.
+Locally neither is configured, so the list is `[]`. That is correct, not a bug:
+**neither Google nor Microsoft is dependably reachable from Iran without a VPN**,
+so phone OTP is the route most people will take once it exists.
+
+**`phoneSignIn` is the same rule for the phone form.** It is true only when
+`KAVENEGAR_API_KEY` and `KAVENEGAR_TEMPLATE` are both set. Without them the
+screen offers email and password only, and `POST /auth/otp/start` and
+`/auth/otp/verify` answer `404 phone_unavailable`. That is every environment
+until eNamad clears, because Kavenegar will not send OTP templates for a site
+without it. There is no console fallback any more, so local matches production.
+Phone signup is also the only thing that grants the 12-coin trial; until it is
+back, give invitees coins through the invite code's gift.
 
 ### `GET /catalog`
 
@@ -146,7 +157,8 @@ recommended first. Do not sort them.
 
 **New field: `variant.featureCode`.** It names the section of the product a
 variant belongs to — `image_generate`, `image_edit`, `video_generate`,
-`image_to_video`, `video_edit`, `speech_generate`. A screen mostly does not need
+`image_to_video`, `video_edit`, `speech_generate`, `music_generate`,
+`sound_generate`. A screen mostly does not need
 it, but it is the honest way to answer "is this thing a generator or an
 editor?", and it is what a job gets filed under. It is required, so it is always
 there.
@@ -158,6 +170,9 @@ Two consequences worth knowing, because neither is guessable from the family:
 - Both `hailuo` variants are `image_to_video` — there is no text-only path
   through them, and their `image_url` slot is `required: true`. Their neighbours
   in `kling` and `wan` are `video_generate` and take an image optionally.
+- `suno` (`music_generate`) and `suno-sounds` (`sound_generate`) answer one
+  request with two takes, so a finished job's `outputs` holds two audio files.
+  Read all of them: the first is not the only thing that was paid for.
 
 **Where it comes from.** `provider_models`, grouped by the `family` column, with
 everything a screen renders in `capabilities`. Not a table of frozen JSON
@@ -197,7 +212,7 @@ ElevenLabs voice list. Seven collections that were TypeScript arrays under
 {
   "version": "content-…",
   "publishedAt": 1234567890,
-  "flags": { "siteBanner": true },
+  "flags": { "siteBanner": true, "earlyAccess": true },
   "presets": [],
   "fragments": [],
   "skills": [],
@@ -248,6 +263,13 @@ vanish — worse than either state.
   `site_banner.changed`. `GET /admin/site-banner` reads it under the same
   permission — there is no `flags.read`, and inventing one for a value already
   public on this route would be ceremony.
+- **`earlyAccess` is `feature_flags.early_access`**, the same row signup reads,
+  and it defaults to `true` the way signup does. While it is on, the app layout
+  shows a visitor who is not signed in the invite page on every route instead of
+  the product; `/signin`, `/signup` and the legal pages sit outside that layout
+  and stay reachable. Toggled at `PATCH /admin/early-access`. It is in this
+  document's fingerprint, so the switch reaches the next request rather than the
+  next content publish. Demo mode supplies `false`.
 - **It is not in `content.snapshot.json`.** A flag is a runtime switch whose
   value at export time says nothing about its value now, so freezing one into a
   fixture would only mislead. Demo mode supplies `true`, the same default the
@@ -386,15 +408,16 @@ Still stubs on purpose: `signIn` and `signUp` in
 and they warn rather than navigate because the screen they should open does not
 exist yet. Point them at it when you build it. `signOut` is live.
 
-| Route                                              |                                                                                  |
-| -------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `POST /auth/otp/start`                             | `{ phone }` → `202 { sent: true, expiresAt }`. The route most Iranian users take |
-| `POST /auth/otp/verify`                            | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie              |
-| `POST /auth/register`                              | `{ email, password, inviteCode?, deviceFingerprint? }` → `201`                   |
-| `POST /auth/login`                                 | `{ email, password }` → `200`                                                    |
-| `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                |
-| `GET /auth/google` · `/auth/google/callback`       | Registered only when Google credentials are configured                           |
-| `GET /auth/microsoft` · `/auth/microsoft/callback` | Registered only when Microsoft credentials are configured                        |
+| Route                                              |                                                                                   |
+| -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `POST /auth/otp/start`                             | `{ phone }` → `202 { sent: true, expiresAt }`. The route most Iranian users take  |
+| `POST /auth/otp/verify`                            | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie               |
+| `POST /auth/register`                              | `{ email, password, inviteCode?, deviceFingerprint? }` → `201`                    |
+| `POST /auth/invite/check`                          | `{ code }` → `200 { valid }`, one boolean for every refusal; 20 per 15 min per IP |
+| `POST /auth/login`                                 | `{ email, password }` → `200`                                                     |
+| `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                 |
+| `GET /auth/google` · `/auth/google/callback`       | Registered only when Google credentials are configured                            |
+| `GET /auth/microsoft` · `/auth/microsoft/callback` | Registered only when Microsoft credentials are configured                         |
 
 Schemas: `packages/contracts/src/auth.ts`. They are `.strict()`, so an extra key
 is a `validation_failed`, not an ignored field.
@@ -405,7 +428,16 @@ Things a UI needs to know about these:
   Persian digits — and normalised server-side. Do not pre-format them; two
   spellings of one number must not become two accounts.
 - **Early access is on.** Signup without an invite code answers
-  `403 invite_required`. A bad or revoked code answers `400 invite_invalid`.
+  `403 invite_required`. A bad or revoked code answers `400 invite_invalid`,
+  with the same message whichever rule refused it — unknown, revoked, expired,
+  not started and used up are indistinguishable from outside.
+- **The invite page asks `POST /auth/invite/check` first**, so a mistyped code
+  is refused before anyone reaches a phone number. It is a hint, not the gate:
+  signup checks the code again in the transaction that creates the account, so
+  a code that runs out between the two is still refused. A failed signup does
+  not spend a seat.
+  Signing in to an existing account never needs one. The invite page hands a
+  code to `/signup?invite=<code>`, which arrives with the field filled in.
 - **The free trial is keyed on phone.** An email signup through a 20-coin invite
   has 20 coins, not 32 — the 12-coin trial only comes with the phone route.
   This is deliberate, not a missing grant.
@@ -416,11 +448,19 @@ Things a UI needs to know about these:
   fail CORS and drop the cookie that makes the callback safe. The provider
   returns the browser to `WEB_ORIGIN` with the session cookie already set, so
   the screen's job afterwards is simply to refetch the session.
+- **An invite rides a social sign-in as `?invite=<code>`** on `/auth/google` or
+  `/auth/microsoft`. It is held in an HttpOnly cookie beside the state for the
+  ten minutes the provider round trip may take, handed to the same gated signup
+  the other routes use, and cleared on the way back. A start without `invite`
+  clears any earlier one.
+- **Both provider routes spend the per-IP login budget** (50 per 15 minutes).
+  Over it, the browser is sent to `?auth=oauth_failed` rather than a JSON 429 it
+  could not render mid-navigation.
 - **A failed social sign-in comes back as `?auth=<code>` on the landing page**,
   not as a JSON error — there is no response to read when the browser is
   mid-redirect. Expect `oauth_failed`, `invite_required`, `invite_invalid` or
-  `account_suspended`, and `failed` for a CSRF-state mismatch. Nothing in the UI
-  reads this yet.
+  `account_suspended`, and `failed` for a CSRF-state mismatch.
+  `OAuthFailureNotice` reads it on the landing page and on the invite page.
 - **Neither provider is reachable from Iran without a VPN**, so treat them as
   secondary next to the phone route rather than the prominent option, and expect
   both to be absent in most deployments — a provider without credentials has no
@@ -469,6 +509,15 @@ confirmed to someone probing for it.
 
 `/api/v1/admin/*` — invite and discount CRUD, per-code usage and spend, the
 early-access switch, and **providers and model routing**.
+
+**Every new invite code needs a cap and an expiry.** `POST /admin/invites`
+refuses a body without `maxRedemptions` or with an `expiresAt` that is not in
+the future. `PATCH /admin/invites/:id` (`invites.write`) changes `label`,
+`maxRedemptions` and `expiresAt` and nothing else; a past `expiresAt` closes the
+code at once, and a cap below the number of people already admitted answers
+`409 limit_below_used`. Each edit is audited as `invite.updated` with before and
+after. The list carries `expiresAt`, `startsAt`, `maxRedemptions` and
+`redemptionCount`, and `isUsable` now also respects `starts_at` (migration 0031).
 
 **The panel is at `/admin`** (`src/screens/admin/`), outside the `(app)` route
 group because that group's layout gates on a _customer_ session and will not
@@ -800,6 +849,192 @@ Both decisions are audited as `community.post.approve` / `community.post.reject`
 with the rejection reason in `after`. Approving is a decision to show one
 person's work, and their prompt, to everyone who opens the site.
 
+### `POST /community/posts/:id/report`
+
+Reports a published post. Authenticated.
+
+```jsonc
+// { "category": "illegal", "note": "…" } → 200
+{ "id": "…", "reported": true }
+```
+
+**A report hides nothing.** One that un-publishes on its own is a heckler's veto
+with a single click, and the first use anybody finds for one is aiming it at a
+competitor. What this does is put the post in front of a person, who has
+`DELETE /admin/community/posts/:id` to act with.
+
+Authenticated so a report is attributable, and **one per person per post** —
+enforced by a unique constraint, because otherwise the count measures how
+determined one reporter is rather than how many people objected, and the queue
+is sorted by exactly that number. A repeat answers **200** as well: the second
+press of a button is somebody who is not sure the first one worked.
+
+Only a published post can be reported. A pending one is already in front of a
+moderator, and **404** is the same answer for "not published" and "does not
+exist" — which is what a stranger should hear about either.
+
+### `GET /admin/community/reports` · `POST /admin/community/reports/:id/resolve`
+
+What people have complained about, busiest first. Permissions `community.read`
+and `community.write`.
+
+```jsonc
+// GET → 200
+{ "reported": [{ "postId": "…", "caption": "…", "prompt": "…", "author": "…",
+                 "reports": 3, "categories": ["illegal"], "firstReportedAt": 0 }] }
+
+// POST → 200
+{ "id": "…", "resolved": 3 }
+```
+
+A read over `post_reports` rather than a second status on `posts`: flipping an
+approved post back to `pending` would un-publish it on somebody's say-so, which
+is the veto again by another name.
+
+Resolving marks the open reports as looked at **whatever was decided**. A report
+read and dismissed is resolved as much as one acted on — the outcome lives in
+the audit entry and in whether the post is still visible. Without it the queue
+only ever grows, and a queue that only grows stops being read. Audited as
+`community.reports.resolved`.
+
+### `DELETE /admin/community/posts/:id`
+
+Pulls a published post down. Permission `community.write`. Body is required:
+
+```jsonc
+// { "reason": "court order 1404/123" } → 200
+{ "id": "…", "visible": false }
+```
+
+**The reason is required, where a rejection's is optional.** A rejection happens
+inside a queue whose whole context is the decision being made. A takedown
+happens to something the public has already seen, possibly months later and
+possibly because somebody outside the company asked — and a removal with no
+recorded ground is indistinguishable from an accident by then.
+
+Soft, like every other removal here: `posts.deleted_at` is set and every read in
+`communityRepository` already filters on it. The row stays as the evidence that
+the post existed and was taken down, which is the thing an order asks you to be
+able to produce.
+
+Unlike `decide()` this matches on the post rather than on its status, so it
+works on an approved post — which is the whole point. Before it existed there
+was no route that set `deleted_at` at all, and complying with an order meant a
+hand-written `UPDATE` against production under time pressure.
+
+Already gone answers **404**, so a repeated call writes no second audit entry
+claiming a second takedown. Audited as `community.post.takedown`.
+
+### `GET /admin/staff` · `POST /admin/staff` · `PATCH` · `DELETE /admin/staff/:userId`
+
+Who is staff, and what each of them can do. Permissions `staff.read` and
+`staff.write`; the seeded `admin` role holds `*` and so has both.
+
+```jsonc
+// GET → 200
+{
+  "staff": [
+    {
+      "userId": "…",
+      "email": "…",
+      "roleCode": "moderator",
+      "roleName": "Moderator",
+      "permissions": ["community.read"],
+      "isCustom": true,
+      "hasMfa": true,
+      "grantedAt": 0,
+      "grantedByEmail": "…",
+    },
+  ],
+  "grantable": ["*"],
+}
+
+// POST { "email": "…", "roleCode": "moderator", "permissions": ["community.read"] } → 201
+// PATCH { "permissions": null } → 200   // null hands the role's own set back
+// DELETE → 200 { "userId": "…", "revoked": true }
+```
+
+Permissions used to resolve from the role alone, so the four seeded roles were
+the only four possible admins and `admin` holds `["*"]`. `user_roles.permissions`
+(migration 0029) is **NULL for inherit, an array to pin** — every row written
+before that column existed still resolves exactly as it did.
+
+**Three rules, all enforced on the server.** `grantable` is sent so a form does
+not offer what will be refused; it is never the control.
+
+1. **You cannot grant what you do not hold.** Checked with `permissionsWithin`,
+   and checked against the _effective_ set — naming a role whose own permissions
+   exceed yours is the same escalation as listing them out. **403**
+   `beyond_your_own`.
+2. **You cannot touch somebody who holds what you do not.** Rule 1 stops a
+   limited admin _granting_ `*` and says nothing about them taking it away from
+   the person who has it. **403** `outranked`.
+3. **You cannot edit yourself.** Not a security rule but a lockout rule: the
+   first two permit narrowing your own set, and the result is a console nobody
+   can get back into.
+
+Appointment is **by email, and creates the account when given a `password`**
+(10–512 characters) for an address nobody uses yet. Staff are made by staff, so
+they need no invite code while signup is invite-only. An unknown address
+without a password is **404** `no_such_user`. A password for an address that
+already has an account, active or not, is **409** `account_exists` rather than
+applied: otherwise `staff.write` would be a way to take over anyone's account.
+
+The 201 carries `totp: { secret, uri }` when the person had no confirmed second
+factor, and `null` otherwise. `/admin` refuses a password alone, so this is how
+a new member of staff gets in: hand them the key once, and they add it to an
+authenticator app. It is stored only sealed and never written to the audit log,
+which records `accountCreated` and `secondFactorIssued` instead. Appointing an
+existing member of staff who has no factor issues one the same way.
+
+A permission string must match `^(\*|[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*(\.\*)?)$`.
+The field is compared against every admin route in the system, and a language
+rich enough to be interesting is one where a typo grants more than it reads as.
+
+Audited as `staff.appointed`, `staff.permissions.changed` (both sides) and
+`staff.revoked`.
+
+### `GET · POST · DELETE /admin/staff/:userId/plan`
+
+Turns a plan on for a member of staff. Permission `plans.grant` — its own, and
+not `staff.write`, because it spends the company's capacity rather than
+delegating authority and the people who should do one are not always the people
+who should do the other. Rule 2 above applies here too.
+
+```jsonc
+// POST { "planCode": "pro" } → 201
+{ "plan": { "subscriptionId": "…", "planCode": "pro", "planName": "Pro", "tier": 2,
+            "coins": 500, "startsAt": 0, "endsAt": 0, "status": "active" } }
+
+// DELETE → 200
+{ "userId": "…", "revoked": true, "coinsWithdrawn": 500 }
+```
+
+**The monthly limit is not a rule this code remembers to apply — it is what a
+grant is.** One term of a subscription means three rows: a `subscriptions` row,
+which is what the perk tier reads; a `credit_lots` row of exactly
+`plans.micro_credits_per_term`, expiring when the term does; and a
+`credit_ledger` entry, because an off-ledger grant balances today and breaks the
+reconciliation that proves nothing has been lost. The ceiling enforces itself —
+the wallet sums lots and the hold path refuses to overdraw — so an account that
+spends its term in a week cannot start another generation until the next grant.
+
+**Granting a pack is the same call and the opposite promise.** `term_days = 0`
+writes the lot with no `expires_at`, ends the subscription row at `infinity`,
+and skips the "already active" refusal, because coins are not a membership to
+collide with. `endsAt` comes back null on those.
+
+This is **not** unlimited access. `unlimited_entitlements` exists for that, is
+per-model, and is a different decision.
+
+A second grant on a live plan is **409** `already_active` rather than a silent
+success, with the live grant in the body: pressing the button twice must not
+hand out two terms' credits. Deactivating cancels the subscription and expires
+what is left of the term — leaving the credits behind would mean "deactivate"
+left the account holding the month's coins. Spent credits are not clawed back.
+
+Audited as `staff.plan.granted` / `staff.plan.revoked`.
+
 ### `GET /plans`
 
 The plan ladder. Public on purpose: someone deciding whether to sign up has to
@@ -824,12 +1059,13 @@ see what a plan costs before they have an account to see it with.
       "maxConcurrentJobs": 4,
     },
   ],
+  "tomanPerUsd": 235854,
 }
 ```
 
-Schema: `PlanSchema` in `packages/contracts/src/plans.ts`, mirrored for the
-browser in `src/runtime/contracts/plans.ts`. Ordered the way the cards are meant
-to read — do not sort it.
+Schema: `PlansResponseSchema` in `packages/contracts/src/plans.ts`, mirrored for
+the browser in `src/runtime/contracts/plans.ts`. Ordered the way the cards are
+meant to read — do not sort it.
 
 **This is what the UI reads.** `AppServices.plans.list()` fetches it once, the
 app shell puts it in `PlansProvider`, and the plans screen, the landing page's
@@ -840,11 +1076,21 @@ in CI — so a screen built without a backend is built against the real payload.
 `plans.rows.json` beside it is the seeder's _input_; both are generated, so
 **do not hand-edit either.**
 
-Five things worth knowing:
+Six things worth knowing:
 
 - **Prices are USD.** The coin economy pivots on USD, so the Toman figure a
   customer sees is a conversion applied at the edge and a rate change moves one
   number instead of every plan row.
+- **`tomanPerUsd` is that rate, and it changes daily.** It is the live
+  `fx_rates` row (`USD`→`IRR`) over ten, and it is served here rather than
+  compiled into the bundle because the screens apply it to figures the server
+  cannot precompute — a campaign discount depends on the account asking. It is
+  always a whole number, so the price a card rounds to the nearest thousand
+  Toman and the price `POST /payments/orders` reserves round identically.
+  Serving the ladder without it is a 500: a plan card with no rate renders NaN
+  into a price. The worker fetches it from the market once a day — see
+  `apps/worker/src/fxRefresh.ts` — so this document changes value daily and the
+  memoised `PublicDocument` fingerprint includes the rate for that reason.
 - **`annualUsdPerMonth: null` is not the same as "same as monthly".** Null means
   the plan has no annual option and the toggle should not appear; an equal price
   would mean a discount of zero.
@@ -859,16 +1105,38 @@ Five things worth knowing:
   plan buys you out of. The ladder is monotonic with price and a unit test
   enforces that, because paying more must never buy less parallelism.
 
-**Tier gating.** `plans.tier` is compared against a family's `minTier`, a
-required field on every family in `GET /catalog`. An account with no plan is
-tier 1, not tier 0 — it holds a 12-coin signup gift and the cheapest tier-1
-models cost about a coin, so tier 1 is what makes that gift spendable.
+**No tier gating.** There was some, on both sides, and it is gone (owner's
+decision, 2026-09-20): a family's `minTier` no longer decides who may run it.
+Every model is open to every account — including one that has never bought
+anything — and the only thing between a customer and a generation is whether
+the wallet covers the price. `POST /generation/quotes` no longer answers
+`tier_too_low`, and nothing in the browser draws a padlock.
 
-**This is now enforced on the server**, in `POST /generation/quotes`. It used to
-be browser-only, which meant it was not enforced at all: `src/lib/access.tsx`
-draws a padlock and curl has never seen a padlock. Keep drawing the padlock —
-it is much better UX than a 403 — but the padlock is now a mirror of the rule
-rather than the rule.
+`plans.tier` and `minTier` both remain. The tier is what the unlimited pipe
+reads, through `unlimited_entitlements.min_tier`; `minTier` is how those grants
+are authored and how flagship a model is described. Neither is access control.
+
+**Two kinds of thing are sold from the `plans` table**, and `term_days` tells
+them apart:
+
+- **Packs** — Starter, Basic, Flow, Plus, the four `group: "entry"` rows —
+  have `term_days = 0`. The coins they grant never expire (`credit_lots`
+  written with a null `expires_at`), no membership lapses, and buying one while
+  something else is live is just buying more coins. There is no monthly ceiling
+  to run into, which is the whole promise.
+- **Subscriptions** — Pro, Studio, Creator — keep a thirty-day term. Their
+  coins expire with it, which is where the annual price gets its margin, and
+  that expiry is the monthly limit: the wallet sums lots with credit remaining
+  and the hold path refuses to overdraw.
+
+**The unlimited window.** `plans.unlimited_days` is how long after a
+subscription starts the free pipe is open: **7 on Pro, 30 on Studio and
+Creator, 0 on every pack.** The server reads it through
+`entitlementsRepository.unlimitedTierForAccount`, which answers 1 once the
+window has closed even though the subscription is still live — so a closed
+window reaches no entitlement and the quote comes back priced.
+`GET /wallet`'s `tier` is that same number, not the plan's tier, so the free
+switch leaves the dock on the day the quote stops coming back free.
 
 ### `GET /campaigns/active`
 
@@ -948,11 +1216,15 @@ would expire in thirty days.
 
 **The rate comes from `fx_rates`** (`USD`→`IRR`, the row with `valid_to IS
 NULL`), and with none published the route answers 503 rather than falling back
-to a constant compiled into the server. Note the coupling: the browser still
-holds `TOMAN_PER_USD` in `src/data/plans.ts` to render the figure on the sheet.
-They agree today. If they ever drift, the sheet's own cross-check fires and
-refuses to send anyone to a gateway — safe, and completely broken until the two
-are reconciled. Move both together.
+to a constant compiled into the server. The browser prices the sheet from the
+same row: `GET /plans` serves it as `tomanPerUsd` and `toman()` takes it as an
+argument. It used to be a constant in `src/data/plans.ts`, set by hand in
+2026-07 and 28% below the market by September — every card quoted a price the
+gateway would not have charged, and the sheet's cross-check would have fired on
+each one. The remaining coupling is the rounding: both sides round to the
+nearest thousand Toman, so `tomanFor()` here and `toman()` there must keep
+rounding the same way, and the served rate is a whole number of Toman so that
+they can.
 
 | Outcome            | Status | Meaning                                                                                                           |
 | ------------------ | ------ | ----------------------------------------------------------------------------------------------------------------- |
@@ -1040,6 +1312,38 @@ could name them is a request that could ask to be billed as something cheaper.
 - **A reference that has gone fails the job and refunds**, rather than
   generating without it — `reference_unavailable`. A first-frame model handed no
   first frame does not error; it makes something else and charges for it.
+- **The provider fetches the reference itself, from a URL we sign.** That URL is
+  signed against `OBJECT_STORAGE_PUBLIC_ENDPOINT`, so it has to be an address the
+  _provider's_ servers can reach — `https://files.deev.ir` in production. **In
+  local development that variable is unset, so the URL says `127.0.0.1:9000` and
+  no provider on earth can fetch it.**
+
+  This affects **every** generation carrying a file, not only image-to-video:
+  Recraft, Topaz, Nano Banana with references, and every first/last-frame video
+  model. Text-to-image and text-to-video attach nothing and run locally.
+
+  The worker now refuses these before calling the provider, with
+  `reference_unreachable`, rather than spending the call and reporting
+  `provider_failed` — which read as the provider's fault and cost a real
+  generation to learn otherwise. The coins are held and refunded either way.
+
+  There is no way around it inside the request. KIE rejects a `data:` URI
+  (`"image file type not supported"`) and publishes no upload endpoint, so the
+  file has to be somewhere public. To run these locally, point
+  `OBJECT_STORAGE_PUBLIC_ENDPOINT` at a store the internet can read — the real
+  bucket, or a tunnel (`cloudflared tunnel --url http://127.0.0.1:9000`) — and
+  restart the worker.
+
+- **A single-file slot goes up as a bare string, a multi-file slot as an array**,
+  decided by the slot's own `max`. The runner learns the slots from
+  `provider_models.capabilities`, resolving the **variant's** declaration and
+  falling back to the **family's** — the same resolution `variantRefs()` does for
+  the screen. Reading only the variant's was a real bug: 29 of 44 variants
+  declare none of their own, so the runner defaulted to "assume many" and sent
+  Recraft `image: ["https://…"]` where it wanted a string. KIE answers that with
+  a generic `500 "Image service internal error"`, which is indistinguishable
+  from an outage; its `remove-background` sibling is the one that says so
+  plainly, `422 image_url必须是http(s) URL`.
 - **Quotes expire in five minutes** and are bound to a hash of `params`, so a
   cheap quote cannot be spent on an expensive job.
 - **Asking the price consumes nothing.** The free allowance is spent at job
@@ -1049,12 +1353,13 @@ could name them is a request that could ask to be billed as something cheaper.
 | Status | Meaning                                                                |
 | ------ | ---------------------------------------------------------------------- |
 | 401    | Not signed in                                                          |
-| 403    | `tier_too_low` — body carries `requiredTier` and `currentTier`         |
 | 404    | `unknown_variant`                                                      |
 | 409    | `not_offered` / `no_price` — the variant exists, those settings do not |
 
-403 rather than 402 on tier: the account is not short of money, it is on the
-wrong plan, and the fix is an upgrade rather than a top-up.
+There is no 403 here any more. It carried `tier_too_low` — "this model needs a
+higher plan" — and no model needs one. A quote either prices the generation or
+says the combination is not sold; whether the account can afford the price is
+answered at submission, by the hold.
 
 ### `POST /jobs`
 
@@ -1123,6 +1428,91 @@ Only same-account submissions serialise. Two customers never touch the same row,
 so what this costs is exactly the concurrency the per-account limit already
 denied.
 
+### `GET /generation/jobs/:jobId/outputs/:index/download`
+
+Saves one output instead of displaying it. Answers **302** to the same file,
+signed with `Content-Disposition: attachment` and a filename derived from the
+stored mime type. Scoped to the caller, and a missing job or index is a 404 for
+the same reason as above.
+
+It exists because the `download` attribute on an anchor is honoured **only for
+same-origin URLs**, and an output URL is never same-origin — it is signed against
+the object store's host (`files.deev.ir` in production), not the app's. The
+attribute was silently ignored and the browser did the other thing it knows how
+to do with a picture: opened it in a tab.
+
+A redirect rather than a proxy: the bytes still travel store → browser, and the
+only thing this adds is the session check and one header. It is also why the
+inline `url` on an output carries no disposition — the same object is an
+`<img src>` on two screens, and an attachment header would stop it rendering.
+
+### Refusing a prompt
+
+Both `POST /generation/quotes` and `POST /jobs` read the prompt before doing
+anything else, and answer **422** when it breaks a content rule:
+
+```jsonc
+{ "error": { "code": "prompt_refused", "message": "…", "category": "…" } }
+```
+
+**422 and not 403.** Nothing is wrong with the account or the session — the
+request itself is one that will not be processed, and a 403 reads as "you are
+not allowed here" and sends people to support.
+
+Checked on both surfaces on purpose. The quote is where somebody finds out
+before they have committed to anything and before a hold is placed; the job is
+the one that is load-bearing, because a client can replay an old quote id or
+skip the quote call entirely. The job route reads the prompt out of `params` —
+what the worker hands upstream verbatim — rather than any field beside it.
+
+`message` is the rule's own Persian reason, or a general one. **It never names
+the phrase that matched**: a refusal that quotes the rule teaches the blocklist
+one request at a time. `category` names the published rule, which is safe.
+
+Every refusal is recorded with the prompt, the rule and the surface. A failure
+to record it does not rescue the request — a logging outage must not become a
+content incident.
+
+The rule set ships **empty**, so a fresh deployment refuses nothing. The
+mechanism is code and the list is a legal judgement; a list a program invented
+would read as policy while being nobody's.
+
+### `GET /generation/jobs/:jobId/references`
+
+The files a generation was run against, so it can be run again with them:
+
+```jsonc
+{
+  "references": [
+    {
+      "slot": "image_urls",
+      "assetId": "0199…",
+      "url": "https://…?X-Amz-Signature=…",
+      "kind": "image",
+    },
+  ],
+}
+```
+
+`slot` is the key the next request has to put the file back in, and **order
+within a slot is meaning, not presentation** — on a first-and-last-frame model
+position decides which frame is which.
+
+Submit the `assetId`. The `url` is signed, expires with everything else here,
+and exists so the form can show which file it arrived holding.
+
+**Scoped through the job, never by asset id.** The caller names a generation the
+ownership check already covers and the ids come out of that row, so there is no
+second authorisation problem to get wrong. A job that is not the caller's
+answers `{"references": []}` rather than 404 — to anyone who is not the owner,
+"this job has no references" and "this job is not yours" are the same answer. A
+reference whose asset has since been deleted is simply absent: the list is what
+can still be attached, not what once was.
+
+Its own route rather than a field on the job, for the same reason as the
+download link: a page of thirty generations would sign every reference of every
+row to fill a form nobody has opened yet.
+
 ### `GET /generation/jobs/:jobId`
 
 The same shape, scoped to the caller. Somebody else's job is a **404, not a
@@ -1140,6 +1530,8 @@ succeeds, `outputs` carries the files:
   "variantId": "gpt-image-2",
   "coins": 2,
   "prompt": "a lighthouse at dawn",
+  "params": { "prompt": "a lighthouse at dawn", "aspect": "1:1", "resolution": "1K" },
+  "referenceAssetIds": {},
   "createdAt": 0,
   "updatedAt": 0,
   "urlsExpireAt": 1755357000000,
@@ -1166,7 +1558,7 @@ passes rather than after an image has already failed to load.
 **A failed job's `error` is ours, not the supplier's.** `error.code` is one of a
 fixed set — `provider_unavailable`, `submit_failed`, `poll_failed`,
 `provider_timeout`, `provider_cancelled`, `provider_failed`, `content_policy`,
-`no_output`, `storage_failed` — and `error.message` is a fixed sentence chosen by
+`no_output`, `storage_failed`, `worker_lost`, `reference_unreachable` — and `error.message` is a fixed sentence chosen by
 that code. Anything the upstream said is written to `job_attempts` and to the log
 for whoever debugs it, and is never copied onto the job. It used to be: a missing
 credential came back as "…is not configured (WAVESPEED_API_KEY is not set)",
@@ -1186,6 +1578,29 @@ dimensions — or that it is one we do not parse: PNG, JPEG, GIF, WebP, MP4 and
 QuickTime are read for size, MP4, QuickTime and MP3 for duration, and anything
 else measures as null rather than as a guess. A pre-existing row is also null,
 because nothing backfilled what was never recorded.
+
+### `DELETE /generation/jobs/:jobId`
+
+Takes one generation off the customer's wall. Answers **200
+`{ "outcome": "removed" }`**.
+
+A **soft** delete: `jobs.deleted_at` is stamped and every read here already
+filters on it. The row itself stays, because it is the accounting record as well
+as the gallery item — the hold, the capture and the provider's cost all point at
+it, and a customer tidying a failed attempt off their wall is not a reason to
+lose the trail for money that moved. Assets keep their own lifecycle and are
+reaped on their own schedule, not by this.
+
+**409 `job_running` while the generation is still queued or running.** That
+refusal is the point of the route rather than an edge of it: a live job has
+credits held against it, and a row that vanished while its hold stood would
+leave the customer short by an amount nothing on their screen could account for.
+There is no cancel here — stopping a generation is a different act with a
+different effect on the money, and deleting the row would be neither.
+
+**404** for a job that is not the caller's, a job already removed, and a `draft`
+— same reason as the read above: whether an id exists is not this caller's
+business.
 
 ### `GET /gallery`
 
@@ -1288,17 +1703,25 @@ told no is worse than telling them now.
 The `error_code` on a failed job is the provider's own where there is one, or
 one of ours:
 
-| `error_code`             | Means                                                         |
-| ------------------------ | ------------------------------------------------------------- |
-| `provider_unavailable`   | No adapter for that provider — configuration, not weather     |
-| `credential_unavailable` | No active credential, or its secret is not in the environment |
-| `submit_failed`          | The provider would not accept the task                        |
-| `poll_failed`            | The provider stopped answering about a task it accepted       |
-| `provider_timeout`       | Accepted, never finished                                      |
-| `no_output`              | Reported success and returned no files                        |
+| `error_code`             | Means                                                          |
+| ------------------------ | -------------------------------------------------------------- |
+| `provider_unavailable`   | No adapter for that provider — configuration, not weather      |
+| `credential_unavailable` | No active credential, or its secret is not in the environment  |
+| `submit_failed`          | The provider would not accept the task                         |
+| `poll_failed`            | The provider stopped answering about a task it accepted        |
+| `provider_timeout`       | Accepted, never finished                                       |
+| `no_output`              | Reported success and returned no files                         |
+| `worker_lost`            | The queue gave up on the job before the worker could settle it |
 
 `no_output` is a failure on purpose. Capturing a hold there would charge
 somebody for an empty gallery.
+
+`worker_lost` is the queue settling a job the worker never got to finish — a
+process killed mid-poll and then found stalled more times than BullMQ allows.
+Nothing settles `jobs.status` except the worker's own success and failure paths,
+so before this code existed such a row stayed `running` for ever with the
+customer's credits still held, and no reaper anywhere would have found it. It is
+always a refund, and it is always worth retrying.
 
 ### Which provider runs a job
 
@@ -1366,14 +1789,17 @@ it lives in `unlimited_entitlements` rather than as a zero row in
 `model_prices`. A zero price would say "this costs nothing"; a grant says "this
 account may run this, N times a day, unmetered".
 
-Today: **Nano Banana Pro and Nano Banana 2, free on tier 3 (Studio and
-Creator), 50 a day per account.**
+Today: **Nano Banana Pro and Nano Banana 2, free to tier 2 and up — Pro,
+Studio and Creator — 50 a day per account, and only while the plan's unlimited
+window is open.**
 
-The grant sits one tier above the model's own `minTier` of 2 on purpose, and
-the gap is the point: tier 1 cannot reach Nano Banana at all, **tier 2 reaches
-it and pays**, tier 3 gets it free. Close that gap and nobody who can use the
-model ever pays for it — the grant would stop being a reason to upgrade and
-become a write-off of the revenue line.
+What keeps this a perk rather than a write-off is the clock, not the tier. The
+grant used to sit one tier above the model's own `minTier`, so that Pro reached
+the model and paid while the top two got it free. No model is gated by tier now,
+so that gap had nothing left to stand on: everyone can reach every model and the
+only question is who gets it free. `plans.unlimited_days` answers it — a week on
+Pro, a month on Studio and Creator — which bounds the giveaway in time and makes
+it a reason to buy again rather than a standing cost.
 
 What a UI needs to know:
 

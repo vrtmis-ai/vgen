@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -5,16 +6,47 @@ import { AppServicesProvider } from "../AppServices";
 import { CatalogProvider } from "../../features/catalog/CatalogProvider";
 import { createDemoCatalogService } from "../../adapters/demo/catalog";
 import { createDemoServices } from "../../adapters/demo/demoServices";
+import { ApiError } from "../../adapters/http/client";
 import type { AppServices } from "../AppServices";
 import { defaultInput, variantControls, type Family } from "../../data/models";
 import { loadGenerations, saveGenerations, type Generation } from "../../lib/gallery";
 import { GenerationsProvider, useGenerations } from "./GenerationsProvider";
 import { NavigationProvider } from "./NavigationProvider";
+import { SessionProvider } from "./SessionProvider";
+import type { AccountUser } from "../contracts/session";
+import type { Wallet } from "../contracts/wallet";
+import { SubmitRefusalNote } from "../../components/GenerationVeils";
 
 /* One stable push across the whole file rather than a fresh spy per
    `useRouter()` call. Where the provider sends the browser after a submit is
    behaviour worth asserting, and a mock that forgets is a mock that cannot. */
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }));
+
+/**
+ * Signed in, because everything below is about an account's own generations.
+ *
+ * The provider reads the session now — it gates the history fetch on having an
+ * account rather than on having read localStorage, which is what stopped every
+ * anonymous page load from asking `GET /gallery` and collecting a 401. These
+ * stacks had no SessionProvider at all, so the hook they now call would throw;
+ * a signed-in one keeps every assertion here exactly as it was.
+ */
+const SIGNED_IN = {
+  user: { id: "u-1", email: "harness@example.test" } as unknown as AccountUser,
+  wallet: { coins: 12 } as unknown as Wallet,
+  signIn: () => {},
+  signUp: () => {},
+  signOut: () => {},
+};
+
+/** The provider under test, with the session the real tree always has above it. */
+function Generations({ children }: { children: React.ReactNode }) {
+  return (
+    <SessionProvider value={SIGNED_IN}>
+      <GenerationsProvider>{children}</GenerationsProvider>
+    </SessionProvider>
+  );
+}
 
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
@@ -52,9 +84,9 @@ function renderProvider() {
       <AppServicesProvider services={createDemoServices()}>
         <CatalogProvider families={[]}>
           <NavigationProvider>
-            <GenerationsProvider>
+            <Generations>
               <Probe />
-            </GenerationsProvider>
+            </Generations>
           </NavigationProvider>
         </CatalogProvider>
       </AppServicesProvider>
@@ -125,9 +157,9 @@ function renderWithServices(services: AppServices, refs: Record<string, { file: 
       <AppServicesProvider services={services}>
         <CatalogProvider families={catalog.families}>
           <NavigationProvider>
-            <GenerationsProvider>
+            <Generations>
               <Uploader refs={refs} {...(preferUnlimited === undefined ? {} : { preferUnlimited })} />
-            </GenerationsProvider>
+            </Generations>
           </NavigationProvider>
         </CatalogProvider>
       </AppServicesProvider>
@@ -232,22 +264,32 @@ describe("the free-pipe preference reaches the quote", () => {
 });
 
 /**
- * Pressing create in a studio and watching the page not move.
+ * Pressing create in a studio, and staying in the studio.
  *
- * The three studios all submit through `requestGeneration`, which was
- * fire-and-forget in the strictest sense: the job went, the coins were held,
- * and nothing on screen acknowledged the press. The new generation did appear
- * as a tile in the canvas, but on the video studio that canvas is beside a
- * 320px form panel and below the fold — so the button read as dead, and was
- * reported as dead.
+ * The three studios all submit through `requestGeneration`. For a while it
+ * sent the browser to کارهای من once a job was accepted, so that the press
+ * visibly did something. That took people out of the form they were sending
+ * several generations from, and it was reported as wrong: the answer belongs
+ * on the studio's own canvas, which draws from `gens`.
  *
- * Asserted on the router rather than on a rendered result, because the bug was
- * never about what the destination looks like. It was that there wasn't one.
+ * So both halves are asserted — the router is left alone, and the job is in
+ * the list the canvas reads.
  */
-describe("submitting from a studio takes you to your work", () => {
+describe("submitting from a studio keeps you in the studio", () => {
+  const errorAction = vi.fn();
+
+  /* The dock as the three studios build it: the provider's refusal handed
+     straight to the notice that draws it. Rendered rather than stringified,
+     because half of what was added is the button — and a refusal whose code
+     does not survive the trip is a notice with nothing to press. */
   function Dock() {
-    const { requestGeneration } = useGenerations();
-    return <button onClick={() => requestGeneration("nano-banana", "یک گربه", INPUT, VARIANT_WITH_REF)}>dock</button>;
+    const { requestGeneration, submitError } = useGenerations();
+    return (
+      <>
+        <button onClick={() => requestGeneration("nano-banana", "یک گربه", INPUT, VARIANT_WITH_REF)}>dock</button>
+        <div data-testid="submit-error">{submitError ? <SubmitRefusalNote refusal={submitError} onAction={errorAction} /> : ""}</div>
+      </>
+    );
   }
 
   function renderDock(services: AppServices) {
@@ -256,9 +298,9 @@ describe("submitting from a studio takes you to your work", () => {
         <AppServicesProvider services={services}>
           <CatalogProvider families={catalog.families}>
             <NavigationProvider>
-              <GenerationsProvider>
+              <Generations>
                 <Dock />
-              </GenerationsProvider>
+              </Generations>
             </NavigationProvider>
           </CatalogProvider>
         </AppServicesProvider>
@@ -266,28 +308,68 @@ describe("submitting from a studio takes you to your work", () => {
     );
   }
 
-  it("navigates to کارهای من once the job is accepted", async () => {
-    renderDock(createDemoServices());
+  it("leaves the page where it is once the job is accepted, with the job in the list", async () => {
+    const services = createDemoServices();
+    const create = vi.fn(services.generation.create);
+    renderDock({ ...services, generation: { ...services.generation, create } });
 
     await act(async () => screen.getByText("dock").click());
 
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/gallery"));
+    await waitFor(() => expect(create).toHaveBeenCalledOnce());
+    const job = await create.mock.results[0]!.value;
+    // Stored as it lands — the save effect runs off the same list the canvas draws.
+    await waitFor(() => expect(loadGenerations().some((generation) => generation.jobId === job.id)).toBe(true));
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it("stays put when the submit is refused, so the error is still on screen", async () => {
+  /* A refusal is answered in the dock. It used to raise a full-page 503 that
+     said "درخواست ساخت کامل نشد" over every one of these codes — true of a
+     short wallet, a full account and a dropped connection alike, and useless to
+     all three. The message is the one the code names. */
+  it("hands the dock the reason when the submit is refused, and stays put", async () => {
     const services = createDemoServices();
-    // A refusal, not a throw: `startGeneration` returns null for a variant the
-    // catalogue does not hold, which is the same "nothing was created" outcome
-    // as a rejected quote and must not move the page either.
     const spied: AppServices = {
       ...services,
-      generation: { ...services.generation, quote: vi.fn().mockRejectedValue(new Error("nope")) },
+      generation: {
+        ...services.generation,
+        quote: vi.fn().mockRejectedValue(new ApiError({ code: "insufficient_credits", message: "no", status: 402 })),
+      },
     };
     renderDock(spied);
 
     await act(async () => screen.getByText("dock").click());
 
-    await waitFor(() => expect(router.push).not.toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId("submit-error")).toHaveTextContent("اعتبار کیف پول"));
+    expect(router.push).not.toHaveBeenCalled();
+
+    // And the way out of it, which only the code can choose.
+    screen.getByText("شارژ کیف پول").click();
+    expect(errorAction).toHaveBeenCalledWith("wallet");
+  });
+
+  /* Most refusals have no destination — waiting is the fix — and the notice
+     must not invent one. */
+  it("offers no button for a refusal that has nowhere to send anyone", async () => {
+    const services = createDemoServices();
+    renderDock({
+      ...services,
+      generation: {
+        ...services.generation,
+        quote: vi.fn().mockRejectedValue(new ApiError({ code: "rate_limited", message: "no", status: 429 })),
+      },
+    });
+
+    await act(async () => screen.getByText("dock").click());
+
+    await waitFor(() => expect(screen.getByTestId("submit-error")).toHaveTextContent("تعداد درخواست‌ها زیاد"));
+    expect(screen.queryByRole("button", { name: /کیف پول|پلن/ })).toBeNull();
+  });
+
+  it("says nothing about a refusal nobody has made yet", () => {
+    renderDock(createDemoServices());
+
+    expect(screen.getByTestId("submit-error")).toHaveTextContent("");
   });
 });
 
@@ -311,9 +393,9 @@ describe("already-stored assets reach the quote alongside uploads", () => {
         <AppServicesProvider services={services}>
           <CatalogProvider families={catalog.families}>
             <NavigationProvider>
-              <GenerationsProvider>
+              <Generations>
                 <Carrier assetRefs={assetRefs} refs={refs} />
-              </GenerationsProvider>
+              </Generations>
             </NavigationProvider>
           </CatalogProvider>
         </AppServicesProvider>
@@ -355,5 +437,239 @@ describe("already-stored assets reach the quote alongside uploads", () => {
     const sent = quote.mock.calls[0]?.[0] as { referenceAssetIds: Record<string, string[]> } | undefined;
     expect(sent?.referenceAssetIds[REF_SLOT]).toHaveLength(2);
     expect(sent?.referenceAssetIds[REF_SLOT]?.[0]).toBe("asset-from-gallery");
+  });
+});
+
+/**
+ * The provider collapsed every server state onto two words:
+ * `job.status === "succeeded" ? "done" : "running"`. A job the provider refused
+ * settles in seconds and then renders as forever-generating, because nothing
+ * ever revises the word — the poll stops the moment the server calls the job
+ * settled, so the spinner outlives the job for as long as the tab is open.
+ *
+ * These read a real reconciliation: a stored generation, a server job, and what
+ * the list says afterwards.
+ */
+describe("a settled job stops looking like a running one", () => {
+  const running: Generation = { ...stored, id: "gen-2", jobId: "job-2", status: "running" };
+
+  function StatusProbe() {
+    const { gens } = useGenerations();
+    const gen = gens.find((g) => g.id === "gen-2");
+    return (
+      <output data-testid="state">{`${gen?.status ?? "?"}|${gen?.error?.code ?? "-"}|${gen?.outW ?? "-"}x${gen?.outH ?? "-"}`}</output>
+    );
+  }
+
+  function renderAgainst(job: object) {
+    const services = createDemoServices();
+    const spied: AppServices = {
+      ...services,
+      generation: { ...services.generation, getJob: vi.fn(async () => job as never) },
+    };
+    return render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AppServicesProvider services={spied}>
+          <CatalogProvider families={catalog.families}>
+            <NavigationProvider>
+              <Generations>
+                <StatusProbe />
+              </Generations>
+            </NavigationProvider>
+          </CatalogProvider>
+        </AppServicesProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  const job = (over: Record<string, unknown>) => ({
+    id: "job-2",
+    familyId: "seedance",
+    variantId: "v1",
+    coins: 4.2,
+    prompt: "یک گربه",
+    createdAt: 1_000,
+    updatedAt: 2_000,
+    outputs: [],
+    urlsExpireAt: null,
+    ...over,
+  });
+
+  beforeEach(() => saveGenerations([running]));
+
+  it("says failed, and says why, when the provider refused it", async () => {
+    renderAgainst(job({ status: "failed", error: { code: "provider_failed", message: "no" } }));
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("failed|provider_failed"));
+  });
+
+  it("treats an expired job as over rather than as still running", async () => {
+    renderAgainst(job({ status: "expired" }));
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("failed|-"));
+  });
+
+  /* Cancelled is over too, and it used to be told in the failure's words. It
+     is the one ending the customer asked for, so it keeps its own status and
+     the screens say «لغو شد» rather than «انجام نشد». */
+  it("keeps a cancelled job apart from a refused one", async () => {
+    renderAgainst(job({ status: "cancelled" }));
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("cancelled|-"));
+  });
+
+  it("says a job the worker has not taken yet is queued, not running", async () => {
+    renderAgainst(job({ status: "queued" }));
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("queued|-"));
+  });
+
+  it("keeps saying running while the job really is", async () => {
+    renderAgainst(job({ status: "running" }));
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("running|-"));
+  });
+
+  /* The other half of the same discard: the reconciliation read `assetId` and
+     `url` off the output and left `width`/`height` on the floor, so the card
+     kept the aspect that was *asked* for. A 9:16 request answered at 768×1344
+     is a 2% disagreement, and 2% of a tall card is the thin blue line along the
+     top and bottom edges — the card's own gradient, showing through a
+     `contain` fit. */
+  it("records the size the file actually came back at", async () => {
+    renderAgainst(
+      job({
+        status: "succeeded",
+        outputs: [
+          {
+            assetId: "11111111-1111-4111-8111-111111111111",
+            url: "https://files.example/x",
+            kind: "image",
+            mimeType: "image/png",
+            width: 768,
+            height: 1344,
+            durationMs: null,
+          },
+        ],
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("done|-|768x1344"));
+  });
+});
+
+/**
+ * Calling a generation off before it starts.
+ *
+ * Only `queued` can be: once a worker has claimed the job the provider is
+ * running it and the coins are being spent, which is why the route answers 409
+ * `job_started` rather than pretending. The press can lose that race — the
+ * worker may take it while the pointer is travelling — so the three answers are
+ * three different things on screen, and none of them is optimistic.
+ *
+ * The capability itself is optional. A deployment whose API has no cancel route
+ * hands back no `cancelGeneration`, and the screens read that absence rather
+ * than a flag of their own.
+ */
+describe("calling off a queued generation", () => {
+  const queued: Generation = { ...stored, id: "gen-3", jobId: "job-3", status: "queued" };
+
+  function CancelProbe() {
+    const { gens, cancelGeneration } = useGenerations();
+    const gen = gens.find((g) => g.id === "gen-3");
+    const [outcome, setOutcome] = useState("-");
+    return (
+      <>
+        <button onClick={() => void cancelGeneration?.("gen-3").then(setOutcome)}>cancel</button>
+        <output data-testid="state">{`${gen?.status ?? "?"}|${outcome}|${cancelGeneration ? "offered" : "absent"}`}</output>
+      </>
+    );
+  }
+
+  function renderWith(cancel: AppServices["generation"]["cancel"]) {
+    const services = createDemoServices();
+    const generation = { ...services.generation, getJob: vi.fn(async () => queuedJob as never) };
+    if (cancel) generation.cancel = cancel;
+    else delete generation.cancel;
+    return render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AppServicesProvider services={{ ...services, generation }}>
+          <CatalogProvider families={catalog.families}>
+            <NavigationProvider>
+              <Generations>
+                <CancelProbe />
+              </Generations>
+            </NavigationProvider>
+          </CatalogProvider>
+        </AppServicesProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  const queuedJob = {
+    id: "job-3",
+    status: "queued",
+    familyId: "seedance",
+    variantId: "v1",
+    coins: 4.2,
+    prompt: "یک گربه",
+    createdAt: 1_000,
+    updatedAt: 2_000,
+    outputs: [],
+    urlsExpireAt: null,
+  };
+
+  beforeEach(() => saveGenerations([queued]));
+
+  it("marks it cancelled once the server says so", async () => {
+    renderWith(vi.fn().mockResolvedValue(undefined));
+
+    await act(async () => screen.getByText("cancel").click());
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("cancelled|cancelled|offered"));
+  });
+
+  /* The race the 409 exists for. Nothing local is corrected on it — the poll
+     is already asking about this job every second, and it is the one that saw
+     the worker take it. */
+  it("says the worker got there first, and lets the poll correct the card", async () => {
+    const services = createDemoServices();
+    let answer: Record<string, unknown> = queuedJob;
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AppServicesProvider
+          services={{
+            ...services,
+            generation: {
+              ...services.generation,
+              getJob: vi.fn(async () => answer as never),
+              cancel: vi.fn(async () => {
+                answer = { ...queuedJob, status: "running" };
+                throw new ApiError({ code: "job_started", message: "too late", status: 409 });
+              }),
+            },
+          }}
+        >
+          <CatalogProvider families={catalog.families}>
+            <NavigationProvider>
+              <Generations>
+                <CancelProbe />
+              </Generations>
+            </NavigationProvider>
+          </CatalogProvider>
+        </AppServicesProvider>
+      </QueryClientProvider>,
+    );
+
+    await act(async () => screen.getByText("cancel").click());
+
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("started"));
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("running|started|offered"), { timeout: 3_000 });
+  });
+
+  it("is not offered at all where the API cannot do it", () => {
+    renderWith(undefined);
+
+    expect(screen.getByTestId("state")).toHaveTextContent("absent");
   });
 });

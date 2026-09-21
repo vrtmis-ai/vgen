@@ -1,6 +1,6 @@
 import type { AppServices } from "../../runtime/AppServices";
 import type { CheckoutOrder } from "../../runtime/contracts/payment";
-import { annualTotalUsd, effectiveUsd, toman } from "../../data/plans";
+import { SEED_TOMAN_PER_USD, annualTotalUsd, effectiveUsd, toman } from "../../data/plans";
 import { PLAN_LADDER } from "../../data/planLadder";
 
 /**
@@ -26,7 +26,9 @@ export function createDemoPaymentService(now: () => number): AppServices["paymen
       const usd = annual ? (annualTotalUsd(plan) ?? effectiveUsd(plan, false)) : effectiveUsd(plan, false);
       const order: CheckoutOrder = {
         orderId: `demo-${now()}-${++sequence}`,
-        amountToman: toman(usd),
+        // Demo mode has no `fx_rates`; `createDemoPlansService` quotes the
+        // same seed rate, so the sheet and this order agree.
+        amountToman: toman(usd, SEED_TOMAN_PER_USD),
         gatewayUrl: null,
       };
       return order;

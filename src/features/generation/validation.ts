@@ -32,23 +32,23 @@ export interface GenerationValidationResult {
  * Branch on `code`, never on `message` — `docs/API.md` is explicit that codes
  * are the contract and messages are prose. The codes below are the ones the API
  * actually sends, taken from the quote, submit and job-failure tables in that
- * file. The previous list predated all three routes going live and named three
- * codes nothing sends — `insufficient_balance`, `locked_model` and
- * `unsupported_combination` — while the real names for those same two refusals,
- * `insufficient_credits` and `tier_too_low`, fell through to "try again". They
- * are the two most likely refusals there are, and "try again" helps with
- * neither: one needs a top-up and the other needs an upgrade.
+ * file. The previous list predated all three routes going live and named codes
+ * nothing sends, while the real name for the likeliest refusal of all —
+ * `insufficient_credits` — fell through to "try again", which helps with
+ * nothing: it needs a top-up, and the notice now says so and offers the wallet.
+ *
+ * `tier_too_low` was here too, and it is gone with the gate: no model belongs
+ * to a plan, so the quote has no refusal to make about one.
  *
  * Grouped by what the person can do about it, because that is the only reason
  * the API keeps them apart: collapsing them into one code would leave the
  * screen guessing which.
  */
 const GENERATION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
-  // Fixed by spending money. 403 rather than 402 on tier is deliberate upstream:
-  // the account is not short of coins, it is on the wrong plan, and the fix is
-  // an upgrade rather than a top-up. So these two must not share a message.
+  // Fixed by spending money — and these two must not share a message: one is
+  // an empty wallet, the other is a free allowance that ran out while the
+  // wallet is perfectly able to pay for the next one.
   insufficient_credits: "اعتبار کیف پول برای این ساخت کافی نیست؛ اول کیف پول را شارژ کنید.",
-  tier_too_low: "این مدل در پلن فعلی شما نیست؛ برای استفاده از آن پلن را ارتقا دهید.",
   allowance_spent: "سهمیهٔ رایگان امروزتان تمام شد؛ از این پس این ساخت از سکه‌هایتان کم می‌کند.",
 
   // Fixed by changing the request.
@@ -90,6 +90,15 @@ const GENERATION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   provider_cancelled: "این ساخت پیش از پایان لغو شد؛ سکه‌ای از شما کم نشد.",
   storage_failed: "ساخت انجام شد اما ذخیره نشد؛ سکه‌ای از شما کم نشد.",
   no_output: "هیچ خروجی‌ای ساخته نشد؛ سکه‌ای از شما کم نشد.",
+  /* The queue gave up on the job before anything could settle it — a worker
+     restarted mid-generation. Nothing about it is the customer's doing, and
+     trying again is genuinely the right advice. */
+  worker_lost: "این ساخت نیمه‌کاره ماند؛ سکه‌ای از شما کم نشد. دوباره تلاش کن.",
+  /* Only ever seen while running the stack locally: the provider downloads
+     attached files from our object store, and on a laptop that store is not on
+     the internet. Said plainly because the reader is a developer, and "provider
+     failed" sent them looking at the provider. */
+  reference_unreachable: "فایل پیوست برای ارائه‌دهنده قابل دریافت نیست؛ سکه‌ای از شما کم نشد. (فقط در اجرای محلی رخ می‌دهد.)",
 
   /* Never reached the API at all. `src/adapters/http/client.ts` raises these
      itself, so they carry status 0 and no server ever saw the request — which
@@ -104,9 +113,73 @@ const GENERATION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 
 const GENERATION_ERROR_FALLBACK = "ساخت محتوا انجام نشد؛ دوباره تلاش کنید.";
 
+/**
+ * A refusal, as the dock that pressed needs it: the sentence to print and the
+ * code that chose it.
+ *
+ * The code travels with the message because the message alone cannot be acted
+ * on. «اول کیف پول را شارژ کنید» is only advice until something on the screen
+ * goes to the wallet, and working out which button to draw from Persian prose
+ * is exactly the string-matching `docs/API.md` forbids.
+ */
+export interface GenerationRefusal {
+  code: string;
+  message: string;
+}
+
+/**
+ * What a dock says when the price is above the balance.
+ *
+ * The same shape a refused submission produces, so the notice, its wallet
+ * button and its colour are the ones the customer would have seen a moment
+ * later anyway — this only moves the sentence to before the press. Written
+ * once because four docks ask the same question and four wordings of "you are
+ * short" is how a product starts sounding like four products.
+ */
+export function shortfallRefusal(price: number, balance: number, n: (value: number) => string): GenerationRefusal {
+  return { code: "insufficient_credits", message: `این ساخت ${n(price)} سکه است و موجودی‌ات ${n(balance)} سکه.` };
+}
+
+/** Where a refusal can be resolved, for the notice's own button. */
+export interface GenerationErrorAction {
+  label: string;
+  target: "wallet" | "plans";
+}
+
+/**
+ * The two refusals with a way out, and nothing else.
+ *
+ * Deliberately short. A button that leads somewhere useless is worse than no
+ * button: «چند لحظه بعد دوباره تلاش کنید» has no destination, and offering one
+ * would send somebody looking for a fix that is just waiting. Only the refusals
+ * whose sentence already names a place get one, and the label repeats that
+ * place rather than saying "برو".
+ */
+const GENERATION_ERROR_ACTIONS: Readonly<Record<string, GenerationErrorAction>> = {
+  insufficient_credits: { label: "شارژ کیف پول", target: "wallet" },
+  allowance_spent: { label: "شارژ کیف پول", target: "wallet" },
+};
+
+export function generationErrorAction(code: string | undefined): GenerationErrorAction | null {
+  return (code ? GENERATION_ERROR_ACTIONS[code] : undefined) ?? null;
+}
+
 export function generationErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return GENERATION_ERROR_FALLBACK;
   return GENERATION_ERROR_MESSAGES[error.code] ?? GENERATION_ERROR_FALLBACK;
+}
+
+/**
+ * The same table, for a failure that arrived on a job rather than as a thrown
+ * request error.
+ *
+ * A job that the worker settled carries `error.code` in its body — the request
+ * for it succeeded. That is the same vocabulary `GENERATION_ERROR_MESSAGES`
+ * already covers (`provider_failed`, `content_policy`, `no_output`, …), so this
+ * reads the one table instead of starting a second one that would drift from it.
+ */
+export function jobFailureMessage(code: string | undefined): string {
+  return (code ? GENERATION_ERROR_MESSAGES[code] : undefined) ?? GENERATION_ERROR_FALLBACK;
 }
 
 function acceptsMime(slot: RefSlot, mime: string): boolean {

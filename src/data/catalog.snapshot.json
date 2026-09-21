@@ -138,7 +138,7 @@
           "badge": "پرچم‌دار",
           "unlimited": {
             "dailyCap": 50,
-            "minTier": 3,
+            "minTier": 2,
             "limits": {
               "resolution": [
                 "1K",
@@ -154,7 +154,7 @@
           "badge": "جدید",
           "unlimited": {
             "dailyCap": 50,
-            "minTier": 3,
+            "minTier": 2,
             "limits": {
               "resolution": [
                 "1K",
@@ -478,6 +478,379 @@
         }
       ],
       "variants": [
+        {
+          "id": "gpt-image-2-5-flare",
+          "featureCode": "image_generate",
+          "label": "۲٫۵ Flare",
+          "badge": "جدید",
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "auto",
+                  "label": "خودکار",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "3:2",
+                  "label": "3:2",
+                  "w": 3,
+                  "h": 2
+                },
+                {
+                  "value": "2:3",
+                  "label": "2:3",
+                  "w": 2,
+                  "h": 3
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "auto"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "1K",
+                  "label": "1K"
+                },
+                {
+                  "value": "2K",
+                  "label": "2K"
+                },
+                {
+                  "value": "4K",
+                  "label": "4K"
+                }
+              ],
+              "def": "1K"
+            }
+          ]
+        },
+        {
+          "id": "gpt-image-2-5-flare-edit",
+          "featureCode": "image_edit",
+          "label": "۲٫۵ Flare ویرایش",
+          "refs": [
+            {
+              "key": "input_urls",
+              "label": "تصاویر ورودی",
+              "max": 16,
+              "required": true
+            }
+          ],
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "auto",
+                  "label": "خودکار",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "3:2",
+                  "label": "3:2",
+                  "w": 3,
+                  "h": 2
+                },
+                {
+                  "value": "2:3",
+                  "label": "2:3",
+                  "w": 2,
+                  "h": 3
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "auto"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "1K",
+                  "label": "1K"
+                },
+                {
+                  "value": "2K",
+                  "label": "2K"
+                },
+                {
+                  "value": "4K",
+                  "label": "4K"
+                }
+              ],
+              "def": "1K"
+            }
+          ]
+        },
+        {
+          "id": "gpt-image-2-5-sunburst",
+          "featureCode": "image_generate",
+          "label": "۲٫۵ Sunburst",
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "auto",
+                  "label": "خودکار",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "3:2",
+                  "label": "3:2",
+                  "w": 3,
+                  "h": 2
+                },
+                {
+                  "value": "2:3",
+                  "label": "2:3",
+                  "w": 2,
+                  "h": 3
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "auto"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "1K",
+                  "label": "1K"
+                },
+                {
+                  "value": "2K",
+                  "label": "2K"
+                },
+                {
+                  "value": "4K",
+                  "label": "4K"
+                }
+              ],
+              "def": "1K"
+            }
+          ]
+        },
+        {
+          "id": "gpt-image-2-5-sunburst-edit",
+          "featureCode": "image_edit",
+          "label": "۲٫۵ Sunburst ویرایش",
+          "refs": [
+            {
+              "key": "input_urls",
+              "label": "تصاویر ورودی",
+              "max": 16,
+              "required": true
+            }
+          ],
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "auto",
+                  "label": "خودکار",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "3:2",
+                  "label": "3:2",
+                  "w": 3,
+                  "h": 2
+                },
+                {
+                  "value": "2:3",
+                  "label": "2:3",
+                  "w": 2,
+                  "h": 3
+                },
+                {
+                  "value": "4:3",
+                  "label": "4:3",
+                  "w": 4,
+                  "h": 3
+                },
+                {
+                  "value": "3:4",
+                  "label": "3:4",
+                  "w": 3,
+                  "h": 4
+                },
+                {
+                  "value": "16:9",
+                  "label": "16:9",
+                  "w": 16,
+                  "h": 9
+                },
+                {
+                  "value": "9:16",
+                  "label": "9:16",
+                  "w": 9,
+                  "h": 16
+                },
+                {
+                  "value": "21:9",
+                  "label": "21:9",
+                  "w": 21,
+                  "h": 9
+                }
+              ],
+              "def": "auto"
+            },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "1K",
+                  "label": "1K"
+                },
+                {
+                  "value": "2K",
+                  "label": "2K"
+                },
+                {
+                  "value": "4K",
+                  "label": "4K"
+                }
+              ],
+              "def": "1K"
+            }
+          ]
+        },
         {
           "id": "gpt-image-2",
           "featureCode": "image_generate",
@@ -1456,9 +1829,25 @@
       "cover": "https://file.aiquickdraw.com/static//kie-maket/17622493381934oqt0mus.mp4",
       "refs": [
         {
-          "key": "image_urls",
-          "label": "فریم شروع و پایان (اختیاری)",
-          "max": 2
+          "group": "frame",
+          "key": "image_url_start",
+          "sends": {
+            "key": "image_urls",
+            "at": 0
+          },
+          "label": "فریم شروع (اختیاری)",
+          "max": 1
+        },
+        {
+          "group": "frame",
+          "key": "image_url_end",
+          "sends": {
+            "key": "image_urls",
+            "at": 1
+          },
+          "label": "فریم پایان (اختیاری)",
+          "max": 1,
+          "requires": "image_url_start"
         }
       ],
       "maxPrompt": 2500,
@@ -1525,13 +1914,6 @@
           "key": "sound",
           "label": "تولید صدا",
           "def": false
-        },
-        {
-          "advanced": true,
-          "kind": "toggle",
-          "key": "multi_shots",
-          "label": "چندنما (روایت چندبخشی)",
-          "def": false
         }
       ],
       "variants": [
@@ -1545,13 +1927,7 @@
           "featureCode": "video_generate",
           "label": "۳٫۰ Turbo",
           "badge": "سریع",
-          "refs": [
-            {
-              "key": "image_urls",
-              "label": "تصویر ورودی (اختیاری)",
-              "max": 1
-            }
-          ],
+          "refs": null,
           "controls": [
             {
               "kind": "aspect",
@@ -1608,16 +1984,53 @@
           ]
         },
         {
-          "id": "kling-2-6",
-          "featureCode": "video_generate",
-          "label": "۲٫۶",
+          "id": "kling-3-turbo-i2v",
+          "featureCode": "image_to_video",
+          "label": "۳٫۰ Turbo تصویر",
+          "badge": "سریع",
           "refs": [
             {
               "key": "image_urls",
-              "label": "تصویر ورودی (اختیاری)",
-              "max": 1
+              "label": "تصویر ورودی (الزامی)",
+              "max": 1,
+              "maxMb": 10,
+              "required": true
             }
           ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 3,
+              "max": 15,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            }
+          ]
+        },
+        {
+          "id": "kling-2-6",
+          "featureCode": "video_generate",
+          "label": "۲٫۶",
+          "refs": null,
           "controls": [
             {
               "kind": "aspect",
@@ -1645,6 +2058,44 @@
               ],
               "def": "16:9"
             },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "5",
+                  "label": "۵ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                }
+              ],
+              "def": "5"
+            },
+            {
+              "kind": "toggle",
+              "key": "sound",
+              "label": "تولید صدا",
+              "def": false
+            }
+          ]
+        },
+        {
+          "id": "kling-2-6-i2v",
+          "featureCode": "image_to_video",
+          "label": "۲٫۶ تصویر",
+          "refs": [
+            {
+              "key": "image_urls",
+              "label": "تصویر ورودی (الزامی)",
+              "max": 1,
+              "maxMb": 10,
+              "required": true
+            }
+          ],
+          "controls": [
             {
               "kind": "segment",
               "key": "duration",
@@ -1787,21 +2238,7 @@
           "id": "kling-2-5-turbo",
           "featureCode": "video_generate",
           "label": "۲٫۵ Turbo",
-          "refs": [
-            {
-              "group": "frame",
-              "key": "image_url",
-              "label": "فریم شروع (اختیاری)",
-              "max": 1
-            },
-            {
-              "group": "frame",
-              "key": "tail_image_url",
-              "label": "فریم پایان",
-              "max": 1,
-              "requires": "image_url"
-            }
-          ],
+          "refs": null,
           "controls": [
             {
               "kind": "aspect",
@@ -1863,6 +2300,64 @@
               "def": 0.5
             }
           ]
+        },
+        {
+          "id": "kling-2-5-turbo-i2v",
+          "featureCode": "image_to_video",
+          "label": "۲٫۵ Turbo تصویر",
+          "refs": [
+            {
+              "group": "frame",
+              "key": "image_url",
+              "label": "فریم شروع (الزامی)",
+              "max": 1,
+              "maxMb": 10,
+              "required": true
+            },
+            {
+              "group": "frame",
+              "key": "tail_image_url",
+              "label": "فریم پایان (اختیاری)",
+              "max": 1,
+              "maxMb": 10,
+              "requires": "image_url"
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "5",
+                  "label": "۵ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                }
+              ],
+              "def": "5"
+            },
+            {
+              "advanced": true,
+              "kind": "text",
+              "key": "negative_prompt",
+              "label": "پرامپت منفی",
+              "placeholder": "چه چیزی نباشد…"
+            },
+            {
+              "advanced": true,
+              "kind": "slider",
+              "key": "cfg_scale",
+              "label": "پایبندی به پرامپت",
+              "min": 0,
+              "max": 1,
+              "step": 0.1,
+              "def": 0.5
+            }
+          ]
         }
       ]
     },
@@ -1875,28 +2370,6 @@
       "blurb": "یک مدل برای همه‌چیز: متن، عکس یا مرجع به ویدیوی ۲K با صدای همگام",
       "badge": "جدید",
       "grad": "linear-gradient(135deg,#f7734b,#f74b9b)",
-      "refs": [
-        {
-          "key": "reference_image_urls",
-          "label": "تصاویر مرجع / سوژه (اختیاری)",
-          "max": 9,
-          "maxMb": 30
-        },
-        {
-          "key": "reference_video_urls",
-          "label": "ویدیوی مرجع برای حرکت (اختیاری)",
-          "max": 3,
-          "media": "video",
-          "maxMb": 50
-        },
-        {
-          "key": "reference_audio_urls",
-          "label": "صدای مرجع (اختیاری)",
-          "max": 3,
-          "media": "audio",
-          "maxMb": 15
-        }
-      ],
       "maxPrompt": 5000,
       "controls": [
         {
@@ -1949,8 +2422,8 @@
           "label": "کیفیت",
           "options": [
             {
-              "value": "768p",
-              "label": "768p"
+              "value": "768P",
+              "label": "768P"
             },
             {
               "value": "2K",
@@ -1963,7 +2436,7 @@
           "kind": "slider",
           "key": "duration",
           "label": "مدت",
-          "min": 5,
+          "min": 4,
           "max": 15,
           "step": 1,
           "def": 5,
@@ -1976,6 +2449,78 @@
           "featureCode": "video_generate",
           "label": "H3",
           "badge": "جدید"
+        },
+        {
+          "id": "minimax-h3-i2v",
+          "featureCode": "image_to_video",
+          "label": "H3 تصویر",
+          "refs": [
+            {
+              "group": "frame",
+              "key": "first_frame_url",
+              "label": "فریم شروع (الزامی)",
+              "max": 1,
+              "maxMb": 20,
+              "required": true
+            },
+            {
+              "group": "frame",
+              "key": "last_frame_url",
+              "label": "فریم پایان (اختیاری)",
+              "max": 1,
+              "maxMb": 20,
+              "requires": "first_frame_url"
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "768P",
+                  "label": "768P"
+                },
+                {
+                  "value": "2K",
+                  "label": "2K"
+                }
+              ],
+              "def": "2K"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 4,
+              "max": 15,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            }
+          ]
+        },
+        {
+          "id": "minimax-h3-ref",
+          "featureCode": "image_to_video",
+          "label": "H3 مرجع",
+          "refs": [
+            {
+              "key": "reference_image_urls",
+              "label": "تصاویر مرجع / سوژه (الزامی)",
+              "max": 5,
+              "maxMb": 30,
+              "required": true
+            },
+            {
+              "key": "reference_audio_urls",
+              "label": "صدای مرجع (اختیاری)",
+              "max": 3,
+              "media": "audio",
+              "maxMb": 15
+            }
+          ]
         }
       ]
     },
@@ -2069,12 +2614,67 @@
           "id": "wan-2-5",
           "featureCode": "video_generate",
           "maxPrompt": 800,
-          "label": "۲٫۵",
+          "label": "۲٫۵"
+        },
+        {
+          "id": "wan-2-5-i2v",
+          "featureCode": "image_to_video",
+          "maxPrompt": 800,
+          "label": "۲٫۵ تصویر",
           "refs": [
             {
               "key": "image_url",
-              "label": "تصویر ورودی (اختیاری)",
-              "max": 1
+              "label": "تصویر ورودی (الزامی)",
+              "max": 1,
+              "required": true
+            }
+          ],
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "720p"
+            },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "5",
+                  "label": "۵ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                }
+              ],
+              "def": "5"
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "enable_prompt_expansion",
+              "label": "گسترش خودکار پرامپت",
+              "def": false
+            },
+            {
+              "advanced": true,
+              "kind": "text",
+              "key": "negative_prompt",
+              "label": "پرامپت منفی",
+              "placeholder": "چه چیزی نباشد…"
             }
           ]
         },
@@ -2082,11 +2682,63 @@
           "id": "wan-2-6",
           "featureCode": "video_generate",
           "label": "۲٫۶",
+          "controls": [
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "1080p"
+            },
+            {
+              "kind": "segment",
+              "key": "duration",
+              "label": "مدت",
+              "options": [
+                {
+                  "value": "5",
+                  "label": "۵ ثانیه"
+                },
+                {
+                  "value": "10",
+                  "label": "۱۰ ثانیه"
+                },
+                {
+                  "value": "15",
+                  "label": "۱۵ ثانیه"
+                }
+              ],
+              "def": "5"
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "multi_shots",
+              "label": "چندنما (روایت چندبخشی)",
+              "def": false
+            }
+          ]
+        },
+        {
+          "id": "wan-2-6-i2v",
+          "featureCode": "image_to_video",
+          "label": "۲٫۶ تصویر",
           "refs": [
             {
               "key": "image_urls",
-              "label": "تصویر ورودی (اختیاری)",
-              "max": 1
+              "label": "تصویر ورودی (الزامی)",
+              "max": 1,
+              "maxMb": 10,
+              "required": true
             }
           ],
           "controls": [
@@ -2139,37 +2791,6 @@
           "id": "wan-2-7",
           "featureCode": "video_generate",
           "label": "۲٫۷",
-          "refs": [
-            {
-              "group": "frame",
-              "key": "first_frame_url",
-              "label": "فریم شروع (اختیاری)",
-              "max": 1,
-              "maxMb": 30
-            },
-            {
-              "group": "frame",
-              "key": "last_frame_url",
-              "label": "فریم پایان (اختیاری)",
-              "max": 1,
-              "maxMb": 30
-            },
-            {
-              "group": "frame",
-              "key": "first_clip_url",
-              "label": "کلیپ شروع (اختیاری)",
-              "max": 1,
-              "media": "video",
-              "maxMb": 30
-            },
-            {
-              "key": "driving_audio_url",
-              "label": "صدای هدایت‌گر (اختیاری)",
-              "max": 1,
-              "media": "audio",
-              "maxMb": 50
-            }
-          ],
           "controls": [
             {
               "kind": "aspect",
@@ -2209,6 +2830,85 @@
               ],
               "def": "16:9"
             },
+            {
+              "kind": "segment",
+              "key": "resolution",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "720p",
+                  "label": "720p"
+                },
+                {
+                  "value": "1080p",
+                  "label": "1080p"
+                }
+              ],
+              "def": "1080p"
+            },
+            {
+              "kind": "slider",
+              "key": "duration",
+              "label": "مدت",
+              "min": 2,
+              "max": 15,
+              "step": 1,
+              "def": 5,
+              "unit": "ثانیه"
+            },
+            {
+              "advanced": true,
+              "kind": "text",
+              "key": "negative_prompt",
+              "label": "پرامپت منفی",
+              "placeholder": "چه چیزی نباشد…"
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "prompt_extend",
+              "label": "گسترش خودکار پرامپت",
+              "def": true
+            },
+            {
+              "advanced": true,
+              "kind": "toggle",
+              "key": "watermark",
+              "label": "واترمارک",
+              "def": false
+            }
+          ]
+        },
+        {
+          "id": "wan-2-7-i2v",
+          "featureCode": "image_to_video",
+          "label": "۲٫۷ تصویر",
+          "refs": [
+            {
+              "group": "frame",
+              "key": "first_frame_url",
+              "label": "فریم شروع (الزامی)",
+              "max": 1,
+              "maxMb": 30,
+              "required": true
+            },
+            {
+              "group": "frame",
+              "key": "last_frame_url",
+              "label": "فریم پایان (اختیاری)",
+              "max": 1,
+              "maxMb": 30,
+              "requires": "first_frame_url"
+            },
+            {
+              "key": "driving_audio_url",
+              "label": "صدای هدایت‌گر (اختیاری)",
+              "max": 1,
+              "media": "audio",
+              "maxMb": 50
+            }
+          ],
+          "controls": [
             {
               "kind": "segment",
               "key": "resolution",
@@ -2758,9 +3458,25 @@
       "cover": "https://file.aiquickdraw.com/custom-page/akr/section-images/1760692238600spjz047p.mp4",
       "refs": [
         {
-          "key": "imageUrls",
-          "label": "تصاویر مرجع / فریم (اختیاری)",
-          "max": 2
+          "group": "frame",
+          "key": "image_url_start",
+          "sends": {
+            "key": "imageUrls",
+            "at": 0
+          },
+          "label": "فریم شروع (اختیاری)",
+          "max": 1
+        },
+        {
+          "group": "frame",
+          "key": "image_url_end",
+          "sends": {
+            "key": "imageUrls",
+            "at": 1
+          },
+          "label": "فریم پایان (اختیاری)",
+          "max": 1,
+          "requires": "image_url_start"
         }
       ],
       "controls": [
@@ -3053,6 +3769,351 @@
       ]
     },
     {
+      "id": "gemini-tts",
+      "name": "Gemini TTS",
+      "vendor": "Google",
+      "kind": "audio",
+      "minTier": 1,
+      "blurb": "گفتار با حالت و ریتم دلخواه — فارسی را هم می‌خواند",
+      "badge": "صدا",
+      "grad": "linear-gradient(135deg,#60a5fa,#312e81)",
+      "maxPrompt": 5000,
+      "controls": [
+        {
+          "kind": "segment",
+          "key": "voice_name",
+          "label": "صدا",
+          "options": [
+            {
+              "value": "Kore",
+              "label": "Kore — محکم"
+            },
+            {
+              "value": "Zephyr",
+              "label": "Zephyr — روشن"
+            },
+            {
+              "value": "Puck",
+              "label": "Puck — سرزنده"
+            },
+            {
+              "value": "Charon",
+              "label": "Charon — آموزشی"
+            },
+            {
+              "value": "Fenrir",
+              "label": "Fenrir — پرهیجان"
+            },
+            {
+              "value": "Leda",
+              "label": "Leda — جوان"
+            },
+            {
+              "value": "Orus",
+              "label": "Orus — محکم"
+            },
+            {
+              "value": "Aoede",
+              "label": "Aoede — سبک"
+            },
+            {
+              "value": "Callirrhoe",
+              "label": "Callirrhoe — آرام"
+            },
+            {
+              "value": "Autonoe",
+              "label": "Autonoe — روشن"
+            },
+            {
+              "value": "Enceladus",
+              "label": "Enceladus — نفس‌دار"
+            },
+            {
+              "value": "Iapetus",
+              "label": "Iapetus — شفاف"
+            },
+            {
+              "value": "Umbriel",
+              "label": "Umbriel — آرام"
+            },
+            {
+              "value": "Algieba",
+              "label": "Algieba — نرم"
+            },
+            {
+              "value": "Despina",
+              "label": "Despina — نرم"
+            },
+            {
+              "value": "Erinome",
+              "label": "Erinome — شفاف"
+            },
+            {
+              "value": "Algenib",
+              "label": "Algenib — خش‌دار"
+            },
+            {
+              "value": "Rasalgethi",
+              "label": "Rasalgethi — آموزشی"
+            },
+            {
+              "value": "Laomedeia",
+              "label": "Laomedeia — سرزنده"
+            },
+            {
+              "value": "Achernar",
+              "label": "Achernar — لطیف"
+            },
+            {
+              "value": "Alnilam",
+              "label": "Alnilam — محکم"
+            },
+            {
+              "value": "Schedar",
+              "label": "Schedar — یکنواخت"
+            },
+            {
+              "value": "Gacrux",
+              "label": "Gacrux — پخته"
+            },
+            {
+              "value": "Pulcherrima",
+              "label": "Pulcherrima — رک"
+            },
+            {
+              "value": "Achird",
+              "label": "Achird — صمیمی"
+            },
+            {
+              "value": "Zubenelgenubi",
+              "label": "Zubenelgenubi — خودمانی"
+            },
+            {
+              "value": "Vindemiatrix",
+              "label": "Vindemiatrix — ملایم"
+            },
+            {
+              "value": "Sadachbia",
+              "label": "Sadachbia — پرشور"
+            },
+            {
+              "value": "Sadaltager",
+              "label": "Sadaltager — کاردان"
+            },
+            {
+              "value": "Sulafat",
+              "label": "Sulafat — گرم"
+            }
+          ],
+          "def": "Kore"
+        },
+        {
+          "kind": "segment",
+          "key": "style",
+          "label": "حالت",
+          "options": [
+            {
+              "value": "",
+              "label": "معمولی"
+            },
+            {
+              "value": "Vocal Smile",
+              "label": "با لبخند"
+            },
+            {
+              "value": "Newscaster",
+              "label": "گوینده‌ی خبر"
+            },
+            {
+              "value": "Empathetic",
+              "label": "همدلانه"
+            },
+            {
+              "value": "Whisper",
+              "label": "نجوا"
+            },
+            {
+              "value": "Promo/Hype",
+              "label": "تبلیغاتی"
+            },
+            {
+              "value": "Deadpan",
+              "label": "بی‌احساس"
+            }
+          ],
+          "def": ""
+        },
+        {
+          "kind": "segment",
+          "key": "pace",
+          "label": "ریتم",
+          "options": [
+            {
+              "value": "Natural",
+              "label": "طبیعی"
+            },
+            {
+              "value": "Rapid Fire",
+              "label": "تند"
+            },
+            {
+              "value": "The Drift",
+              "label": "آرام و کشیده"
+            },
+            {
+              "value": "Staccato",
+              "label": "بریده‌بریده"
+            }
+          ],
+          "def": "Natural"
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "accent",
+          "label": "لهجه‌ی انگلیسی",
+          "options": [
+            {
+              "value": "Neutral",
+              "label": "خنثی"
+            },
+            {
+              "value": "American (Gen)",
+              "label": "آمریکایی"
+            },
+            {
+              "value": "British (RP)",
+              "label": "بریتانیایی"
+            },
+            {
+              "value": "Australian",
+              "label": "استرالیایی"
+            },
+            {
+              "value": "Transatlantic",
+              "label": "ترنس‌آتلانتیک"
+            }
+          ],
+          "def": "Neutral"
+        },
+        {
+          "advanced": true,
+          "kind": "text",
+          "key": "scene",
+          "label": "فضا",
+          "placeholder": "مثلاً: کتاب صوتی، لحن گرم و آرام"
+        }
+      ],
+      "variants": [
+        {
+          "id": "gemini-3-1-flash-tts",
+          "featureCode": "speech_generate",
+          "label": "3.1 Flash",
+          "badge": "سریع"
+        },
+        {
+          "id": "gemini-2-5-pro-tts",
+          "featureCode": "speech_generate",
+          "label": "2.5 Pro",
+          "badge": "کیفیت"
+        }
+      ]
+    },
+    {
+      "id": "suno",
+      "name": "Suno",
+      "vendor": "Suno",
+      "kind": "audio",
+      "minTier": 1,
+      "blurb": "آهنگ کامل با خواننده یا بی‌کلام، از یک توصیف",
+      "badge": "موسیقی",
+      "grad": "linear-gradient(135deg,#fb923c,#7c2d12)",
+      "maxPrompt": 3000,
+      "controls": [
+        {
+          "kind": "toggle",
+          "key": "instrumental",
+          "label": "بی‌کلام",
+          "def": false
+        },
+        {
+          "advanced": false,
+          "kind": "segment",
+          "key": "model",
+          "label": "نسخه",
+          "options": [
+            {
+              "value": "V6",
+              "label": "V6"
+            },
+            {
+              "value": "V6_MINI",
+              "label": "V6 Mini"
+            },
+            {
+              "value": "V6_WILD",
+              "label": "V6 Wild"
+            }
+          ],
+          "def": "V6"
+        }
+      ],
+      "variants": [
+        {
+          "id": "suno-music",
+          "featureCode": "music_generate",
+          "label": "آهنگ"
+        }
+      ]
+    },
+    {
+      "id": "suno-sounds",
+      "name": "Suno Sounds",
+      "vendor": "Suno",
+      "kind": "audio",
+      "minTier": 1,
+      "blurb": "افکت صوتی کوتاه از یک جمله",
+      "badge": "افکت",
+      "grad": "linear-gradient(135deg,#34d399,#064e3b)",
+      "maxPrompt": 500,
+      "controls": [
+        {
+          "kind": "toggle",
+          "key": "sound_loop",
+          "label": "قابل تکرار (لوپ)",
+          "def": false
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "model",
+          "label": "نسخه",
+          "options": [
+            {
+              "value": "V6",
+              "label": "V6"
+            },
+            {
+              "value": "V6_MINI",
+              "label": "V6 Mini"
+            },
+            {
+              "value": "V6_WILD",
+              "label": "V6 Wild"
+            }
+          ],
+          "def": "V6"
+        }
+      ],
+      "variants": [
+        {
+          "id": "suno-sounds",
+          "featureCode": "sound_generate",
+          "label": "افکت"
+        }
+      ]
+    },
+    {
       "id": "topaz",
       "name": "Topaz",
       "vendor": "Topaz Labs",
@@ -3083,10 +4144,6 @@
             {
               "value": "4",
               "label": "۴ برابر"
-            },
-            {
-              "value": "8",
-              "label": "۸ برابر"
             }
           ],
           "def": "2"

@@ -20,10 +20,18 @@ export default function GalleryPage() {
 }
 
 function GalleryScreen() {
-  const { gens } = useGenerations();
-  const { openResult, setTab } = useNavigation();
+  const { gens, removeGeneration, cancelGeneration, regenerate } = useGenerations();
+  const { openResult, setTab, openModel } = useNavigation();
 
   return (
-    <Gallery gens={gens} onOpen={(generation) => openResult(generation.id, { instant: true })} onBrowse={() => setTab("video")} />
+    <Gallery
+      gens={gens}
+      onOpen={(generation) => openResult(generation.id, { instant: true })}
+      onRemove={(generation) => void removeGeneration(generation.id)}
+      onCancel={cancelGeneration ? (generation) => cancelGeneration(generation.id) : undefined}
+      onRegenerate={(generation) => void regenerate(generation)}
+      onToVideo={(generation) => openModel("seedance", generation.prompt, generation.id)}
+      onBrowse={() => setTab("video")}
+    />
   );
 }

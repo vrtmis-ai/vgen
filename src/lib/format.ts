@@ -93,3 +93,22 @@ export function latinDigits(value: string): string {
 export function promptDir(value: string): "auto" | undefined {
   return value.trim() ? "auto" : undefined;
 }
+
+/**
+ * Which edge a field's own label should sit on, given what has been typed.
+ *
+ * `dir="auto"` puts the *text* on the right edge and its label on the right, in
+ * Persian — and then an English prompt flips the text to the left while the
+ * label stays put, so a box reads as misaligned even though its padding is
+ * symmetric to the pixel.
+ *
+ * The same rule `auto` uses, applied to the label: the first strong character
+ * decides. Latin letters send it LTR, anything else — Persian, Arabic, an empty
+ * field — leaves it inheriting the page. Deliberately not a full bidi
+ * implementation: a prompt starts with a word, and the only question here is
+ * which side of a 300px box a caption belongs on.
+ */
+export function labelDir(value: string): "ltr" | undefined {
+  const strong = value.trim().match(/[\p{Letter}\p{Number}]/u);
+  return strong && /[A-Za-z0-9]/.test(strong[0]) ? "ltr" : undefined;
+}

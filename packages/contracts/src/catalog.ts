@@ -64,6 +64,17 @@ export const CatalogRefSlotSchema = z.object({
    */
   group: z.enum(["reference", "frame"]).optional(),
   key: z.string().min(1),
+  /**
+   * Where the file goes upstream, when several slots share one provider field.
+   *
+   * Kling and Veo take a single positional `image_urls` array: element 0 is the
+   * start frame, element 1 the end. Two slots pointing at one destination is
+   * how the picker can label them and the worker can still send the array the
+   * API defines. Named here for the same reason `group` is — zod strips what a
+   * schema does not name, so without this line the seeder writes it, the
+   * database holds it, and the worker never sees it.
+   */
+  sends: z.object({ key: z.string().min(1), at: z.number().int().nonnegative() }).optional(),
   label: z.string(),
   max: z.number().int().positive(),
   media: z.enum(["image", "video", "audio"]).optional(),

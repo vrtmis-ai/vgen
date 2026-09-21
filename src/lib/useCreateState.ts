@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { defaultInput, variantControls, type Control, type Family, type Variant } from "../data/models";
 import { useAccess } from "./access";
-import type { InputMap } from "../components/controls";
+import { unlimitedFit } from "./unlimited";
+import { useSpendable } from "../runtime/providers/SessionProvider";
+import type { InputMap, RefMap } from "../components/controls";
 import { priceCoins } from "../data/pricing";
 import { validateGenerationInput } from "../features/generation/validation";
 import { useIsMutating } from "@tanstack/react-query";
@@ -91,22 +93,29 @@ export function variantMeta(family: Family, variant: Variant): VariantMeta {
   return { topRes, range };
 }
 
-export function useCreateState(families: Family[]) {
+/**
+ * @param refs Files the surface has picked for this model's input slots.
+ *
+ * Optional only because the audio dock has no slots to fill. It is not a detail
+ * a caller may leave out: this was hardcoded to `{}`, so a model with a
+ * `required` slot — Recraft, Topaz — reported `reference_required` no matter
+ * what had been attached, and `ready` was false for as long as it stayed
+ * selected. The create button was permanently dead on those models on every
+ * surface that uses this hook, with nothing on screen saying why.
+ */
+export function useCreateState(families: Family[], refs: RefMap = {}) {
   const access = useAccess();
   const isSubmitting = useIsMutating({ mutationKey: CREATE_GENERATION_MUTATION_KEY }) > 0;
   /**
-   * Open on something the account can actually run.
+   * Open on the flagship, which is what the catalogue is ordered by.
    *
-   * The catalog is ordered flagship-first, so `families[0]` for video is
-   * Seedance — tier 2. A new account is tier 1, so the studio's first frame was
-   * a locked model and an upgrade button: the product opening by telling you
-   * what you cannot have. Falling back to the first unlocked family means the
-   * gate sells on the models the user goes looking for instead of on the door.
-   *
-   * Still `families[0]` if nothing is unlocked, so the surface always has a
-   * model and the lock explains itself rather than rendering an empty panel.
+   * This used to hunt for the first model the account's plan could reach,
+   * because opening on a padlock was the product's first frame telling you
+   * what you could not have. There are no padlocks: every model is open to
+   * every account and the wallet is the only thing in the way, so the first
+   * family is simply the best one.
    */
-  const opening = (fs: Family[]) => fs.find((f) => access.can(f.id)) ?? fs[0]!;
+  const opening = (fs: Family[]) => fs[0]!;
 
   const [family, setFamily] = useState<Family>(() => opening(families));
   const [variantId, setVariantId] = useState<string>(() => opening(families).variants[0]!.id);
@@ -116,11 +125,7 @@ export function useCreateState(families: Family[]) {
   // belong to it.
   useEffect(() => {
     if (!families.some((f) => f.id === family.id)) setFamily(opening(families));
-    // `opening` closes over access, which is stable per plan; re-running on a
-    // plan change is correct — an upgrade should not leave the panel parked on
-    // the fallback it picked while locked.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [families, family.id, access]);
+  }, [families, family.id]);
 
   /**
    * The variant, not `variants[0]`.
@@ -159,8 +164,24 @@ export function useCreateState(families: Family[]) {
   const [preferUnlimited, setPreferUnlimited] = useState(false);
 
   const price = priceCoins(variant, input, { chars: prompt.length, clipSeconds: 0 });
-  const validation = validateGenerationInput({ family, variant, prompt, input, refs: {} });
-  const ready = validation.valid && price !== null && !isSubmitting;
+  const validation = validateGenerationInput({ family, variant, prompt, input, refs });
+
+  /* Free through the flat-fee pipe, as this account is set up right now. Read
+     here rather than in each dock because it decides the price the button
+     shows and whether the balance matters at all — a generation the pipe
+     serves costs nothing, so an empty wallet is no reason to refuse it. */
+  const freeNow = preferUnlimited && unlimitedFit(variant, input, access.tier)?.available === true;
+
+  /* The wallet, checked before the press rather than after it.
+     The server refuses an unaffordable generation — `insufficient_credits`,
+     and the hold it takes is what really enforces it — but the customer found
+     that out by pressing a lit button and watching it fail. This is the same
+     rule, said earlier. Null balance is a visitor or a test harness: neither
+     is short of coins, they are asked to sign in instead. */
+  const spendable = useSpendable();
+  const short = !freeNow && price !== null && spendable !== null && price > spendable;
+
+  const ready = validation.valid && price !== null && !short && !isSubmitting;
 
   return {
     family,
@@ -176,6 +197,12 @@ export function useCreateState(families: Family[]) {
     prompt,
     setPrompt,
     price,
+    /** Coins this account holds, or null for a visitor. */
+    spendable,
+    /** The price is above the balance, so the button cannot be pressed. */
+    short,
+    /** This one is free through the unlimited pipe as currently set. */
+    freeNow,
     preferUnlimited,
     setPreferUnlimited,
     ready,

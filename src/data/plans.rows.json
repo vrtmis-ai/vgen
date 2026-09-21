@@ -12,7 +12,9 @@
       "tag": "test",
       "popular": false,
       "sortOrder": 0,
-      "maxConcurrentJobs": 1
+      "maxConcurrentJobs": 2,
+      "termDays": 0,
+      "unlimitedDays": 0
     },
     {
       "code": "basic",
@@ -26,7 +28,9 @@
       "tag": null,
       "popular": false,
       "sortOrder": 1,
-      "maxConcurrentJobs": 2
+      "maxConcurrentJobs": 2,
+      "termDays": 0,
+      "unlimitedDays": 0
     },
     {
       "code": "flow",
@@ -40,7 +44,9 @@
       "tag": null,
       "popular": false,
       "sortOrder": 2,
-      "maxConcurrentJobs": 2
+      "maxConcurrentJobs": 2,
+      "termDays": 0,
+      "unlimitedDays": 0
     },
     {
       "code": "plus",
@@ -54,7 +60,9 @@
       "tag": "gift",
       "popular": false,
       "sortOrder": 3,
-      "maxConcurrentJobs": 3
+      "maxConcurrentJobs": 2,
+      "termDays": 0,
+      "unlimitedDays": 0
     },
     {
       "code": "pro",
@@ -68,7 +76,9 @@
       "tag": "popular",
       "popular": true,
       "sortOrder": 4,
-      "maxConcurrentJobs": 4
+      "maxConcurrentJobs": 4,
+      "termDays": 30,
+      "unlimitedDays": 7
     },
     {
       "code": "studio",
@@ -82,7 +92,9 @@
       "tag": null,
       "popular": false,
       "sortOrder": 5,
-      "maxConcurrentJobs": 6
+      "maxConcurrentJobs": 6,
+      "termDays": 30,
+      "unlimitedDays": 30
     },
     {
       "code": "creator",
@@ -96,7 +108,9 @@
       "tag": "best",
       "popular": false,
       "sortOrder": 6,
-      "maxConcurrentJobs": 8
+      "maxConcurrentJobs": 8,
+      "termDays": 30,
+      "unlimitedDays": 30
     }
   ]
 }

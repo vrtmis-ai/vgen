@@ -1,84 +1,251 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ImagesSquare, CircleNotch } from "@phosphor-icons/react";
-import type { Generation } from "../lib/gallery";
+import { ImagesSquare, CircleNotch, Clock, WarningCircle, Trash } from "@phosphor-icons/react";
+import { displayAspect, isPending, isUnfinished, type Generation } from "../lib/gallery";
 import type { ModelKind } from "../data/models";
 import { GenerationMedia } from "../components/GenerationMedia";
 import { ViewControls, useViewMode } from "../components/ViewControls";
+import { PANEL_RING } from "../components/Panel";
+import { jobFailureMessage } from "../features/generation/validation";
+import { Note } from "../components/ui/note";
+import { GenerationField } from "../components/GenerationField";
+import { CancelButton, type CancelOutcome } from "../components/GenerationVeils";
+import { OutputActions } from "../components/OutputActions";
+import { WaveCard, clipsOf, downloadClip, useClipPlayer } from "../components/AudioClip";
+import { useAppServices } from "../runtime/AppServices";
 import { useI18n } from "../lib/i18n";
 
-function GenCard({ g, i, onOpen, list }: { g: Generation; i: number; onOpen: () => void; list?: boolean }) {
+/**
+ * Take a refused generation off the wall.
+ *
+ * Offered on failures only, and that is a decision rather than an oversight: a
+ * finished generation is the thing the customer paid for, and a delete control
+ * sitting on every tile is one mis-tap away from destroying it. A failure has
+ * nothing in it to lose — no file was made and the coins already came back — so
+ * it is the one card where removal is a tidy-up rather than a loss.
+ */
+function RemoveButton({ onRemove }: { onRemove: () => void }) {
   const { t } = useI18n();
-  const running = g.status === "running";
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      onClick={(event) => {
+        // The card underneath is a button that opens the result.
+        event.stopPropagation();
+        setBusy(true);
+        onRemove();
+      }}
+      disabled={busy}
+      aria-label={t("gal_remove")}
+      title={t("gal_remove")}
+      className="grid size-7 shrink-0 place-items-center rounded-lg transition-opacity disabled:opacity-40"
+      style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+    >
+      <Trash size={13} />
+    </button>
+  );
+}
+
+function GenCard({
+  g,
+  i,
+  onOpen,
+  onRemove,
+  onCancel,
+  onRegenerate,
+  onToVideo,
+  list,
+}: {
+  g: Generation;
+  i: number;
+  onOpen: () => void;
+  onRemove: () => void;
+  onCancel?: (() => Promise<CancelOutcome>) | undefined;
+  onRegenerate?: (() => void) | undefined;
+  onToVideo?: (() => void) | undefined;
+  list?: boolean;
+}) {
+  const { t } = useI18n();
+  const pending = isPending(g.status);
+  const queued = g.status === "queued";
+  const cancelled = g.status === "cancelled";
+  const failed = isUnfinished(g.status);
+  // What arrived rather than what was ordered. `cover` hides the difference on
+  // a card, but the tile still has to reserve the right shape or the wall
+  // reflows the moment a file lands.
+  const shape = displayAspect(g);
 
   /* In list view the thumbnail stops being the card and becomes a 56px chip
      beside the prompt — the point of the list is reading what you asked for,
      and a full-bleed 9:16 frame per row makes that a scroll. */
   if (list) {
     return (
-      <motion.button
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: Math.min(i, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
-        onClick={onOpen}
-        className="mb-2 flex w-full break-inside-avoid items-center gap-3 rounded-xl border border-line p-2 text-start"
-        style={{ background: "var(--vg-surface)" }}
-      >
-        <span className="relative size-14 shrink-0 overflow-hidden rounded-lg" style={{ background: g.grad }}>
-          <GenerationMedia gen={g} />
-          {running && <span className="shimmer absolute inset-0" />}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="ltr line-clamp-2 block text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
-            {g.prompt || "—"}
+      /* The remove control is a sibling of the card, not a child of it: the card
+         is itself a button, and a button inside a button is invalid markup that
+         browsers resolve by dropping one of them. */
+      <div data-generation-card className="group relative mb-2 break-inside-avoid">
+        <motion.button
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: Math.min(i, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
+          onClick={onOpen}
+          className={`flex w-full items-center gap-3 rounded-[11px] p-2 text-start ${failed || (queued && onCancel) ? "pe-11" : ""}`}
+          style={{ background: "var(--vg-surface)", boxShadow: PANEL_RING }}
+        >
+          <span className="relative size-14 shrink-0 overflow-hidden rounded-lg" style={{ background: g.grad }}>
+            <GenerationMedia gen={g} />
+            {pending && <GenerationField />}
           </span>
-          <span className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-            <bdi>{g.name}</bdi>
-            <span className="vg-numeric">
-              {g.w}×{g.h}
+          <span className="min-w-0 flex-1">
+            <span className="ltr line-clamp-2 block text-[12.5px] leading-5" style={{ color: "var(--vg-text-secondary)" }}>
+              {g.prompt || "—"}
             </span>
-            {running && (
-              <span className="flex items-center gap-1" style={{ color: "var(--vg-primary-soft)" }}>
-                <CircleNotch size={10} className="animate-spin" />
-                {t("gal_making")}
+            <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+              <bdi>{g.name}</bdi>
+              {/* The file's real size once there is a file. This printed the
+                  requested aspect as though it were pixel dimensions — "9×16"
+                  beside a 768×1344 picture. */}
+              <span className="vg-numeric">
+                {shape.w}×{shape.h}
               </span>
-            )}
+              {pending && (
+                <span className="flex items-center gap-1" style={{ color: queued ? "var(--vg-text-muted)" : "var(--vg-primary-soft)" }}>
+                  {/* No spinner on a queued row: nothing is turning yet, and a
+                      spinner over a job nobody has started is the same lie the
+                      word «در حال ساخت» was telling. */}
+                  {queued ? <Clock size={11} /> : <CircleNotch size={10} className="animate-spin" />}
+                  {queued ? t("gal_queued") : t("gal_making")}
+                </span>
+              )}
+              {failed && (
+                <>
+                  <span className="flex items-center gap-1" style={{ color: "var(--vg-text-muted)" }}>
+                    <WarningCircle size={11} />
+                    {cancelled ? t("gal_cancelled") : t("gal_failed")}
+                  </span>
+                  {/* Where somebody is most likely to be looking for it.
+                      Every failure is refunded in full — the worker releases the
+                      hold and charges zero — and a row that says only "did not
+                      complete" leaves the customer to work out for themselves
+                      whether they were billed for it. */}
+                  <span style={{ color: "var(--vg-success, var(--vg-primary-soft))" }}>{t("gal_refunded")}</span>
+                </>
+              )}
+            </span>
           </span>
-        </span>
-      </motion.button>
+        </motion.button>
+        {/* Siblings of the card, for the reason above it: the card is a
+            button. A queued row offers the cancel; a settled one offers the bin. */}
+        {failed && (
+          <div className="absolute top-1/2 -translate-y-1/2" style={{ insetInlineEnd: "0.5rem" }}>
+            <RemoveButton onRemove={onRemove} />
+          </div>
+        )}
+        {queued && onCancel && (
+          <div className="absolute top-1/2 -translate-y-1/2" style={{ insetInlineEnd: "0.5rem" }}>
+            <CancelButton onCancel={onCancel} />
+          </div>
+        )}
+        {/* Inline and always visible: there is nothing to overlay in a row, and
+            hidden-until-hover in a list is just a hidden control. */}
+        {g.status === "done" && (
+          <div className="absolute top-1/2 -translate-y-1/2" style={{ insetInlineEnd: "0.5rem" }}>
+            <OutputActions gen={g} inline onOpen={onOpen} onRegenerate={onRegenerate} onToVideo={onToVideo} />
+          </div>
+        )}
+      </div>
     );
   }
 
   return (
-    <motion.button
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: i * 0.03, ease: [0.16, 1, 0.3, 1] }}
-      onClick={onOpen}
-      className="mb-3 block w-full break-inside-avoid overflow-hidden rounded-bezel border border-line text-start active:scale-[0.98] transition-transform"
-    >
-      <div className="relative w-full" style={{ aspectRatio: `${g.w}/${g.h}`, background: g.grad }}>
-        <GenerationMedia gen={g} />
-        {running && <div className="shimmer absolute inset-0 bg-card/60" />}
-        <div className="scrim-media" />
-        <div className="absolute start-2 top-2">
-          {running ? (
-            <span className="flex items-center gap-1 rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
-              <CircleNotch size={11} className="animate-spin" />
-              {t("gal_making")}
-            </span>
-          ) : (
-            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
-              {t(g.kind === "video" ? "kind_video" : g.kind === "audio" ? "kind_audio" : "kind_image")}
-            </span>
-          )}
+    // Same reason as the list branch: the remove control cannot live inside the
+    // card, because the card is a button.
+    <div data-generation-card className="group relative mb-3 break-inside-avoid">
+      <motion.button
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: i * 0.03, ease: [0.16, 1, 0.3, 1] }}
+        onClick={onOpen}
+        className="block w-full overflow-hidden rounded-bezel border border-line text-start active:scale-[0.98] transition-transform"
+      >
+        {/* A failed card drops the gradient. It is a stand-in for a picture,
+            and on a job that made none it is decoration the reason has to be
+            read through — the studios already cover a refused tile with the
+            same surface. */}
+        <div
+          className="relative w-full"
+          style={{ aspectRatio: `${shape.w}/${shape.h}`, background: failed ? "var(--vg-surface)" : g.grad }}
+        >
+          <GenerationMedia gen={g} />
+          {/* Where every studio sends a new generation, so this is where the
+              wait is seen: black, with the brand's light moving through it. It
+              sits under the scrim and the badges, so "در حال ساخت" stays legible. */}
+          {pending && <GenerationField />}
+          <div className="scrim-media" />
+          <div className="absolute start-2 top-2 flex flex-col items-start gap-1">
+            {pending ? (
+              <span className="flex items-center gap-1 rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
+                {queued ? <Clock size={11} /> : <CircleNotch size={11} className="animate-spin" />}
+                {queued ? t("gal_queued") : t("gal_making")}
+              </span>
+            ) : failed ? (
+              /* The refund, said on the card rather than only on the result
+                 page. Every failure releases its hold and charges zero, and
+                 somebody who watched coins leave their wallet needs telling that
+                 the two cancelled out — here, where they are looking. It is the
+                 only badge a failed card carries now: «انجام نشد» used to sit
+                 beside it and is said again, with its reason, in the notice at
+                 the foot of the card. */
+              <span className="rounded-full bg-bg/65 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{t("gal_refunded")}</span>
+            ) : (
+              <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">
+                {t(g.kind === "video" ? "kind_video" : g.kind === "audio" ? "kind_audio" : "kind_image")}
+              </span>
+            )}
+          </div>
+          <div className="absolute inset-x-2.5 bottom-2.5">
+            <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{g.name}</span>
+            {/* The reason, on a card that has nothing else to show. A failed
+                tile is an empty gradient with a badge on it, and "why" is what
+                the customer came to it for. Drawn as the same notice the
+                studios and the result page use. */}
+            {/* A cancelled card is not a refused one, so it is not drawn in
+                the failure's colour: nothing went wrong, the customer changed
+                their mind, and the red would be the screen arguing with them. */}
+            {failed && (
+              <Note
+                type={cancelled ? "default" : "error"}
+                size="small"
+                fill
+                align="start"
+                label={cancelled ? t("gal_cancelled") : t("gal_failed")}
+                className="mt-1.5"
+              >
+                {/* Clamped in the style attribute, not with `line-clamp-2`:
+                    the utility sets its own `display`, and the `block` that was
+                    here beside it won — which let a long reason run the height
+                    of the card. */}
+                <span className="overflow-hidden" style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2 }}>
+                  {cancelled ? t("gal_cancelled_note") : jobFailureMessage(g.error?.code)}
+                </span>
+              </Note>
+            )}
+            {g.prompt && <p className="ltr mt-1.5 line-clamp-2 text-[11.5px] leading-snug text-white/85">{g.prompt}</p>}
+          </div>
         </div>
-        <div className="absolute inset-x-2.5 bottom-2.5">
-          <span className="rounded-full bg-bg/55 px-2 py-0.5 text-[10px] text-ink backdrop-blur-sm">{g.name}</span>
-          {g.prompt && <p className="ltr mt-1.5 line-clamp-2 text-[11.5px] leading-snug text-white/85">{g.prompt}</p>}
+      </motion.button>
+      {failed && (
+        <div className="absolute top-2" style={{ insetInlineEnd: "0.5rem" }}>
+          <RemoveButton onRemove={onRemove} />
         </div>
-      </div>
-    </motion.button>
+      )}
+      {queued && onCancel && (
+        <div className="absolute top-2" style={{ insetInlineEnd: "0.5rem" }}>
+          <CancelButton onCancel={onCancel} />
+        </div>
+      )}
+      {g.status === "done" && <OutputActions gen={g} onOpen={onOpen} onRegenerate={onRegenerate} onToVideo={onToVideo} />}
+    </div>
   );
 }
 
@@ -92,18 +259,34 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "running", label: "در حال ساخت" },
 ];
 
-export default function Gallery({ gens, onOpen, onBrowse }: { gens: Generation[]; onOpen: (g: Generation) => void; onBrowse: () => void }) {
+export default function Gallery({
+  gens,
+  onOpen,
+  onRemove,
+  onCancel,
+  onRegenerate,
+  onToVideo,
+  onBrowse,
+}: {
+  gens: Generation[];
+  onOpen: (g: Generation) => void;
+  onRemove: (g: Generation) => void;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
+  /** The action rail on a finished card. */
+  onRegenerate?: ((g: Generation) => void) | undefined;
+  onToVideo?: ((g: Generation) => void) | undefined;
+  onBrowse: () => void;
+}) {
   const { t, n } = useI18n();
+  const services = useAppServices();
   const [filter, setFilter] = useState<Filter>("all");
   const view = useViewMode("gallery", { mode: "grid", density: 1 });
+  const player = useClipPlayer();
 
   const count = (f: Filter) =>
-    f === "all"
-      ? gens.length
-      : f === "running"
-        ? gens.filter((g) => g.status === "running").length
-        : gens.filter((g) => g.kind === f).length;
-  const shown = gens.filter((g) => (filter === "all" ? true : filter === "running" ? g.status === "running" : g.kind === filter));
+    f === "all" ? gens.length : f === "running" ? gens.filter((g) => isPending(g.status)).length : gens.filter((g) => g.kind === f).length;
+  const shown = gens.filter((g) => (filter === "all" ? true : filter === "running" ? isPending(g.status) : g.kind === filter));
 
   return (
     /* Rebuilt for the top-bar shell. Like Community, this printed its own title
@@ -113,10 +296,30 @@ export default function Gallery({ gens, onOpen, onBrowse }: { gens: Generation[]
     // for the density group. Without a container ancestor the query can never
     // match and the control disappears. Full width here, so it tracks the page.
     <div className="@container relative z-10 mx-auto w-full max-w-[var(--vg-container-max)] px-4 pb-16 pt-5 md:px-8">
-      <h1 className="text-[19px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
-        {t("gal_title")}
-      </h1>
-      <p className="mt-0.5 text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
+      {/* The prototype's lockup: a Latin ghost label over the title, and the
+          count as a pill beside it rather than a number in the prose. Persian
+          has no uppercase to buy presence with, which is what `.t-ghost` was
+          added for. */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <span className="t-ghost block" lang="en">
+            My work
+          </span>
+          <h1 className="mt-1 text-[19px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+            {t("gal_title")}
+          </h1>
+        </div>
+        {gens.length > 0 && (
+          <span
+            className="flex h-7 items-center gap-2 rounded-full px-3 text-[11.5px]"
+            style={{ border: "1px solid var(--vg-border-subtle)", color: "var(--vg-text-muted)" }}
+          >
+            <i className="size-[5px] rounded-full" style={{ background: "var(--vg-primary)" }} aria-hidden />
+            <span className="vg-numeric">{n(gens.length)}</span> {t("gal_title")}
+          </span>
+        )}
+      </div>
+      <p className="mt-1 text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
         هرچه ساخته‌ای اینجاست. هیچ‌کدام تا وقتی خودت نخواهی عمومی نمی‌شود.
       </p>
 
@@ -128,13 +331,17 @@ export default function Gallery({ gens, onOpen, onBrowse }: { gens: Generation[]
             return (
               <button
                 key={f.key}
-                onClick={() => setFilter(f.key)}
+                onClick={() => {
+                  // The clip playing may be one this filter hides.
+                  player.stop();
+                  setFilter(f.key);
+                }}
                 aria-pressed={on}
-                className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
+                className="vg-ease flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold"
                 style={{
-                  background: on ? "var(--vg-primary-a14)" : "var(--vg-surface)",
+                  background: on ? "var(--vg-primary-a14)" : "transparent",
                   color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
-                  border: "1px solid var(--vg-border-subtle)",
+                  boxShadow: on ? "inset 0 0 0 1px var(--vg-primary-a40)" : "inset 0 0 0 1px var(--vg-border-subtle)",
                 }}
               >
                 {f.label}
@@ -170,9 +377,43 @@ export default function Gallery({ gens, onOpen, onBrowse }: { gens: Generation[]
            aspect ratios and a fixed row height would letterbox half of them.
            The density stepper drives the column count directly. */
         <div className="[column-fill:_balance] gap-3" style={{ columnCount: view.mode === "list" ? 1 : view.cols }}>
-          {shown.map((g, i) => (
-            <GenCard key={g.id} g={g} i={i} onOpen={() => onOpen(g)} list={view.mode === "list"} />
-          ))}
+          {shown.map((g, i) =>
+            /* A finished sound is played where it sits, one card per take.
+               `GenCard` is built around a picture — a frame at the file's own
+               aspect, a hover rail over it — and audio has no frame to hang any
+               of that on. It was drawn as a coloured tile that played nothing. */
+            g.kind === "audio" && g.status === "done" && g.outputUrl ? (
+              clipsOf(g).map((clip) => (
+                <div
+                  key={clip.id}
+                  // In the list the row is drawn as the other rows are, a card;
+                  // its own divider would sit on the card's bottom edge.
+                  className={`break-inside-avoid ${view.mode === "list" ? "mb-2 overflow-hidden rounded-[11px] [&>div]:border-b-0" : "mb-3"}`}
+                  style={view.mode === "list" ? { background: "var(--vg-surface)", boxShadow: PANEL_RING } : undefined}
+                >
+                  <WaveCard
+                    clip={clip}
+                    list={view.mode === "list"}
+                    audio={player.audioOf(clip)}
+                    onPlay={() => player.toggle(clip)}
+                    onDownload={clip.jobId ? () => downloadClip(services.generation.downloadUrl, clip) : undefined}
+                  />
+                </div>
+              ))
+            ) : (
+              <GenCard
+                key={g.id}
+                g={g}
+                i={i}
+                onOpen={() => onOpen(g)}
+                onRemove={() => onRemove(g)}
+                onCancel={onCancel ? () => onCancel(g) : undefined}
+                onRegenerate={onRegenerate ? () => onRegenerate(g) : undefined}
+                onToVideo={onToVideo ? () => onToVideo(g) : undefined}
+                list={view.mode === "list"}
+              />
+            ),
+          )}
         </div>
       )}
     </div>

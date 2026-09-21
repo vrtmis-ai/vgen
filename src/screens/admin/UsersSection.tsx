@@ -80,7 +80,7 @@ export function UsersSection({ api, canWrite, canGrant }: { api: AdminApi; canWr
           <p className="mt-2 text-[11.5px]" style={{ color: "var(--vg-text-faint)" }}>
             {num(total)} کاربر
           </p>
-          <Table head={["کاربر", "موجودی", "خریده", "خرج کرده", "جاب", "هزینه‌ی ما", "آخرین ساخت"]}>
+          <Table head={["کاربر", "موجودی", "خریده", "خرج کرده", "جاب (ت/و/ص)", "پلن", "هزینه‌ی ما", "آخرین ساخت"]}>
             {users.data.users.map((user) => (
               <Row key={user.id}>
                 <Cell>
@@ -96,7 +96,17 @@ export function UsersSection({ api, canWrite, canGrant }: { api: AdminApi; canWr
                 <Cell>{num(user.coinsBalance)}</Cell>
                 <Cell dim>{num(user.coinsPurchased)}</Cell>
                 <Cell>{num(user.coinsSpent)}</Cell>
-                <Cell dim>{num(user.jobs)}</Cell>
+                {/* The split, not just the total: 400 pictures and 400 videos
+                    are the same number and forty times the cost. */}
+                <Cell dim>
+                  <span title={`${num(user.images)} تصویر · ${num(user.videos)} ویدیو · ${num(user.audio)} صدا`}>
+                    {num(user.jobs)}
+                    <span className="ms-1 text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+                      {num(user.images)}/{num(user.videos)}/{num(user.audio)}
+                    </span>
+                  </span>
+                </Cell>
+                <Cell dim>{user.planName ?? "—"}</Cell>
                 <Cell dim>
                   <span dir="ltr">{usd(user.providerCostUsd)}</span>
                 </Cell>
@@ -174,6 +184,9 @@ function UserDetail({
       <p className="mt-0.5 text-[11.5px]" style={{ color: "var(--vg-text-faint)" }}>
         عضو از {when(user.createdAt)}
         {user.displayName ? ` · ${user.displayName}` : ""}
+        {/* The plan, which this screen never showed: staff could see a balance
+            and not the subscription that produced it. */}
+        {user.planName ? ` · ${user.planName}` : " · بدون اشتراک"}
       </p>
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -181,6 +194,14 @@ function UserDetail({
         <Stat label="خریده" value={num(user.coinsPurchased)} />
         <Stat label="خرج کرده" value={num(user.coinsSpent)} />
         <Stat label="هزینه‌ی ما" value={usd(user.providerCostUsd)} hint={`${num(user.jobs)} جاب`} />
+      </div>
+
+      {/* What they actually made. The row above counts jobs and money; this is
+          the only place that says which kind of work produced them. */}
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        <Stat label="تصویر" value={num(user.images)} />
+        <Stat label="ویدیو" value={num(user.videos)} />
+        <Stat label="صدا" value={num(user.audio)} />
       </div>
 
       {bans.length > 0 ? (

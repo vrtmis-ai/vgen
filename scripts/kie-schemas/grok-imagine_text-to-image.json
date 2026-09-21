@@ -1,0 +1,47 @@
+{
+  "models": ["grok-imagine/text-to-image"],
+  "title": "Grok Imagine - Text to Image",
+  "docUrl": "https://docs.kie.ai/market/grok-imagine/text-to-image.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Grok Imagine - Text to Image — input",
+    "type": "object",
+    "description": "Input parameters for the image generation task",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "Text prompt describing the desired image. Required field.\n\n- Should be detailed and specific about the desired visual elements\n- Describe composition, style, lighting, mood, and other visual details\n- Maximum length: 5000 characters\n- Supports English language prompts",
+        "examples": [
+          "Cinematic portrait of a woman sitting by a vinyl record player, retro living room background, soft ambient lighting, warm earthy tones, nostalgic 1970s wardrobe, reflective mood, gentle film grain texture, shallow depth of field, vintage editorial photography style."
+        ]
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "description": "Specifies the width-to-height ratio of the generated image. Controls the aspect ratio of the output.\n\n- **2:3**: Portrait orientation (vertical)\n- **3:2**: Landscape orientation (horizontal) \n- **1:1**: Square format\n- **16:9**: Wide screen format\n- **9:16**: Tall screen format\n\nDefault: 1:1",
+        "enum": ["2:3", "3:2", "1:1", "16:9", "9:16"],
+        "examples": ["3:2"]
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      },
+      "enable_pro": {
+        "type": "boolean",
+        "description": "Controls the request processing strategy.  \n  - `false`: Corresponds to **speed mode**. The system prioritizes response time and throughput, suitable for latency-sensitive scenarios.  \n  - `true`: Corresponds to **quality mode**. The system prioritizes processing quality and precision, suitable for scenarios requiring higher accuracy."
+      }
+    },
+    "required": ["prompt"]
+  },
+  "examples": [
+    {
+      "model": "grok-imagine/text-to-image",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "Cinematic portrait of a woman sitting by a vinyl record player, retro living room background, soft ambient lighting, warm earthy tones, nostalgic 1970s wardrobe, reflective mood, gentle film grain texture, shallow depth of field, vintage editorial photography style.",
+        "aspect_ratio": "3:2"
+      }
+    }
+  ]
+}

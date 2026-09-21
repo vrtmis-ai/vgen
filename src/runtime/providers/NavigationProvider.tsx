@@ -26,6 +26,16 @@ interface Navigation {
   setTab: (key: NavKey) => void;
   goBack: () => void;
   /**
+   * The wordmark: back to the landing page from anywhere.
+   *
+   * It used to open the Explore tab, which is a destination inside the app
+   * rather than the front of the site. Pressing a logo is how people ask to
+   * start over, and on the page they asked to start over from, the honest
+   * answer is the top of it — so an already-there press scrolls instead of
+   * pushing a history entry that changes nothing.
+   */
+  goHome: () => void;
+  /**
    * `fromGenerationId` carries one of the account's own finished generations in
    * as the new one's opening frame — this is "to video".
    *
@@ -35,6 +45,20 @@ interface Navigation {
    * several hundred characters that expire.
    */
   openModel: (familyId: string, prompt?: string, fromGenerationId?: string) => void;
+  /**
+   * Run one of the account's own generations again, as it was run.
+   *
+   * The opposite direction to `openModel`'s `fromGenerationId`, which takes a
+   * generation's *output* and makes it the next one's input. This restores its
+   * *inputs* — the variant, the settings and the files — so "generate again"
+   * produces another of the same thing rather than the same prompt at whatever
+   * the form happens to default to.
+   *
+   * The id travels and the rest is looked up, for the reason `from` is an id:
+   * the settings would be a query string of unbounded length and the file URLs
+   * expire within the hour.
+   */
+  regenerate: (familyId: string, generationId: string) => void;
   openWallet: () => void;
   openProfile: () => void;
   openResult: (generationId: string, options?: { instant?: boolean; replace?: boolean }) => void;
@@ -69,12 +93,18 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       tab: navKeyFromPath(pathname) ?? "video",
       setTab: (key) => router.push(navPath(key)),
       goBack,
+      goHome: () => {
+        if (pathname === "/") window.scrollTo({ top: 0, behavior: "smooth" });
+        else router.push("/");
+      },
       openModel: (familyId, prompt, fromGenerationId) => {
         const query = new URLSearchParams();
         if (prompt) query.set("prompt", prompt);
         if (fromGenerationId) query.set("from", fromGenerationId);
         router.push(`/generate/${encodeURIComponent(familyId)}${query.size ? `?${query.toString()}` : ""}`);
       },
+      regenerate: (familyId, generationId) =>
+        router.push(`/generate/${encodeURIComponent(familyId)}?again=${encodeURIComponent(generationId)}`),
       openWallet: () => router.push("/plans"),
       openProfile: () => router.push("/profile"),
       openResult: (generationId, options) => {
