@@ -43,7 +43,7 @@ export interface SignedUrlOptions {
 /**
  * `attachment; filename="…"` with a UTF-8 fallback.
  *
- * A generation's filename is ours (`vgen-<id>.png`), so the ASCII form is
+ * A generation's filename is ours (`DEEV-<id>.png`), so the ASCII form is
  * always safe — but the header is built once, here, rather than at the call
  * site, so a filename that ever stops being ASCII cannot break the header by
  * smuggling a quote or a newline into it.
