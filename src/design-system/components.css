@@ -1504,3 +1504,57 @@
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   THE HOLDING PAGE
+
+   What a visitor sees while early access is on: the mark on black, with the
+   brand's light pooled behind it. Two lobes rather than one, because a single
+   centred glow reads as a spotlight on the type and this is meant to read as
+   the room the type is standing in.
+
+   No dot grid here, unlike `.vg-stage`. The grid is the product's surface —
+   the thing you work on — and a page with nothing to work on should not be
+   wearing it.
+
+   `isolation: isolate` for the same reason `.vg-stage` needs it: a `z-index:
+   -1` layer paints *behind* its own parent's background without it, which on a
+   painted background means it is never seen at all.
+   --------------------------------------------------------------------------- */
+.vg-soon {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--vg-canvas);
+}
+
+.vg-soon::before {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  z-index: -1;
+  pointer-events: none;
+  /* Soft stops rather than a blur filter: the gradients are already smooth and
+     a blur across a viewport-sized layer is fill rate spent on nothing. */
+  background:
+    radial-gradient(32% 42% at 22% 40%, rgb(var(--vg-primary-rgb) / 0.22), transparent 70%),
+    radial-gradient(30% 40% at 78% 38%, rgb(var(--vg-primary-rgb) / 0.2), transparent 70%),
+    radial-gradient(70% 45% at 50% 90%, rgb(var(--vg-primary-rgb) / 0.05), transparent 76%);
+  animation: vg-soon-drift 34s var(--vg-ease) infinite alternate;
+  will-change: transform;
+}
+
+@keyframes vg-soon-drift {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(1.5%, 1.5%, 0) scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The light stays; only its drift stops. */
+  .vg-soon::before {
+    animation: none;
+  }
+}
