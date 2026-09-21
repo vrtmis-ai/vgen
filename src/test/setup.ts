@@ -66,6 +66,17 @@ Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
   value: () => null,
 });
 
+/**
+ * Blob URLs without Vitest's shim. jsdom has no `URL.createObjectURL`; Vitest
+ * 4.1 supplies one that converts a jsdom Blob by reading jsdom's private
+ * internals (`blob[implSymbol]._buffer`), and jsdom 30.1 moved them — so every
+ * test that attached a file threw. Nothing here reads a blob URL back: the docks
+ * put it in an `src` and revoke it later, so a unique string is the whole contract.
+ */
+let blobUrls = 0;
+URL.createObjectURL = () => `blob:vitest/${++blobUrls}`;
+URL.revokeObjectURL = () => {};
+
 vi.stubGlobal(
   "fetch",
   vi.fn(
