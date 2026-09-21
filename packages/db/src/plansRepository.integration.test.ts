@@ -76,7 +76,7 @@ describe("listing the ladder", () => {
       await seedPlan(tx, { code: "second", sortOrder: 2 });
       await seedPlan(tx, { code: "first", sortOrder: 1 });
 
-      const plans = await new PostgresPlansRepository(tx).list();
+      const { plans } = await new PostgresPlansRepository(tx).list();
 
       // Deliberately inserted out of order: sort_order is what the cards read,
       // and a set has none of its own.
@@ -91,7 +91,7 @@ describe("listing the ladder", () => {
       await seedPlan(tx, { code: "retired", isActive: false });
       await seedPlan(tx, { code: "internal", isPublic: false });
 
-      const plans = await new PostgresPlansRepository(tx).list();
+      const { plans } = await new PostgresPlansRepository(tx).list();
 
       expect(plans.map((plan) => plan.code)).toEqual(["on-sale"]);
     });
@@ -106,7 +106,9 @@ describe("listing the ladder", () => {
         presentation: { group: "entry", popular: false, baseCoins: 500, bonusCoins: 25, tag: "gift" },
       });
 
-      const [plan] = await new PostgresPlansRepository(tx).list();
+      const {
+        plans: [plan],
+      } = await new PostgresPlansRepository(tx).list();
 
       // The grant is the total; the split is what makes the volume discount
       // visible on the card. Both have to survive the round trip.
@@ -123,7 +125,7 @@ describe("listing the ladder", () => {
       await seedPlan(tx, { code: "monthly-only", usd: 25, annualUsd: null });
       await seedPlan(tx, { code: "both", usd: 49, annualUsd: 39, sortOrder: 1 });
 
-      const plans = await new PostgresPlansRepository(tx).list();
+      const { plans } = await new PostgresPlansRepository(tx).list();
 
       // Null hides the annual toggle; equal prices would show a discount of
       // zero. They are different answers and must not collapse into one.

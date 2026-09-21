@@ -16,6 +16,20 @@ export interface CustomerWallet {
   spendable: number;
   grants: CustomerCreditGrant[];
   nextExpiry?: { at: number; coins: number };
+  /**
+   * The tier the unlimited pipe sees — not a statement about what may be run.
+   *
+   * Nothing is locked to a plan any more, so this stopped being an access
+   * gate and became one perk's eligibility. It is `unlimitedTierForAccount`,
+   * which answers 1 as soon as the plan's unlimited window closes, so the
+   * free switch disappears from the dock on the same day the quote stops
+   * coming back free. A tier that outlived its window would be a screen
+   * offering a free generation and a server then charging for it.
+   *
+   * Sent with the wallet because the wallet is already fetched for every
+   * signed-in account and the app waits for it before rendering.
+   */
+  tier: 1 | 2 | 3;
 }
 
 export interface CustomerWalletRepository {
@@ -101,10 +115,28 @@ export class PostgresWalletRepository implements CustomerWalletRepository {
     }
     const spendable = microCreditsToCoins(remainingMicroCredits);
 
+    /* The same statement `unlimitedTierForAccount` runs, joined from the user
+       rather than the account so this needs no second round trip. The two
+       conditions on `plan` are the window: a plan that never carried the perk
+       (`unlimited_days = 0`, which is every pack) and one whose days have run
+       out both fall through to 1, which reaches no entitlement. */
+    const [access] = await this.sql<{ tier: number }[]>`
+      select coalesce(max(plan.tier), 1) as tier
+      from users u
+      left join subscriptions sub
+        on sub.account_id = u.personal_account_id and sub.status = 'active' and sub.ends_at > now()
+      left join plans plan
+        on plan.id = sub.plan_id
+       and plan.unlimited_days > 0
+       and now() < sub.starts_at + (plan.unlimited_days * interval '1 day')
+      where u.id = ${userId}
+    `;
+
     const nextExpiring = grants.find((grant) => grant.expiresAt != null);
     return {
       spendable,
       grants,
+      tier: (access?.tier as CustomerWallet["tier"] | undefined) ?? 1,
       ...(nextExpiring?.expiresAt != null ? { nextExpiry: { at: nextExpiring.expiresAt, coins: nextExpiring.coinsRemaining } } : {}),
     };
   }

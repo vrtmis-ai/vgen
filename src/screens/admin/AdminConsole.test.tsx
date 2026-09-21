@@ -32,6 +32,11 @@ const USER_ROW = {
   coinsPurchased: 500,
   coinsSpent: 380,
   jobs: 40,
+  images: 31,
+  videos: 7,
+  audio: 2,
+  planName: "Pro",
+  planTier: 2,
   providerCostUsd: 12.5,
   lastJobAt: 1_787_000_000_000,
   activeBans: 0,
@@ -159,6 +164,9 @@ function stubApi(): AdminApi {
     clearRoutes: vi.fn(async () => undefined),
     listInvites: vi.fn(async () => []),
     createInvite: vi.fn(async () => []),
+    updateInvite: vi.fn(async () => {
+      throw new Error("not used here");
+    }),
     removeInvite: vi.fn(async () => "deleted" as const),
     listPromos: vi.fn(async () => []),
     createPromo: vi.fn(async () => undefined),
@@ -249,6 +257,14 @@ function stubApi(): AdminApi {
     revokeOtherAdminSessions: vi.fn(async () => 1),
     getEarlyAccess: vi.fn(async () => true),
     setEarlyAccess: vi.fn(async (value: boolean) => value),
+    listStaff: vi.fn(async () => ({ staff: [], grantable: ["*"] })),
+    listStaffRoles: vi.fn(async () => ({ roles: [], grantable: ["*"] })),
+    appointStaff: vi.fn(async () => null),
+    setStaffPermissions: vi.fn(async () => {}),
+    revokeStaff: vi.fn(async () => {}),
+    getStaffPlan: vi.fn(async () => null),
+    grantStaffPlan: vi.fn(async () => {}),
+    revokeStaffPlan: vi.fn(async () => 0),
   };
 }
 
@@ -880,5 +896,128 @@ describe("open staff sessions", () => {
 
     expect(await screen.findByText(/security\.write/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "بستن" })).not.toBeInTheDocument();
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   هم‌تیمی‌ها — the staff section.
+
+   The screen exists to hand out access, so the claims that matter are about
+   what it refuses to offer. The server enforces all three rules and answers 403
+   either way; what is tested here is that the operator is not offered a button
+   that will come back 403, and — more importantly — that the checkbox list is
+   built from what the server said this person may grant rather than from the
+   full set of permissions that exist.
+   --------------------------------------------------------------------------- */
+describe("the staff section", () => {
+  const MEMBER = {
+    userId: "u-mod",
+    email: "mod@deev.test",
+    roleCode: "moderator",
+    roleName: "Moderator",
+    permissions: ["community.read"],
+    isCustom: true,
+    hasMfa: true,
+    grantedAt: 1_780_000_000_000,
+    grantedByEmail: "admin@deev.test",
+  };
+
+  async function openStaff(staff: (typeof MEMBER)[], grantable: string[]) {
+    sessionState = { status: "authed", email: "admin@deev.test", roles: ["admin"], permissions: ["*"] };
+    api.listStaff = vi.fn(async () => ({ staff, grantable }));
+    api.listStaffRoles = vi.fn(async () => ({
+      roles: [{ code: "moderator", name: "Moderator", permissions: ["community.read", "community.write"] }],
+      grantable,
+    }));
+    const user = userEvent.setup();
+    renderConsole();
+    await user.click(await screen.findByRole("button", { name: "هم‌تیمی‌ها" }));
+    return user;
+  }
+
+  it("lists staff with the access each of them actually holds", async () => {
+    await openStaff([MEMBER], ["*"]);
+
+    expect(await screen.findByText("mod@deev.test")).toBeInTheDocument();
+    expect(screen.getByText("community.read")).toBeInTheDocument();
+    // The role name alone would be a lie for somebody whose set was narrowed.
+    expect(screen.getByText("(سفارشی)")).toBeInTheDocument();
+  });
+
+  it("offers only the permissions the server says this admin may grant", async () => {
+    // A limited admin. The checkbox list is built from `grantable`, so
+    // `users.write` must not be on the screen at all — offering it would be a
+    // form that wastes people's time on a guaranteed 403.
+    await openStaff([MEMBER], ["community.read", "community.write"]);
+
+    expect(await screen.findByLabelText("community.write")).toBeInTheDocument();
+    expect(screen.queryByLabelText("users.write")).not.toBeInTheDocument();
+  });
+
+  it("will not offer to change somebody who holds more than the actor", async () => {
+    const owner = { ...MEMBER, userId: "u-owner", email: "owner@deev.test", permissions: ["*"] };
+    await openStaff([owner], ["community.read"]);
+
+    expect(await screen.findByText("owner@deev.test")).toBeInTheDocument();
+    // Read-only with the reason on it, rather than a button that 403s.
+    expect(screen.getByText("دسترسی بیشتر از تو")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "تغییر" })).not.toBeInTheDocument();
+  });
+
+  it("will not offer anyone a way to edit their own access", async () => {
+    const me = { ...MEMBER, userId: "u-me", email: "admin@deev.test", permissions: ["*"] };
+    await openStaff([me], ["*"]);
+
+    expect(await screen.findByText("خودت")).toBeInTheDocument();
+    // Narrowing your own set is permitted by the other two rules and locks
+    // everybody out of the console, including you.
+    expect(screen.queryByRole("button", { name: "تغییر" })).not.toBeInTheDocument();
+  });
+
+  it("appoints somebody with the role's own set when no boxes are ticked", async () => {
+    const user = await openStaff([MEMBER], ["*"]);
+
+    await user.type(await screen.findByPlaceholderText("ایمیل"), "new@deev.test");
+    await user.selectOptions(screen.getByRole("combobox"), "moderator");
+    await user.click(screen.getByRole("button", { name: "افزودن" }));
+
+    // No `permissions` key at all: the server reads an absent field as
+    // "inherit the role", which is a different instruction from an empty array
+    // — that one would appoint somebody who can do nothing.
+    await waitFor(() => expect(api.appointStaff).toHaveBeenCalledWith({ email: "new@deev.test", roleCode: "moderator" }));
+  });
+
+  it("creates a staff account with a password and shows its second-factor key once", async () => {
+    const user = await openStaff([MEMBER], ["*"]);
+    vi.mocked(api.appointStaff).mockResolvedValueOnce({
+      secret: "JBSWY3DPEHPK3PXP",
+      uri: "otpauth://totp/DEEV:new?secret=JBSWY3DPEHPK3PXP",
+    });
+
+    await user.type(await screen.findByPlaceholderText("ایمیل"), "new@deev.test");
+    await user.type(screen.getByLabelText("رمز عبور برای حساب تازه"), "a-long-password");
+    await user.selectOptions(screen.getByRole("combobox"), "moderator");
+    await user.click(screen.getByRole("button", { name: "افزودن" }));
+
+    expect(await screen.findByText("JBSWY3DPEHPK3PXP")).toBeInTheDocument();
+    expect(api.appointStaff).toHaveBeenCalledWith({ email: "new@deev.test", roleCode: "moderator", password: "a-long-password" });
+  });
+
+  it("says what a granted plan actually is", async () => {
+    const user = await openStaff([MEMBER], ["*"]);
+    await user.click(await screen.findByRole("button", { name: "تغییر" }));
+
+    // The sentence the whole feature was asked for. Worth having on the screen
+    // and not only in the schema: this is one term of a plan, not unlimited
+    // access, and the person pressing the button should know which.
+    expect(screen.getByText(/سقف ماهانهٔ همان پلن/)).toBeInTheDocument();
+  });
+
+  it("hides the section from an admin who cannot read it", async () => {
+    sessionState = { status: "authed", email: "support@deev.test", roles: ["support"], permissions: ["catalog.read"] };
+    renderConsole();
+
+    await screen.findByRole("button", { name: "ارائه‌دهنده‌ها" });
+    expect(screen.queryByRole("button", { name: "هم‌تیمی‌ها" })).not.toBeInTheDocument();
   });
 });

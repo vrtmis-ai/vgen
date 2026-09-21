@@ -25,7 +25,7 @@ export function createHttpServices(baseUrl: string, getAccessToken?: () => Promi
     wallet: createHttpWalletService(client),
     campaign: createHttpCampaignService(client),
     payment: createHttpPaymentService(client),
-    generation: createHttpGenerationService(client),
+    generation: createHttpGenerationService(client, baseUrl),
     gallery: createHttpGalleryService(client),
     assets: createHttpAssetsService(client),
   };

@@ -44,10 +44,8 @@ export class PostgresContentRepository implements CustomerContentRepository {
       // transaction, so two writes inside one share a stamp, and a value is
       // what this document actually depends on. Fingerprinting the thing
       // itself needs no argument about when it changed.
-      const [flag] = await this.sql<{ is_enabled: boolean }[]>`
-        select is_enabled from feature_flags where code = 'site_banner'
-      `;
-      return fingerprintOf(`${row?.n ?? "0"}:${flag?.is_enabled ?? true}`, row?.newest);
+      const flags = await this.flags();
+      return fingerprintOf(`${row?.n ?? "0"}:${flags.siteBanner}:${flags.earlyAccess}`, row?.newest);
     },
     () => this.build(),
   );
@@ -60,9 +58,7 @@ export class PostgresContentRepository implements CustomerContentRepository {
     // Read alongside the rows rather than through `PostgresAccessRepository`,
     // which owns the write. One statement, no import, and this file is already
     // the only reader of the served shape.
-    const [flag] = await this.sql<{ is_enabled: boolean }[]>`
-      select is_enabled from feature_flags where code = 'site_banner'
-    `;
+    const flags = await this.flags();
 
     const rows = await this.sql<
       {
@@ -120,7 +116,21 @@ export class PostgresContentRepository implements CustomerContentRepository {
       // Absent means nobody has turned it off. See the contract for why that
       // reads as on rather than off.
       ...snapshot,
-      flags: { siteBanner: flag?.is_enabled ?? true },
+      flags,
     });
+  }
+
+  private async flags(): Promise<ContentSnapshot["flags"]> {
+    const rows = await this.sql<{ code: string; is_enabled: boolean }[]>`
+      select code, is_enabled from feature_flags where code in ('site_banner', 'early_access')
+    `;
+    const enabled = (code: string) => rows.find((row) => row.code === code)?.is_enabled;
+    return {
+      siteBanner: enabled("site_banner") ?? true,
+      // Absent reads as on, exactly as signup reads it: a deleted row must not
+      // turn the invite page into the open landing page while the API still
+      // refuses every signup that page would send it.
+      earlyAccess: enabled("early_access") ?? true,
+    };
   }
 }

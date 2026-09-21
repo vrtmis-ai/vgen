@@ -14,6 +14,9 @@ export const OAuthProviderSchema = z.enum(["google", "microsoft"]);
  */
 const AuthProvidersSchema = z.array(OAuthProviderSchema).default([]);
 
+/** Mirrors `phoneSignIn`. False when absent, for the same reason. */
+const PhoneSignInSchema = z.boolean().default(false);
+
 export const AccountUserSchema = z.object({
   id: z.string().min(1),
   methods: z.array(IdentityMethodSchema),
@@ -29,12 +32,13 @@ export const SessionSchema = z
     // No providers on `loading`: nothing has been asked yet, so there is
     // nothing true to say. It is not a server answer at all.
     z.object({ status: z.literal("loading"), host: HostSchema }),
-    z.object({ status: z.literal("anonymous"), host: HostSchema, authProviders: AuthProvidersSchema }),
+    z.object({ status: z.literal("anonymous"), host: HostSchema, authProviders: AuthProvidersSchema, phoneSignIn: PhoneSignInSchema }),
     z.object({
       status: z.literal("authed"),
       host: HostSchema,
       user: AccountUserSchema,
       authProviders: AuthProvidersSchema,
+      phoneSignIn: PhoneSignInSchema,
     }),
   ])
   .readonly();

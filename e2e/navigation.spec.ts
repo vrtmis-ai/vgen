@@ -6,7 +6,9 @@ test("deep links and browser history preserve the active studio", async ({ page 
   await page.goto("/studio/image");
   await expect(page.getByRole("button", { name: "تصویر", exact: true })).toHaveAttribute("aria-current", "page");
 
-  await page.getByRole("button", { name: "پروفایل" }).click();
+  // Through the account menu — the bar carries the avatar, not a profile link.
+  await page.getByRole("button", { name: /حساب کاربری/ }).click();
+  await page.getByRole("menuitem", { name: "پروفایل" }).click();
   await expect(page).toHaveURL(/\/profile$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/studio\/image$/);

@@ -7,7 +7,10 @@ import { TopBar } from "../../../src/components/TopBar";
 import { useNavMenus } from "../../../src/components/navMenu";
 import { pageFade } from "../../../src/lib/motion";
 import { useNavigation } from "../../../src/runtime/providers/NavigationProvider";
+import { useGenerations } from "../../../src/runtime/providers/GenerationsProvider";
 import { useSession } from "../../../src/runtime/providers/SessionProvider";
+import { useI18n } from "../../../src/lib/i18n";
+import { grantedTotal } from "../../../src/lib/credits";
 
 /**
  * The nav'd area.
@@ -23,8 +26,10 @@ import { useSession } from "../../../src/runtime/providers/SessionProvider";
  * the same read with nothing to wait on.
  */
 export default function NavLayout({ children }: { children: ReactNode }) {
-  const { tab, setTab, openWallet, openProfile, openModel } = useNavigation();
-  const { wallet, signIn } = useSession();
+  const { tab, setTab, goHome, openWallet, openProfile, openModel } = useNavigation();
+  const { user, wallet, signIn, signOut } = useSession();
+  const { gens } = useGenerations();
+  const { lang, setLang, t } = useI18n();
   // Built here rather than inside TopBar: the bar stays a pure component that a
   // test can render without standing up a catalogue.
   const menus = useNavMenus();
@@ -34,9 +39,23 @@ export default function NavLayout({ children }: { children: ReactNode }) {
       <TopBar
         active={tab}
         onNav={setTab}
+        onHome={goHome}
         menus={menus}
         onOpenModel={openModel}
         coins={wallet?.spendable ?? null}
+        account={{
+          name: user?.displayName || t("p_guest"),
+          ...(user?.emailNormalized ? { email: user.emailNormalized } : {}),
+          coins: wallet?.spendable ?? 0,
+          coinsGranted: wallet ? grantedTotal(wallet) : 0,
+          // Null, not a guess: `GET /plans` cannot yet say which plan an account
+          // is on, and the plans screen refuses to fake one for the same reason.
+          planLabel: null,
+          galleryCount: gens.length,
+          onGallery: () => setTab("gallery"),
+          onToggleLang: () => setLang(lang === "fa" ? "en" : "fa"),
+          onSignOut: signOut,
+        }}
         onWallet={openWallet}
         onProfile={openProfile}
         onSignIn={signIn}

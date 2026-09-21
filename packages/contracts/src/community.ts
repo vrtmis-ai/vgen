@@ -100,8 +100,40 @@ export const ModeratePostRequestSchema = z
   })
   .strict();
 
+/**
+ * Pulling a published post down.
+ *
+ * The reason is required, where a rejection's is optional. A rejection happens
+ * inside a queue whose whole context is the decision being made; a takedown
+ * happens to something the public has already seen, possibly months later and
+ * possibly because somebody outside the company asked. A removal with no
+ * recorded ground is indistinguishable from an accident by then.
+ */
+export const TakeDownPostRequestSchema = z
+  .object({
+    reason: z.string().trim().min(3).max(280),
+  })
+  .strict();
+
+/**
+ * Reporting a published post.
+ *
+ * A category and an optional note, because the person reporting is not a lawyer
+ * and the published list of categories is not exhaustive. Neither field decides
+ * anything on its own — a report puts the post in front of a human, it does not
+ * hide it.
+ */
+export const ReportPostRequestSchema = z
+  .object({
+    category: z.enum(["illegal", "sexual", "violence", "impersonation", "copyright", "other"]).default("other"),
+    note: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export type ReportPostRequest = z.infer<typeof ReportPostRequestSchema>;
 export type SharePostRequest = z.infer<typeof SharePostRequestSchema>;
 export type SharedPost = z.infer<typeof SharedPostSchema>;
 export type PendingPost = z.infer<typeof PendingPostSchema>;
 export type PendingPosts = z.infer<typeof PendingPostsSchema>;
 export type ModeratePostRequest = z.infer<typeof ModeratePostRequestSchema>;
+export type TakeDownPostRequest = z.infer<typeof TakeDownPostRequestSchema>;

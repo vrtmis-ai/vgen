@@ -10,15 +10,26 @@ import { useNavigation } from "../../../../../src/runtime/providers/NavigationPr
    rail over waveform cards — because the three kinds of output are shaped
    differently. They share the token layer and `useCreateState`, and nothing else. */
 export default function StudioVideoPage() {
-  const { gens, requestGeneration } = useGenerations();
-  const { openResult } = useNavigation();
+  const { gens, requestGeneration, removeGeneration, submitError, cancelGeneration, regenerate } = useGenerations();
+  const { openResult, openWallet } = useNavigation();
 
   return (
     <Studio
       kind="video"
       gens={gens}
-      onGenerate={(family, variant, prompt, input) => requestGeneration(family.id, prompt, input, variant)}
+      onGenerate={(family, variant, prompt, input, refs) => requestGeneration(family.id, prompt, input, variant, { refs })}
       onOpen={(generation) => openResult(generation.id, { instant: true })}
+      onRemove={(generation) => void removeGeneration(generation.id)}
+      /* Absent where the API has no cancel route; the screens read that
+         absence as "do not offer it". */
+      onCancel={cancelGeneration ? (generation) => cancelGeneration(generation.id) : undefined}
+      onRegenerate={(generation) => void regenerate(generation)}
+      /* Both refusals with a way out end at the same page: the wallet and the
+         plan ladder are two sections of /plans. Kept as two targets anyway,
+         because the notice's label promises different things and the day they
+         split, the screens will not need touching. */
+      submitError={submitError}
+      onErrorAction={() => openWallet()}
     />
   );
 }

@@ -64,6 +64,11 @@ export const CreateGenerationRequestSchema = z.object({
   idempotencyKey: z.string().min(16).max(128),
   /** Must hash to exactly what was quoted, or the server refuses it. */
   input: InputMapSchema,
+  /**
+   * Sent again for the same reason `input` is: it is folded into the hashed
+   * `params`, so the create call cannot reconstruct it from the quote id.
+   */
+  prompt: z.string(),
 });
 
 /**
@@ -106,6 +111,15 @@ export const GenerationJobSchema = z.object({
   /** Charged in hundredths of a coin, so not a whole number. */
   coins: z.number().nonnegative(),
   prompt: z.string(),
+  /**
+   * The rest of what was submitted, so a generation can be run again as it was
+   * actually run rather than at whatever the form happens to default to.
+   * Optional here on purpose: a job read from a server older than this field
+   * still parses, it simply carries nothing to prefill.
+   */
+  params: z.record(z.string(), z.unknown()).default({}),
+  /** The files it ran against, by slot, as asset ids. Never URLs — those expire. */
+  referenceAssetIds: z.record(z.string().min(1), z.array(z.string().min(1))).default({}),
   createdAt: z.number().int().nonnegative(),
   updatedAt: z.number().int().nonnegative(),
   outputs: z.array(GeneratedOutputSchema),
@@ -123,5 +137,23 @@ export type QuoteGenerationRequest = z.input<typeof QuoteGenerationRequestSchema
 export type GenerationQuote = z.infer<typeof GenerationQuoteSchema>;
 export type CreateGenerationRequest = z.infer<typeof CreateGenerationRequestSchema>;
 export type GeneratedOutput = z.infer<typeof GeneratedOutputSchema>;
+/**
+ * A file a finished generation was run against.
+ *
+ * Fetched one generation at a time, from its own route, because signing every
+ * reference of every row of a gallery page to fill a form nobody has opened is
+ * the same waste the download link avoids.
+ */
+export const JobReferenceSchema = z.object({
+  slot: z.string().min(1),
+  assetId: z.string().min(1),
+  /** Signed and short-lived — for the preview. What gets submitted is `assetId`. */
+  url: z.string().min(1),
+  kind: z.enum(["image", "video", "audio", "document"]),
+});
+
+export const JobReferencesSchema = z.object({ references: z.array(JobReferenceSchema) });
+
+export type JobReference = z.infer<typeof JobReferenceSchema>;
 export type GenerationJob = z.infer<typeof GenerationJobSchema>;
 export type JobStatus = z.infer<typeof JobStatusSchema>;

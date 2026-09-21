@@ -415,6 +415,34 @@
   border-color: var(--vg-danger);
 }
 
+/* A borderless field sitting directly on a padded card — the prompt boxes and
+   the pickers' search rows.
+
+   They carry no padding of their own, and the app-wide focus ring
+   (`:focus-visible` in tokens.css) is drawn on the element's own box, so the
+   ring landed against the first letter: text touching a line on both sides,
+   which is what "too close to the border" looks like.
+
+   The padding buys that gap and the negative margin spends it straight back
+   out into the card's own padding, so the first letter still starts on the
+   same line as the label above it. Both are inline, so it mirrors in Persian
+   with no direction-specific rule — the point is that both scripts clear the
+   ring, whichever edge each one starts from. */
+.vg-field-inset {
+  inline-size: calc(100% + 2 * var(--vg-space-2));
+  margin-inline: calc(-1 * var(--vg-space-2));
+  padding-inline: var(--vg-space-2);
+  border-radius: var(--vg-radius);
+}
+
+/* The same gap where there is no label to line up with, so nothing is pulled
+   back out: a search row's field sits beside its magnifier and simply needs
+   the ring off its text. */
+.vg-field-pad {
+  padding-inline: var(--vg-space-2);
+  border-radius: var(--vg-radius);
+}
+
 /* Chip — AI tags, categories, filters. */
 .vg-chip {
   display: inline-flex;
@@ -450,6 +478,111 @@
 .vg-chip--accent[data-selected] {
   background: var(--vg-accent-strong);
   color: var(--vg-accent-deep);
+}
+
+/* A reference's name — `@Image1`, `@Video3`.
+
+   Always the mono face and always left to right, whatever the page direction:
+   this is a token the prompt is going to contain verbatim, not a word. The
+   isolation is what stops the `@` from jumping to the far end of the chip when
+   it sits in Persian prose.
+
+   `.vg-numeric` is the neighbouring idea but the wrong one here — it drops to
+   the UI face under `:lang(fa)`, because a Persian numeral has no business
+   being monospaced. A tag is not a numeral.
+   ------------------------------------------------------------------------ */
+.vg-tag {
+  font-family: var(--vg-font-mono);
+  font-size: 10.5px;
+  letter-spacing: -0.01em;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* The reference tile.
+
+   Hovering veils the picture and raises its controls. The picture is the thing
+   being acted on, so softening it is what says the buttons belong to *this*
+   file rather than floating over the row. 2px of blur: enough to push it
+   behind them, not enough to stop you recognising the shot.
+
+   A coarse pointer has no hover to wait for and no way to look before
+   touching, so there the controls are simply there and nothing is blurred.
+
+   The part label (start / end) is not in here. It is information, not a
+   control, and it stays legible whether or not the pointer is over the tile.
+   ------------------------------------------------------------------------ */
+.vg-tile__media {
+  transition: filter var(--vg-dur) var(--vg-ease);
+}
+.vg-tile__veil {
+  opacity: 0;
+  transition: opacity var(--vg-dur-fast) var(--vg-ease);
+}
+@media (hover: hover) {
+  .vg-tile:hover .vg-tile__media,
+  .vg-tile:focus-within .vg-tile__media {
+    filter: blur(2px);
+  }
+  .vg-tile:hover .vg-tile__veil,
+  .vg-tile:focus-within .vg-tile__veil {
+    opacity: 1;
+  }
+}
+@media (hover: none) {
+  .vg-tile__veil {
+    opacity: 1;
+  }
+}
+/* Dragging. The tile being carried fades; the one it would land on takes the
+   accent ring, so the swap is legible before the mouse goes up. */
+.vg-tile[data-dragging="true"] {
+  opacity: 0.35;
+}
+.vg-tile[data-over="true"] {
+  box-shadow: inset 0 0 0 2px var(--vg-primary);
+}
+.vg-tile[draggable="true"] {
+  cursor: grab;
+}
+.vg-tile[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* The create panel's select.
+
+   A control that belongs with the chips beside it rather than with the form
+   fields it is technically one of: the platform's own select paints a border
+   and a caret that are both heavier than anything else in a 342px column. So
+   the border is transparent until hover and the caret is drawn in.
+
+   `appearance: none` removes the native caret; the background image replaces
+   it, and its side has to flip by hand because background-position has no
+   logical form. Taken from the workflow-studio prototype's `.msel` — 28px at
+   radius 7 there, 32px here, because this one is a primary control on a phone
+   and 28 is under the tap target.
+   ------------------------------------------------------------------------ */
+.vg-msel {
+  padding-inline: 22px;
+  background-color: var(--vg-surface-overlay);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M6 9.5l6 6 6-6' stroke='%238c919b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 11px;
+  border: 1px solid transparent;
+  color: var(--vg-text);
+  transition: border-color var(--vg-dur-fast) var(--vg-ease);
+}
+[dir="rtl"] .vg-msel {
+  background-position: left 7px center;
+}
+.vg-msel:hover {
+  border-color: var(--vg-border-strong);
+}
+/* The popup is drawn by the OS; only its colours are ours to set. */
+.vg-msel option {
+  background: var(--vg-surface-raised);
+  color: var(--vg-text);
 }
 
 /* Segmented control — aspect ratio, duration, quality. */
@@ -826,6 +959,90 @@
   }
 }
 
+/* A generation in progress, as an overlay on its own card.
+
+   Black, with the brand's light moving through it: two soft lime pools drifting
+   in opposite directions at different speeds, so the motion never settles into
+   a loop you can count. It replaces the flat dark scrim that running cards
+   used, which said "wait" in the same voice as every disabled control in the
+   app — a job somebody has paid for is not a disabled thing.
+
+   Brighter than `.vg-generating`'s under-12% wash, deliberately: that rule was
+   written for a wash under content, and here the light *is* the content — at
+   12% on near-black it reads as a smudge, not as something happening.
+
+   Transform-only animation on two pseudo-elements, so a wall with four jobs
+   running is eight composited layers and no repaint. The card's own text and
+   progress sit above it; they are later, positioned siblings.
+   ------------------------------------------------------------------------ */
+.vg-gen-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+  background: color-mix(in oklab, var(--vg-canvas), black 45%);
+}
+.vg-gen-field::before,
+.vg-gen-field::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  will-change: transform;
+}
+.vg-gen-field::before {
+  background: radial-gradient(closest-side, rgb(var(--vg-primary-rgb) / 0.46), rgb(var(--vg-primary-rgb) / 0.12) 55%, transparent 72%);
+  animation: vg-gen-drift-a 6s var(--vg-ease) infinite alternate;
+}
+.vg-gen-field::after {
+  background: radial-gradient(closest-side, rgb(var(--vg-primary-rgb) / 0.3), transparent 70%);
+  animation: vg-gen-drift-b 8.5s var(--vg-ease) infinite alternate;
+}
+@keyframes vg-gen-drift-a {
+  0% {
+    transform: translate(-28%, -24%) scale(0.55);
+  }
+  50% {
+    transform: translate(12%, -6%) scale(0.75);
+  }
+  100% {
+    transform: translate(24%, 26%) scale(0.6);
+  }
+}
+@keyframes vg-gen-drift-b {
+  0% {
+    transform: translate(26%, 22%) scale(0.7);
+  }
+  50% {
+    transform: translate(-8%, 14%) scale(0.5);
+  }
+  100% {
+    transform: translate(-24%, -26%) scale(0.65);
+  }
+}
+/* With the particle cloud on top, the two drifting blobs stop being the thing
+   being looked at and become the haze behind it — otherwise they are simply
+   brighter than the cloud and it reads as a smudge with sparkles in it. They
+   are not removed: they are the floor the cloud fades into at its edges, and
+   they are what the tile falls back to alone when the scene cannot load. */
+.vg-gen-field::before,
+.vg-gen-field::after {
+  opacity: 1;
+  transition: opacity 600ms var(--vg-ease);
+}
+.vg-gen-field--nebula::before,
+.vg-gen-field--nebula::after {
+  opacity: 0.18;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The light stays where it is; only its movement stops. */
+  .vg-gen-field::before,
+  .vg-gen-field::after {
+    animation: none;
+  }
+}
+
 /* Indeterminate bar for the tile — distinct from .vg-progress, which needs a
    known percentage. Most generations cannot report one. */
 .vg-generating__bar {
@@ -978,23 +1195,6 @@
   color: var(--vg-accent);
 }
 
-/* Informational banner — tips, model notes, quota reminders. */
-.vg-note {
-  display: flex;
-  gap: var(--vg-space-3);
-  padding: var(--vg-space-3) var(--vg-space-4);
-  border: 1px solid var(--vg-accent-a20);
-  border-inline-start: 3px solid var(--vg-accent-strong);
-  border-radius: var(--vg-radius-md);
-  background: var(--vg-accent-a10);
-  color: var(--vg-text-secondary);
-  font-size: var(--vg-body-size);
-}
-.vg-note__icon {
-  color: var(--vg-accent);
-  flex: 0 0 auto;
-}
-
 /* Inline link. */
 .vg-link {
   color: var(--vg-accent);
@@ -1039,4 +1239,268 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   The gleam — the light that runs a button's edge.
+
+   Three layers over one dark pill, and each has a job:
+
+   · the border itself is a conic gradient, so a bright arc travels the outline;
+   · `::before` is a field of dots inside the pill, masked to the quarter the
+     arc is passing through, so the light appears to fall on a surface;
+   · `::after` is a soft sheen crossing the face, rotating on its own clock.
+
+   Registered properties are what make any of it move: a conic gradient cannot
+   animate unless the angle it is built from is typed. They live here rather
+   than being injected per button — one stylesheet, however many buttons.
+
+   Each layer names its own animation in `--vg-gleam-run` *before* the shared
+   `animation` shorthand reads it. Getting that order wrong is what put the
+   angle sweep on the sheen and left the dots unmoved, which read as a green
+   bar swinging out of the side.
+   -------------------------------------------------------------------------- */
+@property --vg-gleam-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@property --vg-gleam-offset {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@property --vg-gleam-percent {
+  syntax: "<percentage>";
+  initial-value: 5%;
+  inherits: false;
+}
+@property --vg-gleam-shine {
+  syntax: "<color>";
+  initial-value: #ffffff;
+  inherits: false;
+}
+
+.vg-gleam {
+  --vg-gleam-duration: 3s;
+  --vg-gleam-ease: 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+  --vg-gleam-run: vg-gleam-angle linear infinite;
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  cursor: pointer;
+  outline-offset: 4px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--vg-text);
+  background:
+    linear-gradient(var(--vg-canvas), var(--vg-canvas)) padding-box,
+    conic-gradient(
+        from calc(var(--vg-gleam-angle) - var(--vg-gleam-offset)),
+        transparent,
+        var(--vg-primary) var(--vg-gleam-percent),
+        var(--vg-gleam-shine) calc(var(--vg-gleam-percent) * 2),
+        var(--vg-primary) calc(var(--vg-gleam-percent) * 3),
+        transparent calc(var(--vg-gleam-percent) * 4)
+      )
+      border-box;
+  box-shadow: inset 0 0 0 1px var(--vg-surface);
+  transition: var(--vg-gleam-ease);
+  transition-property: --vg-gleam-offset, --vg-gleam-percent, --vg-gleam-shine;
+  animation:
+    var(--vg-gleam-run) var(--vg-gleam-duration),
+    var(--vg-gleam-run) calc(var(--vg-gleam-duration) / 0.4) reverse paused;
+  animation-composition: add;
+}
+
+/* Layered above the fill, not under it. A `<button>` paints its own background
+   inside the stacking context it establishes, so a pseudo-element at
+   `z-index: -1` — which is how this effect is usually written — ends up behind
+   that fill and never shows: the dots and the sheen were both in the DOM,
+   correct, and invisible. They sit at 0 and the label sits above them. */
+.vg-gleam::before,
+.vg-gleam::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: 50%;
+  translate: -50% -50%;
+  z-index: 0;
+}
+
+.vg-gleam:active {
+  translate: 0 1px;
+}
+
+/* The dots, lit where the light is.
+
+   A field of them across the face, masked to the quarter the travelling arc is
+   passing through — so the grid appears under the light and fades behind it,
+   which is the effect: a surface catching a moving source rather than a
+   texture printed on a shape. The mask turns with the same angle the border
+   does, so the two are one light. */
+.vg-gleam::before {
+  --vg-gleam-dot: 2px;
+  --vg-gleam-space: calc(var(--vg-gleam-dot) * 2);
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  background: radial-gradient(circle at var(--vg-gleam-dot) var(--vg-gleam-dot), white calc(var(--vg-gleam-dot) / 4), transparent 0)
+    padding-box;
+  background-size: var(--vg-gleam-space) var(--vg-gleam-space);
+  background-repeat: space;
+  mask-image: conic-gradient(from calc(var(--vg-gleam-angle) + 45deg), black, transparent 10% 90%, black);
+  border-radius: inherit;
+  opacity: 0.4;
+  animation:
+    var(--vg-gleam-run) var(--vg-gleam-duration),
+    var(--vg-gleam-run) calc(var(--vg-gleam-duration) / 0.4) reverse paused;
+  animation-composition: add;
+}
+
+/* The sheen: a square the width of the button, turning behind the face, so the
+   light crosses the surface as well as the edge. Lime carries further than the
+   amber this came from, so it runs at half that opacity. */
+.vg-gleam::after {
+  --vg-gleam-run: vg-gleam-shimmer linear infinite;
+  width: 100%;
+  aspect-ratio: 1;
+  /* Softened, and blurred. The source turns a square the width of the button:
+     on the near-square button it came from that reads as a glow, and on a pill
+     four times wider than it is tall the same square cuts a hard diagonal
+     across the face. The blur is what keeps it light rather than a wedge. */
+  background: linear-gradient(-50deg, transparent 32%, rgb(var(--vg-primary-rgb) / 0.55) 50%, transparent 68%);
+  filter: blur(10px);
+  mask-image: radial-gradient(circle at bottom, transparent 40%, black);
+  opacity: 0.4;
+  animation:
+    var(--vg-gleam-run) var(--vg-gleam-duration),
+    var(--vg-gleam-run) calc(var(--vg-gleam-duration) / 0.4) reverse paused;
+  animation-composition: add;
+}
+
+.vg-gleam > span {
+  position: relative;
+  z-index: 2;
+}
+
+/* The bloom the label sits in on hover.
+
+   A radial with nothing but falloff, not the inset shadow this came from: an
+   inset shadow is drawn inside a box, so its box has edges — and at lime's
+   strength those edges read as a slab sitting in the button rather than light
+   under the words. It breathes, which is the original's move and the only part
+   of it worth keeping. */
+.vg-gleam > span::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: 50%;
+  translate: -50% -50%;
+  z-index: -1;
+  width: 190%;
+  height: 340%;
+  background: radial-gradient(55% 45% at 50% 82%, rgb(var(--vg-primary-rgb) / 0.5), transparent 72%);
+  filter: blur(6px);
+  opacity: 0;
+  transition: opacity var(--vg-gleam-ease);
+  animation: calc(var(--vg-gleam-duration) * 1.5) vg-gleam-breathe linear infinite;
+}
+
+/* Hover: the arc widens and warms, the face lights under the label, and the
+   button throws a little of that into the air around it. */
+.vg-gleam:is(:hover, :focus-visible) {
+  --vg-gleam-percent: 22%;
+  --vg-gleam-offset: 95deg;
+  --vg-gleam-shine: var(--vg-primary-soft);
+  box-shadow:
+    inset 0 0 0 1px var(--vg-surface),
+    0 0 42px rgb(var(--vg-primary-rgb) / 0.3);
+}
+
+.vg-gleam:is(:hover, :focus-visible),
+.vg-gleam:is(:hover, :focus-visible)::before,
+.vg-gleam:is(:hover, :focus-visible)::after {
+  animation-play-state: running, running;
+}
+
+.vg-gleam:is(:hover, :focus-visible) > span::before {
+  opacity: 1;
+}
+
+@keyframes vg-gleam-angle {
+  to {
+    --vg-gleam-angle: 360deg;
+  }
+}
+
+@keyframes vg-gleam-shimmer {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes vg-gleam-breathe {
+  from,
+  to {
+    scale: 1;
+  }
+  50% {
+    scale: 1.2;
+  }
+}
+
+/* Motion is the whole effect, so reduced motion keeps the lit edge and stops
+   every moving part — including the hover, which would otherwise start the
+   sweep the moment a pointer crossed the button. */
+@media (prefers-reduced-motion: reduce) {
+  .vg-gleam,
+  .vg-gleam::before,
+  .vg-gleam::after,
+  .vg-gleam > span::before {
+    animation: none !important;
+  }
+
+  .vg-gleam:is(:hover, :focus-visible) > span::before {
+    opacity: 0;
+  }
+
+  .vg-gleam {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   NOTICE ENTRANCE
+
+   A refusal arrives after a press, on a surface the eye has just left — it
+   goes looking at the canvas for the thing it asked for. Appearing in place is
+   not enough to catch that; a short rise is. 160ms and 4px, which is under the
+   threshold where motion becomes something you watch rather than something
+   that turns your head.
+
+   Once only. This is not a pulse: a box that keeps moving is a box that has to
+   be dismissed before the dock can be read.
+   --------------------------------------------------------------------------- */
+.vg-notice-in {
+  animation: vg-notice-rise 160ms var(--vg-ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+@keyframes vg-notice-rise {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vg-notice-in {
+    animation: none;
+  }
 }

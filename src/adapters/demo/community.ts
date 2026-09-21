@@ -14,6 +14,8 @@ const posts = z.array(CommunityPostSchema).parse(snapshot.posts);
 
 export function createDemoCommunityService(): AppServices["community"] {
   return {
+    // Nothing to report to in demo mode: there is no moderator behind it.
+    async report() {},
     async list() {
       return { posts };
     },

@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowsClockwise, House, WarningOctagon, WifiSlash } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
+import { Wordmark } from "./brandMarks";
 import { BRAND } from "../data/brand";
 
 export type SystemStateKind = "not-found" | "offline" | "service";
@@ -79,8 +80,8 @@ export function SystemState({
       />
 
       <header className="mx-auto flex w-full max-w-[1180px] items-center justify-between self-start">
-        <span className="text-[18px] font-bold tracking-tight" style={{ fontFamily: "var(--vg-font-display)" }}>
-          {BRAND.name}
+        <span>
+          <Wordmark height={18} title={BRAND.name} />
         </span>
         <span className="t-ghost" lang="en">
           SYSTEM STATUS

@@ -256,7 +256,7 @@ export default function Academy({ onOpenModel }: { onOpenModel: (familyId: strin
             style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <img src={art(open.seed)} alt="" className="mb-4 aspect-video w-full rounded-xl object-cover" />
+            <img src={art(open.seed)} alt="" loading="lazy" decoding="async" className="mb-4 aspect-video w-full rounded-xl object-cover" />
             <h3 className="text-[19px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
               {open.title}
             </h3>

@@ -83,10 +83,16 @@ export function attachReferences(
   params: JsonObject,
   slots: Record<string, string[]>,
   urlsById: Record<string, string>,
-  refSlots: { key: string; max: number }[] | null,
+  refSlots: { key: string; max: number; sends?: { key: string; at: number } | undefined }[] | null,
 ): JsonObject {
-  const maxFor = new Map((refSlots ?? []).map((slot) => [slot.key, slot.max]));
+  const declared = new Map((refSlots ?? []).map((slot) => [slot.key, slot]));
   const merged: JsonObject = { ...params };
+  /* Slots that share one upstream field, collected by position before being
+     written. Kling and Veo take a single `image_urls` array where element 0 is
+     the start frame and element 1 the end, so two labelled slots have to become
+     one ordered array — and it has to be assembled before anything is written,
+     because each slot alone would otherwise overwrite the other. */
+  const positional = new Map<string, string[]>();
 
   for (const [slot, ids] of Object.entries(slots)) {
     if (ids.length === 0) continue;
@@ -95,6 +101,15 @@ export function attachReferences(
       if (!url) throw new MissingReferenceError(slot);
       return url;
     });
+
+    const declaration = declared.get(slot);
+    if (declaration?.sends) {
+      const target = positional.get(declaration.sends.key) ?? [];
+      target[declaration.sends.at] = urls[0]!;
+      positional.set(declaration.sends.key, target);
+      continue;
+    }
+
     // An undeclared slot is treated as taking many. It should not happen — the
     // quote checked the ids and the catalogue declared the slots — but sending
     // an array where one was wanted is a provider error, while silently
@@ -103,7 +118,17 @@ export function attachReferences(
     // `urls[0]!` is safe because the empty case returned above; the assertion
     // is there because the compiler cannot see that and `undefined` in a
     // provider payload is exactly the silent drop this function exists to stop.
-    merged[slot] = (maxFor.get(slot) ?? 2) === 1 ? urls[0]! : urls;
+    merged[slot] = (declaration?.max ?? 2) === 1 ? urls[0]! : urls;
+  }
+
+  for (const [key, urls] of positional) {
+    /* Compacted, because a sparse array serialises its holes as nulls and a
+       provider handed `[null, "https://…"]` reads it as a first frame that is
+       not there. Validation already refuses an end frame without a start (the
+       slot declares `requires`), so this only ever closes a gap that should not
+       exist — which is exactly when a silent null would do the most damage. */
+    const dense = urls.filter((url): url is string => typeof url === "string");
+    if (dense.length > 0) merged[key] = dense;
   }
   return merged;
 }
@@ -166,7 +191,49 @@ const PUBLIC_FAILURE: Record<string, string> = {
   // reached when an upload was deleted between the quote and the queue, which
   // is rare and entirely the customer's own doing.
   reference_unavailable: "A file attached to this generation is no longer available.",
+  /* The queue gave up before the processor could settle anything — a worker
+     killed mid-poll, twice. Nothing about it is the customer's doing, and the
+     alternative to telling them is a job that says "generating" forever with
+     their coins still held. */
+  worker_lost: "This generation was interrupted and did not finish.",
+  /* The provider has to download the attached file from us, and in this
+     environment our object store is not on the public internet. Nothing the
+     customer did causes it and nothing they can do fixes it, but "the provider
+     failed" is a lie about whose fault it is — and the person reading it is
+     almost always a developer running the stack locally, for whom this sentence
+     is the entire diagnosis. */
+  reference_unreachable: "This environment cannot share attached files with the provider.",
 };
+
+/**
+ * Whether a URL we are about to hand a provider points back at this machine.
+ *
+ * Every provider that takes a file takes it as an http(s) URL it fetches
+ * itself — KIE rejects a `data:` URI outright and publishes no upload endpoint
+ * — so a loopback address is a generation that cannot succeed, and we know it
+ * before spending the call. Locally `OBJECT_STORAGE_PUBLIC_ENDPOINT` is unset
+ * and references sign against `http://127.0.0.1:9000`; in production it is
+ * `https://files.deev.ir` and this never matches.
+ *
+ * Deliberately only the addresses that can mean nothing but "this machine".
+ * A private LAN range (10.x, 192.168.x) is left alone: it is unreachable from a
+ * provider too, but it is also how someone might legitimately run this behind
+ * their own gateway, and refusing their jobs on a guess is worse than letting
+ * the provider answer.
+ */
+export function isLoopbackUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1" || hostname === "[::1]" || hostname === "0.0.0.0";
+  } catch {
+    // Not a URL we can parse is not a URL we can judge. The provider gets to
+    // answer, which is the same thing that happened before this existed.
+    return false;
+  }
+}
+
+/** The one code the queue itself settles a job with. See `worker.on("failed")`. */
+export const WORKER_LOST = "worker_lost";
 
 export async function runGeneration(jobId: string, deps: RunGenerationDeps): Promise<RunGenerationResult> {
   const { runner, secrets, isFinalAttempt, signReference } = deps;
@@ -292,6 +359,14 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
       const keys = await runner.referenceKeys(job.accountId, referenceIds);
       const urls: Record<string, string> = {};
       for (const [id, key] of Object.entries(keys)) urls[id] = await signReference(key);
+      /* Checked here rather than at startup, because it is a fact about the
+         URL we are about to send and not about configuration in the abstract —
+         and because only a job with references is affected. Text-to-image and
+         text-to-video attach nothing and run fine on the same machine. */
+      const unreachable = Object.values(urls).find((url) => isLoopbackUrl(url));
+      if (unreachable !== undefined) {
+        return settle("reference_unreachable", `the provider cannot download ${new URL(unreachable).origin}`, false);
+      }
       params = attachReferences(overridden, slots, urls, job.refSlots);
     } catch (error) {
       const detail = error instanceof MissingReferenceError ? error.message : messageOf(error);
@@ -352,7 +427,7 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
 
     let outcome;
     try {
-      outcome = await provider.poll(submission.externalJobId, apiKey);
+      outcome = await provider.poll(submission.externalJobId, apiKey, job.externalModelId);
       consecutiveTransportErrors = 0;
     } catch (error) {
       if (++consecutiveTransportErrors < 5) continue;

@@ -5,13 +5,20 @@ import { createDemoServices } from "../adapters/demo/demoServices";
 import { LanguageProvider } from "../lib/i18n";
 import { AppServicesProvider } from "../runtime/AppServices";
 import { PlansProvider } from "../features/plans/PlansProvider";
+import { CatalogProvider } from "../features/catalog/CatalogProvider";
+import { createDemoCatalogService } from "../adapters/demo/catalog";
 import { toman } from "../data/plans";
 import { PLAN_LADDER } from "../data/planLadder";
 import Plans from "./Plans";
 import type { Plan } from "../runtime/contracts/plans";
 import type { Wallet } from "../runtime/contracts/wallet";
 
-const WALLET: Wallet = { spendable: 12, grants: [] };
+const WALLET: Wallet = { spendable: 12, grants: [], tier: 1 };
+
+/* The unlimited benefit names the models the pipe covers, and takes them from
+   the catalogue rather than from a sentence somebody has to remember to edit —
+   so this screen now needs the served document the way Landing does. */
+const catalog = await createDemoCatalogService(() => 0).list();
 
 /**
  * The screen asks for the running campaign, so it needs the service port and a
@@ -20,15 +27,25 @@ const WALLET: Wallet = { spendable: 12, grants: [] };
  * is the same thing a visitor sees when no campaign is running, and it keeps
  * these assertions about the ladder rather than about a banner.
  */
+/**
+ * Deliberately not the seed constant. The screen is served a rate now, and a
+ * number that differs from anything compiled into the bundle is what tells a
+ * card reading the served rate apart from one that quietly kept the old
+ * constant.
+ */
+const RATE = 250_000;
+
 function show(plans: readonly Plan[], currentPlanId: string | null = null) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <AppServicesProvider services={createDemoServices()}>
         <LanguageProvider initialLang="en">
-          <PlansProvider plans={plans}>
-            <Plans wallet={WALLET} currentPlanId={currentPlanId} onBack={vi.fn()} />
-          </PlansProvider>
+          <CatalogProvider families={catalog.families}>
+            <PlansProvider plans={plans} tomanPerUsd={RATE}>
+              <Plans wallet={WALLET} currentPlanId={currentPlanId} onBack={vi.fn()} />
+            </PlansProvider>
+          </CatalogProvider>
         </LanguageProvider>
       </AppServicesProvider>
     </QueryClientProvider>,
@@ -47,7 +64,7 @@ describe("the plans screen", () => {
     const repriced: Plan = { ...first!, monthlyUsd: first!.monthlyUsd * 2 };
     show([repriced, ...rest]);
 
-    expect(screen.getAllByText(String(toman(repriced.monthlyUsd)).replace(/\B(?=(\d{3})+(?!\d))/g, ","))[0]).toBeInTheDocument();
+    expect(screen.getAllByText(String(toman(repriced.monthlyUsd, RATE)).replace(/\B(?=(\d{3})+(?!\d))/g, ","))[0]).toBeInTheDocument();
   });
 
   it("sells only the plans the server still serves", () => {

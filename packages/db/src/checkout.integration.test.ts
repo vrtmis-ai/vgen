@@ -56,7 +56,7 @@ async function runCampaign(tx: Sql, options: { code?: string; startsInDays?: num
 }
 
 /** Structural, so the fold can be checked against a ladder chosen for the test. */
-const ladder = (plans: Partial<Plan>[]) => ({ list: async () => plans as Plan[] });
+const ladder = (plans: Partial<Plan>[]) => ({ list: async () => ({ plans: plans as Plan[] }) });
 
 describe("the campaign window", () => {
   it("says there is nothing running, which is most of the year", async () => {
@@ -163,7 +163,7 @@ describe("the campaign window", () => {
       const campaigns = new PostgresCampaignsRepository(tx, plans);
 
       const active = await campaigns.getActive();
-      const served = await plans.list();
+      const { plans: served } = await plans.list();
 
       expect(active?.maxBonusCoins).toBe(Math.max(...served.map((plan) => plan.bonusCoins)));
       // Not just "the fold of an empty list": the seeded ladder really does

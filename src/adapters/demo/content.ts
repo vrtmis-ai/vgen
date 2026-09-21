@@ -49,7 +49,7 @@ export function createDemoContentService(now: () => number): AppServices["conten
       // applies when nobody has turned it off — demo exists to show the
       // product, and a strip that is invisible here but present in production
       // is a difference somebody finds by shipping.
-      return { version: "demo-content-v1", publishedAt: now(), flags: { siteBanner: true }, ...collections };
+      return { version: "demo-content-v1", publishedAt: now(), flags: { siteBanner: true, earlyAccess: false }, ...collections };
     },
   };
 }

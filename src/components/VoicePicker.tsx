@@ -272,7 +272,7 @@ export function VoicePicker({
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="جستجو"
-              className="w-full bg-transparent text-[12px] outline-none"
+              className="vg-field-pad w-full bg-transparent text-[12px] outline-none"
               style={{ color: "var(--vg-text)" }}
             />
           </div>

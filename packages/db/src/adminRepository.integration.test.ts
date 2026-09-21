@@ -2,6 +2,7 @@ import { sealingKeyFrom, totpCode } from "@vgen/core";
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PostgresAdminRepository, grantsPermission } from "./adminRepository";
+import { PostgresAuthRepository } from "./authRepository";
 import { connect, expectDbError, inRollback, makeUser } from "./integrationHarness";
 
 let sql: Sql;
@@ -359,6 +360,84 @@ describe("listing open sessions", () => {
       // an unhelpful way to answer "I think somebody is in here".
       expect(revoked).toBeGreaterThanOrEqual(2);
       expect(await admin.resolveSession(keep.token)).not.toBeNull();
+    });
+  });
+});
+
+describe("staff made by staff", () => {
+  const owner = async (tx: Sql) => {
+    const { userId } = await makeUser(tx);
+    await repo(tx).grantRole(userId, "admin", null);
+    return userId;
+  };
+
+  it("creates a whole account with no invite, a role, and a second factor that works", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`update feature_flags set is_enabled = true where code = 'early_access'`;
+      const admin = repo(tx);
+      const email = `staff-${Date.now()}@example.test`;
+
+      const { userId, totp } = await admin.appointStaff({
+        existingUserId: null,
+        email,
+        password: "a-long-password",
+        roleCode: "moderator",
+        permissions: null,
+        grantedBy: await owner(tx),
+      });
+
+      expect(totp).not.toBeNull();
+      expect(await admin.verifySecondFactor(userId, totpCode(totp!.secret))).toBe(true);
+      expect((await admin.resolvePrincipal(userId))?.roles).toEqual(["moderator"]);
+      expect(await new PostgresAuthRepository(tx, "pepper").loginWithPassword(email, "a-long-password")).toMatchObject({ id: userId });
+      const [account] = await tx<{ owner_user_id: string }[]>`
+        select a.owner_user_id from users u join accounts a on a.id = u.personal_account_id where u.id = ${userId}
+      `;
+      expect(account?.owner_user_id).toBe(userId);
+      expect((await tx`select 1 from invite_redemptions where user_id = ${userId}`).length).toBe(0);
+    });
+  });
+
+  it("leaves a factor somebody already confirmed alone", async () => {
+    await inRollback(sql, async (tx) => {
+      const admin = repo(tx);
+      const { userId } = await makeUser(tx);
+      const { secret } = await admin.beginTotpEnrolment(userId, "x@example.test");
+      await admin.confirmTotpEnrolment(userId, totpCode(secret));
+
+      const { totp } = await admin.appointStaff({
+        existingUserId: userId,
+        email: "x@example.test",
+        password: null,
+        roleCode: "moderator",
+        permissions: null,
+        grantedBy: await owner(tx),
+      });
+
+      expect(totp).toBeNull();
+      expect(await admin.verifySecondFactor(userId, totpCode(secret))).toBe(true);
+    });
+  });
+
+  it("makes nothing when the address is already taken", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const [taken] = await tx<{ email: string }[]>`update users set status = 'suspended' where id = ${userId} returning email`;
+      const grantedBy = await owner(tx);
+      const before = await tx`select count(*)::int as n from accounts`;
+
+      const error = await expectDbError(tx, () =>
+        repo(tx).appointStaff({
+          existingUserId: null,
+          email: taken!.email,
+          password: "a-long-password",
+          roleCode: "moderator",
+          permissions: null,
+          grantedBy,
+        }),
+      );
+      expect((error as Error & { code?: string }).code).toBe("23505");
+      expect(await tx`select count(*)::int as n from accounts`).toEqual(before);
     });
   });
 });

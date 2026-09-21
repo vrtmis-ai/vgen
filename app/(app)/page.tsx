@@ -1,14 +1,43 @@
 "use client";
 
-import { ClientRedirect } from "../../src/components/ClientRedirect";
-import { navPath } from "../../src/runtime/router";
+import Landing from "../../src/screens/Landing";
+import { AppLoading } from "../../src/components/AppLoading";
+import { usePlans } from "../../src/features/session/useSession";
+import { useNavigation } from "../../src/runtime/providers/NavigationProvider";
 
 /**
- * `/` for a signed-in visitor.
+ * `/` for a signed-in visitor: the landing page, same as everyone else sees.
  *
- * An anonymous visitor never gets here — the session gate in the layout above
- * returns the landing page for every path before children render.
+ * This used to redirect straight to the video studio, which meant an account
+ * holder had no way to reach the front of their own site — the wordmark, the
+ * one control on every screen that says "take me back to the start", had
+ * nowhere to send them. So it pointed at the Explore tab instead, and the
+ * landing page was unreachable the moment you signed in.
+ *
+ * It sits outside the (nav) group deliberately: the landing page carries its own
+ * sticky header, and the app's top bar above it would be a second one. That
+ * header is where the wordmark lives on this page, and pressing it scrolls to
+ * the top rather than navigating — the same gesture the top bar's wordmark
+ * performs everywhere else.
+ *
+ * `usePlans` is the same query the layout above already ran, so this reads its
+ * cache rather than fetching anything again.
  */
 export default function HomePage() {
-  return <ClientRedirect to={navPath("video")} />;
+  const plansQuery = usePlans();
+  const { setTab } = useNavigation();
+
+  if (!plansQuery.data) return <AppLoading />;
+
+  return (
+    <Landing
+      plans={plansQuery.data.plans}
+      // Both calls to action are "sign in" for a visitor. Somebody already
+      // signed in wants the thing behind them, so they open the studio rather
+      // than an auth screen that would have nothing to ask.
+      signedIn
+      onSignIn={() => setTab("video")}
+      onSignUp={() => setTab("video")}
+    />
+  );
 }

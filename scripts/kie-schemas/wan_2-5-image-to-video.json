@@ -1,0 +1,76 @@
+{
+  "models": ["wan/2-5-image-to-video"],
+  "title": "Wan 2.5 - Image to Video",
+  "docUrl": "https://docs.kie.ai/market/wan/2-5-image-to-video.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Wan 2.5 - Image to Video — input",
+    "type": "object",
+    "description": "Input parameters for the image-to-video task.",
+    "required": ["prompt", "image_url", "duration"],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "maxLength": 800,
+        "description": "The text prompt describing the desired video motion. Maximum length: 800 characters.",
+        "examples": [
+          "The same woman from the reference image looks directly into the camera, takes a breath, then smiles brightly and speaks with enthusiasm: \"Have you heard? Alibaba Wan 2.5 API is now available on Kie.ai!\" Ambient audio: quiet indoor atmosphere, soft natural room tone. Camera: medium close-up, steady framing, natural daylight mood, accurate lip-sync with dialogue."
+        ]
+      },
+      "image_url": {
+        "type": "string",
+        "format": "uri",
+        "description": "URL of the image to use as the first frame. Must be publicly accessible.\n\n- Please provide the URL of the uploaded file, not raw file content\n- Accepted types: `image/jpeg`, `image/png`, `image/webp`\n- Max size: 10.0MB",
+        "examples": ["https://file.aiquickdraw.com/custom-page/akr/section-images/1758796480945qb63zxq8.webp"]
+      },
+      "duration": {
+        "type": "string",
+        "enum": ["5", "10"],
+        "description": "The duration of the generated video in seconds.\n\n- `5`: 5 seconds\n- `10`: 10 seconds",
+        "examples": ["5"]
+      },
+      "resolution": {
+        "type": "string",
+        "enum": ["720p", "1080p"],
+        "description": "Video resolution. Valid values: `720p`, `1080p`.",
+        "examples": ["1080p"]
+      },
+      "negative_prompt": {
+        "type": "string",
+        "maxLength": 500,
+        "description": "Negative prompt used to describe content to avoid. Maximum length: 500 characters."
+      },
+      "enable_prompt_expansion": {
+        "type": "boolean",
+        "description": "Whether to enable prompt rewriting using LLM.\n\n- Boolean value: `true` / `false`",
+        "examples": [true]
+      },
+      "seed": {
+        "type": "integer",
+        "description": "Random seed for reproducibility. If omitted, a random seed is chosen."
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    }
+  },
+  "examples": [
+    {
+      "model": "wan/2-5-image-to-video",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "The same woman from the reference image looks directly into the camera, takes a breath, then smiles brightly and speaks with enthusiasm: \"Have you heard? Alibaba Wan 2.5 API is now available on Kie.ai!\" Ambient audio: quiet indoor atmosphere, soft natural room tone. Camera: medium close-up, steady framing, natural daylight mood, accurate lip-sync with dialogue.",
+        "image_url": "https://file.aiquickdraw.com/custom-page/akr/section-images/1758796480945qb63zxq8.webp",
+        "duration": "5",
+        "resolution": "1080p",
+        "negative_prompt": "blurry, flicker, camera shake, distorted face, low quality",
+        "enable_prompt_expansion": true,
+        "seed": 123456,
+        "nsfw_checker": false
+      }
+    }
+  ]
+}

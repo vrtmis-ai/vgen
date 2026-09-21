@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coinDigits, faNum } from "./format";
+import { coinDigits, faNum, labelDir, promptDir } from "./format";
 
 /**
  * Coins are billed in hundredths, so a wallet can hold 0.9 of one and the
@@ -58,5 +58,53 @@ describe("coinDigits", () => {
     // A phone number is digits with structure, not a quantity — grouping it
     // would be wrong, so this path stays.
     expect(faNum("0912 345 6789")).toBe("۰۹۱۲ ۳۴۵ ۶۷۸۹");
+  });
+});
+
+/**
+ * The empty case is the whole reason this helper exists rather than a literal
+ * `dir="auto"` on each field. `auto` reads the value, and an empty value sends
+ * it to LTR — which lays the Persian placeholder out backwards and throws its
+ * full stop to the wrong end. That regression shipped on all four prompt boxes
+ * before a screenshot caught it, so it gets a test rather than a comment.
+ */
+describe("promptDir", () => {
+  it("inherits the page direction while the field is empty, so the placeholder reads correctly", () => {
+    expect(promptDir("")).toBeUndefined();
+    // Whitespace is not a strong character either, and `auto` would read it as LTR.
+    expect(promptDir("   \n ")).toBeUndefined();
+  });
+
+  it("follows the content once there is any, in either language", () => {
+    expect(promptDir("یک سیب قرمز")).toBe("auto");
+    expect(promptDir("a red apple")).toBe("auto");
+  });
+});
+
+/**
+ * The companion to `promptDir`, and the reason a screenshot of a perfectly
+ * padded box still looked wrong: `dir="auto"` moves the *text* to the other
+ * edge when you type Latin, and the label above it stayed where it was. Both
+ * halves have to agree, so both read the same first strong character.
+ */
+describe("labelDir", () => {
+  it("leaves the label inheriting the page for Persian and for an empty field", () => {
+    expect(labelDir("")).toBeUndefined();
+    expect(labelDir("   ")).toBeUndefined();
+    expect(labelDir("یک سیب قرمز")).toBeUndefined();
+  });
+
+  it("sends the label to the other edge exactly when the text goes there", () => {
+    expect(labelDir("make it wave")).toBe("ltr");
+    expect(labelDir("A red apple")).toBe("ltr");
+  });
+
+  /* Punctuation and emoji are not strong characters — `dir="auto"` skips them
+     to find the first letter, and so must this, or a prompt opening with a
+     quote mark would part company with its own label. */
+  it("skips leading punctuation to find the character that actually decides", () => {
+    expect(labelDir('"make it wave"')).toBe("ltr");
+    expect(labelDir("«یک سیب»")).toBeUndefined();
+    expect(labelDir("… make it wave")).toBe("ltr");
   });
 });

@@ -4,7 +4,7 @@ import { Plus, X, Play, Pause, SpeakerHigh } from "@phosphor-icons/react";
 import type { Control, RefSlot, SlotMedia } from "../data/models";
 import { voicePreviewUrl } from "../features/content/labels";
 import { usePublishedContent } from "../features/content/ContentProvider";
-import { faNum } from "../lib/format";
+import { faNum, promptDir } from "../lib/format";
 
 export type InputValue = string | number | boolean;
 export type InputMap = Record<string, InputValue>;
@@ -45,7 +45,10 @@ function AspectPicker({
 }) {
   return (
     <FieldShell label={control.label}>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar">
+      {/* Wraps, for the reason the variant picker does: these rows run to
+          eleven ratios on Nano Banana and nine on GPT Image 2.5, and a hidden
+          scrollbar turned the tail of that into options nobody could see. */}
+      <div className="-mx-4 flex flex-wrap gap-2 px-4">
         {control.options.map((o) => {
           const on = o.value === value;
           return (
@@ -75,6 +78,26 @@ function Segmented({
   value: string;
   onChange: (v: string) => void;
 }) {
+  // One unwrapped row fits about six in the dock's column. Past that — Gemini's
+  // thirty voices — the platform's own list is the control that scrolls.
+  if (control.options.length > 6) {
+    return (
+      <FieldShell label={control.label}>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={control.label}
+          className="w-full rounded-2xl border border-line bg-card2 px-3 py-2.5 text-[12.5px] text-ink"
+        >
+          {control.options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </FieldShell>
+    );
+  }
   return (
     <FieldShell label={control.label}>
       <div className="flex gap-1.5 rounded-2xl bg-card2 p-1">
@@ -174,11 +197,14 @@ function NegText({
         onChange={(e) => onChange(e.target.value)}
         placeholder={control.placeholder}
         rows={2}
+        // As the prompt boxes do: the first letter typed decides the edge. This
+        // was forced left-to-right under a Persian placeholder.
+        dir={promptDir(value)}
         /* No `focus:outline-none`. The app-wide ring is
            `:where(…):focus-visible`, which has zero specificity, so a Tailwind
            `focus:outline-none` beat it and left a border tint as the only
            focus signal — and on `:focus`, so it also fired on a plain click. */
-        className="ltr w-full resize-none rounded-2xl border border-line bg-card2 p-3 text-[13px] text-ink placeholder:text-ink3 focus-visible:border-line2"
+        className="w-full resize-none rounded-2xl border border-line bg-card2 p-3 text-[13px] text-ink placeholder:text-ink3 focus-visible:border-line2"
       />
     </FieldShell>
   );
@@ -342,38 +368,101 @@ function readDuration(url: string, media: SlotMedia): Promise<number | undefined
   });
 }
 
+/** The media each slot kind accepts, for a file input's `accept`. */
+export function slotAccept(slot: RefSlot): string {
+  return ACCEPT[slot.media ?? "image"];
+}
+
+/**
+ * A slot's files after a pick, and what was turned away.
+ *
+ * Lives outside `RefUpload` because the image studio's dock takes files too and
+ * has no room for the 84px tile grid that component is. The rules about what a
+ * slot will hold — the ceiling, the per-file size cap, reading a clip's length
+ * — belong to the slot rather than to either surface, so both surfaces call
+ * this and neither carries its own copy to drift.
+ */
+export async function addRefFiles(slot: RefSlot, held: RefFile[], picked: File[]): Promise<{ files: RefFile[]; rejected: string | null }> {
+  const files = [...held];
+  let rejected: string | null = null;
+  for (const file of picked) {
+    if (files.length >= slot.max) break;
+    // KIE publishes no enforced cap and no 413, so an over-sized file would be
+    // accepted and only fail deep in the job — after the user has been charged.
+    if (slot.maxMb != null && file.size > slot.maxMb * 1024 * 1024) {
+      rejected = `${faNum(slot.maxMb)} مگابایت`;
+      continue;
+    }
+    const url = URL.createObjectURL(file);
+    files.push({ file, url, duration: await readDuration(url, slot.media ?? "image") });
+  }
+  return { files, rejected };
+}
+
+/**
+ * One file moved to another position in the same slot.
+ *
+ * Both create surfaces let a reference be dragged into a different place in
+ * the row, so the rule lives with `addRefFiles` rather than in either of them.
+ * Out-of-range indices return the list untouched: a drop that lands nowhere is
+ * a no-op, not a crash.
+ */
+export function moveRefFile(files: RefFile[], from: number, to: number): RefFile[] {
+  if (from === to || from < 0 || to < 0 || from >= files.length || to >= files.length) return files;
+  const next = [...files];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved!);
+  return next;
+}
+
 /**
  * Reference / input file slot. Fully controlled — the owner holds the files so
  * they can actually reach the generation request (they used to die in local state).
  */
-export function RefUpload({ slot, images, onChange }: { slot: RefSlot; images: RefFile[]; onChange: (i: RefFile[]) => void }) {
+export function RefUpload({
+  slot,
+  images,
+  onChange,
+  leading,
+}: {
+  slot: RefSlot;
+  images: RefFile[];
+  onChange: (i: RefFile[]) => void;
+  /**
+   * A tile that belongs to this slot but is not a picked file — today, the
+   * finished generation "to video" carried in, which is already in our store
+   * and has no `File` behind it.
+   *
+   * It goes inside the tile row rather than above the whole control, because
+   * it is one of this slot's inputs: rendered outside, it appears above the
+   * slot's own label and reads as belonging to the section, not the slot.
+   */
+  leading?: React.ReactNode;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [rejected, setRejected] = useState<string | null>(null);
+  /* Which tile is being carried. A slot holds up to nine files and hands them
+     to the provider in this order, so "these two are the wrong way round" is a
+     real thing to want to fix — here as well as in the create dock. */
+  const [dragAt, setDragAt] = useState<number | null>(null);
   const media: SlotMedia = slot.media ?? "image";
 
   async function pick(e: React.ChangeEvent<HTMLInputElement>) {
     // Copy out of the live FileList before clearing the input — resetting
     // `value` empties the list itself, so reading it afterwards yields nothing.
     // Clearing is what lets a removed file be re-picked and still fire onChange.
-    const files = Array.from(e.target.files ?? []);
+    const picked = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!files.length) return;
+    if (!picked.length) return;
 
-    const next = [...images];
-    let tooBig: string | null = null;
-    for (const f of files) {
-      if (next.length >= slot.max) break;
-      // KIE publishes no enforced cap and no 413, so an over-sized file would be
-      // accepted and only fail deep in the job — after the user has been charged.
-      if (slot.maxMb != null && f.size > slot.maxMb * 1024 * 1024) {
-        tooBig = `${faNum(slot.maxMb)} مگابایت`;
-        continue;
-      }
-      const url = URL.createObjectURL(f);
-      next.push({ file: f, url, duration: await readDuration(url, media) });
-    }
-    setRejected(tooBig);
-    onChange(next);
+    const next = await addRefFiles(slot, images, picked);
+    setRejected(next.rejected);
+    onChange(next.files);
+  }
+
+  function reorder(from: number, to: number) {
+    const next = moveRefFile(images, from, to);
+    if (next !== images) onChange(next);
   }
 
   function remove(i: number) {
@@ -390,8 +479,44 @@ export function RefUpload({ slot, images, onChange }: { slot: RefSlot; images: R
         {slot.maxMb != null && <span className="text-[11px] text-ink3">حداکثر {faNum(slot.maxMb)} مگابایت</span>}
       </div>
       <div className="flex flex-wrap gap-2.5">
+        {leading}
         {images.map((f, i) => (
-          <div key={f.url} className="relative h-[84px] w-[84px] overflow-hidden rounded-2xl border border-line bg-card2">
+          /* Draggable, and arrow-movable with the keyboard — dragging is a
+             pointer gesture and must never be the only way to do something.
+             The row runs right to left, so ArrowRight is the way back through
+             it and ArrowLeft the way on. */
+          <div
+            key={f.url}
+            role="listitem"
+            tabIndex={0}
+            aria-label={`${slot.label} ${faNum(i + 1)} — برای جابه‌جایی از کلیدهای جهت‌دار استفاده کنید`}
+            draggable
+            onDragStart={(event) => {
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("application/x-deev-ref", String(i));
+              setDragAt(i);
+            }}
+            onDragEnd={() => setDragAt(null)}
+            onDragOver={(event) => {
+              if (dragAt === null) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={(event) => {
+              if (dragAt === null) return;
+              event.preventDefault();
+              reorder(dragAt, i);
+              setDragAt(null);
+            }}
+            onKeyDown={(event) => {
+              const to = event.key === "ArrowRight" ? i - 1 : event.key === "ArrowLeft" ? i + 1 : null;
+              if (to === null) return;
+              event.preventDefault();
+              reorder(i, to);
+            }}
+            className="vg-tile relative h-[84px] w-[84px] overflow-hidden rounded-2xl border border-line bg-card2"
+            style={{ opacity: dragAt === i ? 0.35 : 1 }}
+          >
             {media === "image" && <img src={f.url} alt="" className="h-full w-full object-cover" />}
             {media === "video" && <video src={f.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />}
             {media === "audio" && (
@@ -422,7 +547,7 @@ export function RefUpload({ slot, images, onChange }: { slot: RefSlot; images: R
         )}
       </div>
       {rejected && <span className="text-[11px] text-danger">فایل بزرگ‌تر از {rejected} رد شد</span>}
-      <input ref={inputRef} type="file" accept={ACCEPT[media]} multiple={slot.max > 1} hidden onChange={pick} />
+      <input ref={inputRef} type="file" accept={slotAccept(slot)} multiple={slot.max > 1} hidden onChange={pick} />
     </div>
   );
 }

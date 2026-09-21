@@ -1,0 +1,69 @@
+{
+  "models": ["kling-2.6/motion-control"],
+  "title": "Kling 2.6 motion-control",
+  "docUrl": "https://docs.kie.ai/market/kling/motion-control.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Kling 2.6 motion-control — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "A text description of the desired output. Maximum length is 2500 characters. (Max length: 2500 characters)",
+        "type": "string",
+        "maxLength": 2500,
+        "examples": ["The cartoon character is dancing."]
+      },
+      "input_urls": {
+        "description": "An array containing a single image URL. The photo must clearly show the subject's head, shoulders, and torso. (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/jpg; Max size: 10.0MB,size needs to be greater than 300px, aspect ratio 2:5 to 5:2.)",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "maxItems": 1,
+        "examples": [["https://static.aiquickdraw.com/tools/example/1767694885407_pObJoMcy.png"]]
+      },
+      "video_urls": {
+        "description": "An array containing a single video URL. The duration must be between 3 to 30 seconds, and the video must clearly show the subject's head, shoulders, and torso. (File URL after upload, not file content; Accepted types: video/mp4, video/quicktime; Max size: 100.0MB)",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "maxItems": 1,
+        "examples": [["https://static.aiquickdraw.com/tools/example/1767525918769_QyvTNib2.mp4"]]
+      },
+      "character_orientation": {
+        "description": "Generate the orientation of the characters in the video. 'image': same orientation as the person in the picture (max 10s video). 'video': consistent with the orientation of the characters in the video (max 30s video).",
+        "type": "string",
+        "enum": ["image", "video"],
+        "default": "video",
+        "examples": ["video"]
+      },
+      "mode": {
+        "description": "Output resolution mode. Use 'std' for 720p or 'pro' for 1080p.",
+        "type": "string",
+        "enum": ["720p", "1080p"],
+        "default": "720p",
+        "examples": ["720p"]
+      }
+    },
+    "required": ["input_urls", "video_urls", "character_orientation", "mode"]
+  },
+  "examples": [
+    {
+      "model": "kling-2.6/motion-control",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "The cartoon character is dancing.",
+        "input_urls": ["https://static.aiquickdraw.com/tools/example/1767694885407_pObJoMcy.png"],
+        "video_urls": ["https://static.aiquickdraw.com/tools/example/1767525918769_QyvTNib2.mp4"],
+        "mode": "720p",
+        "character_orientation": "image"
+      }
+    }
+  ]
+}

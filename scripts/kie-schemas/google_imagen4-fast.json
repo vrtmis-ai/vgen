@@ -1,0 +1,52 @@
+{
+  "models": ["google/imagen4-fast"],
+  "title": "Google - imagen4-fast",
+  "docUrl": "https://docs.kie.ai/market/google/imagen4-fast.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Google - imagen4-fast — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "The text prompt describing what you want to see (Max length: 5000 characters)",
+        "type": "string",
+        "maxLength": 5000,
+        "examples": [
+          "Create a cinematic, photorealistic medium shot capturing the nostalgic warmth of a late 90s indie film. The focus is a young woman with brightly dyed pink hair (slightly faded) and freckled skin, looking directly and intently into the camera lens with a hopeful yet slightly uncertain smile. She wears an oversized, vintage band t-shirt (slightly worn, with the faintly cracked white text “KIE AI” across the chest) layered over a long-sleeved striped top, along with simple silver stud earrings. The lighting is soft, golden hour sunlight streaming through a slightly dusty window, creating lens flare and illuminating dust motes in the air. The background shows a blurred, cluttered bedroom with posters on the wall and fairy lights, rendered with a shallow depth of field. Natural film grain, a warm, slightly muted color palette, and sharp focus on her expressive eyes enhance the intimate, authentic feel."
+        ]
+      },
+      "negative_prompt": {
+        "description": "A description of what to discourage in the generated images (Max length: 5000 characters)",
+        "type": "string",
+        "maxLength": 5000,
+        "examples": [""]
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "description": "The aspect ratio of the generated image",
+        "enum": ["1:1", "16:9", "9:16", "3:4", "4:3", "auto"],
+        "default": "16:9",
+        "examples": ["16:9"]
+      },
+      "seed": {
+        "description": "Random seed for reproducible generation",
+        "type": "integer"
+      }
+    },
+    "required": ["prompt"]
+  },
+  "examples": [
+    {
+      "model": "google/imagen4-fast",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "Create a cinematic, photorealistic medium shot capturing the nostalgic warmth of a late 90s indie film. The focus is a young woman with brightly dyed pink hair (slightly faded) and freckled skin, looking directly and intently into the camera lens with a hopeful yet slightly uncertain smile. She wears an oversized, vintage band t-shirt (slightly worn, with the faintly cracked white text “KIE AI” across the chest) layered over a long-sleeved striped top, along with simple silver stud earrings. The lighting is soft, golden hour sunlight streaming through a slightly dusty window, creating lens flare and illuminating dust motes in the air. The background shows a blurred, cluttered bedroom with posters on the wall and fairy lights, rendered with a shallow depth of field. Natural film grain, a warm, slightly muted color palette, and sharp focus on her expressive eyes enhance the intimate, authentic feel.",
+        "negative_prompt": "",
+        "aspect_ratio": "16:9"
+      }
+    }
+  ]
+}

@@ -18,6 +18,8 @@ import {
   PostgresCheckoutRepository,
   PostgresFrontendTelemetryRepository,
   PostgresAssetsRepository,
+  PostgresPlanGrantsRepository,
+  PostgresPromptPolicyRepository,
   PostgresGalleryRepository,
   PostgresGenerationRepository,
   PostgresQuotesRepository,
@@ -36,8 +38,9 @@ import { sealingKeyFrom } from "@vgen/core";
 import { createAuthRateLimiters } from "./auth/rateLimits";
 import { GoogleOAuth } from "./auth/googleOAuth";
 import { MicrosoftOAuth } from "./auth/microsoftOAuth";
-import { ConsoleSmsSender, KavenegarSmsSender, type SmsSender } from "./auth/sms";
+import { KavenegarSmsSender, type SmsSender } from "./auth/sms";
 import { createApp } from "./createApp";
+import { createPromptGuard } from "./promptGuard";
 
 config({ path: fileURLToPath(new URL("../../../.env.development.local", import.meta.url)), quiet: true });
 config({ path: fileURLToPath(new URL("../../../.env.local", import.meta.url)), quiet: true });
@@ -125,12 +128,11 @@ const microsoft =
 
 const kavenegarKey = process.env.KAVENEGAR_API_KEY?.trim();
 const kavenegarTemplate = process.env.KAVENEGAR_TEMPLATE?.trim();
-// ConsoleSmsSender refuses to construct in production, so a deploy that forgets
-// the gateway fails at boot instead of printing customers' codes into the logs.
-const sms: SmsSender =
-  kavenegarKey && kavenegarTemplate
-    ? new KavenegarSmsSender({ apiKey: kavenegarKey, template: kavenegarTemplate })
-    : new ConsoleSmsSender();
+// No gateway, no phone sign-in — in every environment, so what you see locally
+// is what production shows. Kavenegar needs eNamad before it will send OTP
+// templates; set both variables once it does and the phone option appears.
+const sms: SmsSender | undefined =
+  kavenegarKey && kavenegarTemplate ? new KavenegarSmsSender({ apiKey: kavenegarKey, template: kavenegarTemplate }) : undefined;
 
 // Seals TOTP secrets at rest, so `mfa_credentials.secret_ref` is a blob that
 // is useless without a key held outside the database.
@@ -236,6 +238,15 @@ const app = createApp(
     generationQuotes: new PostgresQuotesRepository(sql),
     generationLibrary: new GenerationLibraryService(new PostgresGalleryRepository(sql), objectStore),
     assetUploads: new AssetUploadService(new PostgresAssetsRepository(sql), objectStore),
+    // Refuses nothing until somebody fills `prompt_rules`. See promptGuard.ts:
+    // the mechanism is code and the list is a legal judgement, so the table
+    // ships empty rather than with a program's guess at the law in it.
+    promptGuard: createPromptGuard(new PostgresPromptPolicyRepository(sql), (error) => {
+      // Not `app.log`: this expression builds the argument to createApp, so
+      // the app does not exist yet. A refusal that went unrecorded is worth
+      // knowing about even if the only place to say so is stderr.
+      console.error("prompt rejection not recorded", error);
+    }),
   },
   {
     corsOrigin: webOrigin,
@@ -253,6 +264,19 @@ const app = createApp(
         catalog: { routes: modelRoutesRepository, secrets: process.env },
         analytics: { analytics: analyticsRepository, bans: bansRepository },
         community: { moderation: new PostgresCommunityModeration(sql) },
+        staff: {
+          staff: adminRepository,
+          planGrants: new PostgresPlanGrantsRepository(sql),
+          // The account a member of staff's own generations are billed to.
+          // Their personal one — appointing somebody does not give them a
+          // second wallet, it gives their existing one a plan.
+          accountForUser: async (userId) => {
+            const [row] = await sql<{ personal_account_id: string | null }[]>`
+              select personal_account_id from users where id = ${userId} and deleted_at is null
+            `;
+            return row?.personal_account_id ?? null;
+          },
+        },
         // Staff prove who they are exactly as customers do; the second factor
         // is what makes it a staff session.
         verifyPassword: async (email, password) => {

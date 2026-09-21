@@ -1,6 +1,6 @@
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { PostgresAccessRepository } from "./accessRepository";
+import { InviteLimitError, PostgresAccessRepository } from "./accessRepository";
 import { COIN, connect, expectDbError, inRollback, makeUser } from "./integrationHarness";
 
 let sql: Sql;
@@ -143,6 +143,59 @@ describe("invite codes", () => {
       expect(batch).toHaveLength(10);
       expect(new Set(batch.map((invite) => invite.code)).size).toBe(10);
       expect(batch.every((invite) => invite.grantCoins === 5)).toBe(true);
+    });
+  });
+});
+
+describe("editing an invite code's limits", () => {
+  it("shows the expiry and moves it and the cap when asked", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      const expiresAt = new Date(Date.now() + 7 * 86_400_000);
+      const invite = await access.createInvite({ code: "edit-me", maxRedemptions: 3, expiresAt });
+      expect(invite.expiresAt).toBe(expiresAt.getTime());
+
+      const later = new Date(Date.now() + 30 * 86_400_000);
+      const edited = await access.updateInvite(invite.id, { maxRedemptions: 10, expiresAt: later });
+
+      expect(edited).toMatchObject({ maxRedemptions: 10, expiresAt: later.getTime(), isUsable: true });
+    });
+  });
+
+  it("closes a code at once when its expiry is moved into the past", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      const invite = await access.createInvite({ code: "close-now", maxRedemptions: 3, expiresAt: new Date(Date.now() + 86_400_000) });
+
+      const closed = await access.updateInvite(invite.id, { expiresAt: new Date(Date.now() - 1000) });
+
+      expect(closed?.isUsable).toBe(false);
+      const joiner = await makeUser(tx);
+      const error = await expectDbError(tx, () => access.redeemInvite("close-now", joiner.userId, joiner.accountId));
+      expect(error.message).toMatch(/invite_expired/);
+    });
+  });
+
+  it("will not set the cap below the people already admitted, and leaves the code untouched", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      const invite = await access.createInvite({ code: "cap-floor", maxRedemptions: 5, expiresAt: new Date(Date.now() + 86_400_000) });
+      for (let i = 0; i < 2; i += 1) {
+        const joiner = await makeUser(tx);
+        await access.redeemInvite("cap-floor", joiner.userId, joiner.accountId);
+      }
+
+      await expect(access.updateInvite(invite.id, { maxRedemptions: 1 })).rejects.toBeInstanceOf(InviteLimitError);
+      expect(await access.getInvite(invite.id)).toMatchObject({ maxRedemptions: 5, redemptionCount: 2 });
+
+      // Exactly the number used is allowed: that is how a code is closed without revoking it.
+      expect(await access.updateInvite(invite.id, { maxRedemptions: 2 })).toMatchObject({ maxRedemptions: 2, isUsable: false });
+    });
+  });
+
+  it("answers null for a code that does not exist", async () => {
+    await inRollback(sql, async (tx) => {
+      expect(await new PostgresAccessRepository(tx).updateInvite("00000000-0000-7000-8000-000000000000", { maxRedemptions: 2 })).toBeNull();
     });
   });
 });

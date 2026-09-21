@@ -224,6 +224,175 @@ describe("paging a gallery", () => {
   });
 });
 
+/**
+ * Taking a generation back off the wall.
+ *
+ * Soft, and refused while the job is alive. The second of those is the one that
+ * matters: a queued or running generation has credits held against it, and a
+ * row that vanishes while its hold stands leaves the customer short by an
+ * amount nothing on their screen can account for.
+ */
+describe("removing a generation", () => {
+  it("hides a settled generation from the account's own gallery", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const failed = await seedJob(tx, { accountId, userId, status: "failed" });
+      const kept = await seedJob(tx, { accountId, userId });
+      const gallery = new PostgresGalleryRepository(tx);
+
+      expect(await gallery.removeForUser(failed.jobId, userId)).toBe("removed");
+
+      const page = await gallery.listForUser(userId);
+      expect(page.items.map((item) => item.id)).toEqual([kept.jobId]);
+      // Gone from every read, not only from the page — a result link to it must
+      // not keep working after the row has been taken off the wall.
+      expect(await gallery.getForUser(failed.jobId, userId)).toBeNull();
+    });
+  });
+
+  it("keeps the row, because it is the record of money that moved", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const failed = await seedJob(tx, { accountId, userId, status: "failed" });
+
+      await new PostgresGalleryRepository(tx).removeForUser(failed.jobId, userId);
+
+      const [row] = await tx<{ status: string; deleted_at: Date | null }[]>`
+        select status, deleted_at from jobs where id = ${failed.jobId}
+      `;
+      expect(row?.status).toBe("failed");
+      expect(row?.deleted_at).not.toBeNull();
+    });
+  });
+
+  it("refuses while the generation is still running", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const running = await seedJob(tx, { accountId, userId, status: "running" });
+      const gallery = new PostgresGalleryRepository(tx);
+
+      expect(await gallery.removeForUser(running.jobId, userId)).toBe("still_running");
+      // Still there, which is the whole point of refusing.
+      expect(await gallery.getForUser(running.jobId, userId)).not.toBeNull();
+    });
+  });
+
+  it("does not let one account remove another's generation", async () => {
+    await inRollback(sql, async (tx) => {
+      const owner = await makeUser(tx);
+      const stranger = await makeUser(tx);
+      const job = await seedJob(tx, { accountId: owner.accountId, userId: owner.userId, status: "failed" });
+      const gallery = new PostgresGalleryRepository(tx);
+
+      // "not_found" rather than a refusal: whether the id exists is not the
+      // stranger's business, and an answer that told them apart would say so.
+      expect(await gallery.removeForUser(job.jobId, stranger.userId)).toBe("not_found");
+      expect(await gallery.getForUser(job.jobId, owner.userId)).not.toBeNull();
+    });
+  });
+
+  it("answers not_found the second time", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const job = await seedJob(tx, { accountId, userId, status: "failed" });
+      const gallery = new PostgresGalleryRepository(tx);
+
+      expect(await gallery.removeForUser(job.jobId, userId)).toBe("removed");
+      expect(await gallery.removeForUser(job.jobId, userId)).toBe("not_found");
+    });
+  });
+});
+
+/* The read behind "generate again". The ids have been on the job since 0028
+   and the worker has read them ever since; nothing ever read them back for the
+   customer, so replaying a generation dropped the file it was run against. */
+describe("the files a generation ran against", () => {
+  /** An uploaded reference, and the job that names it in a slot. */
+  async function seedWithReferences(tx: Sql, accountId: string, userId: string, slots: Record<string, string[]>) {
+    const job = await seedJob(tx, { accountId, userId, modality: "video" });
+    await tx`update jobs set reference_asset_ids = ${tx.json(slots)} where id = ${job.jobId}`;
+    return job;
+  }
+
+  async function seedUpload(tx: Sql, accountId: string, userId: string, name: string) {
+    const [asset] = await tx<{ id: string }[]>`
+      insert into assets (account_id, created_by, kind, origin, storage_provider, storage_bucket, storage_key, mime_type, byte_size, sha256)
+      values (${accountId}, ${userId}, 'image', 'upload', 's3', 'vgen', ${`uploads/${accountId}/${name}.png`}, 'image/png', 2048, ${name})
+      returning id
+    `;
+    return asset!.id;
+  }
+
+  it("names each file with the slot it filled, in order", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const first = await seedUpload(tx, accountId, userId, "first-frame");
+      const last = await seedUpload(tx, accountId, userId, "last-frame");
+      const job = await seedWithReferences(tx, accountId, userId, { image_urls: [first, last] });
+
+      const references = await new PostgresGalleryRepository(tx).referencesForUser(job.jobId, userId);
+
+      // Order is meaning here, not presentation: position decides which of the
+      // two is the opening frame and which is the closing one.
+      expect(references.map((reference) => reference.assetId)).toEqual([first, last]);
+      expect(references.every((reference) => reference.slot === "image_urls")).toBe(true);
+      expect(references[0]).toMatchObject({ kind: "image", mimeType: "image/png", bucket: "vgen" });
+    });
+  });
+
+  it("keeps two slots apart", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const start = await seedUpload(tx, accountId, userId, "start");
+      const end = await seedUpload(tx, accountId, userId, "end");
+      const job = await seedWithReferences(tx, accountId, userId, { first_frame_url: [start], last_frame_url: [end] });
+
+      const references = await new PostgresGalleryRepository(tx).referencesForUser(job.jobId, userId);
+
+      expect(references.find((reference) => reference.slot === "first_frame_url")?.assetId).toBe(start);
+      expect(references.find((reference) => reference.slot === "last_frame_url")?.assetId).toBe(end);
+    });
+  });
+
+  it("is empty for a generation that carried no files", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const job = await seedJob(tx, { accountId, userId });
+
+      expect(await new PostgresGalleryRepository(tx).referencesForUser(job.jobId, userId)).toEqual([]);
+    });
+  });
+
+  /* The whole reason this is scoped through the job rather than by asset id.
+     A stranger who guessed a job id must not be handed a signed link to a file
+     they never uploaded. */
+  it("hands a stranger nothing", async () => {
+    await inRollback(sql, async (tx) => {
+      const owner = await makeUser(tx);
+      const stranger = await makeUser(tx);
+      const asset = await seedUpload(tx, owner.accountId, owner.userId, "private");
+      const job = await seedWithReferences(tx, owner.accountId, owner.userId, { image_urls: [asset] });
+
+      expect(await new PostgresGalleryRepository(tx).referencesForUser(job.jobId, stranger.userId)).toEqual([]);
+    });
+  });
+
+  it("leaves out a reference whose file has been deleted", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const kept = await seedUpload(tx, accountId, userId, "kept");
+      const gone = await seedUpload(tx, accountId, userId, "gone");
+      const job = await seedWithReferences(tx, accountId, userId, { image_urls: [kept, gone] });
+      await tx`update assets set deleted_at = now() where id = ${gone}`;
+
+      const references = await new PostgresGalleryRepository(tx).referencesForUser(job.jobId, userId);
+
+      // What can still be attached, not what once was.
+      expect(references.map((reference) => reference.assetId)).toEqual([kept]);
+    });
+  });
+});
+
 describe("keeping an uploaded reference", () => {
   const upload = (accountId: string, userId: string, sha256: string) => ({
     accountId,

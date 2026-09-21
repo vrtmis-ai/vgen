@@ -1,13 +1,23 @@
-import { LoginWithPasswordSchema, RegisterWithPasswordSchema, StartPhoneVerificationSchema, VerifyPhoneSchema } from "@vgen/contracts";
+import {
+  CheckInviteSchema,
+  InviteCodeSchema,
+  LoginWithPasswordSchema,
+  RegisterWithPasswordSchema,
+  StartPhoneVerificationSchema,
+  TERMS_VERSION,
+  VerifyPhoneSchema,
+} from "@vgen/contracts";
 import { normalizeIranianPhone } from "@vgen/core";
 import { AuthError, type PostgresAuthRepository } from "@vgen/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
+  OAUTH_INVITE_COOKIE,
   OAUTH_STATE_COOKIE,
   clearOAuthStateCookie,
   clearSessionCookie,
   readCookie,
   readSessionToken,
+  setOAuthInviteCookie,
   setOAuthStateCookie,
   setSessionCookie,
   type CookieOptions,
@@ -32,6 +42,7 @@ export interface AuthRateLimiters {
   otpVerifyPerPhone: AuthRateLimiter;
   loginPerAccount: AuthRateLimiter;
   loginPerIp: AuthRateLimiter;
+  inviteCheckPerIp: AuthRateLimiter;
 }
 
 export interface AuthRouteOptions {
@@ -45,7 +56,17 @@ export interface AuthRouteOptions {
 
 export interface AuthDependencies {
   auth: PostgresAuthRepository;
-  sms: SmsSender;
+  /**
+   * Absent when no SMS gateway is configured, and then phone sign-in does not
+   * exist: the session says so, the screen offers email instead, and the OTP
+   * routes answer 404. That is production until eNamad clears, because an
+   * Iranian gateway will not send OTP templates for a site without it.
+   */
+  sms?: SmsSender | undefined;
+}
+
+function phoneUnavailable(reply: FastifyReply) {
+  return reply.code(404).send({ error: { code: "phone_unavailable", message: "Phone sign-in is not available yet." } });
 }
 
 const STATUS_BY_CODE: Record<AuthError["code"], number> = {
@@ -82,6 +103,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
   // ------------------------------------------------------------------ phone
 
   app.post("/api/v1/auth/otp/start", { bodyLimit: 4 * 1024 }, async (request, reply) => {
+    if (!sms) return phoneUnavailable(reply);
     const body = StartPhoneVerificationSchema.parse(request.body);
     const phone = normalizeIranianPhone(body.phone);
     if (!phone) {
@@ -109,7 +131,26 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     return reply.code(202).send({ sent: true, expiresAt: expiresAt.getTime() });
   });
 
+  /**
+   * Whether an invite code would admit someone now, for the invite page to ask
+   * before sending a visitor on to signup.
+   *
+   * Not the gate. Signup checks the code again inside the transaction that
+   * creates the account, so a yes here that has gone stale by then — the last
+   * seat taken, the code revoked — is still refused where it matters.
+   *
+   * 200 either way, with one boolean. Unknown, revoked, expired, not started
+   * and used up are all `false`: which one is the admin console's business.
+   */
+  app.post("/api/v1/auth/invite/check", { bodyLimit: 1024 }, async (request, reply) => {
+    const wait = await limiters.inviteCheckPerIp.consume(request.ip);
+    if (wait !== null) return tooMany(reply, wait);
+    const body = CheckInviteSchema.parse(request.body);
+    return reply.code(200).send({ valid: await auth.isInviteUsable(body.code) });
+  });
+
   app.post("/api/v1/auth/otp/verify", { bodyLimit: 4 * 1024 }, async (request, reply) => {
+    if (!sms) return phoneUnavailable(reply);
     const body = VerifyPhoneSchema.parse(request.body);
     const phone = normalizeIranianPhone(body.phone);
     if (!phone) {
@@ -128,6 +169,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
         ...(body.deviceFingerprint ? { deviceFingerprint: body.deviceFingerprint } : {}),
         ip: request.ip,
         userAgent: request.headers["user-agent"],
+        termsVersion: TERMS_VERSION,
       });
       await auth.recordLoginAttempt({ identifier: phone, userId: user.id, method: "otp", succeeded: true, ip: request.ip });
       await startSession(reply, request, user.id);
@@ -160,6 +202,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
         ...(body.deviceFingerprint ? { deviceFingerprint: body.deviceFingerprint } : {}),
         ip: request.ip,
         userAgent: request.headers["user-agent"],
+        termsVersion: TERMS_VERSION,
       });
       await startSession(reply, request, user.id);
       return reply.code(201).send({ status: "authed", host: "web", user });
@@ -232,16 +275,33 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
   ] as const) {
     if (!client) continue;
 
-    app.get(`/api/v1/auth/${provider}`, async (_request, reply) => {
+    app.get(`/api/v1/auth/${provider}`, async (request, reply) => {
+      // Both halves spend the login budget. Auth routes are exempt from the
+      // global limiter, and the callback can create an account. A navigation
+      // cannot show a JSON 429, so the refusal lands where every other failed
+      // provider sign-in does.
+      if ((await limiters.loginPerIp.consume(request.ip)) !== null) {
+        return reply.redirect(`${options.webOrigin}/?auth=oauth_failed`, 302);
+      }
       const { url, state } = client.createAuthorizationUrl();
       setOAuthStateCookie(reply, state, cookie);
+      // An invitee choosing a provider instead of a phone number. The browser
+      // leaves for the provider here, so the code waits in a cookie and the
+      // callback hands it to the same gated signup the other routes use.
+      const invite = InviteCodeSchema.safeParse((request.query as { invite?: unknown }).invite);
+      setOAuthInviteCookie(reply, invite.success ? invite.data : null, cookie);
       return reply.redirect(url, 302);
     });
 
     app.get(`/api/v1/auth/${provider}/callback`, async (request, reply) => {
+      if ((await limiters.loginPerIp.consume(request.ip)) !== null) {
+        return reply.redirect(`${options.webOrigin}/?auth=oauth_failed`, 302);
+      }
       const query = request.query as { code?: string; state?: string; error?: string };
       const expected = readCookie(request, OAUTH_STATE_COOKIE);
+      const inviteCode = readCookie(request, OAUTH_INVITE_COOKIE);
       clearOAuthStateCookie(reply, cookie);
+      setOAuthInviteCookie(reply, null, cookie);
 
       // The state check comes first, before the code is worth anything: without
       // it an attacker completes a login into their own account inside someone
@@ -257,8 +317,14 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
         // address and creating a new one, so it must not be filled in from
         // somewhere else to make the flow tidier.
         const user = await auth.signInWithOAuth(provider, profile.subject, profile.email, profile.displayName, {
+          ...(inviteCode ? { inviteCode } : {}),
           ip: request.ip,
           userAgent: request.headers["user-agent"],
+          // Recorded on every path that can create an account, not only the
+          // form with the words next to it. The column is written by the one
+          // insert underneath all three, and only ever on creation -- signing
+          // in again does not restate an agreement.
+          termsVersion: TERMS_VERSION,
         });
         await auth.recordLoginAttempt({
           identifier: profile.email ?? profile.subject,

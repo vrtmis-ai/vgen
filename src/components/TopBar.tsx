@@ -1,9 +1,11 @@
 import { CoinMark } from "./chrome";
+import { AccountMenu, type AccountMenuData } from "./AccountMenu";
 import { MegaMenu } from "./MegaMenu";
 import type { NavMenus } from "./navMenu";
 import { useI18n, type TKey } from "../lib/i18n";
 import { useEdgeFade } from "../lib/useEdgeFade";
 import { useMediaQuery } from "../lib/useMediaQuery";
+import { Wordmark } from "./brandMarks";
 import { BRAND } from "../data/brand";
 
 /* ---------------------------------------------------------------------------
@@ -58,26 +60,33 @@ const ITEMS: { key: NavKey; label: string; labelKey?: TKey; badge?: string }[] =
 export function TopBar({
   active,
   onNav,
+  onHome,
   menus,
   onOpenModel,
   coins,
+  account,
   onWallet,
   onProfile,
   onSignIn,
 }: {
   active: NavKey;
   onNav: (k: NavKey) => void;
+  /** The wordmark. Goes to the landing page, wherever you are. */
+  onHome: () => void;
   /** Built from the catalogue by the layout, so this stays a pure component. */
   menus: NavMenus;
   onOpenModel: (familyId: string) => void;
   /** Null for a visitor: there is no wallet until there is an account. */
   coins: number | null;
+  /** Everything the account menu needs, assembled by the layout for the same
+   *  reason `menus` is — this component stays renderable without providers. */
+  account: AccountMenuData;
   onWallet: () => void;
   onProfile: () => void;
   /** Shown instead of the balance and the avatar when nobody is signed in. */
   onSignIn: () => void;
 }) {
-  const { t, n } = useI18n();
+  const { t, c } = useI18n();
   const edge = useEdgeFade<HTMLElement>();
   const wide = useMediaQuery("(min-width: 768px)");
 
@@ -95,12 +104,8 @@ export function TopBar({
       <div className="mx-auto flex h-11 max-w-[var(--vg-container-max)] items-center gap-3 px-4 md:px-6">
         {/* Wordmark leads the row. In RTL that puts it on the right, which is
             where the reference puts it in LTR — the same position, mirrored. */}
-        <button
-          onClick={() => onNav("explore")}
-          className="shrink-0 text-[17px] font-light tracking-[0.34em]"
-          style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-        >
-          {BRAND.name}
+        <button onClick={onHome} aria-label={BRAND.name} className="shrink-0" style={{ color: "var(--vg-text)" }}>
+          <Wordmark height={18} />
         </button>
 
         {/* hide-scrollbar: the row is meant to scroll on narrow viewports, but a
@@ -185,22 +190,23 @@ export function TopBar({
           <>
             <button
               onClick={onWallet}
-              aria-label={`موجودی: ${n(coins)} سکه — شارژ`}
+              /* Through i18n, and `c()` rather than `n()`. The label was Persian
+                 inlined, so it stayed Persian in English mode; and coins bill in
+                 hundredths, which the plain number formatter reports to three
+                 decimals — a third digit that can only be float noise. */
+              aria-label={`${t("w_balance")}: ${c(coins)} ${t("p_coins")} — ${t("p_wallet")}`}
               className="vg-tap flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 transition-colors"
               style={{ background: "rgba(255,255,255,0.05)" }}
             >
               <CoinMark size={13} />
-              <span className="vg-numeric text-[12.5px]">{n(coins)}</span>
+              <span className="vg-numeric text-[12.5px]">{c(coins)}</span>
             </button>
 
-            <button
-              onClick={onProfile}
-              aria-label="پروفایل"
-              className="vg-tap grid size-7 shrink-0 place-items-center rounded-full text-[11px] font-semibold"
-              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
-            >
-              م
-            </button>
+            {/* A menu, not a second link to /profile.
+                The avatar used to navigate and nothing else, so the balance and
+                the way to top it up were two screens apart — and it painted a
+                literal "م" for every account, whoever was signed in. */}
+            <AccountMenu {...account} onProfile={onProfile} onWallet={onWallet} />
           </>
         )}
       </div>
