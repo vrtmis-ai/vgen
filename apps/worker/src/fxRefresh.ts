@@ -79,8 +79,13 @@ export async function refreshFxRate(sql: Sql, options: RefreshOptions = {}): Pro
     `;
     const current = await liveRate(tx);
     const currentToman = current === null ? null : current.rialPerUsd / IRR_PER_TOMAN;
+    // A placeholder is not a measurement, so it is neither protected by its age
+    // nor a baseline for the band. Skipping only the age check left the band
+    // comparing the market against July's constant — 34% apart by September, so
+    // every hour fetched the real rate and refused it.
+    const measured = current !== null && !PLACEHOLDER_SOURCES.has(current.source ?? "");
 
-    if (!options.force && current !== null && !PLACEHOLDER_SOURCES.has(current.source ?? "")) {
+    if (!options.force && measured) {
       const ageMs = Date.now() - current.validFrom.getTime();
       if (ageMs < REFRESH_AFTER_MS) {
         return { outcome: "not_due", tomanPerUsd: currentToman ?? 0, ageHours: Math.round(ageMs / 3_600_000) };
@@ -95,7 +100,7 @@ export async function refreshFxRate(sql: Sql, options: RefreshOptions = {}): Pro
       throw error;
     }
 
-    if (!options.force && !isPlausibleMove(fetched.tomanPerUsd, currentToman)) {
+    if (!options.force && !isPlausibleMove(fetched.tomanPerUsd, measured ? currentToman : null)) {
       // Deliberately not written. See MAX_DAILY_MOVE: this refuses a decimal
       // slip and a flash print, and the same refusal will repeat every hour
       // until someone looks, which is the intended amount of noise.

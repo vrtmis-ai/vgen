@@ -138,7 +138,7 @@
           "badge": "پرچم‌دار",
           "unlimited": {
             "dailyCap": 50,
-            "minTier": 3,
+            "minTier": 2,
             "limits": {
               "resolution": [
                 "1K",
@@ -154,7 +154,7 @@
           "badge": "جدید",
           "unlimited": {
             "dailyCap": 50,
-            "minTier": 3,
+            "minTier": 2,
             "limits": {
               "resolution": [
                 "1K",
