@@ -16,7 +16,7 @@ const family: Family = {
   grad: "linear-gradient(#000,#111)",
   maxPrompt: 20,
   variants: [variant],
-  refs: [{ key: "image_url", label: "Image", max: 1, media: "image", maxMb: 1, required: true }],
+  refs: [{ key: "image_url", role: "reference", label: "Image", max: 1, media: "image", maxMb: 1, required: true }],
   controls: [
     { kind: "segment", key: "resolution", label: "Resolution", def: "720p", options: [{ value: "720p", label: "720p" }] },
     { kind: "slider", key: "duration", label: "Duration", min: 4, max: 10, step: 1, def: 5 },

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Plus, X, FilmSlate, MusicNote, DotsThree, Check } from "@phosphor-icons/react";
 import type { RefSlot, SlotMedia } from "../data/models";
 import { addRefFiles, moveRefFile, type RefFile, type RefMap } from "./controls";
-import { dependenciesMet, groupOf, kindOfFile, landingSlot, roleWord, slotsForKind } from "../lib/refSlots";
+import { dependenciesMet, frameWord, groupOf, kindOfFile, landingSlot, slotsForKind } from "../lib/refSlots";
 import { refTags, tagUsed } from "../lib/refTags";
 import { useFloatingDismiss, useFloatingPosition } from "./FloatingSurface";
 import { faNum } from "../lib/format";
@@ -350,7 +350,7 @@ export function RefBox({
     if (parts.length < 2) return [];
     return parts.map((slot) => ({
       key: slot.key,
-      label: groupOf(slot) === "frame" ? `فریم ${roleWord(slot)}` : "مرجع",
+      label: groupOf(slot) === "frame" ? `فریم ${frameWord(slot)}` : "مرجع",
       checked: slot.key === tile.slot.key,
       run: () => assign(tile, slot.key),
     }));
@@ -517,7 +517,7 @@ export function RefBox({
         <div className="flex flex-wrap gap-2">
           {tiles.map((tile, at) => {
             const media = tile.slot.media ?? "image";
-            const part = groupOf(tile.slot) === "frame" ? roleWord(tile.slot) : null;
+            const part = groupOf(tile.slot) === "frame" ? frameWord(tile.slot) : null;
             /* The parts this file could be given. Held here rather than only
                inside the menu, because the badge is now the way to change one
                and it needs to know whether there is a choice to offer. */

@@ -7,12 +7,17 @@ import {
   landingSlot,
   pairsImages,
   refGroups,
-  roleWord,
+  frameWord,
   slotsForKind,
   slotsInGroup,
 } from "./refSlots";
 
-const slot = (over: Partial<RefSlot> & { key: string }): RefSlot => ({ label: over.key, max: 1, ...over });
+const slot = (over: Partial<RefSlot> & { key: string }): RefSlot => ({
+  label: over.key,
+  max: 1,
+  role: over.group === "frame" ? "first_frame" : "reference",
+  ...over,
+});
 
 describe("refGroups", () => {
   it("treats a slot with no group as a reference", () => {
@@ -136,25 +141,31 @@ describe("landingSlot", () => {
   });
 });
 
-describe("roleWord", () => {
-  it("drops the parenthetical and keeps the last word", () => {
-    expect(roleWord(slot({ key: "a", label: "فریم شروع (اختیاری)" }))).toBe("شروع");
-    expect(roleWord(slot({ key: "b", label: "فریم پایان" }))).toBe("پایان");
-    expect(roleWord(slot({ key: "c", label: "کلیپ شروع (اختیاری)" }))).toBe("شروع");
+describe("frameWord", () => {
+  it("reads which end of the clip from the role, not the label", () => {
+    expect(frameWord(slot({ key: "a", role: "first_frame", label: "هر چیزی" }))).toBe("شروع");
+    expect(frameWord(slot({ key: "b", role: "last_frame", label: "هر چیزی" }))).toBe("پایان");
+  });
+});
+
+/* The role is what the dock and the entrance resolver act on, so the catalogue
+   has to agree with itself: a frame slot is an end of the clip, and an end of
+   the clip is a frame slot. */
+describe("every slot's role", () => {
+  const slots = FAMILIES.flatMap((family) => family.variants.flatMap((variant) => variantRefs(family, variant)));
+
+  it("marks every frame slot as one end of the clip, and only those", () => {
+    expect(slots.length).toBeGreaterThan(0);
+    for (const s of slots) {
+      const isEnd = s.role === "first_frame" || s.role === "last_frame";
+      expect({ key: s.key, frame: groupOf(s) === "frame" }).toEqual({ key: s.key, frame: isEnd });
+    }
   });
 
-  /* The tile it goes on is 72px. If a frame slot is ever re-labelled into
-     something that does not reduce to one short word, this fails here rather
-     than overflowing the tile in Persian on somebody's phone. */
-  it("gives every frame slot in the catalogue one short word", () => {
-    const frames = FAMILIES.flatMap((family) =>
-      family.variants.flatMap((variant) => variantRefs(family, variant).filter((s) => groupOf(s) === "frame")),
-    );
-    expect(frames.length).toBeGreaterThan(0);
-    for (const frame of frames) {
-      const word = roleWord(frame);
-      expect(word).not.toMatch(/[()\s]/);
-      expect(word.length).toBeLessThanOrEqual(8);
+  it("gives a video or audio source slot a file of that kind", () => {
+    for (const s of slots) {
+      if (s.role === "source_video") expect(s.media).toBe("video");
+      if (s.role === "source_audio") expect(s.media).toBe("audio");
     }
   });
 });

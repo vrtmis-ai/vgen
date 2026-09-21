@@ -31,7 +31,7 @@ const family: Family = {
   grad: "linear-gradient(#000,#111)",
   maxPrompt: 200,
   variants: [{ id: "v1", featureCode: "image_to_image", label: "V1" }],
-  refs: [{ key: "image", label: "تصویر ورودی", max: 1, media: "image", required: true }],
+  refs: [{ key: "image", role: "reference", label: "تصویر ورودی", max: 1, media: "image", required: true }],
   controls: [{ kind: "segment", key: "style", label: "Style", def: "any", options: [{ value: "any", label: "Any" }] }],
 };
 

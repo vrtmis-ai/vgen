@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { RefSlot } from "../data/models";
 import { allTags, insertTag, refTags, tagUsed } from "./refTags";
 
-const slot = (over: Partial<RefSlot> & { key: string }): RefSlot => ({ label: over.key, max: 9, ...over });
+const slot = (over: Partial<RefSlot> & { key: string }): RefSlot => ({
+  label: over.key,
+  max: 9,
+  role: over.group === "frame" ? "first_frame" : "reference",
+  ...over,
+});
 
 const seedance = [
   slot({ key: "reference_image_urls" }),

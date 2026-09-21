@@ -23,16 +23,16 @@ import { RefBox } from "./RefBox";
    --------------------------------------------------------------------------- */
 
 const FRAME_SLOTS: RefSlot[] = [
-  { key: "first_frame_url", group: "frame", label: "فریم شروع (اختیاری)", max: 1 },
-  { key: "last_frame_url", group: "frame", label: "فریم پایان (اختیاری)", max: 1 },
+  { key: "first_frame_url", role: "first_frame", group: "frame", label: "فریم شروع (اختیاری)", max: 1 },
+  { key: "last_frame_url", role: "last_frame", group: "frame", label: "فریم پایان (اختیاری)", max: 1 },
 ];
 
 const MIXED_SLOTS: RefSlot[] = [
-  { key: "reference_image", label: "تصاویر مرجع (الزامی)", max: 5, required: true },
-  { key: "first_frame_url", group: "frame", label: "فریم شروع (اختیاری)", max: 1 },
+  { key: "reference_image", role: "reference", label: "تصاویر مرجع (الزامی)", max: 5, required: true },
+  { key: "first_frame_url", role: "first_frame", group: "frame", label: "فریم شروع (اختیاری)", max: 1 },
 ];
 
-const BAG_SLOTS: RefSlot[] = [{ key: "reference_image_urls", label: "تصاویر مرجع (اختیاری)", max: 9 }];
+const BAG_SLOTS: RefSlot[] = [{ key: "reference_image_urls", role: "reference", label: "تصاویر مرجع (اختیاری)", max: 9 }];
 
 function picture(name = "frame.png"): RefMap[string][number] {
   return { file: new File(["x"], name, { type: "image/png" }), url: `blob:${name}` };
@@ -122,8 +122,8 @@ describe("a model with nothing but a bag", () => {
    --------------------------------------------------------------------------- */
 
 const DEPENDENT_SLOTS: RefSlot[] = [
-  { key: "image_url", group: "frame", label: "فریم شروع", max: 1 },
-  { key: "tail_image_url", group: "frame", label: "فریم پایان", max: 1, requires: "image_url" },
+  { key: "image_url", role: "first_frame", group: "frame", label: "فریم شروع", max: 1 },
+  { key: "tail_image_url", role: "last_frame", group: "frame", label: "فریم پایان", max: 1, requires: "image_url" },
 ];
 
 describe("an end frame with no start frame", () => {

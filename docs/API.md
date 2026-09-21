@@ -1287,7 +1287,12 @@ could name them is a request that could ask to be billed as something cheaper.
   `POST /assets` first; the ids go here as `slot key -> ordered asset ids`,
   where the slot key is the catalogue's (`image_urls`, `first_frame_url`) and
   the order matters — first and last frame are two entries in one slot on
-  several video models.
+  several video models. The key is the provider's field name and says nothing
+  reliable about meaning (`image_url` is an opening frame on one model and
+  reference material on another); every slot in `GET /catalog` also carries a
+  **`role`** — `reference`, `first_frame`, `last_frame`, `source_video`,
+  `source_audio` or `mask` — which is what a client should read to label a slot
+  or carry a file between two models that spell the field differently.
 - **A finished generation is also a legal input.** The `assetId` on a job's
   output can be named here directly, which is what "to video" on an image does:
   the file is already ours, already the caller's, and already checked, so making

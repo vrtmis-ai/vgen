@@ -65,6 +65,11 @@ export const CatalogRefSlotSchema = z.object({
   group: z.enum(["reference", "frame"]).optional(),
   key: z.string().min(1),
   /**
+   * What the file is for — see `SlotRole` in `src/data/models.ts`. Named here
+   * for the same reason `group` is: zod strips what a schema does not name.
+   */
+  role: z.enum(["reference", "first_frame", "last_frame", "source_video", "source_audio", "mask"]),
+  /**
    * Where the file goes upstream, when several slots share one provider field.
    *
    * Kling and Veo take a single positional `image_urls` array: element 0 is the
