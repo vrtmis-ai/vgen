@@ -1,0 +1,71 @@
+{
+  "models": ["flux-2/pro-image-to-image"],
+  "title": "Flux-2 - Pro Image to Image",
+  "docUrl": "https://docs.kie.ai/market/flux2/pro-image-to-image.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-21",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Flux-2 - Pro Image to Image — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "input_urls": {
+        "description": "Input reference images (1-8 images). (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 10.0MB)",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "maxItems": 8,
+        "examples": [
+          [
+            "https://static.aiquickdraw.com/tools/example/1764235041265_kjJ2sTMR.png",
+            "https://static.aiquickdraw.com/tools/example/1764235045490_9SjAUr4Z.png"
+          ]
+        ]
+      },
+      "prompt": {
+        "description": " Must be between 3 and 5000 characters. (Max length: 5000 characters)",
+        "type": "string",
+        "maxLength": 5000,
+        "examples": ["The jar in image 1 is filled with capsules exactly same as image 2 with the exact logo"]
+      },
+      "aspect_ratio": {
+        "description": "Aspect ratio for the generated image. Select 'auto' to match the first input image ratio (requires input image).",
+        "type": "string",
+        "enum": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "auto"],
+        "default": "1:1",
+        "examples": ["1:1"]
+      },
+      "resolution": {
+        "description": "Output image resolution.",
+        "type": "string",
+        "enum": ["1K", "2K"],
+        "default": "1K",
+        "examples": ["1K"]
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    },
+    "required": ["input_urls", "prompt", "aspect_ratio", "resolution"]
+  },
+  "examples": [
+    {
+      "model": "flux-2/pro-image-to-image",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "input_urls": [
+          "https://static.aiquickdraw.com/tools/example/1764235041265_kjJ2sTMR.png",
+          "https://static.aiquickdraw.com/tools/example/1764235045490_9SjAUr4Z.png"
+        ],
+        "prompt": "The jar in image 1 is filled with capsules exactly same as image 2 with the exact logo",
+        "aspect_ratio": "1:1",
+        "resolution": "1K",
+        "nsfw_checker": false
+      }
+    }
+  ]
+}

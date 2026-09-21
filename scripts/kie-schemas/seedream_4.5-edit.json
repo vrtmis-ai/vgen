@@ -1,0 +1,65 @@
+{
+  "models": ["seedream/4.5-edit"],
+  "title": "Seedream4.5 - Edit",
+  "docUrl": "https://docs.kie.ai/market/seedream/4-5-edit.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-21",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Seedream4.5 - Edit — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "A text description of the image you want to generate (Max length: 3000 characters)",
+        "type": "string",
+        "maxLength": 3000,
+        "examples": [
+          "Keep the model's pose and the flowing shape of the liquid dress unchanged. Change the clothing material from silver metal to completely transparent clear water (or glass). Through the liquid water, the model's skin details are visible. Lighting changes from reflection to refraction."
+        ]
+      },
+      "image_urls": {
+        "description": "Upload an image file to use as input for the API (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 30.0MB)",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "maxItems": 14,
+        "examples": [["https://static.aiquickdraw.com/tools/example/1764851484363_ScV1s2aq.webp"]]
+      },
+      "aspect_ratio": {
+        "description": "Width-height ratio of the image, determining its visual form.",
+        "type": "string",
+        "enum": ["1:1", "4:3", "3:4", "16:9", "9:16", "2:3", "3:2", "21:9"],
+        "default": "1:1",
+        "examples": ["1:1"]
+      },
+      "quality": {
+        "description": "Basic outputs 2K images, while High outputs 4K images.",
+        "type": "string",
+        "enum": ["basic", "high"],
+        "default": "basic",
+        "examples": ["basic"]
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    },
+    "required": ["prompt", "image_urls", "aspect_ratio", "quality"]
+  },
+  "examples": [
+    {
+      "model": "seedream/4.5-edit",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "Keep the model's pose and the flowing shape of the liquid dress unchanged. Change the clothing material from silver metal to completely transparent clear water (or glass). Through the liquid water, the model's skin details are visible. Lighting changes from reflection to refraction.",
+        "image_urls": ["https://static.aiquickdraw.com/tools/example/1764851484363_ScV1s2aq.webp"],
+        "aspect_ratio": "1:1",
+        "quality": "basic",
+        "nsfw_checker": true
+      }
+    }
+  ]
+}

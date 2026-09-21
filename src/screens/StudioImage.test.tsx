@@ -156,12 +156,21 @@ describe("the image studio's input slot", () => {
     expect(Object.keys(refs as Record<string, unknown>)).toEqual(["input_urls"]);
   });
 
+  /* Imagen, because KIE documents no image-to-image endpoint for it — unlike
+     Seedream, GPT Image and Flux, which have one and now offer the box (#98). */
   it("offers no upload on a model that takes no file", async () => {
     show();
-    await pickFamily(/Seedream/i);
+    await pickFamily(/Imagen/i);
 
     expect(screen.queryByRole("button", { name: /^افزودن/ })).not.toBeInTheDocument();
     expect(document.querySelector("input[type=file]")).toBeNull();
+  });
+
+  it("offers one on a model whose edit entrance takes a picture", async () => {
+    show();
+    await pickFamily(/Seedream/i);
+
+    expect(document.querySelector("input[type=file]")).not.toBeNull();
   });
 });
 

@@ -285,6 +285,21 @@ const gptImage25Controls: Control[] = [
  * `required`, because `input_urls` is Required in KIE's schema: without it the
  * job is refused after the hold is taken. 16 is their `maxItems`.
  */
+/** GPT Image 1.5's own schema, shared by its text row and its image-to-image entrance. */
+const gptImage15Controls: Control[] = [
+  { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "1:1", options: [ratios.sq, ratios.p23, ratios.l32] },
+  {
+    kind: "segment",
+    key: "quality",
+    label: "کیفیت",
+    def: "medium",
+    options: [
+      { value: "medium", label: "متعادل" },
+      { value: "high", label: "بالا" },
+    ],
+  },
+];
+
 const gptImage25Refs: RefSlot[] = [{ key: "input_urls", role: "reference", label: "تصاویر ورودی", max: 16, required: true }];
 
 /** Kling 3 Turbo's, minus aspect_ratio, which only its text model has. */
@@ -722,7 +737,21 @@ export const FAMILIES: Family[] = [
     variants: [
       // No `limits`: Seedream 4.5 has no resolution control to cap.
       { id: "seedream-4-5", featureCode: "image_generate", label: "۴٫۵" },
+      {
+        id: "seedream-4-5-edit",
+        entryOf: "seedream-4-5",
+        featureCode: "image_edit",
+        label: "۴٫۵ ویرایش",
+        refs: [{ key: "image_urls", role: "reference", label: "تصاویر ورودی (الزامی)", max: 14, required: true }],
+      },
       { id: "seedream-5-lite", featureCode: "image_generate", label: "۵ Lite", badge: "ارزان" },
+      {
+        id: "seedream-5-lite-edit",
+        entryOf: "seedream-5-lite",
+        featureCode: "image_edit",
+        label: "۵ Lite ویرایش",
+        refs: [{ key: "image_urls", role: "reference", label: "تصاویر ورودی (الزامی)", max: 14, required: true }],
+      },
     ],
   },
   {
@@ -782,22 +811,20 @@ export const FAMILIES: Family[] = [
       },
       { id: "gpt-image-2", featureCode: "image_generate", label: "نسخه ۲" },
       {
-        id: "gpt-image-1-5",
-        featureCode: "image_generate",
-        label: "۱٫۵",
-        controls: [
-          { kind: "aspect", key: "aspect_ratio", label: "نسبت تصویر", def: "1:1", options: [ratios.sq, ratios.p23, ratios.l32] },
-          {
-            kind: "segment",
-            key: "quality",
-            label: "کیفیت",
-            def: "medium",
-            options: [
-              { value: "medium", label: "متعادل" },
-              { value: "high", label: "بالا" },
-            ],
-          },
-        ],
+        id: "gpt-image-2-edit",
+        entryOf: "gpt-image-2",
+        featureCode: "image_edit",
+        label: "نسخه ۲ ویرایش",
+        refs: [{ key: "input_urls", role: "reference", label: "تصاویر ورودی (الزامی)", max: 16, required: true }],
+      },
+      { id: "gpt-image-1-5", featureCode: "image_generate", label: "۱٫۵", controls: gptImage15Controls },
+      {
+        id: "gpt-image-1-5-edit",
+        entryOf: "gpt-image-1-5",
+        featureCode: "image_edit",
+        label: "۱٫۵ ویرایش",
+        controls: gptImage15Controls,
+        refs: [{ key: "input_urls", role: "reference", label: "تصاویر ورودی (الزامی)", max: 16, required: true }],
       },
     ],
   },
@@ -822,7 +849,21 @@ export const FAMILIES: Family[] = [
     ],
     variants: [
       { id: "flux-2-pro", featureCode: "image_generate", label: "Pro" },
+      {
+        id: "flux-2-pro-edit",
+        entryOf: "flux-2-pro",
+        featureCode: "image_edit",
+        label: "Pro ویرایش",
+        refs: [{ key: "input_urls", role: "reference", label: "تصاویر ورودی (الزامی)", max: 8, required: true }],
+      },
       { id: "flux-2-flex", featureCode: "image_generate", label: "Flex" },
+      {
+        id: "flux-2-flex-edit",
+        entryOf: "flux-2-flex",
+        featureCode: "image_edit",
+        label: "Flex ویرایش",
+        refs: [{ key: "input_urls", role: "reference", label: "تصاویر ورودی (الزامی)", max: 8, required: true }],
+      },
     ],
   },
   {

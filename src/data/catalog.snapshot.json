@@ -366,10 +366,40 @@
           "label": "۴٫۵"
         },
         {
+          "id": "seedream-4-5-edit",
+          "featureCode": "image_edit",
+          "label": "۴٫۵ ویرایش",
+          "entryOf": "seedream-4-5",
+          "refs": [
+            {
+              "key": "image_urls",
+              "role": "reference",
+              "label": "تصاویر ورودی (الزامی)",
+              "max": 14,
+              "required": true
+            }
+          ]
+        },
+        {
           "id": "seedream-5-lite",
           "featureCode": "image_generate",
           "label": "۵ Lite",
           "badge": "ارزان"
+        },
+        {
+          "id": "seedream-5-lite-edit",
+          "featureCode": "image_edit",
+          "label": "۵ Lite ویرایش",
+          "entryOf": "seedream-5-lite",
+          "refs": [
+            {
+              "key": "image_urls",
+              "role": "reference",
+              "label": "تصاویر ورودی (الزامی)",
+              "max": 14,
+              "required": true
+            }
+          ]
         }
       ]
     },
@@ -863,9 +893,83 @@
           "label": "نسخه ۲"
         },
         {
+          "id": "gpt-image-2-edit",
+          "featureCode": "image_edit",
+          "label": "نسخه ۲ ویرایش",
+          "entryOf": "gpt-image-2",
+          "refs": [
+            {
+              "key": "input_urls",
+              "role": "reference",
+              "label": "تصاویر ورودی (الزامی)",
+              "max": 16,
+              "required": true
+            }
+          ]
+        },
+        {
           "id": "gpt-image-1-5",
           "featureCode": "image_generate",
           "label": "۱٫۵",
+          "controls": [
+            {
+              "kind": "aspect",
+              "key": "aspect_ratio",
+              "label": "نسبت تصویر",
+              "options": [
+                {
+                  "value": "1:1",
+                  "label": "1:1",
+                  "w": 1,
+                  "h": 1
+                },
+                {
+                  "value": "2:3",
+                  "label": "2:3",
+                  "w": 2,
+                  "h": 3
+                },
+                {
+                  "value": "3:2",
+                  "label": "3:2",
+                  "w": 3,
+                  "h": 2
+                }
+              ],
+              "def": "1:1"
+            },
+            {
+              "kind": "segment",
+              "key": "quality",
+              "label": "کیفیت",
+              "options": [
+                {
+                  "value": "medium",
+                  "label": "متعادل"
+                },
+                {
+                  "value": "high",
+                  "label": "بالا"
+                }
+              ],
+              "def": "medium"
+            }
+          ]
+        },
+        {
+          "id": "gpt-image-1-5-edit",
+          "featureCode": "image_edit",
+          "label": "۱٫۵ ویرایش",
+          "entryOf": "gpt-image-1-5",
+          "refs": [
+            {
+              "key": "input_urls",
+              "role": "reference",
+              "label": "تصاویر ورودی (الزامی)",
+              "max": 16,
+              "required": true
+            }
+          ],
           "controls": [
             {
               "kind": "aspect",
@@ -997,9 +1101,39 @@
           "label": "Pro"
         },
         {
+          "id": "flux-2-pro-edit",
+          "featureCode": "image_edit",
+          "label": "Pro ویرایش",
+          "entryOf": "flux-2-pro",
+          "refs": [
+            {
+              "key": "input_urls",
+              "role": "reference",
+              "label": "تصاویر ورودی (الزامی)",
+              "max": 8,
+              "required": true
+            }
+          ]
+        },
+        {
           "id": "flux-2-flex",
           "featureCode": "image_generate",
           "label": "Flex"
+        },
+        {
+          "id": "flux-2-flex-edit",
+          "featureCode": "image_edit",
+          "label": "Flex ویرایش",
+          "entryOf": "flux-2-flex",
+          "refs": [
+            {
+              "key": "input_urls",
+              "role": "reference",
+              "label": "تصاویر ورودی (الزامی)",
+              "max": 8,
+              "required": true
+            }
+          ]
         }
       ]
     },

@@ -28,8 +28,14 @@
   "seedream-4-5": {
     "model": "seedream/4.5-text-to-image"
   },
+  "seedream-4-5-edit": {
+    "model": "seedream/4.5-edit"
+  },
   "seedream-5-lite": {
     "model": "seedream/5-lite-text-to-image"
+  },
+  "seedream-5-lite-edit": {
+    "model": "seedream/5-lite-image-to-image"
   },
   "gpt-image-2-5-flare": {
     "model": "gpt-image-2-5-flare-text-to-image"
@@ -46,14 +52,26 @@
   "gpt-image-2": {
     "model": "gpt-image-2-text-to-image"
   },
+  "gpt-image-2-edit": {
+    "model": "gpt-image-2-image-to-image"
+  },
   "gpt-image-1-5": {
     "model": "gpt-image/1.5-text-to-image"
+  },
+  "gpt-image-1-5-edit": {
+    "model": "gpt-image/1.5-image-to-image"
   },
   "flux-2-pro": {
     "model": "flux-2/pro-text-to-image"
   },
+  "flux-2-pro-edit": {
+    "model": "flux-2/pro-image-to-image"
+  },
   "flux-2-flex": {
     "model": "flux-2/flex-text-to-image"
+  },
+  "flux-2-flex-edit": {
+    "model": "flux-2/flex-image-to-image"
   },
   "imagen-4-ultra": {
     "model": "google/imagen4-ultra"
