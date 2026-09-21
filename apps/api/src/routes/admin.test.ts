@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
+import { InviteLimitError } from "@vgen/db";
 import { describe, expect, it, vi } from "vitest";
 import { registerErrorHandling } from "../plugins/errors";
 import { registerAdminRoutes } from "./admin";
@@ -60,6 +61,8 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN) {
     // Widened, because one test swaps this for the "deleted" outcome.
     deleteInvite: vi.fn(async (): Promise<"deleted" | "has_redemptions" | "not_found"> => "has_redemptions"),
     revokeInvite: vi.fn(async () => ({ ...invite, isUsable: false })),
+    // Widened, because one test makes it refuse.
+    updateInvite: vi.fn(async (_id: string, input: Record<string, unknown>): Promise<Record<string, unknown>> => ({ ...invite, ...input })),
     listPromos: vi.fn(async () => []),
     getPromo: vi.fn(async () => ({ id: "p1", code: "nowruz" })),
     createPromo: vi.fn(async () => ({ id: "p1", code: "nowruz" })),
@@ -174,7 +177,7 @@ describe("reaching the admin surface at all", () => {
       method: "POST",
       url: "/api/v1/admin/invites",
       headers: AS_ADMIN,
-      payload: { code: "sneaky" },
+      payload: { code: "sneaky", maxRedemptions: 1, expiresAt: "2099-01-01T00:00:00.000Z" },
     });
 
     expect(read.statusCode).toBe(200);
@@ -191,7 +194,7 @@ describe("reaching the admin surface at all", () => {
       method: "POST",
       url: "/api/v1/admin/invites",
       headers: AS_ADMIN,
-      payload: { code: "wildcard-ok" },
+      payload: { code: "wildcard-ok", maxRedemptions: 1, expiresAt: "2099-01-01T00:00:00.000Z" },
     });
 
     expect(response.statusCode).toBe(201);
@@ -291,7 +294,14 @@ describe("managing invite codes", () => {
       method: "POST",
       url: "/api/v1/admin/invites",
       headers: AS_ADMIN,
-      payload: { code: "apple-deev", label: "Apple campaign", maxRedemptions: 500, grantCoins: 20, grantExpiresDays: 30 },
+      payload: {
+        code: "apple-deev",
+        label: "Apple campaign",
+        maxRedemptions: 500,
+        grantCoins: 20,
+        grantExpiresDays: 30,
+        expiresAt: "2099-01-01T00:00:00.000Z",
+      },
     });
 
     expect(response.statusCode).toBe(201);
@@ -307,7 +317,7 @@ describe("managing invite codes", () => {
       method: "POST",
       url: "/api/v1/admin/invites",
       headers: AS_ADMIN,
-      payload: { count: 25, maxRedemptions: 1 },
+      payload: { count: 25, maxRedemptions: 1, expiresAt: "2099-01-01T00:00:00.000Z" },
     });
 
     expect(response.statusCode).toBe(201);
@@ -323,12 +333,98 @@ describe("managing invite codes", () => {
       method: "POST",
       url: "/api/v1/admin/invites",
       headers: AS_ADMIN,
-      payload: { count: 10, code: "apple-deev" },
+      payload: { count: 10, code: "apple-deev", maxRedemptions: 1, expiresAt: "2099-01-01T00:00:00.000Z" },
     });
 
     expect(response.statusCode).toBe(400);
     expect(access.createInviteBatch).not.toHaveBeenCalled();
     await app.close();
+  });
+
+  it("refuses a code with no cap or no expiry", async () => {
+    const { app, access } = build();
+
+    const noCap = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/invites",
+      headers: AS_ADMIN,
+      payload: { code: "no-cap", expiresAt: "2099-01-01T00:00:00.000Z" },
+    });
+    const noExpiry = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/invites",
+      headers: AS_ADMIN,
+      payload: { code: "no-end", maxRedemptions: 3 },
+    });
+    const pastExpiry = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/invites",
+      headers: AS_ADMIN,
+      payload: { code: "already-over", maxRedemptions: 3, expiresAt: "2001-01-01T00:00:00.000Z" },
+    });
+
+    expect([noCap.statusCode, noExpiry.statusCode, pastExpiry.statusCode]).toEqual([400, 400, 400]);
+    expect(access.createInvite).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("edits a code's cap and expiry, and audits the before and after", async () => {
+    const { app, admin, access } = build();
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/admin/invites/i1",
+      headers: AS_ADMIN,
+      payload: { maxRedemptions: 40, expiresAt: "2099-01-01T00:00:00.000Z" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(access.updateInvite).toHaveBeenCalledWith("i1", { maxRedemptions: 40, expiresAt: new Date("2099-01-01T00:00:00.000Z") });
+    expect(admin.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "invite.updated", targetId: "i1" }));
+    await app.close();
+  });
+
+  it("says so when the new cap is below the people already admitted", async () => {
+    const { app, access } = build();
+    access.updateInvite = vi.fn(async () => {
+      throw new InviteLimitError(7);
+    });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/admin/invites/i1",
+      headers: AS_ADMIN,
+      payload: { maxRedemptions: 2 },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("limit_below_used");
+    await app.close();
+  });
+
+  it("will not let a read-only role edit a code, or change what the code is", async () => {
+    const { app, access } = build({ roles: ["support"], permissions: ["invites.read"] });
+
+    const forbidden = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/admin/invites/i1",
+      headers: AS_ADMIN,
+      payload: { maxRedemptions: 999 },
+    });
+    expect(forbidden.statusCode).toBe(403);
+
+    const { app: adminApp } = build();
+    const renamed = await adminApp.inject({
+      method: "PATCH",
+      url: "/api/v1/admin/invites/i1",
+      headers: AS_ADMIN,
+      payload: { code: "new-code" },
+    });
+    expect(renamed.statusCode).toBe(400);
+
+    expect(access.updateInvite).not.toHaveBeenCalled();
+    await app.close();
+    await adminApp.close();
   });
 
   it("revokes rather than deletes a code somebody used", async () => {

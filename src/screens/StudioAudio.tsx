@@ -1,33 +1,26 @@
-import { useMemo, useRef, useState } from "react";
-import {
-  Heart,
-  Sparkle,
-  Play,
-  PencilSimple,
-  CaretLeft,
-  Plus,
-  Minus,
-  Copy,
-  DownloadSimple,
-  DotsThree,
-  FolderSimple,
-  Lock,
-} from "@phosphor-icons/react";
+import { useRef, useState } from "react";
+import { Sparkle, Play, PencilSimple, CaretLeft, FolderSimple, SpeakerHigh, MusicNotes, Waveform } from "@phosphor-icons/react";
 import { type Family, type Variant } from "../data/models";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
-import type { InputMap } from "../components/controls";
-import { useCreateState, valueLabel } from "../lib/useCreateState";
-import { type Generation } from "../lib/gallery";
+import { ControlField, type InputMap } from "../components/controls";
+import { useCreateState } from "../lib/useCreateState";
+import { isPending, isUnfinished, type Generation } from "../lib/gallery";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import { VoicePicker } from "../components/VoicePicker";
 import { ViewControls, useViewMode } from "../components/ViewControls";
 import { CoinMark } from "../components/chrome";
-import { Card, PanelShell, PanelTabs } from "../components/FormPanel";
+import { Panel, PanelHead, PanelShell, PanelTabs, Section } from "../components/Panel";
 import { ModelPicker } from "../components/ModelPicker";
+import { useIgnition } from "../components/Ignition";
+import { CancelButton, FailedVeil, SubmitRefusalNote, type CancelOutcome } from "../components/GenerationVeils";
+import { GenerationField } from "../components/GenerationField";
+import { shortfallRefusal, type GenerationRefusal } from "../features/generation/validation";
+import { useRevealArrival } from "../lib/useRevealArrival";
 import { labelDir, promptDir } from "../lib/format";
-import { useI18n } from "../lib/i18n";
+import { useI18n, type TKey } from "../lib/i18n";
 import { useSession } from "../runtime/providers/SessionProvider";
-import { useAccess } from "../lib/access";
+import { useAppServices } from "../runtime/AppServices";
+import { WaveCard, clipsOf, downloadClip, useClipPlayer, type Clip } from "../components/AudioClip";
 
 /* ---------------------------------------------------------------------------
    The audio studio.
@@ -40,211 +33,128 @@ import { useAccess } from "../lib/access";
    Copying a screenshot rather than the product is how a rebuild goes stale
    before it lands.
 
-   What stays specific to audio is what the content forces. A speech result has
-   no thumbnail, so the canvas card is a waveform with the script above it and
-   the voice name in wide monospace — a grid built for pictures has nothing to
-   put in the picture. The panel's cover slot holds the VOICE rather than a
-   preset, because that is the choice this modality actually opens with, and it
-   plays: `voicePreviewUrl` gives every voice a free sample.
+   What stays specific to audio is what the content forces. A result has no
+   thumbnail, so the canvas card is a waveform with the text above it and the
+   model in wide monospace — a grid built for pictures has nothing to put in the
+   picture. For speech the panel's cover slot holds the VOICE, because that is
+   the choice speech opens with, and it plays: `voicePreviewUrl` gives every
+   ElevenLabs voice a free sample. Music and effects open on the model instead.
 
-   Text-to-speech is all we sell. Their Voice Change and Translate tabs are
-   rendered disabled rather than dropped, so the gap stays visible to us.
+   Three tabs, one per feature code: speech, music, sound effects. The tabs
+   read the catalogue, so a section with no model in it does not render — the
+   same rule the navigation's columns follow.
    --------------------------------------------------------------------------- */
 
-/** A deterministic waveform. Seeded off the id so a card looks the same on
- *  every render — Math.random here would animate on each paint. */
-function bars(seed: string, n = 56): number[] {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return Array.from({ length: n }, (_, i) => {
-    h = (h * 1103515245 + 12345) >>> 0;
-    const base = 0.25 + ((h >>> 16) % 1000) / 1400;
-    // Taper the ends so it reads as a clip rather than a bar chart.
-    const env = Math.sin((Math.PI * (i + 1)) / (n + 1)) ** 0.45;
-    return Math.max(0.08, base * env);
-  });
-}
+type SectionCode = "speech_generate" | "music_generate" | "sound_generate";
 
-function WaveCard({ id, prompt, voice, seconds, list }: { id: string; prompt: string; voice: string; seconds: number; list?: boolean }) {
-  const data = useMemo(() => bars(id, list ? 120 : 56), [id, list]);
-  const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
-  const ss = String(seconds % 60).padStart(2, "0");
-
-  /* Their History row, measured: 74px tall, NO card background — just a divider
-     — a 40px play, a wide waveform that takes all the slack, then the model and
-     four 28px actions. The waveform being the widest thing in the row is the
-     whole design: it is the only part of a speech result you can read at a
-     glance. */
-  if (list) {
-    return (
-      <div className="group flex h-[74px] items-center gap-3 border-b px-2" style={{ borderColor: "var(--vg-border-subtle)" }}>
-        {/* Named for the clip. A history of six results is otherwise six
-            buttons all called "پخش", which on screen is unambiguous — each sits
-            in its own row — and in a screen reader's button list is not. */}
-        <button
-          aria-label={`پخش — ${voice}`}
-          className="grid size-10 shrink-0 place-items-center rounded-full transition-colors"
-          style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-        >
-          <Play size={14} weight="fill" />
-        </button>
-
-        {/* Widest fixed part of the row, so it needs the most canvas: only once
-            the container itself can spare 200px on top of everything else. */}
-        <div className="hidden w-[200px] shrink-0 @2xl:block">
-          <bdi className="vg-numeric block truncate text-[12.5px] tracking-[0.1em]" style={{ color: "var(--vg-text)" }}>
-            {voice}
-          </bdi>
-          <span className="block truncate text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-            {prompt}
-          </span>
-        </div>
-
-        <span className="flex h-9 min-w-0 flex-1 items-center gap-[1.5px]" aria-hidden>
-          {data.map((v, i) => (
-            <span
-              key={i}
-              className="flex-1 rounded-full"
-              style={{ height: `${Math.round(v * 100)}%`, background: "var(--vg-border-strong)" }}
-            />
-          ))}
-        </span>
-
-        <span className="vg-numeric hidden shrink-0 text-[11.5px] @lg:block" style={{ color: "var(--vg-text-muted)" }}>
-          {mm}:{ss}
-        </span>
-
-        {/* Four 28px actions, as theirs has. Visible rather than hover-revealed:
-            there is no artwork here for a control to get in the way of. */}
-        {/* Below `sm` only the overflow menu survives.
-            The row's fixed parts — a 40px play and four 28px actions — come to
-            more than a 375px viewport can hold beside a waveform, and the row
-            was pushing the whole page 18px sideways. Cramming was the wrong half
-            of the trade: the menu already exists, so the three secondary
-            actions belong inside it rather than off the edge of the screen. */}
-        <span className="flex shrink-0 items-center gap-0.5">
-          {[
-            { Icon: Heart, label: "پسندیدن", secondary: true },
-            { Icon: Copy, label: "رونوشت متن", secondary: true },
-            { Icon: DownloadSimple, label: "دانلود", secondary: true },
-            { Icon: DotsThree, label: "بیشتر", secondary: false },
-          ].map(({ Icon, label, secondary }) => (
-            <button
-              key={label}
-              aria-label={`${label} — ${voice}`}
-              title={label}
-              className={`${secondary ? "hidden @md:grid" : "grid"} size-7 place-items-center rounded-lg`}
-              style={{ color: "var(--vg-text-muted)" }}
-            >
-              <Icon size={15} />
-            </button>
-          ))}
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="group relative flex flex-col justify-end overflow-hidden rounded-xl p-4"
-      style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)", minHeight: 190 }}
-    >
-      <div className="mb-auto flex h-[86px] items-center gap-[2px]" aria-hidden>
-        {data.map((v, i) => (
-          <span
-            key={i}
-            className="flex-1 rounded-full"
-            style={{ height: `${Math.round(v * 100)}%`, background: "var(--vg-border-strong)" }}
-          />
-        ))}
-      </div>
-
-      <button
-        className="absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover:opacity-100"
-        style={{ background: "rgba(0,0,0,0.35)" }}
-        aria-label={`پخش — ${voice}`}
-      >
-        <span
-          className="grid size-11 place-items-center rounded-full"
-          style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
-        >
-          <Play size={17} weight="fill" />
-        </span>
-      </button>
-
-      <p className="line-clamp-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
-        {prompt}
-      </p>
-      <div className="mt-1 flex items-baseline justify-between gap-3">
-        {/* Wide monospace for the voice name, as the reference does — it makes a
-            list of near-identical names scannable by shape. */}
-        <span className="vg-numeric truncate text-[15px] tracking-[0.14em]" style={{ color: "var(--vg-text)" }}>
-          {voice}
-        </span>
-        {/* A clock reading is a numeric value, so it stays Latin and tabular
-            like every other one — `n()` takes a number and this is a string. */}
-        <span className="vg-numeric shrink-0 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
-          {mm}:{ss}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-const SEED_CLIPS = [
-  { id: "a1", prompt: "یک دو سه داستانت رو عمودی روایت کن", voice: "ARIA", seconds: 9 },
-  { id: "a2", prompt: "خوش آمدید به اولین قسمت از پادکست ما", voice: "ROMAN", seconds: 119 },
-  { id: "a3", prompt: "تخفیف ویژه‌ی پایان فصل، فقط تا جمعه", voice: "ARTHUR", seconds: 27 },
-  { id: "a4", prompt: "راوی مستند: در دل کویر، چیزی تکان می‌خورد", voice: "SARAH", seconds: 42 },
-  { id: "a5", prompt: "معرفی محصول جدید با لحن گرم و صمیمی", voice: "LAURA", seconds: 15 },
-  { id: "a6", prompt: "اعلان فرودگاه: پرواز شماره ۷۲۳ آماده‌ی سوار شدن است", voice: "GEORGE", seconds: 8 },
+/** What the text box is, per section. Read aloud, described, or described. */
+const SECTIONS: {
+  code: SectionCode;
+  tab: TKey;
+  field: string;
+  placeholder: string;
+  hint: string;
+  empty: string;
+}[] = [
+  {
+    code: "speech_generate",
+    tab: "menu_speech_generate",
+    // "متن", not "پرامپت" — this is read aloud verbatim, and the hint says so.
+    field: "متن",
+    placeholder: "دقیقاً همان چیزی که می‌خواهی خوانده شود.",
+    hint: "نقطه و ویرگول را بگذار — مکث و لحن را از روی نشانه‌گذاری می‌سازد.",
+    empty: "هنوز صدایی نساخته‌ای. متنت را بنویس و صدا را انتخاب کن.",
+  },
+  {
+    code: "music_generate",
+    tab: "menu_music_generate",
+    field: "توصیف آهنگ",
+    placeholder: "مثلاً: یک آهنگ پاپ شاد درباره‌ی تابستان، با صدای زن",
+    hint: "شعر را خود مدل از روی توصیف می‌نویسد. هر ساخت دو نسخه‌ی متفاوت می‌دهد.",
+    empty: "هنوز آهنگی نساخته‌ای. بگو چه حال‌وهوایی می‌خواهی.",
+  },
+  {
+    code: "sound_generate",
+    tab: "menu_sound_generate",
+    field: "توصیف صدا",
+    placeholder: "مثلاً: باران روی سقف حلبی",
+    hint: "کوتاه و مشخص بنویس. هر ساخت دو نسخه‌ی متفاوت می‌دهد.",
+    empty: "هنوز افکتی نساخته‌ای. صدایی را که لازم داری توصیف کن.",
+  },
 ];
+
+const carries = (family: Family, code: SectionCode) => family.variants.some((variant) => variant.featureCode === code);
 
 export default function StudioAudio({
   gens,
   onGenerate,
+  onRemove,
+  onCancel,
+  submitError,
+  onErrorAction,
 }: {
   gens: Generation[];
   onGenerate: (family: Family, variant: Variant, prompt: string, input: InputMap) => void;
+  /** Offered on a refused generation only, as in کارهای من. */
+  onRemove: (g: Generation) => void;
+  /** Offered on a queued generation only, and only where the API has it. */
+  onCancel?: ((g: Generation) => Promise<CancelOutcome>) | undefined;
+  /** Why the last press did not become a job. See `GenerationsProvider`. */
+  submitError?: GenerationRefusal | null | undefined;
+  /** Where a refusal that has a way out leads. */
+  onErrorAction?: ((target: "wallet" | "plans") => void) | undefined;
 }) {
   const { t, n } = useI18n();
+  const services = useAppServices();
   const catalogFamilies = useCatalogFamilies();
-  const families = catalogFamilies.filter((f) => f.kind === "audio");
+  const audioFamilies = catalogFamilies.filter((f) => f.kind === "audio");
+  // A section the catalogue has no model for does not get a tab.
+  const sections = SECTIONS.filter((section) => audioFamilies.some((family) => carries(family, section.code)));
+  const [sectionCode, setSectionCode] = useState<SectionCode>("speech_generate");
+  const section = sections.find((candidate) => candidate.code === sectionCode) ?? sections[0] ?? SECTIONS[0]!;
+  const families = audioFamilies.filter((family) => carries(family, section.code));
+
   const s = useCreateState(families);
-  const access = useAccess();
   // See StudioImage: a visitor gets the studio and a sign-in button in place
-  // of the one control that spends. The upgrade lock does not apply to them.
+  // of the one control that spends. Being short of coins is not their problem
+  // to be told about — signing in is.
   const { user, signIn } = useSession();
   const visitor = user === null;
-  const locked = !access.can(s.family.id);
-  const need = locked ? access.needs(s.family.id) : null;
-  const [tab, setTab] = useState<"all" | "liked">("all");
+  // The wallet, asked before the press rather than after it. There is no
+  // padlock to draw any more — see `useCreateState`.
+  const shortfall = s.short && s.price !== null ? shortfallRefusal(s.price, s.spendable ?? 0, n) : null;
   const [pickVoice, setPickVoice] = useState(false);
   const [pickModel, setPickModel] = useState(false);
-  const [batch, setBatch] = useState(1);
   const modelRow = useRef<HTMLDivElement>(null);
-  // Their audio canvas opens in list: a speech result has no thumbnail, so the
+  // See FormPanel: the field lights across «بساز», then the job is sent.
+  const ignition = useIgnition();
+  const player = useClipPlayer();
+  // Their audio canvas opens in list: an audio result has no thumbnail, so the
   // row with its waveform is the more useful default.
   const view = useViewMode("audio", { mode: "list", density: 1 });
 
-  const mine = gens.filter((g) => g.kind === "audio");
-  /* Running jobs stay out of the clip list and sit above it: a speech result is
-     a waveform and a duration, and a job that has not finished has neither. */
-  const running = mine.filter((g) => g.status === "running");
-  const finished = mine.filter((g) => g.status !== "running");
-  const clips =
-    finished.length > 0
-      ? finished.map((g) => ({
-          id: g.id,
-          prompt: g.prompt,
-          voice: g.name.toUpperCase(),
-          seconds: Math.round((g.durationMs ?? 12000) / 1000),
-        }))
-      : SEED_CLIPS;
+  // This section's work only: a song under the speech tab is noise.
+  const mine = gens.filter((g) => g.kind === "audio" && families.some((family) => family.id === g.familyId));
+  /* Running jobs stay out of the clip list and sit above it: a result is a
+     waveform and a duration, and a job that has not finished has neither. */
+  const running = mine.filter((g) => isPending(g.status));
+  /* `done`, not "not running". A refused job has no audio, and it was drawn as
+     a clip anyway — a waveform, a play button and a made-up 00:12 — so a
+     refusal looked like a result that would not play. Refusals get their own
+     row now, with the reason, above the clips. */
+  const refused = mine.filter((g) => isUnfinished(g.status));
+  // The press stays on this page, so bring the job it made into view.
+  const reveal = useRevealArrival(mine[0]?.id);
+  const clips: Clip[] = mine.filter((g) => g.status === "done").flatMap(clipsOf);
 
   const voiceControl = s.controls.find((c) => c.kind === "voice");
   const voiceId = voiceControl ? String(s.input[voiceControl.key]) : null;
   const voice = usePublishedContent().voices.find((v) => v.id === voiceId);
+  // The voice has its own card; everything else is a setting in the stack.
+  const settings = s.controls.filter((c) => c.kind !== "voice");
+  const basic = settings.filter((c) => !("advanced" in c && c.advanced));
+  const advanced = settings.filter((c) => "advanced" in c && c.advanced);
+  const maxPrompt = s.variant.maxPrompt ?? s.family.maxPrompt ?? null;
 
   return (
     /* Panel + canvas, not a bottom dock.
@@ -258,223 +168,232 @@ export default function StudioAudio({
           this the document has no h1 and a route change announces nothing. */}
       <h1 className="sr-only">ساخت صدا</h1>
       <PanelShell>
-        {/* We only sell text-to-speech. The other two are theirs, shown
-            disabled rather than omitted so the gap stays visible to us too. */}
-        <PanelTabs
-          tabs={[
-            { key: "tts", label: "متن به گفتار" },
-            { key: "change", label: "تغییر صدا", disabled: true },
-            { key: "translate", label: "ترجمه", disabled: true },
-          ]}
-          active="tts"
-          onPick={() => {}}
-        />
+        {sections.length > 1 && (
+          <PanelTabs
+            tabs={sections.map((candidate) => ({ key: candidate.code, label: t(candidate.tab) }))}
+            active={section.code}
+            onPick={(code) => {
+              // The clip playing belongs to the tab being left.
+              player.stop();
+              setSectionCode(code);
+            }}
+          />
+        )}
 
-        <div className="flex flex-col gap-2 p-3">
-          {/* The voice card: 160px at radius 16, in the slot their cover card
-              sits in. Big, and it plays — a voice is chosen by ear. */}
-          <button
-            onClick={() => setPickVoice(true)}
-            className="relative h-[160px] overflow-hidden rounded-2xl text-start"
-            // --vg-canvas (#090909), not #000. The only raw hex left in a screen
-            // and the only pure black in the app: it sat outside the token layer,
-            // so a change to the base surface would have skipped it, and against
-            // the near-black canvas it read as a hole rather than a card.
-            style={{ background: "var(--vg-canvas)" }}
-          >
-            <span className="absolute inset-0" style={{ background: voiceGradient(voice?.id ?? "x") }} />
-            <span
-              className="absolute top-2 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold backdrop-blur-md"
-              style={{ insetInlineEnd: "0.5rem", background: "rgba(0,0,0,0.55)", color: "var(--vg-text)" }}
-            >
-              <PencilSimple size={11} weight="bold" />
-              تغییر
-            </span>
-            <span className="absolute inset-x-3 bottom-3 flex items-center gap-2.5">
-              <span
-                className="grid size-9 shrink-0 place-items-center rounded-full backdrop-blur-md"
-                style={{ background: "rgba(0,0,0,0.5)", color: "var(--vg-text)" }}
-              >
-                <Play size={14} weight="fill" />
-              </span>
-              <span className="min-w-0">
-                <bdi className="vg-numeric block truncate text-[14px] tracking-[0.08em]" style={{ color: "var(--vg-text)" }}>
-                  {voice?.name ?? "انتخاب صدا"}
-                </bdi>
-                <span className="block truncate text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-                  {voice?.note ?? "هنوز انتخاب نشده"}
-                </span>
-              </span>
-            </span>
-          </button>
+        {/* One surface, as the video dock is — see `Panel` in FormPanel. This
+            column was the last one still built from floating washes eight
+            pixels apart, so going between the two studios changed the whole
+            material of the panel for no reason the customer could see. */}
+        <div className="p-2.5">
+          <Panel>
+            {voiceControl ? (
+              <>
+                {/* The voice is this panel's subject, so the head names it.
 
-          {/* "متن", not "پرامپت" — this is read aloud verbatim, and the helper
-              says so. Their label and their helper, both earned. */}
-          <Card className="p-3">
-            {/* The whole row flips, not just the caption: the count belongs on
-                the far side from the label, whichever side that is. */}
-            <div className="mb-1 flex items-center justify-between" dir={labelDir(s.prompt)}>
-              <span className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-                متن
-              </span>
-              <span className="vg-numeric text-[10.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                {n(s.prompt.length)}
-              </span>
-            </div>
-            <textarea
-              value={s.prompt}
-              onChange={(e) => s.setPrompt(e.target.value)}
-              rows={4}
-              dir={promptDir(s.prompt)}
-              placeholder="دقیقاً همان چیزی که می‌خواهی خوانده شود."
-              className="hide-scrollbar vg-field-inset resize-none bg-transparent text-[13px] leading-6 outline-none"
-              style={{ color: "var(--vg-text)" }}
-            />
-            <p className="mt-1 text-[10.5px] leading-4" style={{ color: "var(--vg-text-muted)" }}>
-              نقطه و ویرگول را بگذار — مکث و لحن را از روی نشانه‌گذاری می‌سازد.
-            </p>
-          </Card>
+                    The subtitle is the voice's own note — its character — where
+                    the video head shows the vendor. Same rule, different answer:
+                    a voice is chosen by what it sounds like, and "ElevenLabs" is
+                    already in the model row below, so repeating it here would
+                    say nothing. */}
+                <PanelHead
+                  icon={<SpeakerHigh size={14} weight="fill" />}
+                  title={voice?.name ?? "انتخاب صدا"}
+                  sub={voice?.note ?? "هنوز انتخاب نشده"}
+                />
 
-          <div ref={modelRow}>
-            <Card>
-              <button onClick={() => setPickModel((v) => !v)} className="flex w-full items-center gap-2 px-3 py-2.5 text-start">
-                <span className="flex-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
-                  مدل
-                </span>
-                <bdi className="truncate text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
-                  {s.family.name} · {s.variant.label}
-                </bdi>
-                <CaretLeft size={13} weight="bold" style={{ color: "var(--vg-text-muted)" }} />
-              </button>
-            </Card>
-          </div>
-          {pickModel && (
-            <ModelPicker
-              anchor={modelRow.current}
-              families={families}
-              family={s.family}
-              variant={s.variant}
-              onPickFamily={s.setFamily}
-              onPickVariant={s.setVariant}
-              onClose={() => setPickModel(false)}
-            />
-          )}
-
-          {/* Batch size, as theirs has. Speech is cheap enough to want four
-              takes of one line and keep the best. */}
-          <Card>
-            <div className="flex items-center gap-2 px-3 py-2">
-              <span className="flex-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
-                تعداد نسخه
-              </span>
-              <button
-                onClick={() => setBatch((b) => Math.max(1, b - 1))}
-                disabled={batch === 1}
-                aria-label="کاهش تعداد خروجی"
-                className="grid size-7 place-items-center rounded-lg disabled:opacity-30"
-                style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
-              >
-                <Minus size={12} weight="bold" />
-              </button>
-              <span className="vg-numeric w-10 text-center text-[12.5px]" style={{ color: "var(--vg-text)" }}>
-                {n(batch)}/{n(4)}
-              </span>
-              <button
-                onClick={() => setBatch((b) => Math.min(4, b + 1))}
-                disabled={batch === 4}
-                // "بیشتر" alone collides with the row menus and says nothing
-                // about what it increases.
-                aria-label="افزایش تعداد خروجی"
-                className="grid size-7 place-items-center rounded-lg disabled:opacity-30"
-                style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
-              >
-                <Plus size={12} weight="bold" />
-              </button>
-            </div>
-          </Card>
-
-          {s.chips.length > 0 && (
-            <details className="group">
-              <summary
-                className="flex cursor-pointer list-none items-center gap-1.5 px-1 py-1.5 text-[12px]"
-                style={{ color: "var(--vg-text-muted)" }}
-              >
-                <CaretLeft size={12} weight="bold" className="transition-transform group-open:-rotate-90" />
-                تنظیمات پیشرفته
-              </summary>
-              <div className="mt-1 flex flex-col gap-2">
-                {s.chips.map((c) =>
-                  c.kind === "slider" ? (
-                    <Card key={c.key} className="px-3 py-2.5">
-                      <div className="mb-1.5 flex items-baseline justify-between">
-                        <span className="text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                          {c.label}
-                        </span>
-                        <span className="vg-numeric text-[12px]" style={{ color: "var(--vg-primary-soft)" }}>
-                          {String(s.input[c.key])}
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={c.min}
-                        max={c.max}
-                        step={c.step}
-                        value={Number(s.input[c.key])}
-                        onChange={(e) => s.set(c.key, c.asString ? e.target.value : Number(e.target.value))}
-                        className="w-full"
-                        aria-label={c.label}
-                      />
-                    </Card>
+                <Section>
+                  {/* The voice card, full-bleed inside the panel. It opens the
+                      picker, and needs a label of its own: "تغییر" alone does
+                      not say what changes. */}
+                  <button
+                    onClick={() => setPickVoice(true)}
+                    aria-label={voice ? `تغییر صدا — ${voice.name}` : "انتخاب صدا"}
+                    className="relative block h-[132px] w-full overflow-hidden text-start"
+                    // --vg-canvas (#090909), not #000. The only raw hex left in a
+                    // screen and the only pure black in the app: it sat outside
+                    // the token layer, so a change to the base surface would have
+                    // skipped it, and against the near-black canvas it read as a hole.
+                    style={{ background: "var(--vg-canvas)" }}
+                  >
+                    <span className="absolute inset-0" style={{ background: voiceGradient(voice?.id ?? "x") }} />
+                    <span
+                      className="absolute top-2 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold backdrop-blur-md"
+                      style={{ insetInlineEnd: "0.5rem", background: "rgba(0,0,0,0.55)", color: "var(--vg-text)" }}
+                    >
+                      <PencilSimple size={11} weight="bold" />
+                      تغییر
+                    </span>
+                    <span
+                      className="absolute bottom-3 grid size-9 place-items-center rounded-full backdrop-blur-md"
+                      style={{ insetInlineStart: "0.75rem", background: "rgba(0,0,0,0.5)", color: "var(--vg-text)" }}
+                    >
+                      <Play size={14} weight="fill" />
+                    </span>
+                  </button>
+                </Section>
+              </>
+            ) : (
+              /* No voice to open on — Gemini names its voices in a list, and
+                 music and effects have none — so the model is the subject. */
+              <PanelHead
+                icon={
+                  section.code === "speech_generate" ? (
+                    <SpeakerHigh size={14} weight="fill" />
+                  ) : section.code === "music_generate" ? (
+                    <MusicNotes size={14} weight="fill" />
                   ) : (
-                    <Card key={c.key} className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="flex-1 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                          {c.label}
-                        </span>
-                        <span className="text-[12px]" style={{ color: "var(--vg-text)" }}>
-                          {valueLabel(c, s.input)}
-                        </span>
-                      </div>
-                    </Card>
-                  ),
-                )}
+                    <Waveform size={14} weight="fill" />
+                  )
+                }
+                title={s.family.name}
+                sub={s.family.blurb}
+              />
+            )}
+
+            <Section className="px-2.5 py-2">
+              {/* The whole row flips, not just the caption: the count belongs on
+                  the far side from the label, whichever side that is. */}
+              <div className="mb-1 flex items-center justify-between" dir={labelDir(s.prompt)}>
+                <span className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
+                  {section.field}
+                </span>
+                <span className="vg-numeric text-[10.5px]" style={{ color: "var(--vg-text-muted)" }}>
+                  {maxPrompt === null ? n(s.prompt.length) : `${n(s.prompt.length)} / ${n(maxPrompt)}`}
+                </span>
               </div>
-            </details>
-          )}
+              <textarea
+                value={s.prompt}
+                onChange={(e) => s.setPrompt(e.target.value)}
+                rows={4}
+                dir={promptDir(s.prompt)}
+                maxLength={maxPrompt ?? undefined}
+                placeholder={section.placeholder}
+                aria-label={section.field}
+                className="hide-scrollbar vg-field-inset resize-none bg-transparent text-[12.5px] leading-[1.7] outline-none"
+                style={{ color: "var(--vg-text)" }}
+              />
+              <p className="mt-1 text-[10.5px] leading-4" style={{ color: "var(--vg-text-muted)" }}>
+                {section.hint}
+              </p>
+            </Section>
+
+            <div ref={modelRow}>
+              <Section>
+                <button onClick={() => setPickModel((v) => !v)} className="flex w-full items-center gap-2 px-2.5 py-2.5 text-start">
+                  <span className="flex-1 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
+                    مدل
+                  </span>
+                  <bdi className="truncate text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
+                    {s.family.name} · {s.variant.label}
+                  </bdi>
+                  <CaretLeft size={13} weight="bold" style={{ color: "var(--vg-text-muted)" }} />
+                </button>
+              </Section>
+            </div>
+
+            {/* The same field the model page renders, so a setting behaves the
+                same on both. The advanced ones used to be listed here as
+                read-only text — ElevenLabs Turbo's language could be seen and
+                not changed. */}
+            {basic.map((c) => (
+              <Section key={c.key} className="px-2.5 py-2.5">
+                <ControlField control={c} value={s.input[c.key]} onChange={s.set} />
+              </Section>
+            ))}
+
+            {advanced.length > 0 && (
+              <Section>
+                <details className="group">
+                  <summary
+                    className="flex cursor-pointer list-none items-center gap-1.5 px-2.5 py-2 text-[12px]"
+                    style={{ color: "var(--vg-text-muted)" }}
+                  >
+                    <CaretLeft size={12} weight="bold" className="transition-transform group-open:-rotate-90" />
+                    تنظیمات پیشرفته
+                  </summary>
+                  {/* Rows divided by hairlines, not cards inside a card — a
+                      bordered box inside the panel's own box is the second edge
+                      the panel exists to avoid. */}
+                  <div className="flex flex-col">
+                    {advanced.map((c) => (
+                      <div key={c.key} className="px-2.5 py-2.5" style={{ borderBlockStart: "1px solid var(--vg-border-subtle)" }}>
+                        <ControlField control={c} value={s.input[c.key]} onChange={s.set} />
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              </Section>
+            )}
+          </Panel>
         </div>
 
-        <div className="sticky bottom-0 mt-auto p-3" style={{ background: "var(--vg-deep)" }}>
-          {/* See FormPanel. */}
-          {locked && !visitor ? (
-            <button
-              onClick={access.onUpgrade}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold"
-              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-            >
-              <Lock size={14} weight="fill" />
-              {need ? (
-                <>
-                  ارتقا به <bdi>{need.name}</bdi>
-                </>
-              ) : (
-                "ارتقای پلن"
-              )}
-            </button>
-          ) : (
-            <button
-              disabled={!visitor && !s.ready}
-              onClick={() => (visitor ? signIn() : onGenerate(s.family, s.variant, s.prompt.trim(), s.input))}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold transition-opacity disabled:opacity-35"
-              style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
-            >
+        {/* A portal, so it lives outside the panel — `Panel` clips its corners
+            and would clip a popover with them. */}
+        {pickModel && (
+          <ModelPicker
+            anchor={modelRow.current}
+            // Every audio model, not this tab's: somebody on the speech tab
+            // looking for Suno found only the speech models and concluded it
+            // was not offered. Picking one moves to the tab it belongs to.
+            families={audioFamilies}
+            family={s.family}
+            variant={s.variant}
+            onPickFamily={(family) => {
+              const home = SECTIONS.find((candidate) => carries(family, candidate.code));
+              if (home && home.code !== section.code) {
+                player.stop();
+                setSectionCode(home.code);
+              }
+              s.setFamily(family);
+            }}
+            onPickVariant={s.setVariant}
+            onClose={() => setPickModel(false)}
+          />
+        )}
+
+        <div
+          className="sticky bottom-0 mt-auto p-2.5"
+          style={{ background: "var(--vg-canvas)", borderBlockStart: "1px solid var(--vg-border-subtle)" }}
+        >
+          {/* A refusal that never became a job, above the button that made it —
+              see `SubmitRefusalNote` for why above. */}
+          {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mb-2" />}
+          {/* See FormPanel: no model is locked to a plan, so the only thing
+              that can stop a generation is the price against the balance. */}
+          {!submitError && shortfall && <SubmitRefusalNote refusal={shortfall} onAction={onErrorAction} className="mb-2" />}
+          <button
+            disabled={!visitor && !s.ready}
+            onClick={(event) =>
+              visitor
+                ? signIn()
+                : ignition.ignite(event, () => {
+                    reveal.arm();
+                    onGenerate(s.family, s.variant, s.prompt.trim(), s.input);
+                  })
+            }
+            aria-busy={ignition.igniting || undefined}
+            className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
+            style={{
+              background: "var(--vg-primary)",
+              color: ignition.igniting ? "var(--vg-text)" : "var(--vg-text-on-primary)",
+              // A dark halo while it is light: the field sweeps in from the
+              // pressed point, so for a moment the label sits half on lime.
+              textShadow: ignition.igniting ? "0 0 6px rgb(0 0 0 / 0.7)" : undefined,
+              // As in the video dock: the only filled accent in the column,
+              // and a button that cannot be pressed does not glow.
+              boxShadow: !visitor && !s.ready ? "none" : "var(--vg-glow-primary)",
+            }}
+          >
+            {ignition.layer}
+            <span className="relative flex items-center gap-2">
               <Sparkle size={15} weight="fill" />
               {visitor ? t("visitor_cta") : "بساز"}
               <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
                 <CoinMark size={12} />
-                <span className="vg-numeric">{s.price === null ? "—" : n(s.price * batch)}</span>
+                <span className="vg-numeric">{s.price === null ? "—" : n(s.price)}</span>
               </span>
-            </button>
-          )}
+            </span>
+          </button>
         </div>
       </PanelShell>
 
@@ -487,27 +406,11 @@ export default function StudioAudio({
           pushed the page 208px sideways. A viewport breakpoint cannot see that;
           a container query can. */}
       <main className="@container min-w-0 flex-1" style={{ borderInlineStart: "1px solid var(--vg-border-subtle)" }}>
-        {/* Their canvas header: History / How it works on the leading side, a
-            Filters control on the trailing side. */}
         <div className="flex items-center gap-1 px-4 py-2.5" style={{ borderBlockEnd: "1px solid var(--vg-border-subtle)" }}>
-          {[
-            { k: "all" as const, Icon: FolderSimple, label: "تاریخچه" },
-            { k: "liked" as const, Icon: Heart, label: "پسندیده" },
-          ].map(({ k, Icon, label }) => (
-            <button
-              key={k}
-              onClick={() => setTab(k)}
-              aria-pressed={tab === k}
-              className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold"
-              style={{
-                background: tab === k ? "var(--vg-surface-overlay)" : "transparent",
-                color: tab === k ? "var(--vg-text)" : "var(--vg-text-muted)",
-              }}
-            >
-              <Icon size={13} />
-              {label}
-            </button>
-          ))}
+          <span className="flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
+            <FolderSimple size={13} />
+            تاریخچه
+          </span>
           <div className="ms-auto flex items-center gap-1.5">
             <ViewControls mode={view.mode} density={view.density} onMode={view.setMode} onDensity={view.setDensity} />
           </div>
@@ -519,37 +422,63 @@ export default function StudioAudio({
             gridTemplateColumns: view.mode === "list" ? "1fr" : `repeat(auto-fill, minmax(${Math.round(1100 / view.cols)}px, 1fr))`,
           }}
         >
-          {/* Running first. A speech job has no waveform yet, so it gets a bar
-              rather than an empty card pretending to be a result. */}
-          {tab !== "liked" &&
-            running.map((g) => (
-              <div
-                key={g.id}
-                className="flex items-center gap-3 rounded-xl p-4"
-                style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px]" style={{ color: "var(--vg-text-muted)" }}>
-                    در حال ساخت…
-                  </p>
-                  <p className="mt-0.5 truncate text-[12.5px]" style={{ color: "var(--vg-text-secondary)" }}>
-                    {g.prompt || g.name}
-                  </p>
-                  <div className="mt-2 h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
-                    <div
-                      className="h-full transition-[width] duration-200 ease-out"
-                      style={{ width: `${Math.round(g.progress ?? 0)}%`, background: "var(--vg-primary)" }}
-                    />
-                  </div>
-                </div>
-                <span className="vg-numeric shrink-0 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                  {Math.round(g.progress ?? 0)}%
-                </span>
+          {/* Running first. A job has no waveform yet, so it gets a bar rather
+              than an empty card pretending to be a result. */}
+          {running.map((g) => (
+            <div
+              key={g.id}
+              ref={g.id === mine[0]?.id ? reveal.target : undefined}
+              className="relative flex scroll-my-24 items-center gap-3 overflow-hidden rounded-xl p-4"
+              style={{ border: "1px solid var(--vg-border-subtle)" }}
+            >
+              {/* The same moving field as a running card on the other two
+                  canvases. No bar: nothing on the server reports progress,
+                  and this one sat at 0% for the whole job. */}
+              <GenerationField />
+              <div className="relative min-w-0 flex-1">
+                <p className="text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
+                  {g.status === "queued" ? t("gal_queued") : `${t("r_making")}…`}
+                </p>
+                <p className="mt-0.5 truncate text-[12.5px]" style={{ color: "var(--vg-text)" }}>
+                  {g.prompt || g.name}
+                </p>
               </div>
-            ))}
-          {(tab === "liked" ? clips.slice(0, 2) : clips).map((c) => (
-            <WaveCard key={c.id} {...c} list={view.mode === "list"} />
+              {/* A job nobody has started can still be called off. */}
+              {g.status === "queued" && onCancel && (
+                <div className="relative shrink-0">
+                  <CancelButton onCancel={() => onCancel(g)} />
+                </div>
+              )}
+            </div>
           ))}
+          {refused.map((g) => (
+            <div
+              key={g.id}
+              ref={g.id === mine[0]?.id ? reveal.target : undefined}
+              className="relative min-h-[104px] scroll-my-24 overflow-hidden rounded-xl"
+              style={{ border: "1px solid var(--vg-border-subtle)" }}
+            >
+              <FailedVeil gen={g} onRemove={() => onRemove(g)} lines={2} />
+            </div>
+          ))}
+          {clips.map((clip) => (
+            <WaveCard
+              key={clip.id}
+              clip={clip}
+              list={view.mode === "list"}
+              audio={player.audioOf(clip)}
+              onPlay={() => player.toggle(clip)}
+              onDownload={clip.jobId && clip.url ? () => downloadClip(services.generation.downloadUrl, clip) : undefined}
+            />
+          ))}
+          {/* An empty history says so. It used to be six invented clips with
+              play buttons that did nothing, which read as results that would
+              not play. */}
+          {mine.length === 0 && (
+            <p className="py-16 text-center text-[13px]" style={{ color: "var(--vg-text-muted)" }}>
+              {section.empty}
+            </p>
+          )}
         </div>
       </main>
 

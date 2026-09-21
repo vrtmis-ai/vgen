@@ -8,6 +8,8 @@ export interface StorageHealthPort {
 
 export { RedisHealthAdapter, S3StorageHealthAdapter, createRedisHealthAdapter, createS3StorageHealthAdapter } from "./health";
 export { RedisFixedWindowRateLimiter, createRedisFixedWindowRateLimiter } from "./rateLimit";
+export { FxRateUnavailableError, MAX_DAILY_MOVE, fetchTomanPerUsd, isPlausibleMove } from "./fxRate";
+export type { FetchedRate } from "./fxRate";
 export type { FixedWindowRateLimitOptions } from "./rateLimit";
 
 export {

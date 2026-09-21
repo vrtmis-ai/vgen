@@ -1,6 +1,7 @@
 import { GenerationQuoteSchema, QuoteGenerationRequestSchema } from "@vgen/contracts";
 import type { GenerationParams, QuoteRequest, QuoteResult } from "@vgen/db";
 import type { FastifyInstance } from "fastify";
+import type { PromptGuardApplication } from "../promptGuard";
 import type { CustomerSessionApplication } from "./session";
 
 export interface GenerationQuotesApplication {
@@ -18,6 +19,7 @@ export function registerGenerationQuotesRoute(
   app: FastifyInstance,
   sessions: CustomerSessionApplication,
   quotes: GenerationQuotesApplication,
+  promptGuard: PromptGuardApplication,
 ): void {
   app.post("/api/v1/generation/quotes", { bodyLimit: 64 * 1024 }, async (request, reply) => {
     const session = await sessions.getCurrent(request);
@@ -26,6 +28,18 @@ export function registerGenerationQuotesRoute(
     }
 
     const body = QuoteGenerationRequestSchema.parse(request.body);
+
+    /* Before the price, not after it. This is the surface where a person can
+       still change their mind, and quoting something we will not build is a
+       worse answer than declining to quote it. */
+    const refusal = await promptGuard.check({ prompt: body.prompt, userId: session.user.id, surface: "quote" });
+    if (refusal) {
+      // 422 rather than 403: nothing is wrong with the account or the session,
+      // the request itself is one we will not process. A 403 would read as
+      // "you are not allowed here" and send people to support.
+      return reply.code(422).send({ error: { code: "prompt_refused", message: refusal.message, category: refusal.category } });
+    }
+
     const result = await quotes.create({
       userId: session.user.id,
       variantId: body.variantId,
@@ -37,21 +51,6 @@ export function registerGenerationQuotesRoute(
     });
 
     if (result.outcome === "quoted") return reply.code(200).send(GenerationQuoteSchema.parse(result.quote));
-
-    if (result.outcome === "tier_too_low") {
-      // 403 rather than 402: the account is not short of money, it is on the
-      // wrong plan, and the fix is an upgrade rather than a top-up. The tiers
-      // are in the body so the client can name the plan that would unlock it
-      // without a second round trip.
-      return reply.code(403).send({
-        error: {
-          code: result.outcome,
-          message: "This model needs a higher plan.",
-          requiredTier: result.requiredTier,
-          currentTier: result.currentTier,
-        },
-      });
-    }
 
     if (result.outcome === "unknown_variant" || result.outcome === "unknown_account") {
       return reply.code(404).send({ error: { code: result.outcome, message: "That model is not available." } });

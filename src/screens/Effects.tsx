@@ -106,6 +106,8 @@ function EffectDetail({ preset, onGenerate, onBack }: { preset: Preset; onGenera
             <img
               src={art(preset.seed)}
               alt={`نمونهٔ ${preset.title}`}
+              loading="lazy"
+              decoding="async"
               className="aspect-[3/4] w-full rounded-2xl object-cover sm:col-span-2 sm:aspect-[16/9]"
             />
             {[1, 2, 3, 4].map((n) => (

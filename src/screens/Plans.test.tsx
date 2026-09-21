@@ -27,6 +27,14 @@ const catalog = await createDemoCatalogService(() => 0).list();
  * is the same thing a visitor sees when no campaign is running, and it keeps
  * these assertions about the ladder rather than about a banner.
  */
+/**
+ * Deliberately not the seed constant. The screen is served a rate now, and a
+ * number that differs from anything compiled into the bundle is what tells a
+ * card reading the served rate apart from one that quietly kept the old
+ * constant.
+ */
+const RATE = 250_000;
+
 function show(plans: readonly Plan[], currentPlanId: string | null = null) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -34,7 +42,7 @@ function show(plans: readonly Plan[], currentPlanId: string | null = null) {
       <AppServicesProvider services={createDemoServices()}>
         <LanguageProvider initialLang="en">
           <CatalogProvider families={catalog.families}>
-            <PlansProvider plans={plans}>
+            <PlansProvider plans={plans} tomanPerUsd={RATE}>
               <Plans wallet={WALLET} currentPlanId={currentPlanId} onBack={vi.fn()} />
             </PlansProvider>
           </CatalogProvider>
@@ -56,7 +64,7 @@ describe("the plans screen", () => {
     const repriced: Plan = { ...first!, monthlyUsd: first!.monthlyUsd * 2 };
     show([repriced, ...rest]);
 
-    expect(screen.getAllByText(String(toman(repriced.monthlyUsd)).replace(/\B(?=(\d{3})+(?!\d))/g, ","))[0]).toBeInTheDocument();
+    expect(screen.getAllByText(String(toman(repriced.monthlyUsd, RATE)).replace(/\B(?=(\d{3})+(?!\d))/g, ","))[0]).toBeInTheDocument();
   });
 
   it("sells only the plans the server still serves", () => {

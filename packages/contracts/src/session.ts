@@ -35,7 +35,11 @@ export const CustomerSessionUserSchema = z.object({
  * Present on the anonymous arm too, which is the arm that matters: the only
  * people who need it are the ones who are not signed in yet.
  */
-const authProviders = { authProviders: z.array(OAuthProviderSchema) };
+const authProviders = {
+  authProviders: z.array(OAuthProviderSchema),
+  /** Whether an SMS gateway is configured, and so whether the phone form is drawn at all. */
+  phoneSignIn: z.boolean(),
+};
 
 /**
  * Who is signed in — and nothing else.

@@ -56,7 +56,11 @@ const COLUMNS: Record<ModelKind, { code: string; title: TKey }[]> = {
     { code: "image_to_video", title: "menu_image_to_video" },
     { code: "video_edit", title: "menu_video_edit" },
   ],
-  audio: [{ code: "speech_generate", title: "menu_speech_generate" }],
+  audio: [
+    { code: "speech_generate", title: "menu_speech_generate" },
+    { code: "music_generate", title: "menu_music_generate" },
+    { code: "sound_generate", title: "menu_sound_generate" },
+  ],
 };
 
 /** The nav items that open a menu. The rest are plain destinations. */

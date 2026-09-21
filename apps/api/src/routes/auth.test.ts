@@ -19,6 +19,7 @@ const openLimiters = (): AuthRateLimiters => ({
   otpVerifyPerPhone: allow(),
   loginPerAccount: allow(),
   loginPerIp: allow(),
+  inviteCheckPerIp: allow(),
 });
 
 function authDouble() {
@@ -40,6 +41,7 @@ function authDouble() {
       expiresAt: new Date(Date.now() + 86_400_000),
     })),
     revokeSession: vi.fn(async () => undefined),
+    isInviteUsable: vi.fn(async (code: string) => code === "LIVE-CODE"),
     recordLoginAttempt: vi.fn(async () => undefined),
   };
 }
@@ -50,6 +52,7 @@ function build(
     limiters?: AuthRateLimiters;
     google?: Parameters<typeof registerAuthRoutes>[2]["google"];
     microsoft?: Parameters<typeof registerAuthRoutes>[2]["microsoft"];
+    withoutSms?: boolean;
   } = {},
 ) {
   const auth = overrides.auth ?? authDouble();
@@ -57,7 +60,7 @@ function build(
   registerErrorHandling(app);
   registerAuthRoutes(
     app,
-    { auth: auth as never, sms: { sendVerificationCode: vi.fn(async () => undefined) } },
+    { auth: auth as never, sms: overrides.withoutSms ? undefined : { sendVerificationCode: vi.fn(async () => undefined) } },
     {
       cookie: { secure: true },
       limiters: overrides.limiters ?? openLimiters(),
@@ -75,6 +78,19 @@ const cookieOf = (response: { headers: Record<string, unknown> }) => {
 };
 
 describe("requesting a code", () => {
+  it("does not exist without an SMS gateway", async () => {
+    const { app, auth } = build({ withoutSms: true });
+
+    const start = await app.inject({ method: "POST", url: "/api/v1/auth/otp/start", payload: { phone: "09121234567" } });
+    const verify = await app.inject({ method: "POST", url: "/api/v1/auth/otp/verify", payload: { phone: "09121234567", code: "123456" } });
+
+    expect([start.statusCode, verify.statusCode]).toEqual([404, 404]);
+    expect(start.json().error.code).toBe("phone_unavailable");
+    expect(auth.startPhoneVerification).not.toHaveBeenCalled();
+    expect(auth.signInWithPhoneCode).not.toHaveBeenCalled();
+    await app.close();
+  });
+
   it("normalises every way an Iranian number is written before using it", async () => {
     const { app, auth } = build();
 
@@ -379,6 +395,94 @@ describe("Google sign-in", () => {
     const cookie = cookieOf(response);
     expect(cookie).toContain("deev_oauth_state=;");
     expect(cookie).toContain("deev_session=tok-abc");
+    await app.close();
+  });
+});
+
+describe("checking an invite code from the invite page", () => {
+  it("answers one boolean, the same shape for every refusal", async () => {
+    const { app, auth } = build();
+
+    const live = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "LIVE-CODE" } });
+    const dead = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "made-up" } });
+
+    expect([live.statusCode, live.json()]).toEqual([200, { valid: true }]);
+    expect([dead.statusCode, dead.json()]).toEqual([200, { valid: false }]);
+    expect(auth.isInviteUsable).toHaveBeenCalledTimes(2);
+    await app.close();
+  });
+
+  it("refuses a malformed body before touching the database", async () => {
+    const { app, auth } = build();
+
+    const tooShort = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "x" } });
+    const extra = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "LIVE-CODE", admin: true } });
+
+    expect([tooShort.statusCode, extra.statusCode]).toEqual([400, 400]);
+    expect(auth.isInviteUsable).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("stops answering once an IP has asked too often", async () => {
+    const limiters = openLimiters();
+    limiters.inviteCheckPerIp = { consume: vi.fn(async () => 600) };
+    const { app, auth } = build({ limiters });
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "LIVE-CODE" } });
+
+    expect(response.statusCode).toBe(429);
+    expect(auth.isInviteUsable).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
+describe("an invite carried through a provider", () => {
+  const google = {
+    createAuthorizationUrl: () => ({ url: "https://accounts.google.com/o/oauth2/v2/auth?x=1", state: "state-abc" }),
+    exchangeCode: vi.fn(async () => ({ subject: "google-1", email: "person@example.com", emailVerified: true, displayName: "P" })),
+  };
+
+  it("sends a rate-limited provider sign-in back to the site instead of to the provider", async () => {
+    const limiters = openLimiters();
+    limiters.loginPerIp = { consume: vi.fn(async () => 30) };
+    const { app } = build({ google: google as never, limiters });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/auth/google?invite=EARLY-1" });
+
+    expect(response.headers.location).toBe("https://deev.test/?auth=oauth_failed");
+    expect(cookieOf(response)).not.toContain("deev_oauth_invite=EARLY-1");
+    await app.close();
+  });
+
+  it("keeps the code in a cookie while the browser is at the provider", async () => {
+    const { app } = build({ google: google as never });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/auth/google?invite=EARLY-1" });
+
+    expect(cookieOf(response)).toContain("deev_oauth_invite=EARLY-1");
+    await app.close();
+  });
+
+  it("clears any earlier code when this attempt carries none", async () => {
+    const { app } = build({ google: google as never });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/auth/google" });
+
+    expect(cookieOf(response)).toContain("deev_oauth_invite=;");
+    await app.close();
+  });
+
+  it("hands the code to the gated signup on the way back, then drops it", async () => {
+    const { app, auth } = build({ google: google as never });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/google/callback?code=abc&state=state-abc",
+      headers: { cookie: "deev_oauth_state=state-abc; deev_oauth_invite=EARLY-1" },
+    });
+
+    expect(auth.signInWithOAuth.mock.calls[0]?.[4]).toMatchObject({ inviteCode: "EARLY-1" });
+    expect(cookieOf(response)).toContain("deev_oauth_invite=;");
     await app.close();
   });
 });

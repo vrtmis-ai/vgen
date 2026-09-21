@@ -88,7 +88,6 @@ describe("generation error messages", () => {
   // right message contains, so a message can be reworded without touching this.
   it.each([
     ["insufficient_credits", "شارژ"],
-    ["tier_too_low", "ارتقا"],
     ["allowance_spent", "رایگان"],
     ["not_offered", "ارائه نمی‌شود"],
     ["params_mismatch", "قیمت‌گیری"],

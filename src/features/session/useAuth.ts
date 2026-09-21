@@ -49,7 +49,8 @@ export function useAuth() {
   });
 
   const startProviderSignIn = useMutation({
-    mutationFn: (provider: OAuthProvider) => services.auth.startProviderSignIn(provider),
+    mutationFn: ({ provider, inviteCode }: { provider: OAuthProvider; inviteCode?: string | undefined }) =>
+      services.auth.startProviderSignIn(provider, inviteCode),
     // Demo mode signs in locally and needs the refetch. In production the page
     // has already left by the time this would run, so it costs nothing there.
     onSuccess: refreshIdentity,

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useFamily } from "../features/catalog/CatalogProvider";
 import {
   X,
@@ -10,9 +11,6 @@ import {
   CaretLeft,
   CaretUp,
   DownloadSimple,
-  Heart,
-  ShareNetwork,
-  DotsThree,
   VideoCamera,
   ArrowsClockwise,
   Image as ImageIcon,
@@ -22,6 +20,7 @@ import {
   Sun,
   FrameCorners,
 } from "@phosphor-icons/react";
+import { displayAspect, type Generation } from "../lib/gallery";
 import { useI18n } from "../lib/i18n";
 import { useModalSurface } from "./FloatingSurface";
 
@@ -62,12 +61,62 @@ export interface ViewerAsset {
    */
   jobId?: string | undefined;
   url: string;
+  /** Absent means an image, which is what every caller but the gallery holds. */
+  kind?: Generation["kind"] | undefined;
   prompt: string;
   familyId: string;
   w: number;
   h: number;
   createdAt?: number | undefined;
   author?: string | undefined;
+}
+
+/**
+ * A finished generation, as the viewer wants it.
+ *
+ * Here rather than in each screen because both the studio wall and كارهای من
+ * open the same panel over the same rows, and the two had drifted: the studio
+ * corrected the frame to the size that actually came back while the gallery
+ * still used the size that was asked for.
+ */
+export function viewerAsset(gen: Generation, placeholderUrl?: string): ViewerAsset {
+  // What arrived, not what was ordered. A 9:16 request answered at 768x1344
+  // laid out a hair short of its own picture when this was read from w/h.
+  const shape = displayAspect(gen);
+  return {
+    id: gen.id,
+    ...(gen.jobId ? { jobId: gen.jobId } : {}),
+    url: gen.outputUrl ?? placeholderUrl ?? "",
+    kind: gen.kind,
+    prompt: gen.prompt,
+    familyId: gen.familyId,
+    w: shape.w,
+    h: shape.h,
+    createdAt: gen.createdAt,
+  };
+}
+
+/**
+ * Save the file, rather than open it in a tab.
+ *
+ * Through the API and not straight at the object: `download` on an anchor is
+ * honoured only for same-origin URLs, and an output URL is signed against the
+ * store's host — so the attribute was ignored and the browser did the other
+ * thing it knows how to do with a picture. The route answers 302 to the same
+ * object signed to arrive as an attachment, named from the stored mime type.
+ *
+ * A demo generation has no job behind it and its URL is already local to the
+ * page, so there the attribute works and is all there is.
+ */
+export function downloadAsset(downloadUrl: (jobId: string) => string, asset: ViewerAsset): void {
+  const el = document.createElement("a");
+  if (asset.jobId) el.href = downloadUrl(asset.jobId);
+  else {
+    el.href = asset.url;
+    el.download = `DEEV-${asset.id}.jpg`;
+  }
+  el.rel = "noopener";
+  el.click();
 }
 
 type Tab = "info" | "tools" | "comments";
@@ -132,11 +181,27 @@ export function AssetViewer({
   asset,
   onClose,
   onOpenModel,
+  onRegenerate,
   onDownload,
 }: {
   asset: ViewerAsset;
   onClose: () => void;
-  onOpenModel: (familyId: string, prompt?: string) => void;
+  /**
+   * Open a model, optionally carrying this asset in as its *input*.
+   *
+   * The third argument is what "to video" and "use as reference" mean: the
+   * picture on screen becomes the next generation's opening frame. Both used to
+   * omit it and open an empty form — the button named the model and dropped the
+   * only thing the user had pressed it on.
+   */
+  onOpenModel: (familyId: string, prompt?: string, fromGenerationId?: string) => void;
+  /**
+   * Run this generation again as it was run — its own model, settings and
+   * input files, not this output fed back in. The opposite direction to the
+   * third argument above, which is why it is a separate handler rather than
+   * another call to the same one.
+   */
+  onRegenerate: (a: ViewerAsset) => void;
   onDownload: (a: ViewerAsset) => void;
 }) {
   const { n } = useI18n();
@@ -161,7 +226,21 @@ export function AssetViewer({
     ? new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "long", day: "numeric" }).format(asset.createdAt)
     : "—";
 
-  return (
+  /* Portalled to <body>, and that is load-bearing rather than tidiness.
+
+     useModalSurface marks every *direct child of body* except the modal root
+     inert, so the rest of the page cannot be clicked or tabbed into while a
+     dialog is open. It finds that root with closest("[data-modal-root]"), and
+     rendered inline this element is not a child of body at all — so the filter
+     matched nothing, every child of body was marked inert including the one
+     containing this dialog, and inert inherits. The whole panel went dead:
+     tabs, download, and the close button with it. Escape still worked, because
+     that listener is on the document, which is the shape the bug reported as
+     "none of the buttons do anything".
+
+     Every other dialog here (PresetPicker, VoicePicker, ModelPicker) already
+     portals for this reason. This one was the exception. */
+  return createPortal(
     <div
       ref={dialogRef}
       data-modal-root
@@ -173,12 +252,23 @@ export function AssetViewer({
       style={{ background: "rgba(9,9,9,0.94)" }}
     >
       <div className="relative flex min-w-0 flex-1 items-center justify-center p-6">
-        <img
-          src={asset.url}
-          alt={asset.prompt}
-          className="max-h-full rounded-xl object-contain"
-          style={{ maxWidth: full ? "100%" : "min(100%, 46vh * var(--ar, 1))", aspectRatio: `${asset.w} / ${asset.h}` }}
-        />
+        {/* A clip in an <img> is a broken-image icon: the gallery opens videos here too. */}
+        {asset.kind === "video" ? (
+          <video
+            src={asset.url}
+            controls
+            playsInline
+            className="max-h-full rounded-xl object-contain"
+            style={{ maxWidth: full ? "100%" : "min(100%, 46vh * var(--ar, 1))", aspectRatio: `${asset.w} / ${asset.h}` }}
+          />
+        ) : (
+          <img
+            src={asset.url}
+            alt={asset.prompt}
+            className="max-h-full rounded-xl object-contain"
+            style={{ maxWidth: full ? "100%" : "min(100%, 46vh * var(--ar, 1))", aspectRatio: `${asset.w} / ${asset.h}` }}
+          />
+        )}
         <div className="absolute bottom-6 flex gap-1.5" style={{ insetInlineEnd: "1.5rem" }}>
           <button
             onClick={() => setFull((v) => !v)}
@@ -322,7 +412,7 @@ export function AssetViewer({
 
         <div className="flex flex-col gap-2 p-3" style={{ borderBlockStart: "1px solid var(--vg-border-subtle)" }}>
           <button
-            onClick={() => onOpenModel("seedance", asset.prompt)}
+            onClick={() => onOpenModel("seedance", asset.prompt, asset.id)}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[13.5px] font-bold"
             style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
           >
@@ -331,7 +421,7 @@ export function AssetViewer({
           </button>
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => onOpenModel(asset.familyId, asset.prompt)}
+              onClick={() => onRegenerate(asset)}
               className="flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold"
               style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
             >
@@ -339,7 +429,7 @@ export function AssetViewer({
               دوباره بساز
             </button>
             <button
-              onClick={() => onOpenModel(asset.familyId)}
+              onClick={() => onOpenModel(asset.familyId, undefined, asset.id)}
               className="flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold"
               style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
             >
@@ -347,30 +437,26 @@ export function AssetViewer({
               به‌عنوان مرجع
             </button>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => onDownload(asset)}
-              className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold"
-              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-            >
-              <DownloadSimple size={14} />
-              دانلود
-            </button>
-            {[Heart, ShareNetwork, DotsThree].map((Icon, i) => (
-              <button
-                key={i}
-                className="grid size-10 place-items-center rounded-xl"
-                style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
-              >
-                <Icon size={15} />
-              </button>
-            ))}
-          </div>
+          {/* Download alone on its row. It shared it with a heart, a share and
+              an overflow that were markup only — no handler, no menu, and
+              nothing behind them: liking does not exist, and community sharing
+              has a server route but no way for a browser to call it. A control
+              that cannot act is worse than an absent one, so they are gone
+              until there is something for them to do. */}
+          <button
+            onClick={() => onDownload(asset)}
+            className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold"
+            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
+          >
+            <DownloadSimple size={14} />
+            دانلود
+          </button>
           <p className="text-center text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
             {n(asset.w * asset.h > 4_000_000 ? 4 : 2)}K · بدون واترمارک
           </p>
         </div>
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }

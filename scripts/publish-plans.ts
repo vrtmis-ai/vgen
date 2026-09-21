@@ -15,7 +15,11 @@
 import { config } from "dotenv";
 import postgres from "postgres";
 import { MICRO_CREDITS_PER_COIN } from "@vgen/core";
-import { TOMAN_PER_USD } from "../src/data/plans";
+// Reached by path rather than by package name, the way check-pricing.ts does:
+// `@vgen/db` is not a dependency of the web workspace and adding one for a
+// script would drag the whole backend into the browser build.
+import { seedRate } from "../packages/db/src/fxRepository";
+import { SEED_TOMAN_PER_USD } from "../src/data/plans";
 import planList from "../src/data/plans.rows.json" with { type: "json" };
 
 config({ path: ".env.development.local", quiet: true });
@@ -37,19 +41,25 @@ interface PlanRow {
   popular: boolean;
   sortOrder: number;
   maxConcurrentJobs: number;
+  /** Days a term lasts. 0 = a pack: the coins never expire and nothing lapses. */
+  termDays: number;
+  /** Days from purchase that the unlimited pipe is open. 0 = never. */
+  unlimitedDays: number;
 }
 
 const rows = (planList as { rows: PlanRow[] }).rows;
 
-/**
- * Every plan grants monthly, including the annual ones.
+/*
+ * The term is per plan now, and two kinds of thing live in this table.
  *
- * Annual is a payment cadence, not a longer grant: twelve months are paid up
- * front but the coins still arrive monthly and still expire after thirty days,
- * which is exactly where the annual margin comes from. A 365-day term would
- * hand someone a year of coins on day one.
+ * A subscription — Pro, Studio, Creator — grants monthly even when a year is
+ * paid up front: annual is a payment cadence, not a longer grant, and that
+ * thirty-day expiry is exactly where the annual margin comes from. A 365-day
+ * term would hand someone a year of coins on day one.
+ *
+ * A pack — the four entry plans — has `termDays: 0`. Its coins never expire
+ * and its perks never lapse, so there is no term to state. See migration 0033.
  */
-const TERM_DAYS = 30;
 
 /**
  * Prices are stored in USD.
@@ -71,20 +81,24 @@ const CURRENCY = "USD";
 const UNCAPPED_RESOLUTION_PX = 4320;
 
 /**
- * The Toman figure a customer sees, as a rate rather than as a second price.
+ * A starting rate for a database that has none — and nothing more than that.
  *
- * Prices are stored in USD, so every Rial a customer is ever shown is this one
- * number applied at the edge — which is why it belongs in a table and not only
- * in a constant compiled into the browser. `quotes.exchange_rate_irr_per_usd`
- * is NOT NULL precisely so a quote can always say what rate it was shown at,
- * and a quote cannot be written at all until this row exists.
+ * This used to set the live rate on every run, from a constant edited by hand.
+ * That was a deploy quietly reverting the price of everything to whatever the
+ * market did in July: the worker now fetches the real USD/Toman rate daily
+ * (`apps/worker/src/fxRefresh.ts`), and a reseed stamping the constant back
+ * over it would undo a day's tracking every time the catalogue was published.
+ *
+ * Seeding still has to happen, because `quotes.exchange_rate_irr_per_usd` is
+ * NOT NULL: a database with no rate cannot quote a generation at all, and the
+ * worker's first refresh is up to an hour after it boots.
  *
  * Rials, not Toman: the column says IRR and the two differ by a factor of ten.
  * Getting this backwards would under-charge by 90%, so the conversion is done
  * here, once, next to the constant it converts.
  */
 const IRR_PER_TOMAN = 10;
-const IRR_PER_USD = TOMAN_PER_USD * IRR_PER_TOMAN;
+const IRR_PER_USD = SEED_TOMAN_PER_USD * IRR_PER_TOMAN;
 
 const sql = postgres(databaseUrl, { max: 1 });
 
@@ -108,11 +122,11 @@ try {
         insert into plans (
           code, name, tier, micro_credits_per_term, term_days,
           price_amount, currency, annual_price_amount,
-          max_resolution_px, max_concurrent_jobs, presentation, sort_order, is_public, is_active
+          max_resolution_px, max_concurrent_jobs, unlimited_days, presentation, sort_order, is_public, is_active
         ) values (
-          ${row.code}, ${row.name}, ${row.tier}, ${microCredits}, ${TERM_DAYS},
+          ${row.code}, ${row.name}, ${row.tier}, ${microCredits}, ${row.termDays},
           ${row.monthlyUsd}, ${CURRENCY}, ${row.annualUsdPerMonth},
-          ${UNCAPPED_RESOLUTION_PX}, ${row.maxConcurrentJobs}, ${tx.json(presentation)}, ${row.sortOrder}, true, true
+          ${UNCAPPED_RESOLUTION_PX}, ${row.maxConcurrentJobs}, ${row.unlimitedDays}, ${tx.json(presentation)}, ${row.sortOrder}, true, true
         )
         on conflict (code) do update set
           name = excluded.name,
@@ -124,6 +138,7 @@ try {
           annual_price_amount = excluded.annual_price_amount,
           max_resolution_px = excluded.max_resolution_px,
           max_concurrent_jobs = excluded.max_concurrent_jobs,
+          unlimited_days = excluded.unlimited_days,
           presentation = excluded.presentation,
           sort_order = excluded.sort_order,
           is_active = true
@@ -132,6 +147,7 @@ try {
           or plans.tier is distinct from excluded.tier
           or plans.micro_credits_per_term is distinct from excluded.micro_credits_per_term
           or plans.term_days is distinct from excluded.term_days
+          or plans.unlimited_days is distinct from excluded.unlimited_days
           or plans.price_amount is distinct from excluded.price_amount
           or plans.currency is distinct from excluded.currency
           or plans.annual_price_amount is distinct from excluded.annual_price_amount
@@ -154,33 +170,16 @@ try {
       returning code
     `;
 
-    // Effective-dated like model_prices: never an UPDATE, always close the old
-    // row and open a new one. A quote points at the rate it was shown, and
-    // rewriting that row in place would retroactively change what a customer
-    // was told last week.
-    const [liveRate] = await tx<{ rate: string }[]>`
-      select rate from fx_rates
-      where base_currency = 'USD' and quote_currency = 'IRR' and valid_to is null
-      limit 1
-    `;
-    let rateChanged = false;
-    if (Number(liveRate?.rate) !== IRR_PER_USD) {
-      await tx`
-        update fx_rates set valid_to = now()
-        where base_currency = 'USD' and quote_currency = 'IRR' and valid_to is null
-      `;
-      await tx`
-        insert into fx_rates (base_currency, quote_currency, rate, source)
-        values ('USD', 'IRR', ${IRR_PER_USD}, 'manual')
-      `;
-      rateChanged = true;
-    }
+    // Only when the table is empty. See SEED_TOMAN_PER_USD: the live rate
+    // belongs to the daily refresh, and this script's job is to make sure one
+    // exists at all, not to decide what it is.
+    const rateSeeded = await seedRate(tx, IRR_PER_USD, "seed");
 
-    return { written, retired: retired.length, total: rows.length, rateChanged };
+    return { written, retired: retired.length, total: rows.length, rateSeeded };
   });
 
-  const rate = summary.rateChanged ? `, fx rate set to ${IRR_PER_USD} IRR/USD` : "";
-  if (summary.written === 0 && summary.retired === 0 && !summary.rateChanged) {
+  const rate = summary.rateSeeded ? `, seeded fx rate ${IRR_PER_USD} IRR/USD (pnpm fx:refresh for the market rate)` : "";
+  if (summary.written === 0 && summary.retired === 0 && !summary.rateSeeded) {
     console.log(`plans already current: ${summary.total} plans, nothing written`);
   } else {
     console.log(`published ${summary.total} plans (${summary.written} written, ${summary.retired} retired)${rate}`);

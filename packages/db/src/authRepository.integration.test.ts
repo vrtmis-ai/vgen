@@ -447,3 +447,102 @@ describe("abuse signals", () => {
     });
   });
 });
+
+/* The undertaking the owner signs to eNamad should be backed by one the user
+   signed to DEEV. Recorded on the one insert every signup path runs through, so
+   a route added later cannot forget to. */
+describe("recording what the user agreed to", () => {
+  it("stores the version and the moment when a signup carries one", async () => {
+    await inRollback(sql, async (tx) => {
+      const code = await usableInvite(tx, "terms-1");
+      const user = await auth(tx).signInWithPhone(phone("90"), { inviteCode: code, termsVersion: "2026-09-09" });
+
+      const [row] = await tx<{ terms_version: string | null; terms_accepted_at: Date | null }[]>`
+        select terms_version, terms_accepted_at from users where id = ${user.id}
+      `;
+      // The version is the half that means something a year later: a boolean
+      // answers "did they agree" and not "to what".
+      expect(row?.terms_version).toBe("2026-09-09");
+      expect(row?.terms_accepted_at).toBeInstanceOf(Date);
+    });
+  });
+
+  it("records nothing at all when the caller says nothing", async () => {
+    await inRollback(sql, async (tx) => {
+      const code = await usableInvite(tx, "terms-2");
+      const user = await auth(tx).signInWithPhone(phone("91"), { inviteCode: code });
+
+      const [row] = await tx<{ terms_version: string | null; terms_accepted_at: Date | null }[]>`
+        select terms_version, terms_accepted_at from users where id = ${user.id}
+      `;
+      // Backfilling a consent nobody gave would be a lie in the one column
+      // whose whole purpose is to be true.
+      expect(row?.terms_version).toBeNull();
+      expect(row?.terms_accepted_at).toBeNull();
+    });
+  });
+
+  it("does not restate the agreement when the same person signs in again", async () => {
+    await inRollback(sql, async (tx) => {
+      const code = await usableInvite(tx, "terms-3");
+      const first = await auth(tx).signInWithPhone(phone("92"), { inviteCode: code, termsVersion: "2026-09-09" });
+      const again = await auth(tx).signInWithPhone(phone("92"), { termsVersion: "2099-01-01" });
+
+      expect(again.id).toBe(first.id);
+      const [row] = await tx<{ terms_version: string | null }[]>`
+        select terms_version from users where id = ${first.id}
+      `;
+      // Signing in is not agreeing to something new. A version bump has to be
+      // accepted, not absorbed by opening the app.
+      expect(row?.terms_version).toBe("2026-09-09");
+    });
+  });
+});
+
+describe("asking whether an invite code works, without spending it", () => {
+  it("says yes to a live code however it was typed, and spends nothing", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      const invite = await access.createInvite({ code: "door-open", maxRedemptions: 1, expiresAt: new Date(Date.now() + 86_400_000) });
+
+      expect(await auth(tx).isInviteUsable("  DOOR-OPEN ")).toBe(true);
+      expect(await access.getInvite(invite.id)).toMatchObject({ redemptionCount: 0, isUsable: true });
+    });
+  });
+
+  it("says no to every code redeem_invite() would refuse", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      const hour = 3_600_000;
+      await access.createInvite({ code: "expired", maxRedemptions: 5, expiresAt: new Date(Date.now() - hour) });
+      const revoked = await access.createInvite({ code: "revoked", maxRedemptions: 5, expiresAt: new Date(Date.now() + hour) });
+      await access.revokeInvite(revoked.id, null);
+      await access.createInvite({ code: "used-up", maxRedemptions: 1, expiresAt: new Date(Date.now() + hour) });
+      const joiner = await auth(tx).signInWithPhone(phone("90"), { inviteCode: "used-up" });
+      expect(joiner.id).toBeTruthy();
+      await tx`insert into invite_codes (code, max_redemptions, starts_at) values ('not-yet', 5, now() + interval '1 day')`;
+
+      for (const code of ["expired", "revoked", "used-up", "not-yet", "never-issued"]) {
+        expect(await auth(tx).isInviteUsable(code), code).toBe(false);
+      }
+    });
+  });
+
+  it("closes a single-use code the moment its one account is created", async () => {
+    await inRollback(sql, async (tx) => {
+      await new PostgresAccessRepository(tx).createInvite({
+        code: "one-seat",
+        maxRedemptions: 1,
+        expiresAt: new Date(Date.now() + 86_400_000),
+      });
+      await auth(tx).registerWithPassword("first@example.test", "correct-horse-9", { inviteCode: "one-seat" });
+
+      expect(await auth(tx).isInviteUsable("one-seat")).toBe(false);
+      await expect(
+        auth(tx).registerWithPassword("second@example.test", "correct-horse-9", { inviteCode: "one-seat" }),
+      ).rejects.toMatchObject({
+        code: "invite_invalid",
+      });
+    });
+  });
+});

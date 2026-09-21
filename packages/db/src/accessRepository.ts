@@ -88,6 +88,24 @@ export interface InvitePerformance {
   firstRedeemedAt: number | null;
   lastRedeemedAt: number | null;
   createdAt: number;
+  /** When the code stops admitting anyone. Null is "never", which the console no longer creates. */
+  expiresAt: number | null;
+  startsAt: number;
+}
+
+/** What the console may change on a code after it exists. Absent means unchanged. */
+export interface UpdateInviteInput {
+  label?: string | undefined;
+  maxRedemptions?: number | undefined;
+  expiresAt?: Date | undefined;
+}
+
+/** The cap was set below the number of people the code has already admitted. */
+export class InviteLimitError extends Error {
+  constructor(readonly redemptionCount: number) {
+    super(`This code has already been used ${redemptionCount} times`);
+    this.name = "InviteLimitError";
+  }
 }
 
 export interface PromoPerformance {
@@ -145,6 +163,8 @@ type InviteRow = {
   first_redeemed_at: Date | null;
   last_redeemed_at: Date | null;
   created_at: Date;
+  expires_at: Date | null;
+  starts_at: Date;
 };
 
 function toInvite(row: InviteRow): InvitePerformance {
@@ -164,6 +184,8 @@ function toInvite(row: InviteRow): InvitePerformance {
     firstRedeemedAt: time(row.first_redeemed_at),
     lastRedeemedAt: time(row.last_redeemed_at),
     createdAt: row.created_at.getTime(),
+    expiresAt: time(row.expires_at),
+    startsAt: row.starts_at.getTime(),
   };
 }
 
@@ -282,6 +304,36 @@ export class PostgresAccessRepository {
       coinsSpent: microCreditsToCoins(int(row.micro_credits_spent)),
       redeemedAt: row.redeemed_at.getTime(),
     }));
+  }
+
+  /**
+   * Changes a code's label, cap or expiry, and nothing else.
+   *
+   * The cap cannot go below the number of people already admitted: the
+   * table's own CHECK says so, and it is tested inside the same statement
+   * rather than read first, so a signup landing between the read and the write
+   * cannot slip past it. Lowering the cap to exactly that number is how an
+   * operator closes a code without revoking it.
+   */
+  async updateInvite(id: string, input: UpdateInviteInput): Promise<InvitePerformance | null> {
+    const patch: Record<string, string | number | Date> = {};
+    if (input.label !== undefined) patch.label = input.label;
+    if (input.maxRedemptions !== undefined) patch.max_redemptions = input.maxRedemptions;
+    if (input.expiresAt !== undefined) patch.expires_at = input.expiresAt;
+    if (Object.keys(patch).length === 0) return this.getInvite(id);
+
+    const cap = input.maxRedemptions ?? null;
+    const rows = await this.sql<{ id: string }[]>`
+      update invite_codes set ${this.sql(patch)}
+      where id = ${id} and (${cap}::int is null or redemption_count <= ${cap}::int)
+      returning id
+    `;
+    if (rows.length === 0) {
+      const [existing] = await this.sql<{ redemption_count: number }[]>`select redemption_count from invite_codes where id = ${id}`;
+      if (!existing) return null;
+      throw new InviteLimitError(existing.redemption_count);
+    }
+    return this.getInvite(id);
   }
 
   async revokeInvite(id: string, revokedBy: string | null): Promise<InvitePerformance | null> {

@@ -1,0 +1,54 @@
+{
+  "models": ["flux-2/flex-text-to-image"],
+  "title": "Flux-2 - Text to Image",
+  "docUrl": "https://docs.kie.ai/market/flux2/flex-text-to-image.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Flux-2 - Text to Image — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "Generation prompt, length must be between 3-5000 characters. (Maximum length: 5000 characters)",
+        "type": "string",
+        "maxLength": 5000,
+        "examples": [
+          "A humanoid figure with a vintage television set for a head, featuring a green-tinted screen displaying a `Hello FLUX.2` writing in ASCII font. The figure is wearing a yellow raincoat, and there are various wires and components attached to the television. The background is cloudy and indistinct, suggesting an outdoor setting"
+        ]
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "description": "Aspect ratio of the generated image. When `auto` is selected, it will match the ratio of the first input image (requires input image to be provided).",
+        "enum": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
+        "default": "1:1",
+        "examples": ["1:1"]
+      },
+      "resolution": {
+        "description": "Output image resolution.",
+        "type": "string",
+        "enum": ["1K", "2K"],
+        "default": "1K",
+        "examples": ["1K"]
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    },
+    "required": ["prompt", "aspect_ratio", "resolution"]
+  },
+  "examples": [
+    {
+      "model": "flux-2/flex-text-to-image",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "A humanoid figure with a vintage television set for a head, featuring a green-tinted screen displaying a `Hello FLUX.2` writing in ASCII font. The figure is wearing a yellow raincoat, and there are various wires and components attached to the television. The background is cloudy and indistinct, suggesting an outdoor setting",
+        "aspect_ratio": "1:1",
+        "resolution": "1K",
+        "nsfw_checker": false
+      }
+    }
+  ]
+}

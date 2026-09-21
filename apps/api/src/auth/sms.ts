@@ -11,25 +11,6 @@ export interface SmsSender {
   sendVerificationCode(phoneE164: string, code: string): Promise<void>;
 }
 
-/**
- * Development sender: prints the code instead of sending it.
- *
- * Refuses to run in production. Without that guard, a missing gateway
- * configuration would not fail the deploy — it would silently start printing
- * every customer's one-time code into the logs while signup appeared to work.
- */
-export class ConsoleSmsSender implements SmsSender {
-  constructor(private readonly log: (line: string) => void = console.info) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("ConsoleSmsSender must not be used in production; configure a real SMS gateway");
-    }
-  }
-
-  async sendVerificationCode(phoneE164: string, code: string): Promise<void> {
-    this.log(`[sms] verification code for ${phoneE164}: ${code}`);
-  }
-}
-
 export interface KavenegarConfig {
   apiKey: string;
   /** The pre-approved template name. Iranian gateways send OTPs via template, not free text. */

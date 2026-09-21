@@ -11,7 +11,29 @@ import { readStoredCollection, writeStoredCollection } from "../adapters/browser
  * carried all seven server states plus an `error`; this vocabulary was the part
  * that could not say what happened.
  */
-export type GenStatus = "running" | "done" | "failed";
+/**
+ * What a generation is doing, as the screens need to tell it apart.
+ *
+ * Narrower than the seven the API sends, and no longer three. `queued` came out
+ * of `running` because they are not the same thing to the person waiting: a
+ * queued job has not been given to a provider yet, so it can still be called
+ * off and nothing is being spent on it, and saying «در حال ساخت» over it is
+ * a claim about work that is not happening. `cancelled` came out of `failed`
+ * for the opposite reason — it is the one ending the customer chose, and the
+ * failure language, down to "no coins were taken", answers a question they did
+ * not ask.
+ */
+export type GenStatus = "queued" | "running" | "done" | "failed" | "cancelled";
+
+/** Still on its way to an answer: queued or running. */
+export function isPending(status: GenStatus): boolean {
+  return status === "queued" || status === "running";
+}
+
+/** Ended with nothing to show — refused, or called off. */
+export function isUnfinished(status: GenStatus): boolean {
+  return status === "failed" || status === "cancelled";
+}
 
 export interface Generation {
   /** Optimistic client key. Server calls must use jobId. */
@@ -48,6 +70,13 @@ export interface Generation {
   /** URL in Vgen-owned storage, not an expiring provider URL. */
   outputUrl?: string | undefined;
   /**
+   * Every output after the first, for the models that answer with more than
+   * one. Suno sends two takes per request; the audio studio lists each, and
+   * everywhere else shows the first. They expire with `outputUrl` — one
+   * response signs them all.
+   */
+  moreOutputs?: { url: string; durationMs?: number | undefined }[] | undefined;
+  /**
    * The stored asset behind `outputUrl`, so this generation can be an *input*
    * to the next one. "To video" hands a finished image to a video model as its
    * opening frame, and the quote names references by asset id — the URL is
@@ -64,6 +93,23 @@ export interface Generation {
    * read it.
    */
   outputUrlExpiresAt?: number | undefined;
+  /**
+   * What this generation was actually submitted with, so it can be run again
+   * as it was run — the aspect, the resolution, the duration, the seed.
+   *
+   * Only present on rows read from the server. A row this tab started
+   * optimistically already knows its own inputs from the form that made it.
+   */
+  params?: Record<string, unknown> | undefined;
+  /**
+   * The files it ran against, keyed by the slot they filled, as asset ids.
+   *
+   * "Generate again" needs these and nothing else would do: the reference is
+   * part of the request, not decoration on it, and re-running seedance with the
+   * prompt but without the first frame is a different generation that costs the
+   * same money.
+   */
+  refAssetIds?: Record<string, string[]> | undefined;
   /** Server-computed perceptual hash, opaque to the client. */
   phash?: string | undefined;
   status: GenStatus;
@@ -95,10 +141,15 @@ const GenerationSchema: z.ZodType<Generation> = z.object({
   outH: z.number().int().positive().optional(),
   durationMs: z.number().int().nonnegative().optional(),
   outputUrl: z.string().min(1).optional(),
+  moreOutputs: z.array(z.object({ url: z.string().min(1), durationMs: z.number().int().nonnegative().optional() })).optional(),
   outputAssetId: z.string().min(1).optional(),
   outputUrlExpiresAt: z.number().int().nonnegative().optional(),
   phash: z.string().min(1).optional(),
-  status: z.enum(["running", "done", "failed"]),
+  /* Every value `GenStatus` can hold. A row whose status is not in this list
+     does not fail to parse — it is dropped, silently, which is what happened
+     to every queued generation the moment `queued` existed and this did not
+     know about it: submit, reload, and the card was gone. */
+  status: z.enum(["queued", "running", "done", "failed", "cancelled"]),
   error: z.object({ code: z.string().min(1), message: z.string() }).optional(),
   progress: z.number().min(0).max(100).optional(),
   createdAt: z.number().int().nonnegative(),
