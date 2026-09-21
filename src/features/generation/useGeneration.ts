@@ -31,7 +31,12 @@ export function useGenerationJobs(jobIds: readonly string[]) {
   const results = useQueries({
     queries: jobIds.map((jobId) => ({
       queryKey: ["generation-job", jobId] as const,
-      queryFn: ({ signal }) => services.generation.getJob(jobId, { signal }),
+      /* `signal` is annotated rather than inferred. useQueries infers the whole
+         options object from the array literal, and that inference stopped
+         resolving once GenerationJob grew its `params` record — the context
+         argument fell back to implicit any. The type it should have had is not
+         in question, so it is written down. */
+      queryFn: ({ signal }: { signal: AbortSignal }) => services.generation.getJob(jobId, { signal }),
       refetchInterval: (query: Query<GenerationJob>) => {
         const status = query.state.data?.status;
         return status === undefined || status === "queued" || status === "running" ? 1_000 : false;

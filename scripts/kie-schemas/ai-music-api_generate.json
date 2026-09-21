@@ -1,0 +1,131 @@
+{
+  "models": ["ai-music-api/generate"],
+  "title": "Generate Music",
+  "docUrl": "https://docs.kie.ai/suno-api/generate-music.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-19",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Generate Music — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "A description of the desired audio content.  \n- In Custom Mode (`customMode: true`): Required if `instrumental` is `false`. The prompt will be strictly used as the lyrics and sung in the generated track. Character limits by model:  \n  - **V4**（Discontinued）: Maximum 3000 characters  \n  - **V4_5 & V4_5PLUS**（Discontinued）: Maximum 5000 characters  \n  - **V4_5ALL**（Discontinued）: Maximum 5000 characters  \n  - **V5_5 & V5**（Discontinued）: Maximum 5000 characters  \n  - **V6、V6_MINI 和 V6_WILD**: Maximum 5000 characters  \n  Example: \"A calm and relaxing piano track with soft melodies\"  \n- In Non-custom Mode (`customMode: false`): Always required. The prompt serves as the core idea, and lyrics will be automatically generated based on it (not strictly matching the input). Maximum 3000 characters.  \n  Example: \"A short relaxing piano tune\"",
+        "examples": ["A calm and relaxing piano track with soft melodies"]
+      },
+      "image_urls": {
+        "type": "array",
+        "description": "Array of referenced image URLs.\n- Supported formats: JPEG, JPG, PNG, WEBP.\n- Limits: Maximum 10MB per image, up to 5 images in total.\n- Note: When images are provided, the `prompt` parameter becomes optional.\n- Effective only when customMode is false.",
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 5
+      },
+      "style": {
+        "type": "string",
+        "description": "Music style specification for the generated audio.  \n- Required in Custom Mode (`customMode: true`). Defines the genre, mood, or artistic direction.  \n- Character limits by model:  \n  - **V4**（Discontinued）: Maximum 200 characters  \n  - **V4_5 & V4_5PLUS**（Discontinued）: Maximum 1000 characters  \n  - **V4_5ALL**（Discontinued）: Maximum 1000 characters  \n  - **V5_5 & V5**（Discontinued）: Maximum 1000 characters  \n  - **V6、V6_MINI 和 V6_WILD**: Maximum 1000 characters \n- Common examples: Jazz, Classical, Electronic, Pop, Rock, Hip-hop, etc.",
+        "examples": ["Classical"]
+      },
+      "title": {
+        "type": "string",
+        "description": "Title for the generated music track.  \n- Required in Custom Mode (`customMode: true`).  \n- Max length: 80 characters.  \n- Will be displayed in player interfaces and filenames.",
+        "examples": ["Peaceful Piano Meditation"]
+      },
+      "custom_mode": {
+        "type": "boolean",
+        "description": "Determines if advanced parameter customization is enabled.  \n- If `true`: Allows detailed control with specific requirements for `style` and `title` fields.  \n- If `false`: Simplified mode where only `prompt` is required and other parameters are ignored.",
+        "examples": [true]
+      },
+      "instrumental": {
+        "type": "boolean",
+        "description": "Determines if the audio should be instrumental (no lyrics).  \n- In Custom Mode (`custom_mode: true`):  \n  - If `true`: Only `style` and `title` are required.  \n  - If `false`: `style`, `title`, and `prompt` are required (with prompt used as the exact lyrics).  \n- In Non-custom Mode (`custom_mode: false`): No impact on required fields (prompt only).",
+        "examples": [true]
+      },
+      "model": {
+        "type": "string",
+        "description": "The AI model version to use for generation.  \n- Required for all requests.  \n- Available options:  \n  - **`V6_WILD`**：Pushes creative boundaries for bolder, more distinctive musical expression.\n  - **`V6_MINI`**：Lightweight and fast, balancing quality and speed for effortless creation.\n  - **`V6`**：Greater musical expression with more natural vocals and richer details.\n  - **`V5_5`**（Discontinued）：Custom Models Tailored to Your Unique Taste.  \n  - **`V5`**（Discontinued）: Superior musical expression, faster generation.  \n  - **`V4_5PLUS`**（Discontinued）: V4.5+ delivers richer sound, new ways to create, max 8 min.  \n  - **`V4_5`**（Discontinued）: V4.5 enables smarter prompts, faster generations, max 8 min.  \n  - **`V4_5ALL`**（Discontinued）: V4.5ALL enables smarter prompts, faster generations, max 8 min.  \n  - **`V4`**（Discontinued）: V4 improves vocal quality, max 4 min.\n\n",
+        "enum": ["V4", "V4_5", "V4_5PLUS", "V4_5ALL", "V5", "V5_5", "V6", "V6_MINI", "V6_WILD"],
+        "default": "V6",
+        "examples": ["V6"]
+      },
+      "negative_tags": {
+        "type": "string",
+        "description": "Music styles or traits to exclude from the generated audio. Optional. Use to avoid specific styles.",
+        "examples": ["Heavy Metal, Upbeat Drums"]
+      },
+      "vocal_gender": {
+        "type": "string",
+        "description": "Vocal gender preference for the singing voice. Optional. Use 'm' for male and 'f' for female. Note: This parameter is only effective when custom_mode is true. Based on practice, this parameter can only increase the probability but cannot guarantee adherence to male/female voice instructions.",
+        "enum": ["m", "f"],
+        "examples": ["m"]
+      },
+      "style_weight": {
+        "type": "number",
+        "description": "Strength of adherence to the specified style. Optional. Range 0–1, up to 2 decimal places.",
+        "minimum": 0,
+        "maximum": 1,
+        "multipleOf": 0.01,
+        "examples": [0.65]
+      },
+      "weirdness_constraint": {
+        "type": "number",
+        "description": "Controls experimental/creative deviation. Optional. Range 0–1, up to 2 decimal places.",
+        "minimum": 0,
+        "maximum": 1,
+        "multipleOf": 0.01,
+        "examples": [0.65]
+      },
+      "audio_weight": {
+        "type": "number",
+        "description": "Balance weight for audio features vs. other factors. Optional. Range 0–1, up to 2 decimal places.",
+        "minimum": 0,
+        "maximum": 1,
+        "multipleOf": 0.01,
+        "examples": [0.65]
+      },
+      "persona_id": {
+        "type": "string",
+        "description": "Only available when Custom Mode (`custom_mode: true`) is enabled. Persona ID or Voice ID to apply to the generated music. Optional. Use this to apply a specific persona style to your music generation. \n\nTo generate a persona ID, use the [Generate Persona](https://docs.kie.ai/suno-api/generate-persona) endpoint to create a personalized music Persona based on generated music.\n\nTo generate a Voice ID, use the [Generate Voice](https://docs.kie.ai/suno-api/suno-voice-generate)endpoint",
+        "examples": ["persona_123"]
+      },
+      "persona_model": {
+        "type": "string",
+        "enum": ["style_persona", "voice_persona"],
+        "description": "The persona model is only applicable to the V5 (deactivated), V5.5 (deactivated), V6, V6_MINI, and V6_WILD models."
+      },
+      "duration": {
+        "type": "number",
+        "default": 20,
+        "examples": [20],
+        "minimum": 10,
+        "maximum": 360,
+        "description": "Audio duration. Optional; It is only valid when custom_mode is true and the model is V5_5 (deprecated), V6, V6_MINI, or V6_WILD."
+      }
+    },
+    "required": ["prompt", "custom_mode", "instrumental", "model"]
+  },
+  "examples": [
+    {
+      "model": "ai-music-api/generate",
+      "callBackUrl": "https://api.example.com/callback",
+      "input": {
+        "prompt": "A calm and relaxing piano track with soft melodies",
+        "custom_mode": true,
+        "instrumental": true,
+        "model": "V4",
+        "style": "Classical",
+        "title": "Peaceful Piano Meditation",
+        "negative_tags": "Heavy Metal, Upbeat Drums",
+        "vocal_gender": "m",
+        "style_weight": 0.65,
+        "weirdness_constraint": 0.65,
+        "audio_weight": 0.65,
+        "persona_id": "persona_123",
+        "persona_model": "style_persona",
+        "duration": 20
+      }
+    }
+  ]
+}

@@ -1,23 +1,26 @@
 import type { Sql } from "postgres";
 import { COIN_USD } from "@vgen/core";
-import { PostgresEntitlementsRepository, type Tier, type UnlimitedGrant } from "./entitlementsRepository";
+import { PostgresEntitlementsRepository, type UnlimitedGrant } from "./entitlementsRepository";
 import { PostgresPricingRepository, PriceUnavailableError } from "./pricingRepository";
 import { hashGenerationParams, type GenerationParams } from "./generationRepository";
 
 /**
  * What a generation costs this account, decided by the server.
  *
- * Three questions are answered here, in this order, because each only makes
- * sense once the one before it has an answer:
+ * Two questions are answered here, in this order, because the second only
+ * makes sense once the first has an answer:
  *
  *   1. does this variant exist, and what feature does it serve
- *   2. does this account's plan reach it at all          <- the tier gate
- *   3. is it free for them today, and if not, what is the price
+ *   2. is it free for them today, and if not, what is the price
  *
- * Every one of those used to be answered in the browser. `src/lib/access.tsx`
- * draws a padlock and `src/data/pricing.ts` computes a number, and both were
- * advisory: curl has never seen a padlock, and a price the client computes is
- * a price the client can edit. This file is where they stop being advice.
+ * There was a third between them — does this account's plan reach this model —
+ * and it is gone. No model is locked to a plan: what a plan sells is coins, how
+ * many generations may run at once, and a window on the unlimited pipe. The
+ * only gate left on a generation is whether the wallet covers the price.
+ *
+ * Both of these used to be answered in the browser. `src/data/pricing.ts`
+ * computes a number there, and it is advisory: a price the client computes is a
+ * price the client can edit. This file is where it stops being advice.
  */
 
 /** How long a quote is good for. Long enough to fill in a prompt, short
@@ -61,7 +64,6 @@ export type QuoteResult =
   | { outcome: "quoted"; quote: QuotedGeneration }
   | { outcome: "unknown_account" }
   | { outcome: "unknown_variant" }
-  | { outcome: "tier_too_low"; requiredTier: Tier; currentTier: Tier }
   | { outcome: "not_offered" }
   | { outcome: "no_price" }
   /**
@@ -115,7 +117,8 @@ function billableSeconds(params: GenerationParams, clipSeconds: number | undefin
  * `resolution: ["1K","2K"]` and the request names no resolution, the model's
  * own default decides what runs — and we do not know here what that is, so the
  * safe answer is to price it. Missing configuration costs a sale, never the
- * margin, which is how the tier gate above already resolves the same tension.
+ * margin — the same way an entitlement that does not name a setting is read as
+ * covering it, and never the other way round.
  */
 export function coversSettings(covers: Record<string, string[]> | null, params: GenerationParams): boolean {
   if (!covers) return true;
@@ -222,13 +225,18 @@ export class PostgresQuotesRepository {
     `;
     if (!feature) return { outcome: "unknown_variant" };
 
-    // ---- the tier gate -------------------------------------------------
-    // An unknown minTier locks rather than unlocks. Missing configuration
-    // should cost a sale, never the margin: the four families that were once
-    // missing from the hand-kept tier map were all expensive ones.
-    const requiredTier = (model.capabilities.family?.minTier ?? 3) as Tier;
-    const currentTier = await this.entitlements.tierForAccount(accountId);
-    if (currentTier < requiredTier) return { outcome: "tier_too_low", requiredTier, currentTier };
+    // ---- no tier gate ---------------------------------------------------
+    // There was one here, and its removal is the decision rather than an
+    // oversight: a family's `minTier` no longer says who may run it. Every
+    // model is open to every account, and the only thing standing between a
+    // customer and a generation is whether their wallet covers the price —
+    // enforced below, and again by the hold the submission takes.
+    //
+    // A tier still decides the unlimited pipe, and `unlimitedTierForAccount`
+    // is not the same question as "what plan is this": it answers 1 once the
+    // plan's unlimited window has closed, so a perk sold for seven days stops
+    // after seven days without a second concept to check.
+    const unlimitedTier = await this.entitlements.unlimitedTierForAccount(accountId);
 
     // ---- the references -------------------------------------------------
     // Before anything is priced, because a quote that names a file the caller
@@ -252,7 +260,7 @@ export class PostgresQuotesRepository {
     // customers on the plans that were sold the perk, which is the worst
     // possible set of people to start billing by accident.
     const wantsUnlimited = request.preferUnlimited ?? true;
-    const available = wantsUnlimited ? await this.entitlements.availability(model.id, feature.id, accountId, currentTier) : null;
+    const available = wantsUnlimited ? await this.entitlements.availability(model.id, feature.id, accountId, unlimitedTier) : null;
     const covered = available === null || coversSettings(available.grant.covers, request.params);
     const granted = available !== null && covered && (available.remaining === null || available.remaining > 0);
 

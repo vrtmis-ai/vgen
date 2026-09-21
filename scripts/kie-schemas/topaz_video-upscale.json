@@ -1,0 +1,38 @@
+{
+  "models": ["topaz/video-upscale"],
+  "title": "Topaz - Video Upscale",
+  "docUrl": "https://docs.kie.ai/market/topaz/video-upscale.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Topaz - Video Upscale — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "video_url": {
+        "description": "URL of the video to upscale (File URL after upload, not file content; Accepted types: video/mp4, video/quicktime, video/x-matroska; Max size: 50.0MB)",
+        "type": "string",
+        "examples": ["https://file.aiquickdraw.com/custom-page/akr/section-images/1758166466095hvbwkrpw.mp4"]
+      },
+      "upscale_factor": {
+        "description": "Factor to upscale the video by (e.g. 2.0 doubles width and height)",
+        "type": "string",
+        "enum": ["1", "2", "4"],
+        "default": "2",
+        "examples": ["2"]
+      }
+    },
+    "required": ["video_url"]
+  },
+  "examples": [
+    {
+      "model": "topaz/video-upscale",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "video_url": "https://file.aiquickdraw.com/custom-page/akr/section-images/1758166466095hvbwkrpw.mp4",
+        "upscale_factor": "2"
+      }
+    }
+  ]
+}

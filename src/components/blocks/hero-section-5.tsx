@@ -12,9 +12,11 @@ import { ModelMark, hasModelMark } from "@/components/ModelMark";
 import { MegaMenu } from "@/components/MegaMenu";
 import { useNavMenus } from "@/components/navMenu";
 import type { NavKey } from "@/components/TopBar";
+import { Wordmark } from "@/components/brandMarks";
 import { BRAND } from "@/data/brand";
 import { useCatalogFamilies } from "@/features/catalog/CatalogProvider";
 import { effectiveUsd, toman } from "@/data/plans";
+import { useTomanPerUsd } from "@/features/plans/PlansProvider";
 import type { Family } from "@/data/models";
 import type { Plan } from "@/runtime/contracts/plans";
 import { useI18n, type TKey } from "@/lib/i18n";
@@ -112,6 +114,10 @@ export function HeroSection({
 }) {
   const ENTRY_PLAN = entryPlan(plans);
   const { t, n, lang } = useI18n();
+  // Same branch that supplies `families` below also supplies the ladder and
+  // the day's exchange rate. The hero quotes a Toman price, and that rate
+  // moves — it cannot come from a constant in the bundle.
+  const tomanPerUsd = useTomanPerUsd();
   const rtl = lang === "fa";
   // The anonymous `/` branch in app/(app)/layout.tsx wraps this in
   // CatalogProvider, so the same document every other reader on the page uses is
@@ -147,19 +153,20 @@ export function HeroSection({
                 </p>
 
                 <div className="mt-12 flex flex-col items-center justify-center gap-2 sm:flex-row lg:justify-start">
-                  <Button
+                  {/* The one paid action on the page, and the only button
+                      wearing the gleam — a light running its border instead of
+                      a lime slab sitting on the photograph. See `.vg-gleam`. */}
+                  <button
+                    type="button"
                     onClick={onSignUp}
-                    size="lg"
-                    className="h-12 rounded-full ps-5 pe-3 text-base font-bold"
-                    style={{
-                      background: "var(--vg-primary)",
-                      color: "var(--vg-text-on-primary)",
-                      boxShadow: "0 0 48px rgb(var(--vg-primary-rgb) / 0.35)",
-                    }}
+                    className="vg-gleam h-12 px-6 text-base font-bold"
+                    style={{ boxShadow: "inset 0 0 0 1px var(--vg-surface), 0 0 48px rgb(var(--vg-primary-rgb) / 0.22)" }}
                   >
-                    <span className="text-nowrap">{t("lp_cta_start")}</span>
-                    <ChevronLeft className="ms-1 size-5" />
-                  </Button>
+                    <span className="flex items-center gap-1 text-nowrap">
+                      {t("lp_cta_start")}
+                      <ChevronLeft className="size-5" />
+                    </span>
+                  </button>
                   <Button
                     key={2}
                     asChild
@@ -183,7 +190,7 @@ export function HeroSection({
                   {ENTRY_PLAN ? (
                     <a href="#plans" className="duration-150 hover:text-[color:var(--vg-text-secondary)]">
                       {t("lp_hero_from")
-                        .replace("{n}", n(toman(effectiveUsd(ENTRY_PLAN, false))))
+                        .replace("{n}", n(toman(effectiveUsd(ENTRY_PLAN, false), tomanPerUsd)))
                         .replace("{c}", n(ENTRY_PLAN.coinsPerTerm))}
                     </a>
                   ) : (
@@ -339,11 +346,8 @@ const HeroHeader = ({ onSignIn, onSignUp, signedIn }: { onSignIn: () => void; on
                 aria-label={BRAND.name}
                 className="flex items-center gap-2"
               >
-                <span
-                  className="text-[20px] font-light tracking-[0.34em]"
-                  style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-                >
-                  {BRAND.name}
+                <span style={{ color: "var(--vg-text)" }}>
+                  <Wordmark height={20} />
                 </span>
               </button>
 

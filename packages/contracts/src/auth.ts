@@ -1,3 +1,17 @@
+/**
+ * Which version of the terms a signup was agreed against.
+ *
+ * A date rather than a number, because that is what the page itself is dated
+ * with and a reader comparing the two should not have to translate. Bump it
+ * when the published terms change in substance; every account created after
+ * that carries the new string, and the old ones keep saying what they actually
+ * agreed to.
+ *
+ * Held here rather than in the API so the page that shows the terms and the
+ * column that records them cannot name different documents.
+ */
+export const TERMS_VERSION = "2026-09-09";
+
 import { z } from "zod";
 
 /**
@@ -9,6 +23,9 @@ import { z } from "zod";
  * compare a megabyte.
  */
 export const InviteCodeSchema = z.string().trim().min(3).max(64);
+
+export const CheckInviteSchema = z.object({ code: InviteCodeSchema }).strict();
+export const InviteCheckResultSchema = z.object({ valid: z.boolean() });
 
 /**
  * Accepted as typed, in any of the forms an Iranian number is written in —

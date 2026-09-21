@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, DownloadSimple, ArrowsClockwise, FilmSlate, ShareNetwork, WarningCircle, Trash } from "@phosphor-icons/react";
-import { displayAspect, type Generation } from "../lib/gallery";
+import { ArrowRight, DownloadSimple, ArrowsClockwise, FilmSlate, ShareNetwork, Trash } from "@phosphor-icons/react";
+import { displayAspect, isUnfinished, type Generation } from "../lib/gallery";
 import { Logo } from "../components/chrome";
 import { GenerationMedia } from "../components/GenerationMedia";
 import { jobFailureMessage } from "../features/generation/validation";
+import { Note } from "../components/ui/note";
 import { useI18n, type TKey } from "../lib/i18n";
 import { useAppServices } from "../runtime/AppServices";
 
@@ -34,7 +35,7 @@ export default function Result({
      had two states and a failed job fell into the one with the spinner, so the
      page kept promising a file the provider had already declined to make — for
      as long as the tab stayed open. */
-  const failed = gen.status === "failed";
+  const failed = isUnfinished(gen.status);
   /* Read, not simulated.
      This screen used to run its own interval, which was fine while a job could
      only be watched from here. It can now also be watched in the studio canvas
@@ -115,13 +116,17 @@ export default function Result({
                 question — "what is happening to my generation" — with the one
                 fact that block could not carry. */}
             {failed && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center">
-                <div style={{ color: "var(--vg-text-muted)" }}>
-                  <WarningCircle size={40} weight="regular" />
-                </div>
-                <div className="text-[13px] leading-6" style={{ color: "var(--vg-text-secondary)" }}>
-                  {jobFailureMessage(gen.error?.code)}
-                </div>
+              <div className="absolute inset-0 flex items-center justify-center px-6">
+                <Note
+                  type={gen.status === "cancelled" ? "default" : "error"}
+                  size="large"
+                  fill
+                  align="start"
+                  label={gen.status === "cancelled" ? t("gal_cancelled") : t("gal_failed")}
+                  className="max-w-[440px]"
+                >
+                  {gen.status === "cancelled" ? t("gal_cancelled_note") : jobFailureMessage(gen.error?.code)}
+                </Note>
               </div>
             )}
             <AnimatePresence>

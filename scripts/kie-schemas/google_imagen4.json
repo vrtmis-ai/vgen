@@ -1,0 +1,55 @@
+{
+  "models": ["google/imagen4"],
+  "title": "Google - imagen4",
+  "docUrl": "https://docs.kie.ai/market/google/imagen4.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Google - imagen4 — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "The text prompt describing what you want to see (Max length: 5000 characters)",
+        "type": "string",
+        "maxLength": 5000,
+        "examples": [
+          "A lively comic scene where two colleagues are in an office. The first person says, 'Have you heard about Google Imagen 4 Ultra?' The second person responds with excitement, 'It’s the best text-to-image tool out there!' The first person asks again, 'Do you know where to get the API?' The second person smiles and says, 'Kie.ai has it!' In the final panel, the two look at a screen showing Kie.ai’s interface with an API option, with bright and colorful comic-style illustrations."
+        ]
+      },
+      "negative_prompt": {
+        "description": "A description of what to discourage in the generated images (Max length: 5000 characters)",
+        "type": "string",
+        "maxLength": 5000,
+        "examples": [""]
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "description": "The aspect ratio of the generated image",
+        "enum": ["1:1", "16:9", "9:16", "3:4", "4:3", "auto"],
+        "default": "1:1",
+        "examples": ["1:1"]
+      },
+      "seed": {
+        "description": "Random seed for reproducible generation (Max length: 500 characters)",
+        "type": "string",
+        "maxLength": 500,
+        "examples": [""]
+      }
+    },
+    "required": ["prompt"]
+  },
+  "examples": [
+    {
+      "model": "google/imagen4",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "A lively comic scene where two colleagues are in an office. The first person says, 'Have you heard about Google Imagen 4 Ultra?' The second person responds with excitement, 'It’s the best text-to-image tool out there!' The first person asks again, 'Do you know where to get the API?' The second person smiles and says, 'Kie.ai has it!' In the final panel, the two look at a screen showing Kie.ai’s interface with an API option, with bright and colorful comic-style illustrations.",
+        "negative_prompt": "",
+        "aspect_ratio": "1:1",
+        "seed": ""
+      }
+    }
+  ]
+}

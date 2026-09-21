@@ -1,0 +1,55 @@
+{
+  "models": ["kling/v3-turbo-text-to-video"],
+  "title": "Kling - V3 Turbo Text to Video",
+  "docUrl": "https://docs.kie.ai/market/kling/v3-turbo-text-to-video.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Kling - V3 Turbo Text to Video — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "The text description of the video you want to generate (Max length: 2500 characters)",
+        "maxLength": 2500,
+        "examples": [
+          "Outdoor terrace of a European villa, by a dining table with a blue and white checkered tablecloth, a young white woman in a blue and white striped short-sleeve shirt and khaki shorts, with a brown belt, sits barefoot, opposite a young white man in a white T-shirt.The camera zooms in, the woman swirls the juice in a glass, her eyes looking at the distant woods, and says, \"These trees will turn yellow in a month, won't they?\"Close-up of the man, he lowers his head and says, \"But they'll be green again next summer.\"Then the woman turns her head, smiles at the man opposite, and says, \"Are you always this optimistic? Or just about summer?\"Then the man lifts his head, looks at the woman and says, \"Only about summers with you.\""
+        ]
+      },
+      "duration": {
+        "type": "string",
+        "description": "The duration of the generated video in seconds\nOptional duration: 3s - 15s",
+        "default": "5",
+        "examples": ["5"]
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "description": "The aspect ratio of the generated video frame",
+        "enum": ["1:1", "9:16", "16:9"],
+        "default": "16:9",
+        "examples": ["16:9"]
+      },
+      "resolution": {
+        "type": "string",
+        "description": "Resolution of the generated video (720p or 1080p)",
+        "enum": ["720p", "1080p"],
+        "default": "720p",
+        "examples": ["720p"]
+      }
+    },
+    "required": ["prompt", "duration", "aspect_ratio", "resolution"]
+  },
+  "examples": [
+    {
+      "model": "kling/v3-turbo-text-to-video",
+      "input": {
+        "prompt": "Outdoor terrace of a European villa, by a dining table with a blue and white checkered tablecloth, a young white woman in a blue and white striped short-sleeve shirt and khaki shorts, with a brown belt, sits barefoot, opposite a young white man in a white T-shirt.\n\nThe camera zooms in, the woman swirls the juice in a glass, her eyes looking at the distant woods, and says, \"These trees will turn yellow in a month, won't they?\"\n\nClose-up of the man, he lowers his head and says, \"But they'll be green again next summer.\"\n\nThen the woman turns her head, smiles at the man opposite, and says, \"Are you always this optimistic? Or just about summer?\"\n\nThen the man lifts his head, looks at the woman and says, \"Only about summers with you.\"",
+        "duration": "5",
+        "aspect_ratio": "16:9",
+        "resolution": "720p"
+      }
+    }
+  ]
+}

@@ -131,3 +131,164 @@ describe("typing an output URL", () => {
     expect(describeOutput("https://cdn.kie.ai/out.png?v=1.mp4", "image")).toMatchObject({ kind: "image", mimeType: "image/png" });
   });
 });
+
+describe("request shapes KIE names differently from the catalogue", () => {
+  it("sends an ElevenLabs script as `text`, not `prompt`", async () => {
+    const provider = new KieGenerationProvider({ fetch: stubFetch([{ status: 200, body: { data: { taskId: "t-2" } } }]) });
+
+    const submission = await provider.submit({
+      externalModelId: "elevenlabs/text-to-speech-turbo-2-5",
+      params: { prompt: "سلام", voice: "Rachel" },
+      apiKey: "k",
+    });
+
+    expect(submission.requestPayload).toEqual({ model: "elevenlabs/text-to-speech-turbo-2-5", input: { text: "سلام", voice: "Rachel" } });
+  });
+
+  it("always tells Kling 3 it is single-shot, the one mode the catalogue can fill", async () => {
+    const provider = new KieGenerationProvider({ fetch: stubFetch([{ status: 200, body: { data: { taskId: "t-3" } } }]) });
+
+    const submission = await provider.submit({
+      externalModelId: "kling-3.0/video",
+      params: { prompt: "a boat", mode: "std" },
+      apiKey: "k",
+    });
+
+    expect(submission.requestPayload).toEqual({ model: "kling-3.0/video", input: { multi_shots: false, prompt: "a boat", mode: "std" } });
+  });
+
+  it("posts a Veo tier to the legacy endpoint, flat, with an integer duration and translation on", async () => {
+    const provider = new KieGenerationProvider({
+      fetch: stubFetch([{ status: 200, body: { code: 200, data: { taskId: "veo_task_1" } } }]),
+    });
+
+    const submission = await provider.submit({
+      externalModelId: "veo3_lite",
+      params: { prompt: "a boat", aspect_ratio: "16:9", resolution: "720p", duration: "4", imageUrls: ["https://f/a.png"] },
+      apiKey: "k",
+    });
+
+    expect(submission.endpoint).toBe("https://api.kie.ai/api/v1/veo/generate");
+    expect(submission.requestPayload).toEqual({
+      model: "veo3_lite",
+      prompt: "a boat",
+      aspect_ratio: "16:9",
+      resolution: "720p",
+      duration: 4,
+      imageUrls: ["https://f/a.png"],
+      enableTranslation: true,
+    });
+  });
+
+  it("builds Gemini TTS's speaker and turn from the flat settings, as one speaker", async () => {
+    const provider = new KieGenerationProvider({ fetch: stubFetch([{ status: 200, body: { data: { taskId: "t-4" } } }]) });
+
+    const submission = await provider.submit({
+      externalModelId: "google/gemini-3-1-flash-tts",
+      params: { prompt: "سلام", voice_name: "Kore", style: "", pace: "Natural", accent: "Neutral", scene: "" },
+      apiKey: "k",
+    });
+
+    // An empty style and scene are "none", and are left out rather than sent
+    // as values the enum does not contain.
+    expect(submission.requestPayload).toEqual({
+      model: "google/gemini-3-1-flash-tts",
+      input: {
+        speakers: [{ speaker_id: "Speaker 1", voice_name: "Kore", accent: "Neutral", pace: "Natural" }],
+        dialogue_turns: [{ speaker_id: "Speaker 1", text: "سلام" }],
+      },
+    });
+  });
+
+  it("keeps a Gemini style and scene when one is chosen", async () => {
+    const provider = new KieGenerationProvider({ fetch: stubFetch([{ status: 200, body: { data: { taskId: "t-5" } } }]) });
+
+    const submission = await provider.submit({
+      externalModelId: "google/gemini-2-5-pro-tts",
+      params: { prompt: "hi", voice_name: "Puck", style: "Whisper", pace: "The Drift", accent: "British (RP)", scene: "a quiet room" },
+      apiKey: "k",
+    });
+
+    expect(submission.requestPayload).toEqual({
+      model: "google/gemini-2-5-pro-tts",
+      input: {
+        scene: "a quiet room",
+        speakers: [{ speaker_id: "Speaker 1", voice_name: "Puck", accent: "British (RP)", style: "Whisper", pace: "The Drift" }],
+        dialogue_turns: [{ speaker_id: "Speaker 1", text: "hi" }],
+      },
+    });
+  });
+
+  it("asks Suno for a song in non-custom mode, the one the catalogue fills", async () => {
+    const provider = new KieGenerationProvider({ fetch: stubFetch([{ status: 200, body: { data: { taskId: "t-6" } } }]) });
+
+    const submission = await provider.submit({
+      externalModelId: "ai-music-api/generate",
+      params: { prompt: "a calm piano tune", instrumental: true, model: "V6" },
+      apiKey: "k",
+    });
+
+    expect(submission.requestPayload).toEqual({
+      model: "ai-music-api/generate",
+      input: { custom_mode: false, prompt: "a calm piano tune", instrumental: true, model: "V6" },
+    });
+  });
+
+  it("reads Suno's takes from `data`, where every other model uses `resultUrls`", async () => {
+    // The body a live `ai-music-api/sounds` task returned, trimmed.
+    const provider = new KieGenerationProvider({
+      modality: "audio",
+      fetch: stubFetch([
+        {
+          status: 200,
+          body: {
+            data: {
+              state: "success",
+              creditsConsumed: 2.5,
+              resultJson: JSON.stringify({
+                code: 200,
+                data: [
+                  { audio_url: "https://tempfile.aiquickdraw.com/r/a.mp3", duration: 9.64, image_url: "https://cdn2.suno.ai/a.jpeg" },
+                  { audio_url: "https://tempfile.aiquickdraw.com/r/b.mp3", duration: 7.8, image_url: "https://cdn2.suno.ai/b.jpeg" },
+                ],
+                msg: "success",
+              }),
+            },
+          },
+        },
+      ]),
+    });
+
+    const outcome = await provider.poll("t-7", "k");
+
+    expect(outcome.state).toBe("succeeded");
+    if (outcome.state !== "succeeded") throw new Error("unreachable");
+    expect(outcome.outputs).toMatchObject([
+      { url: "https://tempfile.aiquickdraw.com/r/a.mp3", kind: "audio" },
+      { url: "https://tempfile.aiquickdraw.com/r/b.mp3", kind: "audio" },
+    ]);
+    expect(outcome.providerUnitsCost).toBe(2.5);
+  });
+
+  it("reads a Veo task from record-info by its successFlag", async () => {
+    const seen: string[] = [];
+    const responses = [
+      { data: { successFlag: 0 } },
+      { data: { successFlag: 1, response: { resultUrls: ["https://cdn.kie.ai/v.mp4"] } } },
+      { data: { successFlag: 3, errorCode: 501, errorMessage: "generation failed" } },
+    ];
+    let index = 0;
+    const fetchImpl = (async (url: string) => {
+      seen.push(url);
+      return new Response(JSON.stringify(responses[index++]), { status: 200 });
+    }) as unknown as typeof globalThis.fetch;
+    const provider = new KieGenerationProvider({ fetch: fetchImpl, modality: "video" });
+
+    expect((await provider.poll("veo_task_1", "k", "veo3_fast")).state).toBe("running");
+    const done = await provider.poll("veo_task_1", "k", "veo3_fast");
+    expect(done).toMatchObject({ state: "succeeded", providerUnitsCost: null });
+    if (done.state === "succeeded") expect(done.outputs.map((o) => o.url)).toEqual(["https://cdn.kie.ai/v.mp4"]);
+    expect(await provider.poll("veo_task_1", "k", "veo3_fast")).toMatchObject({ state: "failed", errorCode: "501", retryable: false });
+    expect(seen.every((url) => url === "https://api.kie.ai/api/v1/veo/record-info?taskId=veo_task_1")).toBe(true);
+  });
+});

@@ -21,19 +21,28 @@ export function generationFromJob(job: GenerationJob, families: readonly Family[
   const output = job.outputs[0];
   const kind = output?.kind === "video" || output?.kind === "audio" ? output.kind : (family?.kind ?? "image");
 
-  /* The requested aspect is not on the wire — it lives in the job's params,
-     which the gallery does not return. It barely matters: every finished row
-     has a measured size below, and this only shapes the placeholder box for a
-     row that has no file yet. A square for stills and 16:9 for motion is the
-     shape each is usually asked for. */
+  /* The measured size wins wherever there is one, and every finished row has
+     one. This only shapes the placeholder box for a row with no file yet, where
+     a square for stills and 16:9 for motion is the shape each is usually asked
+     for. The requested aspect does now arrive in `job.params` — it is carried
+     below for "generate again" rather than read here, because what a frame
+     should look like is a question the bytes answer better than the order did. */
   const [w, h] = output?.width && output.height ? [output.width, output.height] : kind === "image" ? [1, 1] : [16, 9];
 
+  /* `draft` sits with `queued`: neither has been handed to a provider, and the
+     difference between them is ours rather than the customer's. `expired` sits
+     with `failed` — a job whose window closed produced nothing, which is what
+     that word means here. `cancelled` now stands alone; see `GenStatus`. */
   const status: GenStatus =
     job.status === "succeeded"
       ? "done"
-      : job.status === "failed" || job.status === "cancelled" || job.status === "expired"
-        ? "failed"
-        : "running";
+      : job.status === "cancelled"
+        ? "cancelled"
+        : job.status === "failed" || job.status === "expired"
+          ? "failed"
+          : job.status === "running"
+            ? "running"
+            : "queued";
 
   return {
     // The job id is the identity here. A generation this browser started also
@@ -48,17 +57,25 @@ export function generationFromJob(job: GenerationJob, families: readonly Family[
     grad: family?.grad ?? "var(--vg-surface)",
     kind,
     prompt: job.prompt,
+    params: job.params,
+    ...(Object.keys(job.referenceAssetIds).length > 0 ? { refAssetIds: job.referenceAssetIds } : {}),
     w,
     h,
     ...(output?.width && output.height ? { outW: output.width, outH: output.height } : {}),
     ...(output?.durationMs ? { durationMs: output.durationMs } : {}),
     ...(output?.url ? { outputUrl: output.url } : {}),
+    ...(job.outputs.length > 1 ? { moreOutputs: moreOutputsOf(job) } : {}),
     ...(output?.assetId ? { outputAssetId: output.assetId } : {}),
     ...(output?.url && job.urlsExpireAt ? { outputUrlExpiresAt: job.urlsExpireAt } : {}),
     status,
     ...(job.error ? { error: job.error } : {}),
     createdAt: job.createdAt,
   };
+}
+
+/** The outputs after the first — a Suno request's second take. See `moreOutputs`. */
+export function moreOutputsOf(job: GenerationJob): NonNullable<Generation["moreOutputs"]> {
+  return job.outputs.slice(1).map((output) => ({ url: output.url, ...(output.durationMs ? { durationMs: output.durationMs } : {}) }));
 }
 
 /**
@@ -106,6 +123,8 @@ export function sameGenerations(left: readonly Generation[], right: readonly Gen
       gen.outputAssetId === other.outputAssetId &&
       gen.outW === other.outW &&
       gen.outH === other.outH &&
+      gen.durationMs === other.durationMs &&
+      gen.moreOutputs?.[0]?.url === other.moreOutputs?.[0]?.url &&
       gen.error?.code === other.error?.code
     );
   });

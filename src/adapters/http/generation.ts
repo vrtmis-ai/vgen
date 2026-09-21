@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AppServices } from "../../runtime/AppServices";
-import { GenerationJobSchema, GenerationQuoteSchema } from "../../runtime/contracts/generation";
+import { GenerationJobSchema, GenerationQuoteSchema, JobReferencesSchema } from "../../runtime/contracts/generation";
 import type { HttpClient } from "./client";
 
 /**
@@ -87,6 +87,27 @@ export function createHttpGenerationService(client: HttpClient, baseUrl: string)
     downloadUrl(jobId, index = 0) {
       return `${baseUrl.replace(/\/+$/, "")}/generation/jobs/${encodeURIComponent(jobId)}/outputs/${index}/download`;
     },
+    async references(jobId, options) {
+      const { references } = await client.request(`/generation/jobs/${encodeURIComponent(jobId)}/references`, {
+        schema: JobReferencesSchema,
+        signal: options?.signal,
+      });
+      return references;
+    },
+    /* Present only where the API has the route. `POST .../cancel` is issue #81
+       and is not merged; shipping a button that 404s would be worse than
+       shipping none, and `cancel` being undefined is how every screen asks. */
+    ...(process.env.NEXT_PUBLIC_JOB_CANCEL === "1"
+      ? {
+          async cancel(jobId: string, options?: { signal?: AbortSignal }) {
+            await client.request(`/generation/jobs/${encodeURIComponent(jobId)}/cancel`, {
+              method: "POST",
+              schema: z.object({ status: z.literal("cancelled") }),
+              signal: options?.signal,
+            });
+          },
+        }
+      : {}),
     async remove(jobId, options) {
       await client.request(`/generation/jobs/${encodeURIComponent(jobId)}`, {
         method: "DELETE",

@@ -11,8 +11,8 @@ import { useNavigation } from "../../../../../src/runtime/providers/NavigationPr
 export default function ResultPage() {
   const params = useParams<{ generationId: string }>();
   const searchParams = useSearchParams();
-  const { gens, hydrated, regenerate, removeGeneration, markDone } = useGenerations();
-  const { goBack, openModel } = useNavigation();
+  const { gens, hydrated, removeGeneration, markDone } = useGenerations();
+  const { goBack, openModel, regenerate } = useNavigation();
 
   const generation = gens.find((candidate) => candidate.id === decodeURIComponent(params.generationId));
   /* Wait before giving up. The list arrives from localStorage in an effect, so
@@ -32,7 +32,16 @@ export default function ResultPage() {
       gen={generation}
       instant={instant}
       onBack={goBack}
-      onRegenerate={() => void regenerate(generation)}
+      /* The form, not a silent resubmit.
+
+         This used to call straight through to startGeneration with
+         `defaultInput(...)` and no attachments — so pressing "again" on a
+         seedance video spent the coins again on a different generation: the
+         same prompt at whatever the controls default to, with the first frame
+         dropped. On a model with a required reference slot it could not even
+         succeed. It is the same button as the one in the asset panel, so it
+         goes the same place: the form, filled in with what actually ran. */
+      onRegenerate={() => regenerate(generation.familyId, generation.id)}
       /* Carries the picture, not just the destination. This opened the video
          model with an empty form, so "to video" on a finished image meant
          "start again, from nothing" — the image the button is attached to was

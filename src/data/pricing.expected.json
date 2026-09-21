@@ -2941,7 +2941,7 @@
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 52
+      "coins": 26.0
     },
     {
       "variant": "minimax-h3",
@@ -2951,63 +2951,13 @@
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 57.2
+      "coins": 28.6
     },
     {
       "variant": "minimax-h3",
       "input": {
         "resolution": "2K",
         "duration": "12"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 62.4
-    },
-    {
-      "variant": "minimax-h3",
-      "input": {
-        "resolution": "2K",
-        "duration": "13"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 67.6
-    },
-    {
-      "variant": "minimax-h3",
-      "input": {
-        "resolution": "2K",
-        "duration": "14"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 72.8
-    },
-    {
-      "variant": "minimax-h3",
-      "input": {
-        "resolution": "2K",
-        "duration": "15"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 78
-    },
-    {
-      "variant": "minimax-h3",
-      "input": {
-        "resolution": "2K",
-        "duration": "5"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 26
-    },
-    {
-      "variant": "minimax-h3",
-      "input": {
-        "resolution": "2K",
-        "duration": "6"
       },
       "chars": 1000,
       "clipSeconds": 10,
@@ -3017,7 +2967,17 @@
       "variant": "minimax-h3",
       "input": {
         "resolution": "2K",
-        "duration": "7"
+        "duration": "13"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 33.8
+    },
+    {
+      "variant": "minimax-h3",
+      "input": {
+        "resolution": "2K",
+        "duration": "14"
       },
       "chars": 1000,
       "clipSeconds": 10,
@@ -3027,11 +2987,51 @@
       "variant": "minimax-h3",
       "input": {
         "resolution": "2K",
+        "duration": "15"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 39.0
+    },
+    {
+      "variant": "minimax-h3",
+      "input": {
+        "resolution": "2K",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 13.0
+    },
+    {
+      "variant": "minimax-h3",
+      "input": {
+        "resolution": "2K",
+        "duration": "6"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 15.6
+    },
+    {
+      "variant": "minimax-h3",
+      "input": {
+        "resolution": "2K",
+        "duration": "7"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 18.2
+    },
+    {
+      "variant": "minimax-h3",
+      "input": {
+        "resolution": "2K",
         "duration": "8"
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 41.6
+      "coins": 20.8
     },
     {
       "variant": "minimax-h3",
@@ -3041,83 +3041,33 @@
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 46.8
+      "coins": 23.4
     },
     {
       "variant": "minimax-h3",
       "input": {
-        "resolution": "768p",
+        "resolution": "768P",
         "duration": "10"
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 32
+      "coins": 16.0
     },
     {
       "variant": "minimax-h3",
       "input": {
-        "resolution": "768p",
+        "resolution": "768P",
         "duration": "11"
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 35.2
+      "coins": 17.6
     },
     {
       "variant": "minimax-h3",
       "input": {
-        "resolution": "768p",
+        "resolution": "768P",
         "duration": "12"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 38.4
-    },
-    {
-      "variant": "minimax-h3",
-      "input": {
-        "resolution": "768p",
-        "duration": "13"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 41.6
-    },
-    {
-      "variant": "minimax-h3",
-      "input": {
-        "resolution": "768p",
-        "duration": "14"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 44.8
-    },
-    {
-      "variant": "minimax-h3",
-      "input": {
-        "resolution": "768p",
-        "duration": "15"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 48
-    },
-    {
-      "variant": "minimax-h3",
-      "input": {
-        "resolution": "768p",
-        "duration": "5"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 16
-    },
-    {
-      "variant": "minimax-h3",
-      "input": {
-        "resolution": "768p",
-        "duration": "6"
       },
       "chars": 1000,
       "clipSeconds": 10,
@@ -3126,8 +3076,18 @@
     {
       "variant": "minimax-h3",
       "input": {
-        "resolution": "768p",
-        "duration": "7"
+        "resolution": "768P",
+        "duration": "13"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 20.8
+    },
+    {
+      "variant": "minimax-h3",
+      "input": {
+        "resolution": "768P",
+        "duration": "14"
       },
       "chars": 1000,
       "clipSeconds": 10,
@@ -3136,22 +3096,62 @@
     {
       "variant": "minimax-h3",
       "input": {
-        "resolution": "768p",
-        "duration": "8"
+        "resolution": "768P",
+        "duration": "15"
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 25.6
+      "coins": 24.0
     },
     {
       "variant": "minimax-h3",
       "input": {
-        "resolution": "768p",
+        "resolution": "768P",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 8.0
+    },
+    {
+      "variant": "minimax-h3",
+      "input": {
+        "resolution": "768P",
+        "duration": "6"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.6
+    },
+    {
+      "variant": "minimax-h3",
+      "input": {
+        "resolution": "768P",
+        "duration": "7"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 11.2
+    },
+    {
+      "variant": "minimax-h3",
+      "input": {
+        "resolution": "768P",
+        "duration": "8"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 12.8
+    },
+    {
+      "variant": "minimax-h3",
+      "input": {
+        "resolution": "768P",
         "duration": "9"
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 28.8
+      "coins": 14.4
     },
     {
       "variant": "nano-banana-2",
@@ -5855,15 +5855,6 @@
       "chars": 1000,
       "clipSeconds": 10,
       "coins": 4
-    },
-    {
-      "variant": "topaz-image-upscale",
-      "input": {
-        "upscale_factor": "8"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 8
     },
     {
       "variant": "topaz-video-upscale",

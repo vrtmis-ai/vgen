@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Heart, MagicWand, FilmSlate } from "@phosphor-icons/react";
+import { Heart, MagicWand, FilmSlate, Flag } from "@phosphor-icons/react";
 
 import { useCommunityFeed } from "../features/session/useSession";
+import { useAppServices } from "../runtime/AppServices";
+import { useSession } from "../runtime/providers/SessionProvider";
 import type { CommunityPost } from "../runtime/contracts/community";
 import { VendorMark } from "../components/VendorMark";
 import { faNum } from "../lib/format";
@@ -39,6 +41,55 @@ const CATEGORY_LABEL: Record<CommunityPost["kind"], string> = {
   reel: "ریل",
 };
 
+/**
+ * Say this should not be here.
+ *
+ * Deliberately quiet: a flag sitting at the same weight as the recreate button
+ * invites idle pressing, and every idle press is a person's time spent reading
+ * it. It appears on hover, states what it does, and says so afterwards — the
+ * post does not move, because a report that hides something on one person's
+ * say-so is a veto anybody could exercise with a click.
+ *
+ * Signed out, it is absent rather than disabled. A report has to be
+ * attributable, and an inert button is a worse answer than no button.
+ */
+function ReportButton({ postId }: { postId: string }) {
+  const services = useAppServices();
+  const { user } = useSession();
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+
+  if (user === null) return null;
+  if (state === "sent") {
+    return (
+      <span
+        className="absolute end-2.5 top-2.5 rounded-md px-1.5 py-0.5 text-[10px]"
+        style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
+      >
+        گزارش شد
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        setState("sending");
+        void services.community
+          .report(postId, { category: "other" })
+          .then(() => setState("sent"))
+          .catch(() => setState("failed"));
+      }}
+      disabled={state === "sending"}
+      title="گزارش این کار"
+      aria-label="گزارش این کار"
+      className="absolute end-2.5 top-2.5 grid size-7 place-items-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+      style={{ background: "rgba(0,0,0,0.55)", color: state === "failed" ? "#ff8b8b" : "#fff", backdropFilter: "blur(6px)" }}
+    >
+      <Flag size={13} />
+    </button>
+  );
+}
+
 function PostCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
   const f = useFamily(p.familyId);
   // A reel is a showcase cut from several jobs. There is no single generation
@@ -73,6 +124,8 @@ function PostCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
             </span>
           )}
         </div>
+
+        <ReportButton postId={p.id} />
 
         <div className="absolute inset-x-2.5 bottom-2.5 text-start">
           <div className="flex items-center justify-between">

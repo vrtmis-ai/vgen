@@ -11,6 +11,8 @@ function generationJob(overrides: Record<string, unknown> = {}) {
     variantId: "flux-test",
     coins: 30,
     prompt: "a small red boat",
+    params: { prompt: "a small red boat", aspect: "1:1" },
+    referenceAssetIds: {},
     createdAt: 123,
     updatedAt: 456,
     outputs: [],
@@ -27,7 +29,7 @@ function healthyDependencies(): ApiDependencies {
     customerSession: {
       getCurrent: vi.fn(async () => ({ status: "anonymous" as const, host: "web" as const })),
     },
-    customerPlans: { list: vi.fn(async () => []) },
+    customerPlans: { list: vi.fn(async () => ({ plans: [], tomanPerUsd: 235_000 })) },
     customerCampaigns: { getActive: vi.fn(async () => null) },
     checkout: { createOrder: vi.fn(async () => ({ outcome: "unknown_plan" }) as CreateOrderOutcome) },
     customerWallet: {
@@ -37,12 +39,15 @@ function healthyDependencies(): ApiDependencies {
       list: vi.fn(async () => ({ version: "bootstrap-v1", publishedAt: 0, families: [] })),
     },
     customerCommunity: { list: vi.fn(async () => ({ posts: [] })) },
-    communitySubmissions: { share: vi.fn(async () => ({ outcome: "unknown_job" }) as ShareOutcome) },
+    communitySubmissions: {
+      share: vi.fn(async () => ({ outcome: "unknown_job" }) as ShareOutcome),
+      report: vi.fn(async () => "recorded" as const),
+    },
     customerContent: {
       list: vi.fn(async () => ({
         version: "bootstrap-v1",
         publishedAt: 0,
-        flags: { siteBanner: true },
+        flags: { siteBanner: true, earlyAccess: true },
         presets: [],
         fragments: [],
         skills: [],
@@ -71,6 +76,7 @@ function healthyDependencies(): ApiDependencies {
       get: vi.fn(async () => generationJob()),
       list: vi.fn(async () => ({ items: [generationJob()] })),
       downloadUrl: vi.fn(async () => "https://files.example/vgen-job.png"),
+      references: vi.fn(async () => []),
       remove: vi.fn(async () => "removed" as const),
     },
     assetUploads: {
@@ -233,6 +239,147 @@ describe("reading a generation job", () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/generation/jobs/abc" });
     expect(response.statusCode).toBe(401);
     expect(dependencies.generationLibrary.get).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
+/* The platform takes arbitrary text from the public and returns pictures made
+   from it, and until now the only guard on that path was an account-level ban —
+   which answers "may this person generate" and never "is this a thing we will
+   make". Both surfaces that carry a prompt are checked, and the job route is
+   the one that has to be final: a client can replay an old quote id or skip the
+   quote call entirely. */
+describe("refusing a prompt", () => {
+  const refusing = { check: vi.fn(async () => ({ message: "این درخواست انجام نشد.", category: "test_category" })) };
+
+  it("refuses a submission before anything is dispatched", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    dependencies.promptGuard = refusing;
+    const app = createApp(dependencies);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/jobs",
+      headers: { "idempotency-key": "generate:refused-1" },
+      payload: { quoteId: "33333333-3333-4333-8333-333333333333", params: { prompt: "something we will not make" } },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toMatchObject({ error: { code: "prompt_refused", category: "test_category" } });
+    // The point of the whole exercise: no job, no hold, no provider call.
+    expect(dependencies.generationJobs.createQueued).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  /* Read from `params`, which is what the worker hands upstream verbatim.
+     Guarding a copy of the prompt while a different copy is what travels is
+     the shape of bug that makes a filter look present and be absent. */
+  it("reads the prompt the worker will actually send", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    const guard = { check: vi.fn(async () => null) };
+    dependencies.promptGuard = guard;
+    const app = createApp(dependencies);
+
+    await app.inject({
+      method: "POST",
+      url: "/api/v1/jobs",
+      headers: { "idempotency-key": "generate:refused-2" },
+      payload: { quoteId: "33333333-3333-4333-8333-333333333333", params: { prompt: "the one that travels" } },
+    });
+
+    expect(guard.check).toHaveBeenCalledWith({ prompt: "the one that travels", userId: authedSession.user.id, surface: "job" });
+    await app.close();
+  });
+
+  it("refuses at the price, so nobody is quoted for what will not be built", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    dependencies.promptGuard = refusing;
+    const app = createApp(dependencies);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/generation/quotes",
+      payload: { variantId: "flux-test", prompt: "something we will not make", params: { prompt: "something we will not make" } },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(dependencies.generationQuotes.create).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  /* The default, and the state every deployment starts in. The mechanism ships
+     before the list; a blocklist a program invented would read as policy while
+     being nobody's. */
+  it("lets everything through when no guard is configured", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/jobs",
+      headers: { "idempotency-key": "generate:allowed-1" },
+      payload: { quoteId: "33333333-3333-4333-8333-333333333333", params: { prompt: "a lighthouse at dawn" } },
+    });
+
+    expect(response.statusCode).toBe(202);
+    await app.close();
+  });
+});
+
+/* What "generate again" needs and could not get. The job has stored its
+   references since 0028 and the worker has read them ever since, but nothing
+   served them back — so replaying a generation carried the model and the prompt
+   and silently dropped the first frame, which is a different generation for the
+   same money. */
+describe("the files a generation ran against", () => {
+  it("answers them for the caller's own job", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    dependencies.generationLibrary.references = vi.fn(async () => [
+      {
+        slot: "image_urls",
+        assetId: "33333333-3333-4333-8333-333333333333",
+        url: "https://files.example/first-frame.png?sig=1",
+        kind: "image" as const,
+      },
+    ]);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/generation/jobs/abc/references" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ references: [{ slot: "image_urls", kind: "image" }] });
+    expect(dependencies.generationLibrary.references).toHaveBeenCalledWith("abc", "22222222-2222-4222-8222-222222222222");
+    await app.close();
+  });
+
+  /* Empty rather than 404 for somebody else's job, and that is deliberate:
+     "this job has no references" and "this job is not yours" are the same
+     answer to anyone who is not the owner. */
+  it("says nothing about a job that is not the caller's", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/generation/jobs/somebody-elses/references" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ references: [] });
+    await app.close();
+  });
+
+  it("does not answer an anonymous visitor at all", async () => {
+    const dependencies = healthyDependencies();
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/generation/jobs/abc/references" });
+
+    expect(response.statusCode).toBe(401);
+    expect(dependencies.generationLibrary.references).not.toHaveBeenCalled();
     await app.close();
   });
 });
@@ -654,7 +801,7 @@ describe("customer session", () => {
 
     expect(response.statusCode).toBe(200);
     // No auth options at all, so no provider has routes and none is offered.
-    expect(response.json()).toEqual({ status: "anonymous", host: "web", authProviders: [] });
+    expect(response.json()).toEqual({ status: "anonymous", host: "web", authProviders: [], phoneSignIn: false });
     await app.close();
   });
 
@@ -707,6 +854,7 @@ describe("customer session", () => {
             otpVerifyPerPhone: allow(),
             loginPerAccount: allow(),
             loginPerIp: allow(),
+            inviteCheckPerIp: allow(),
           },
           webOrigin: "https://deev.test",
           // Google configured, Microsoft not — which is the asymmetry the
@@ -722,6 +870,8 @@ describe("customer session", () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/session" });
 
     expect(response.json().authProviders).toEqual(["google"]);
+    // An SMS gateway was handed in, so the phone form is offered too.
+    expect(response.json().phoneSignIn).toBe(true);
     // And the claim is true: the offered one answers, the unoffered one does not.
     expect((await app.inject({ method: "GET", url: "/api/v1/auth/google" })).statusCode).toBe(302);
     expect((await app.inject({ method: "GET", url: "/api/v1/auth/microsoft" })).statusCode).toBe(404);
@@ -813,29 +963,38 @@ describe("customer wallet", () => {
 describe("the plan ladder", () => {
   it("serves the plans a card is rendered from", async () => {
     const dependencies = healthyDependencies();
-    dependencies.customerPlans.list = vi.fn(async () => [
-      {
-        code: "pro",
-        name: "Pro",
-        tier: 2 as const,
-        coinsPerTerm: 1100,
-        baseCoins: 1000,
-        bonusCoins: 100,
-        termDays: 30,
-        monthlyUsd: 49,
-        annualUsdPerMonth: 39,
-        group: "main" as const,
-        tag: "popular" as const,
-        popular: true,
-        maxConcurrentJobs: 4,
-      },
-    ]);
+    dependencies.customerPlans.list = vi.fn(async () => ({
+      tomanPerUsd: 235_000,
+      plans: [
+        {
+          code: "pro",
+          name: "Pro",
+          tier: 2 as const,
+          coinsPerTerm: 1100,
+          baseCoins: 1000,
+          bonusCoins: 100,
+          termDays: 30,
+          unlimitedDays: 7,
+          monthlyUsd: 49,
+          annualUsdPerMonth: 39,
+          group: "main" as const,
+          tag: "popular" as const,
+          popular: true,
+          maxConcurrentJobs: 4,
+        },
+      ],
+    }));
     const app = createApp(dependencies, { corsOrigin: "https://deev.test" });
 
     const response = await app.inject({ method: "GET", url: "/api/v1/plans" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ plans: [expect.objectContaining({ code: "pro", coinsPerTerm: 1100 })] });
+    // The rate rides along with the ladder: the cards price in Toman, and the
+    // number they multiply by changes daily.
+    expect(response.json()).toEqual({
+      plans: [expect.objectContaining({ code: "pro", coinsPerTerm: 1100 })],
+      tomanPerUsd: 235_000,
+    });
     await app.close();
   });
 

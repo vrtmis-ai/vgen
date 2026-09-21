@@ -68,6 +68,8 @@ const InviteSchema = z
     coinsSpent: z.number(),
     coinsRemaining: z.number(),
     createdAt: z.number(),
+    expiresAt: z.number().nullable(),
+    startsAt: z.number(),
   })
   .loose();
 
@@ -303,6 +305,7 @@ const InvitesResponseSchema = z.object({ invites: z.array(InviteSchema) });
 const PromosResponseSchema = z.object({ promos: z.array(PromoSchema) });
 const EarlyAccessSchema = z.object({ enabled: z.boolean() });
 const OutcomeSchema = z.object({ outcome: z.enum(["deleted", "revoked"]) }).loose();
+const InviteResponseSchema = z.object({ invite: InviteSchema });
 
 export type AdminInvite = z.infer<typeof InviteSchema>;
 export type AdminPromo = z.infer<typeof PromoSchema>;
@@ -312,8 +315,18 @@ export interface CreateInviteInput {
   label?: string;
   grantCoins?: number;
   grantExpiresDays?: number;
-  maxRedemptions?: number;
+  /** Required: how many people the code may admit. */
+  maxRedemptions: number;
+  /** Required: when the code stops working. Sent as an ISO string. */
+  expiresAt: string;
   count?: number;
+}
+
+/** Absent fields are left as they are. A past `expiresAt` closes the code now. */
+export interface UpdateInviteInput {
+  label?: string;
+  maxRedemptions?: number;
+  expiresAt?: string;
 }
 
 export interface CreatePromoInput {
@@ -327,6 +340,56 @@ export interface CreatePromoInput {
   firstPurchaseOnly?: boolean;
   maxRedemptions?: number;
 }
+
+/* ------------------------------------------------------------------ staff */
+
+export const StaffMemberSchema = z.object({
+  userId: z.string(),
+  email: z.string().nullable(),
+  roleCode: z.string(),
+  roleName: z.string(),
+  /** Resolved: their own set where they have one, the role's where they do not. */
+  permissions: z.array(z.string()),
+  /** True when the set above is theirs rather than the role's. */
+  isCustom: z.boolean(),
+  hasMfa: z.boolean(),
+  grantedAt: z.number(),
+  grantedByEmail: z.string().nullable(),
+});
+
+const StaffListSchema = z.object({
+  staff: z.array(StaffMemberSchema),
+  /** What this admin may hand out. The server re-checks; this is so the form does not offer what it will refuse. */
+  grantable: z.array(z.string()),
+});
+
+const StaffRolesSchema = z.object({
+  roles: z.array(z.object({ code: z.string(), name: z.string(), permissions: z.array(z.string()) })),
+  grantable: z.array(z.string()),
+});
+
+const StaffOneSchema = z.object({ staff: StaffMemberSchema.nullable() });
+/** The second-factor key for somebody who had none, returned once by the appointment. */
+const StaffTotpSchema = z.object({ secret: z.string(), uri: z.string() });
+const StaffAppointedSchema = StaffOneSchema.extend({ totp: StaffTotpSchema.nullable() });
+export type StaffTotp = z.infer<typeof StaffTotpSchema>;
+
+export const StaffPlanSchema = z.object({
+  subscriptionId: z.string(),
+  planCode: z.string(),
+  planName: z.string(),
+  tier: z.number(),
+  coins: z.number(),
+  startsAt: z.number(),
+  endsAt: z.number(),
+  status: z.string(),
+});
+
+const StaffPlanResponseSchema = z.object({ plan: StaffPlanSchema.nullable() });
+const StaffPlanRevokedSchema = z.object({ userId: z.string(), revoked: z.boolean(), coinsWithdrawn: z.number() });
+
+export type StaffMember = z.infer<typeof StaffMemberSchema>;
+export type StaffPlan = z.infer<typeof StaffPlanSchema>;
 
 export interface AdminApi {
   getSession(): Promise<AdminSessionState>;
@@ -348,6 +411,7 @@ export interface AdminApi {
 
   listInvites(): Promise<AdminInvite[]>;
   createInvite(input: CreateInviteInput): Promise<AdminInvite[]>;
+  updateInvite(id: string, input: UpdateInviteInput): Promise<AdminInvite>;
   removeInvite(id: string): Promise<"deleted" | "revoked">;
 
   listPromos(): Promise<AdminPromo[]>;
@@ -367,6 +431,23 @@ export interface AdminApi {
   banUser(id: string, input: { scope: AdminBan["scope"]; reason?: string; expiresAt?: string }): Promise<void>;
   liftBan(id: string, banId: string): Promise<AdminBan[]>;
   revokeUserSessions(id: string): Promise<number>;
+
+  listStaff(): Promise<{ staff: StaffMember[]; grantable: string[] }>;
+  listStaffRoles(): Promise<{ roles: { code: string; name: string; permissions: string[] }[]; grantable: string[] }>;
+  /** `password` creates the account for an address nobody uses yet. */
+  appointStaff(input: {
+    email: string;
+    roleCode: string;
+    permissions?: string[] | undefined;
+    password?: string | undefined;
+  }): Promise<StaffTotp | null>;
+  /** Null hands the role's own set back; an array pins this person's. */
+  setStaffPermissions(userId: string, permissions: string[] | null): Promise<void>;
+  revokeStaff(userId: string): Promise<void>;
+
+  getStaffPlan(userId: string): Promise<StaffPlan | null>;
+  grantStaffPlan(userId: string, planCode: string): Promise<void>;
+  revokeStaffPlan(userId: string): Promise<number>;
 
   listAdminSessions(): Promise<AdminSessionRow[]>;
   revokeAdminSession(id: string): Promise<void>;
@@ -418,6 +499,8 @@ export function createAdminApi(client: HttpClient): AdminApi {
     listInvites: async () => (await client.request("/admin/invites", { schema: InvitesResponseSchema })).invites,
     createInvite: async (input) =>
       (await client.request("/admin/invites", { method: "POST", body: input, schema: InvitesResponseSchema })).invites,
+    updateInvite: async (id, input) =>
+      (await client.request(`/admin/invites/${id}`, { method: "PATCH", body: input, schema: InviteResponseSchema })).invite,
     removeInvite: async (id) => (await client.request(`/admin/invites/${id}`, { method: "DELETE", schema: OutcomeSchema })).outcome,
 
     listPromos: async () => (await client.request("/admin/promos", { schema: PromosResponseSchema })).promos,
@@ -458,6 +541,33 @@ export function createAdminApi(client: HttpClient): AdminApi {
       await client.request(`/admin/sessions/${id}`, { method: "DELETE", schema: RevokedSchema });
     },
     revokeOtherAdminSessions: async () => (await client.request("/admin/sessions", { method: "DELETE", schema: RevokedSchema })).revoked,
+
+    listStaff: () => client.request("/admin/staff", { schema: StaffListSchema }),
+    listStaffRoles: () => client.request("/admin/staff/roles", { schema: StaffRolesSchema }),
+    appointStaff: async ({ email, roleCode, permissions, password }) =>
+      (
+        await client.request("/admin/staff", {
+          method: "POST",
+          // Omitted rather than sent as null: the server reads an absent field as
+          // "inherit the role", which is a different instruction from an empty
+          // array — that one would mean a member of staff who can do nothing.
+          body: { email, roleCode, ...(permissions ? { permissions } : {}), ...(password ? { password } : {}) },
+          schema: StaffAppointedSchema,
+        })
+      ).totp,
+    setStaffPermissions: async (userId, permissions) => {
+      await client.request(`/admin/staff/${userId}`, { method: "PATCH", body: { permissions }, schema: StaffOneSchema });
+    },
+    revokeStaff: async (userId) => {
+      await client.request(`/admin/staff/${userId}`, { method: "DELETE", schema: z.object({ userId: z.string(), revoked: z.boolean() }) });
+    },
+
+    getStaffPlan: async (userId) => (await client.request(`/admin/staff/${userId}/plan`, { schema: StaffPlanResponseSchema })).plan,
+    grantStaffPlan: async (userId, planCode) => {
+      await client.request(`/admin/staff/${userId}/plan`, { method: "POST", body: { planCode }, schema: StaffPlanResponseSchema });
+    },
+    revokeStaffPlan: async (userId) =>
+      (await client.request(`/admin/staff/${userId}/plan`, { method: "DELETE", schema: StaffPlanRevokedSchema })).coinsWithdrawn,
 
     getEarlyAccess: async () => (await client.request("/admin/early-access", { schema: EarlyAccessSchema })).enabled,
     setEarlyAccess: async (enabled) =>

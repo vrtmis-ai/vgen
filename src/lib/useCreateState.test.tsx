@@ -3,7 +3,10 @@ import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import type { RefMap } from "../components/controls";
-import type { Family } from "../data/models";
+import { FAMILIES, type Family } from "../data/models";
+import { SessionProvider } from "../runtime/providers/SessionProvider";
+import type { AccountUser } from "../runtime/contracts/session";
+import type { Wallet } from "../runtime/contracts/wallet";
 import { useCreateState } from "./useCreateState";
 
 /* ---------------------------------------------------------------------------
@@ -75,3 +78,74 @@ describe("the create surface's readiness", () => {
     expect(result.current.ready).toBe(false);
   });
 });
+
+/* ---------------------------------------------------------------------------
+   The wallet is the gate now.
+
+   No model is locked to a plan, so the price against the balance is the only
+   thing that can stop a generation before it is sent. The server still refuses
+   an unaffordable one — that is what actually protects the ledger — but a
+   customer should not learn it by pressing a lit button.
+   --------------------------------------------------------------------------- */
+
+/** A real, priced family out of the catalogue: an invented one has no price. */
+const priced = FAMILIES.find((candidate) => candidate.id === "z-image")!;
+
+function signedIn(spendable: number) {
+  const wallet = { spendable, grants: [], tier: 1 } as unknown as Wallet;
+  return function Wrapper({ children }: { children: ReactNode }) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return (
+      <QueryClientProvider client={client}>
+        <SessionProvider
+          value={{
+            user: { id: "u-1", email: "buyer@example.test" } as unknown as AccountUser,
+            wallet,
+            signIn: () => {},
+            signUp: () => {},
+            signOut: () => {},
+          }}
+        >
+          {children}
+        </SessionProvider>
+      </QueryClientProvider>
+    );
+  };
+}
+
+function withBalance(spendable: number) {
+  const { result } = renderHook(() => useCreateState([priced]), { wrapper: signedIn(spendable) });
+  act(() => result.current.setPrompt("a small red boat"));
+  return result;
+}
+
+describe("a balance that cannot cover the price", () => {
+  it("is ready when the wallet covers it", () => {
+    const result = withBalance(50);
+    expect(result.current.price).toBeGreaterThan(0);
+    expect(result.current.short).toBe(false);
+    expect(result.current.ready).toBe(true);
+  });
+
+  it("is short, and not ready, when it does not", () => {
+    const result = withBalance(0.01);
+    expect(result.current.short).toBe(true);
+    expect(result.current.ready).toBe(false);
+  });
+
+  /* A visitor has no wallet to be short of. The dock turns its button into a
+     sign-in rather than telling somebody with no account that they cannot
+     afford something. */
+  it("says nothing about a balance a visitor does not have", () => {
+    const result = prompted2();
+    expect(result.current.spendable).toBeNull();
+    expect(result.current.short).toBe(false);
+  });
+});
+
+/** The same priced family with no session above it, which is a visitor. */
+function prompted2() {
+  const { result } = renderHook(() => useCreateState([priced]), { wrapper });
+  act(() => result.current.setPrompt("a small red boat"));
+  return result;
+}

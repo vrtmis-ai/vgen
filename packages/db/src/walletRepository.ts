@@ -17,17 +17,17 @@ export interface CustomerWallet {
   grants: CustomerCreditGrant[];
   nextExpiry?: { at: number; coins: number };
   /**
-   * What this account may run, decided here rather than in the browser.
+   * The tier the unlimited pipe sees — not a statement about what may be run.
    *
-   * The tier gate exists on both sides and only one of them is authoritative:
-   * `entitlementsRepository.tierForAccount` is what `quote` enforces. The
-   * browser was deriving its own answer from the public price list — matching a
-   * plan *code* against `GET /plans` — so an account whose plan is not on sale,
-   * or is granted rather than bought, read as tier 1 and had every tier-2 model
-   * padlocked while the server would have run them.
+   * Nothing is locked to a plan any more, so this stopped being an access
+   * gate and became one perk's eligibility. It is `unlimitedTierForAccount`,
+   * which answers 1 as soon as the plan's unlimited window closes, so the
+   * free switch disappears from the dock on the same day the quote stops
+   * coming back free. A tier that outlived its window would be a screen
+   * offering a free generation and a server then charging for it.
    *
-   * Sent with the wallet because the wallet is already fetched for every signed
-   * -in account and the app waits for it before rendering.
+   * Sent with the wallet because the wallet is already fetched for every
+   * signed-in account and the app waits for it before rendering.
    */
   tier: 1 | 2 | 3;
 }
@@ -115,16 +115,20 @@ export class PostgresWalletRepository implements CustomerWalletRepository {
     }
     const spendable = microCreditsToCoins(remainingMicroCredits);
 
-    // The same statement `tierForAccount` runs, joined from the user rather
-    // than the account so this needs no second round trip. No live
-    // subscription is tier 1, matching that function exactly — a new account
-    // holds a signup gift and tier 1 is what makes the gift spendable.
+    /* The same statement `unlimitedTierForAccount` runs, joined from the user
+       rather than the account so this needs no second round trip. The two
+       conditions on `plan` are the window: a plan that never carried the perk
+       (`unlimited_days = 0`, which is every pack) and one whose days have run
+       out both fall through to 1, which reaches no entitlement. */
     const [access] = await this.sql<{ tier: number }[]>`
       select coalesce(max(plan.tier), 1) as tier
       from users u
       left join subscriptions sub
         on sub.account_id = u.personal_account_id and sub.status = 'active' and sub.ends_at > now()
-      left join plans plan on plan.id = sub.plan_id
+      left join plans plan
+        on plan.id = sub.plan_id
+       and plan.unlimited_days > 0
+       and now() < sub.starts_at + (plan.unlimited_days * interval '1 day')
       where u.id = ${userId}
     `;
 

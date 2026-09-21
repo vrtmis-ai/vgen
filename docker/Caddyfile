@@ -25,11 +25,16 @@
 
 {$SITE_ADDRESS} {
 	encode zstd gzip
+	# ponytail: access log while eNamad verification is failing; remove once it passes.
+	log
 
 	# The API and the app share one origin, which is not laziness — it is what
 	# makes the session cookie same-site and the CORS preflight moot. WEB_ORIGIN
 	# and API_PUBLIC_URL are both this address for the same reason.
 	handle /api/* {
+		# Nothing here may be cached by a CDN in front: /session alone would hand
+		# one visitor's identity to the next. `?` leaves a route's own header.
+		header ?Cache-Control "no-store"
 		reverse_proxy api:5181
 	}
 
@@ -41,6 +46,47 @@
 
 	handle {
 		reverse_proxy web:5180
+	}
+}
+
+# ---------------------------------------------------------------------------
+#  eNamad's domain check, over plain http.
+#
+#  Its checker reported "nothing there" while a browser saw both proofs: plain
+#  http answers with a redirect, which it does not follow, and https refuses a
+#  handshake without SNI. So the verification file alone is served over http,
+#  and everything else on that port is still sent to https.
+#
+#  Unset, VERIFY_HTTP_ADDRESS names a host that cannot exist and this block is
+#  inert. Set it to http://<site host>, http://www.<site host>.
+# ---------------------------------------------------------------------------
+{$VERIFY_HTTP_ADDRESS:http://verify.invalid} {
+	# Who the checker is and what it asks for, while verification is failing.
+	log
+
+	# The homepage too: the meta tag and page title proofs are read from it.
+	@proof path /38669407.txt /
+	handle @proof {
+		reverse_proxy web:5180
+	}
+
+	handle {
+		redir https://{host}{uri} 308
+	}
+}
+
+# www had a DNS record and no certificate, so https on it failed outright and
+# never reached a log. It now carries the file and sends the rest to the bare
+# host. Unset, WWW_ADDRESS is inert like the block above.
+{$WWW_ADDRESS:http://www.verify.invalid} {
+	log
+
+	handle /38669407.txt {
+		reverse_proxy web:5180
+	}
+
+	handle {
+		redir https://{labels.1}.{labels.0}{uri} 308
 	}
 }
 

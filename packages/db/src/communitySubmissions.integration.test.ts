@@ -275,3 +275,181 @@ describe("the moderator's half", () => {
     });
   });
 });
+
+/* `decide()` matches `status = 'pending'`, which is right for a queue and left
+   a real gap behind it: an approved post could not be un-published through any
+   route, so complying with a takedown order meant a hand-written UPDATE against
+   production under time pressure. */
+describe("taking a published post down", () => {
+  async function approvedPost(tx: Sql) {
+    const { userId, accountId } = await makeUser(tx);
+    const { jobId } = await seedJob(tx, { accountId, userId, prompt: "a lighthouse" });
+    const shared = await new PostgresCommunitySubmissions(tx).share({ userId, jobId, promptVisible: true });
+    const postId = shared.outcome === "shared" ? shared.post.id : "";
+    await new PostgresCommunityModeration(tx).decide(postId, "approve");
+    return postId;
+  }
+
+  it("marks it deleted and records the ground", async () => {
+    await inRollback(sql, async (tx) => {
+      const postId = await approvedPost(tx);
+
+      const removed = await new PostgresCommunityModeration(tx).takeDown(postId, "court order 1404/123");
+
+      expect(removed?.status).toBe("approved");
+      const [row] = await tx<{ deleted_at: Date | null; rejection_reason: string | null }[]>`
+        select deleted_at, rejection_reason from posts where id = ${postId}
+      `;
+      // Soft: the row is the evidence that the post existed and was taken
+      // down, which is the thing an order asks you to be able to show.
+      expect(row?.deleted_at).toBeInstanceOf(Date);
+      expect(row?.rejection_reason).toBe("court order 1404/123");
+    });
+  });
+
+  it("takes it out of every read, not only the feed", async () => {
+    await inRollback(sql, async (tx) => {
+      const postId = await approvedPost(tx);
+      await new PostgresCommunityModeration(tx).takeDown(postId, "reported and upheld");
+
+      expect((await new PostgresCommunityRepository(tx).list()).posts.some((post) => post.id === postId)).toBe(false);
+      expect((await new PostgresCommunityModeration(tx).listPending()).posts.some((post) => post.id === postId)).toBe(false);
+    });
+  });
+
+  it("is a no-op the second time, so no second removal is claimed", async () => {
+    await inRollback(sql, async (tx) => {
+      const postId = await approvedPost(tx);
+      const moderation = new PostgresCommunityModeration(tx);
+
+      expect(await moderation.takeDown(postId, "first")).not.toBeNull();
+      // Null is what stops the route writing a second audit entry for one event.
+      expect(await moderation.takeDown(postId, "second")).toBeNull();
+    });
+  });
+
+  it("can pull down a post that never got as far as approval", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const { jobId } = await seedJob(tx, { accountId, userId });
+      const shared = await new PostgresCommunitySubmissions(tx).share({ userId, jobId, promptVisible: true });
+      const postId = shared.outcome === "shared" ? shared.post.id : "";
+
+      // An order does not wait for the queue. Unlike decide(), this matches on
+      // the post rather than on its status.
+      expect(await new PostgresCommunityModeration(tx).takeDown(postId, "ordered")).not.toBeNull();
+    });
+  });
+});
+
+/* Reporting a post. The half of the takedown story that lets a complaint
+   arrive in the first place — until this, the only route in was a message to
+   whatever address the site listed, which is a hope rather than a mechanism. */
+describe("reporting a published post", () => {
+  async function approvedPostFor(tx: Sql) {
+    const { userId, accountId } = await makeUser(tx);
+    const { jobId } = await seedJob(tx, { accountId, userId, prompt: "a lighthouse" });
+    const shared = await new PostgresCommunitySubmissions(tx).share({ userId, jobId, promptVisible: true });
+    const postId = shared.outcome === "shared" ? shared.post.id : "";
+    await new PostgresCommunityModeration(tx).decide(postId, "approve");
+    return postId;
+  }
+
+  it("records a report and puts the post in the queue", async () => {
+    await inRollback(sql, async (tx) => {
+      const postId = await approvedPostFor(tx);
+      const reporter = await makeUser(tx);
+
+      const outcome = await new PostgresCommunitySubmissions(tx).report({
+        postId,
+        reporterId: reporter.userId,
+        category: "illegal",
+        note: "این نباید اینجا باشد",
+      });
+
+      expect(outcome).toBe("recorded");
+      const queue = await new PostgresCommunityModeration(tx).reportedPosts();
+      expect(queue.find((row) => row.postId === postId)?.reports).toBe(1);
+    });
+  });
+
+  /* The claim the whole design rests on. A report that un-publishes is a
+     heckler's veto with one click, and the first use anybody finds for one is
+     aiming it at a competitor. */
+  it("does not hide the post", async () => {
+    await inRollback(sql, async (tx) => {
+      const postId = await approvedPostFor(tx);
+      const reporter = await makeUser(tx);
+      await new PostgresCommunitySubmissions(tx).report({ postId, reporterId: reporter.userId, category: "other" });
+
+      const [row] = await tx<{ status: string; deleted_at: Date | null }[]>`
+        select status, deleted_at from posts where id = ${postId}
+      `;
+      expect(row?.status).toBe("approved");
+      expect(row?.deleted_at).toBeNull();
+    });
+  });
+
+  it("counts one report per person, however many times they press it", async () => {
+    await inRollback(sql, async (tx) => {
+      const postId = await approvedPostFor(tx);
+      const reporter = await makeUser(tx);
+      const submissions = new PostgresCommunitySubmissions(tx);
+
+      expect(await submissions.report({ postId, reporterId: reporter.userId, category: "other" })).toBe("recorded");
+      // Not an error: the second press is somebody unsure the first one worked.
+      expect(await submissions.report({ postId, reporterId: reporter.userId, category: "other" })).toBe("already");
+
+      // Otherwise the queue sorts by how determined one person is rather than
+      // by how many people objected.
+      expect((await new PostgresCommunityModeration(tx).reportedPosts())[0]?.reports).toBe(1);
+    });
+  });
+
+  it("sorts the busiest post first", async () => {
+    await inRollback(sql, async (tx) => {
+      const quiet = await approvedPostFor(tx);
+      const busy = await approvedPostFor(tx);
+      const submissions = new PostgresCommunitySubmissions(tx);
+      const one = await makeUser(tx);
+      const two = await makeUser(tx);
+      await submissions.report({ postId: quiet, reporterId: one.userId, category: "other" });
+      await submissions.report({ postId: busy, reporterId: one.userId, category: "other" });
+      await submissions.report({ postId: busy, reporterId: two.userId, category: "other" });
+
+      expect((await new PostgresCommunityModeration(tx).reportedPosts())[0]?.postId).toBe(busy);
+    });
+  });
+
+  it("refuses to report something that was never published", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const { jobId } = await seedJob(tx, { accountId, userId });
+      const shared = await new PostgresCommunitySubmissions(tx).share({ userId, jobId, promptVisible: true });
+      const pending = shared.outcome === "shared" ? shared.post.id : "";
+      const reporter = await makeUser(tx);
+
+      // A pending post is already in front of a moderator, and saying "no such
+      // post" about somebody's unpublished draft is the same as saying nothing.
+      expect(await new PostgresCommunitySubmissions(tx).report({ postId: pending, reporterId: reporter.userId, category: "other" })).toBe(
+        "no_such_post",
+      );
+    });
+  });
+
+  it("clears the queue when staff have looked, whatever they decided", async () => {
+    await inRollback(sql, async (tx) => {
+      const postId = await approvedPostFor(tx);
+      const reporter = await makeUser(tx);
+      const staff = await makeUser(tx);
+      await new PostgresCommunitySubmissions(tx).report({ postId, reporterId: reporter.userId, category: "other" });
+
+      const moderation = new PostgresCommunityModeration(tx);
+      expect(await moderation.resolveReports(postId, staff.userId)).toBe(1);
+
+      // A report read and dismissed is resolved as much as one acted on. A
+      // queue that only grows stops being read.
+      expect((await moderation.reportedPosts()).some((row) => row.postId === postId)).toBe(false);
+    });
+  });
+});

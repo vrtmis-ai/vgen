@@ -1,0 +1,93 @@
+{
+  "models": ["ai-music-api/sounds"],
+  "title": "Generate sounds",
+  "docUrl": "https://docs.kie.ai/suno-api/generate-sounds.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-19",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Generate sounds — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "Sound task type limit: 500 characters",
+        "type": "string",
+        "title": "prompt"
+      },
+      "model": {
+        "type": "string",
+        "title": "",
+        "description": "Model Name\n- **`V6_WILD`**: Pushes creative boundaries for bolder, more distinctive musical expression.\n- **`V6_MINI`**: Lightweight and fast, balancing quality and speed for effortless creation.\n- **`V6`**: Greater musical expression with more natural vocals and richer details.\n- **`V5_5`** (Discontinued): Custom Models Tailored to Your Unique Taste.\n- **`V5`** (Discontinued): Superior musical expression, faster generation.",
+        "enum": ["V5", "V5_5", "V6", "V6_WILD", "V6_MINI"]
+      },
+      "sound_loop": {
+        "type": "boolean",
+        "title": "",
+        "description": "Is it a cycle?",
+        "default": false
+      },
+      "sound_tempo": {
+        "type": "integer",
+        "title": "BPM:Beats per minute",
+        "description": "Do not broadcast.",
+        "default": null,
+        "minimum": 1,
+        "maximum": 300
+      },
+      "sound_key": {
+        "type": "string",
+        "title": "",
+        "default": "Any",
+        "enum": [
+          "Cm",
+          "C#m",
+          "Dm",
+          "D#m",
+          "Em",
+          "Fm",
+          "F#m",
+          "Gm",
+          "G#m",
+          "Am",
+          "A#m",
+          "Bm",
+          "C",
+          "C#",
+          "D",
+          "D#",
+          "E",
+          "F",
+          "F#",
+          "G",
+          "G#",
+          "A",
+          "A#",
+          "B"
+        ],
+        "examples": ["Any"]
+      },
+      "grab_lyrics": {
+        "type": "boolean",
+        "title": "Grab the lyrics subtitles",
+        "description": "Whether to capture the lyrics subtitles \n\nWill the interface be called after completion to obtain the lyrics subtitles?",
+        "default": false
+      }
+    },
+    "required": ["prompt", "model"]
+  },
+  "examples": [
+    {
+      "model": "ai-music-api/sounds",
+      "callBackUrl": "https://api.example.com/callback",
+      "input": {
+        "prompt": "sint",
+        "model": "V5",
+        "sound_loop": true,
+        "sound_tempo": 166,
+        "sound_key": "D#m",
+        "grab_lyrics": true
+      }
+    }
+  ]
+}

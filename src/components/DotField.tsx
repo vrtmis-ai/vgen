@@ -22,11 +22,11 @@ import { useEffect, useRef } from "react";
  * flicker frequency is far below that and the extra frames are invisible.
  */
 
-const CELL = 20;
-const DOT = 6;
-const FPS = 30;
+export const CELL = 20;
+export const DOT = 6;
+export const FPS = 30;
 /** A few discrete steps read as flicker; a continuous ramp reads as noise. */
-const OPACITIES = [0.15, 0.15, 0.2, 0.3, 0.3, 0.4, 0.55, 0.55, 0.7, 1];
+export const OPACITIES = [0.15, 0.15, 0.2, 0.3, 0.3, 0.4, 0.55, 0.55, 0.7, 1];
 
 /**
  * The share of cells painted neutral rather than accent — so the field is
@@ -38,10 +38,10 @@ const OPACITIES = [0.15, 0.15, 0.2, 0.3, 0.3, 0.4, 0.55, 0.55, 0.7, 1];
  * reach it — a deliberate reading, recorded here because the field is the
  * largest blue thing in the product and the next person will ask.
  */
-const NEUTRAL_SHARE = 0.86;
+export const NEUTRAL_SHARE = 0.86;
 
 /** Deterministic per-cell hash. Same shape as the shader's, so the texture matches. */
-function hash(x: number, y: number): number {
+export function hash(x: number, y: number): number {
   const value = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
   return value - Math.floor(value);
 }

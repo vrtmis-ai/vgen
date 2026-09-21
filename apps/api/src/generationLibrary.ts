@@ -1,4 +1,4 @@
-import type { GalleryPage, GenerationJob } from "@vgen/contracts";
+import type { GalleryPage, GenerationJob, JobReference } from "@vgen/contracts";
 import type { ObjectStore } from "@vgen/adapters";
 import type { GalleryQuery, GenerationRecord, PostgresGalleryRepository, StoredOutput } from "@vgen/db";
 
@@ -20,6 +20,8 @@ export interface GenerationLibraryApplication {
   list(userId: string, query: GalleryQuery): Promise<GalleryPage>;
   /** A link that saves the file instead of displaying it. Null if there is no such output. */
   downloadUrl(jobId: string, userId: string, index: number): Promise<string | null>;
+  /** The files a generation ran against, signed for preview. Empty if it had none. */
+  references(jobId: string, userId: string): Promise<JobReference[]>;
   /** Take a settled generation off the account's wall. */
   remove(jobId: string, userId: string): Promise<"removed" | "still_running" | "not_found">;
 }
@@ -80,8 +82,29 @@ export class GenerationLibraryService implements GenerationLibraryApplication {
     // for nothing. Better a link that opens than no link at all.
     if (output.externalUrl) return output.externalUrl;
     const extension = EXTENSIONS[output.mimeType];
-    const filename = `vgen-${record.id}${extension ? `.${extension}` : ""}`;
+    // Numbered past the first: a Suno job is two takes, and two files of one
+    // name land as "DEEV-….mp3" and "DEEV-… (1).mp3".
+    const filename = `DEEV-${record.id}${index > 0 ? `-${index + 1}` : ""}${extension ? `.${extension}` : ""}`;
     return this.store.signedUrl(output.key, this.expirySeconds, { downloadAs: filename });
+  }
+
+  /**
+   * The files this generation was run against, ready to be shown.
+   *
+   * Signed here and not on the job, for the reason `downloadUrl` is not on the
+   * output: a page of thirty generations would sign every reference of every
+   * one of them to fill a form nobody has opened yet.
+   */
+  async references(jobId: string, userId: string): Promise<JobReference[]> {
+    const stored = await this.gallery.referencesForUser(jobId, userId);
+    return Promise.all(
+      stored.map(async (reference) => ({
+        slot: reference.slot,
+        assetId: reference.assetId,
+        url: await this.store.signedUrl(reference.key, this.expirySeconds),
+        kind: reference.kind,
+      })),
+    );
   }
 
   /**
@@ -102,6 +125,8 @@ export class GenerationLibraryService implements GenerationLibraryApplication {
       variantId: record.variantId,
       coins: record.coins,
       prompt: record.prompt,
+      params: record.params,
+      referenceAssetIds: record.referenceAssetIds,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       outputs,

@@ -34,10 +34,37 @@ export interface GenerationRecord {
   variantId: string;
   coins: number;
   prompt: string;
+  /**
+   * Everything the customer submitted, exactly as they submitted it.
+   *
+   * `prompt` above is one key read out of this same column. The rest — aspect,
+   * resolution, duration, seed — was written on submit, read by the worker, and
+   * then unreachable: nothing served it back, so "make another like this one"
+   * could only offer the model and the prompt and had to guess the rest.
+   */
+  params: Record<string, unknown>;
+  /**
+   * The files it was run against, by slot, as asset ids.
+   *
+   * Ids rather than URLs on purpose: an output URL is signed and expires, and
+   * the quote for the next generation names references by asset id anyway.
+   */
+  referenceAssetIds: Record<string, string[]>;
   createdAt: number;
   updatedAt: number;
   outputs: StoredOutput[];
   error?: { code: string; message: string };
+}
+
+/** One file a generation was run against, ready to be signed. */
+export interface StoredReference {
+  /** The slot it filled — the same key the next request has to put it back in. */
+  slot: string;
+  assetId: string;
+  bucket: string;
+  key: string;
+  kind: "image" | "video" | "audio" | "document";
+  mimeType: string;
 }
 
 export interface GalleryQuery {
@@ -58,6 +85,8 @@ interface RecordRow {
   variant_id: string | null;
   micro_credits: string;
   prompt: string | null;
+  params: Record<string, unknown> | null;
+  reference_asset_ids: Record<string, string[]> | null;
   created_at: Date;
   updated_at: Date;
   error_code: string | null;
@@ -94,6 +123,8 @@ const SELECT_RECORD = `
     model.capabilities -> 'variant' ->> 'id' as variant_id,
     case when job.completed_at is null then job.micro_credits_held else job.micro_credits_charged end as micro_credits,
     job.params ->> 'prompt' as prompt,
+    job.params,
+    job.reference_asset_ids,
     job.created_at,
     job.updated_at,
     job.error_code,
@@ -126,6 +157,8 @@ function toRecord(row: RecordRow): GenerationRecord {
     variantId: row.variant_id ?? "unknown",
     coins: microCreditsToCoins(Number(row.micro_credits)),
     prompt: row.prompt ?? "",
+    params: row.params ?? {},
+    referenceAssetIds: row.reference_asset_ids ?? {},
     createdAt: row.created_at.getTime(),
     updatedAt: row.updated_at.getTime(),
     outputs: (row.outputs ?? []).map((output) => ({ ...output })),
@@ -145,6 +178,49 @@ export class PostgresGalleryRepository {
         and job.account_id = (select personal_account_id from users where id = ${userId})
     `;
     return row ? toRecord(row) : null;
+  }
+
+  /**
+   * The files a generation was run against, so it can be run again with them.
+   *
+   * Scoped through the job rather than by asset id, and that is the whole point
+   * of the shape: the caller names a generation it can already prove it owns,
+   * and the ids come out of that row rather than out of the request. Asking for
+   * an asset by id would be a second authorisation problem to get wrong.
+   *
+   * A reference whose asset has since been deleted is simply absent — the list
+   * is what can still be attached, not what once was.
+   */
+  async referencesForUser(jobId: string, userId: string): Promise<StoredReference[]> {
+    const rows = await this.sql<
+      { slot: string; id: string; storage_bucket: string; storage_key: string; kind: StoredReference["kind"]; mime_type: string }[]
+    >`
+      with owned as (
+        select job.reference_asset_ids as refs
+        from jobs job
+        where job.id = ${jobId}
+          and job.deleted_at is null
+          and job.account_id = (select personal_account_id from users where id = ${userId})
+      ),
+      wanted as (
+        select slot.key as slot, asset_id::uuid as asset_id, ordinality as position
+        from owned,
+             jsonb_each(coalesce(owned.refs, '{}'::jsonb)) as slot(key, ids),
+             jsonb_array_elements_text(slot.ids) with ordinality as element(asset_id, ordinality)
+      )
+      select wanted.slot, asset.id, asset.storage_bucket, asset.storage_key, asset.kind, asset.mime_type
+      from wanted
+      join assets asset on asset.id = wanted.asset_id and asset.deleted_at is null
+      order by wanted.slot, wanted.position
+    `;
+    return rows.map((row) => ({
+      slot: row.slot,
+      assetId: row.id,
+      bucket: row.storage_bucket,
+      key: row.storage_key,
+      kind: row.kind,
+      mimeType: row.mime_type,
+    }));
   }
 
   /**

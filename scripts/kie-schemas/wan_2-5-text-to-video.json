@@ -1,0 +1,72 @@
+{
+  "models": ["wan/2-5-text-to-video"],
+  "title": "Wan 2.5 - Text to Video",
+  "docUrl": "https://docs.kie.ai/market/wan/2-5-text-to-video.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Wan 2.5 - Text to Video — input",
+    "type": "object",
+    "description": "Input parameters for the text-to-video task.",
+    "required": ["prompt", "duration"],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "maxLength": 800,
+        "description": "The text prompt for video generation. Supports Chinese and English. Maximum length: 800 characters.",
+        "examples": [
+          "A dimly lit jazz bar at night, wooden tables glowing under warm pendant lights. Patrons sip drinks and chat quietly while a three-piece band performs on stage. The saxophone player stands under a spotlight, gleaming instrument reflecting the light. No dialogue. Ambient audio: smooth live jazz music with saxophone and piano, clinking glasses, low murmur of audience conversations, occasional burst of laughter from a nearby table. Camera: slow pan across the crowd, then gentle zoom toward the saxophone player's solo, focusing on expressive hand movements."
+        ]
+      },
+      "duration": {
+        "type": "string",
+        "enum": ["5", "10"],
+        "description": "The duration of the generated video in seconds.\n\n- `5`: 5 seconds\n- `10`: 10 seconds",
+        "examples": ["5"]
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "enum": ["16:9", "9:16", "1:1"],
+        "description": "The aspect ratio of the generated video.\n\n- `16:9`: Landscape\n- `9:16`: Portrait\n- `1:1`: Square",
+        "examples": ["16:9"]
+      },
+      "resolution": {
+        "type": "string",
+        "enum": ["720p", "1080p"],
+        "description": "Video resolution tier.\n\n- `720p`: 720p\n- `1080p`: 1080p",
+        "examples": ["1080p"]
+      },
+      "negative_prompt": {
+        "type": "string",
+        "maxLength": 500,
+        "description": "Negative prompt used to describe content to avoid. Maximum length: 500 characters."
+      },
+      "enable_prompt_expansion": {
+        "type": "boolean",
+        "description": "Whether to enable prompt rewriting using LLM. Improves results for short prompts but increases processing time.\n\n- Boolean value: `true` / `false`",
+        "examples": [true]
+      },
+      "seed": {
+        "type": "integer",
+        "description": "Random seed for reproducibility. If omitted, a random seed is chosen."
+      }
+    }
+  },
+  "examples": [
+    {
+      "model": "wan/2-5-text-to-video",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "A dimly lit jazz bar at night, wooden tables glowing under warm pendant lights. Patrons sip drinks and chat quietly while a three-piece band performs on stage. The saxophone player stands under a spotlight, gleaming instrument reflecting the light. No dialogue. Ambient audio: smooth live jazz music with saxophone and piano, clinking glasses, low murmur of audience conversations, occasional burst of laughter from a nearby table. Camera: slow pan across the crowd, then gentle zoom toward the saxophone player's solo, focusing on expressive hand movements.",
+        "duration": "5",
+        "aspect_ratio": "16:9",
+        "resolution": "1080p",
+        "negative_prompt": "blurry, flicker, low quality, distorted people, camera shake",
+        "enable_prompt_expansion": true,
+        "seed": 123456,
+        "nsfw_checker": false
+      }
+    }
+  ]
+}

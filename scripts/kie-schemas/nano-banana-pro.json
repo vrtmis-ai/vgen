@@ -1,0 +1,68 @@
+{
+  "models": ["nano-banana-pro"],
+  "title": "Google - Nano Banana Pro",
+  "docUrl": "https://docs.kie.ai/market/google/pro-image-to-image.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Google - Nano Banana Pro — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "A text description of the image you want to generate (Max length: 10000 characters)",
+        "type": "string",
+        "maxLength": 10000,
+        "examples": [
+          "Comic poster: cool banana hero in shades leaps from sci-fi pad. Six panels: 1) 4K mountain landscape, 2) banana holds page of long multilingual text with auto translation, 3) Gemini 3 hologram for search/knowledge/reasoning, 4) camera UI sliders for angle focus color, 5) frame trio 1:1-9:16, 6) consistent banana poses. Footer shows Google icons. Tagline: Nano Banana Pro now on Kie AI."
+        ]
+      },
+      "image_input": {
+        "description": "Input images to transform or use as reference (supports up to 8 images) (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 30.0MB)",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "maxItems": 8,
+        "examples": [[]]
+      },
+      "aspect_ratio": {
+        "description": "Aspect ratio of the generated image",
+        "type": "string",
+        "enum": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9", "auto"],
+        "default": "1:1",
+        "examples": ["1:1"]
+      },
+      "resolution": {
+        "description": "Resolution of the generated image",
+        "type": "string",
+        "enum": ["1K", "2K", "4K"],
+        "default": "1K",
+        "examples": ["1K"]
+      },
+      "output_format": {
+        "description": "Format of the output image",
+        "type": "string",
+        "enum": ["png", "jpg"],
+        "default": "png",
+        "examples": ["png"]
+      }
+    },
+    "required": ["prompt"]
+  },
+  "examples": [
+    {
+      "model": "nano-banana-pro",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "Comic poster: cool banana hero in shades leaps from sci-fi pad. Six panels: 1) 4K mountain landscape, 2) banana holds page of long multilingual text with auto translation, 3) Gemini 3 hologram for search/knowledge/reasoning, 4) camera UI sliders for angle focus color, 5) frame trio 1:1-9:16, 6) consistent banana poses. Footer shows Google icons. Tagline: Nano Banana Pro now on Kie AI.",
+        "image_input": [],
+        "aspect_ratio": "1:1",
+        "resolution": "1K",
+        "output_format": "png"
+      }
+    }
+  ]
+}

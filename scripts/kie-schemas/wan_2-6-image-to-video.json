@@ -1,0 +1,69 @@
+{
+  "models": ["wan/2-6-image-to-video"],
+  "title": "Wan 2.6 - Image to Video",
+  "docUrl": "https://docs.kie.ai/market/wan/2-6-image-to-video.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Wan 2.6 - Image to Video — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "prompt": {
+        "description": "Text prompts for video generation. Supports both Chinese and English, with a minimum of 2 characters and a maximum of 5,000 characters. (Max length: 5000 characters)",
+        "type": "string",
+        "maxLength": 5000,
+        "examples": ["Anthopmopric fox singing a Christmas song at the rubbish dump in the rain."]
+      },
+      "image_urls": {
+        "description": "Upload an image file to use as input for the API (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 10.0MB),All images must be at least 256x256px.",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "maxItems": 1,
+        "examples": [["https://static.aiquickdraw.com/tools/example/1765957673717_awiBAidD.webp"]]
+      },
+      "duration": {
+        "description": "The duration of the generated video in seconds",
+        "type": "string",
+        "enum": ["5", "10", "15"],
+        "default": "5",
+        "examples": ["5"]
+      },
+      "resolution": {
+        "description": "Video resolution tier",
+        "type": "string",
+        "enum": ["720p", "1080p"],
+        "default": "1080p",
+        "examples": ["1080p"]
+      },
+      "multi_shots": {
+        "type": "boolean",
+        "default": false,
+        "description": "The multi shots parameter controls the shot composition style during AI video generation, determining whether the generated video is a single continuous shot or multiple shots with transitions."
+      },
+      "nsfw_checker": {
+        "type": "boolean",
+        "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+      }
+    },
+    "required": ["prompt", "image_urls"]
+  },
+  "examples": [
+    {
+      "model": "wan/2-6-image-to-video",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "prompt": "Anthopmopric fox singing a Christmas song at the rubbish dump in the rain.",
+        "image_urls": ["https://static.aiquickdraw.com/tools/example/1765957673717_awiBAidD.webp"],
+        "duration": "5",
+        "resolution": "1080p",
+        "multi_shots": false,
+        "nsfw_checker": false
+      }
+    }
+  ]
+}

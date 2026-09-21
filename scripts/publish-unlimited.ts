@@ -79,15 +79,17 @@ const ACCOUNTS = [
  * scripts/spike-kie.ts verified KIE's, against the real endpoint rather than
  * the docs, and that is the phase that would find a rename.
  *
- * minTier 3 = Studio and Creator.
+ * minTier 2 = Pro and up, for as long as the plan's unlimited window is open.
  *
- * Deliberately one tier above Nano Banana's own minTier of 2, which is what
- * keeps it a perk rather than a write-off. Setting the two equal would mean
- * nobody who can reach the model pays for it — tier 1 locked out, tier 2 and
- * up free — so the grant would not add a reason to upgrade, it would delete
- * the revenue line. At 3, Pro pays the normal price and the top two plans stop
- * paying, which is a reason to move up rather than a discount for everyone
- * already past the door.
+ * What keeps it a perk rather than a write-off is the clock, not the tier.
+ * It used to be 3, one above Nano Banana's own minTier, so that Pro paid the
+ * metered price and the top two plans stopped paying — a reason to move up
+ * rather than a discount for everyone already past the door. Models are not
+ * gated by tier at all now, so that reasoning has nothing left to stand on:
+ * every account can reach every model and the question is only who gets it
+ * free. The answer is a window — `plans.unlimited_days`, seven days on Pro and
+ * a month on Studio and Creator — which bounds the giveaway in time instead of
+ * by plan, and is a reason to buy again rather than a standing cost.
  *
  * dailyCap 50 is per account per day, and it is what keeps the word
  * "unlimited" survivable rather than what walks it back: the upstream
@@ -111,7 +113,7 @@ const GRANTS = [
     variantId: "nano-banana-pro",
     externalModelId: "nano-banana-pro",
     featureCode: "image_generate",
-    minTier: 3,
+    minTier: 2,
     dailyCap: 50,
     covers: { resolution: ["1K", "2K"] },
   },
@@ -119,7 +121,7 @@ const GRANTS = [
     variantId: "nano-banana-2",
     externalModelId: "nano-banana-2",
     featureCode: "image_generate",
-    minTier: 3,
+    minTier: 2,
     dailyCap: 50,
     covers: { resolution: ["1K", "2K"] },
   },

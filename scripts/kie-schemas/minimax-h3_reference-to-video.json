@@ -1,0 +1,101 @@
+{
+  "models": ["minimax-h3/reference-to-video"],
+  "title": "MiniMax H3 Reference-to-Video",
+  "docUrl": "https://docs.kie.ai/market/minimax-h3/reference-to-video.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-13",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "MiniMax H3 Reference-to-Video — input",
+    "type": "object",
+    "required": ["prompt", "duration"],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "Video generation prompt, length is between 1 and 7000 characters.",
+        "minLength": 1,
+        "maxLength": 7000,
+        "examples": ["Generate a continuous cinematic video referencing the characters, actions, and scenes in the input material"]
+      },
+      "reference_image_urls": {
+        "type": "array",
+        "description": "Array of reference image URLs. Supports up to 9 images. Supports HTTP, HTTPS, and OSS addresses; supported image formats include JPG, JPEG, PNG, WEBP, HEIC, and HEIF; a single image size cannot exceed 30 MB; the side length of the image must be between 256 and 5760 pixels, and the aspect ratio must be between 0.4 and 2.5.",
+        "maxItems": 9,
+        "items": {
+          "type": "string",
+          "pattern": "^(https?|oss)://",
+          "format": "uri"
+        },
+        "examples": [["https://example.com/reference-image-1.jpg", "https://example.com/reference-image-2.jpg"]]
+      },
+      "reference_video_urls": {
+        "type": "array",
+        "description": "Array of reference video URLs. Supports up to 3 videos. Supports MP4, MOV; video encoding supports H.264, H.265, audio encoding supports AAC, MP3; a single file size cannot exceed 50 MB; the duration of a single segment is 2 to 15 seconds, and the total duration of all reference videos cannot exceed 15 seconds; the video side length must be between 256 and 5760 pixels, the aspect ratio must be between 0.4 and 2.5, and the frame rate must be between 23.976 and 60.",
+        "maxItems": 3,
+        "items": {
+          "type": "string",
+          "pattern": "^(https?|oss)://",
+          "format": "uri"
+        },
+        "examples": [["https://example.com/reference-video.mp4"]]
+      },
+      "reference_audio_urls": {
+        "type": "array",
+        "description": "Array of reference audio URLs. Supports up to 3 audios. Supports WAV, MP3; a single file size cannot exceed 15 MB; the duration of a single segment is 2 to 15 seconds, and the total duration of all reference audios cannot exceed 15 seconds. reference_audio cannot be used alone, it must be accompanied by reference_image or reference_video.",
+        "maxItems": 3,
+        "items": {
+          "type": "string",
+          "pattern": "^(https?|oss)://",
+          "format": "uri"
+        },
+        "examples": [["https://example.com/reference-audio.mp3"]]
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "description": "Video aspect ratio. The default is adaptive, or a specific ratio can be specified.",
+        "enum": ["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
+        "default": "adaptive"
+      },
+      "duration": {
+        "type": "integer",
+        "description": "The duration of the generated video, supporting integer values from 4 to 15 seconds.",
+        "enum": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        "default": 6,
+        "minimum": 4,
+        "maximum": 15,
+        "examples": [6]
+      },
+      "resolution": {
+        "type": "string",
+        "description": "Video resolution.",
+        "enum": ["768P", "2K"],
+        "default": "2K"
+      }
+    },
+    "allOf": [
+      {
+        "anyOf": [
+          {
+            "required": ["reference_image_urls"],
+            "properties": {
+              "reference_image_urls": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          {
+            "required": ["reference_video_urls"],
+            "properties": {
+              "reference_video_urls": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      }
+    ]
+  },
+  "examples": []
+}

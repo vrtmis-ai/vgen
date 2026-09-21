@@ -22,9 +22,10 @@
  *
  * **Unknown is null, never a guess.** Absent is what these columns have always
  * been, so a format this cannot read leaves the row exactly as it is today.
- * Deliberately unread: WebM, OGG and WAV, none of which any provider we have
+ * Deliberately unread: WebM and OGG, neither of which any provider we have
  * integrated returns — our fallbacks are `video/mp4` and `audio/mpeg`. Each is
- * a self-contained function's worth of work the day one does.
+ * a self-contained function's worth of work the day one does, as WAV was the
+ * day Gemini TTS arrived.
  */
 
 export interface Measurements {
@@ -48,6 +49,7 @@ export function measure(bytes: Uint8Array): Measurements {
   if (starts(bytes, 0, [0xff, 0xd8, 0xff])) return jpeg(view, bytes);
   if (starts(bytes, 0, [0x47, 0x49, 0x46, 0x38])) return gif(view, bytes);
   if (starts(bytes, 0, [0x52, 0x49, 0x46, 0x46]) && starts(bytes, 8, [0x57, 0x45, 0x42, 0x50])) return webp(view, bytes);
+  if (starts(bytes, 0, [0x52, 0x49, 0x46, 0x46]) && starts(bytes, 8, [0x57, 0x41, 0x56, 0x45])) return wav(view, bytes);
   // `ftyp` at byte 4 is ISO base media: mp4, and QuickTime, which is the same
   // container with a different brand.
   if (bytes.length > 12 && ascii(bytes, 4, 4) === "ftyp") return isoBaseMedia(view, bytes);
@@ -216,6 +218,34 @@ function isoBaseMedia(view: DataView, bytes: Uint8Array): Measurements {
   }
 
   return result;
+}
+
+/* -- wav ---------------------------------------------------------------- */
+
+/**
+ * Chunk by chunk: `fmt ` carries the byte rate and `data` the length, and
+ * neither sits at a fixed offset — an encoder may put LIST or anything else
+ * ahead of them.
+ *
+ * The declared `data` size is the length, not the bytes present. A streamed
+ * file writes 0 or 0xFFFFFFFF there before it knows, and only then is the
+ * buffer the better answer.
+ */
+function wav(view: DataView, bytes: Uint8Array): Measurements {
+  let byteRate = 0;
+  for (let at = 12; at + 8 <= bytes.length;) {
+    const id = ascii(bytes, at, 4);
+    const size = view.getUint32(at + 4, true);
+    if (id === "fmt " && at + 20 <= bytes.length) byteRate = view.getUint32(at + 16, true);
+    if (id === "data") {
+      if (!byteRate) return none();
+      const length = size === 0 || size === 0xffffffff ? bytes.length - at - 8 : size;
+      return { width: null, height: null, durationMs: Math.round((length / byteRate) * 1000) };
+    }
+    // Chunks are padded to an even length.
+    at += 8 + size + (size % 2);
+  }
+  return none();
 }
 
 /* -- mp3 ---------------------------------------------------------------- */

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AppServices } from "../../runtime/AppServices";
-import { AuthedSessionSchema, PhoneVerificationStartedSchema } from "../../runtime/contracts/auth";
+import { AuthedSessionSchema, InviteCheckResultSchema, PhoneVerificationStartedSchema } from "../../runtime/contracts/auth";
 import type { HttpClient } from "./client";
 
 /** `undefined` is what readJson() yields for the empty 204 body logout returns. */
@@ -68,7 +68,17 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
       });
     },
 
-    async startProviderSignIn(provider) {
+    async checkInvite(code, options) {
+      const result = await client.request("/auth/invite/check", {
+        method: "POST",
+        body: { code },
+        schema: InviteCheckResultSchema,
+        signal: options?.signal,
+      });
+      return result.valid;
+    },
+
+    async startProviderSignIn(provider, inviteCode) {
       /* The one call here that is not a request.
          `client.request` would be wrong twice over: the browser has to *arrive*
          at the provider carrying the HttpOnly state cookie the API sets on this
@@ -78,7 +88,8 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
          `assign` rather than `replace`: the back button should bring someone who
          changed their mind back to the sign-in screen, not to whatever preceded
          it. */
-      globalThis.location.assign(`${baseUrl.replace(/\/+$/, "")}/auth/${provider}`);
+      const invite = inviteCode ? `?invite=${encodeURIComponent(inviteCode)}` : "";
+      globalThis.location.assign(`${baseUrl.replace(/\/+$/, "")}/auth/${provider}${invite}`);
     },
 
     async logout(options) {

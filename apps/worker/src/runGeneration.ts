@@ -427,7 +427,7 @@ export async function runGeneration(jobId: string, deps: RunGenerationDeps): Pro
 
     let outcome;
     try {
-      outcome = await provider.poll(submission.externalJobId, apiKey);
+      outcome = await provider.poll(submission.externalJobId, apiKey, job.externalModelId);
       consecutiveTransportErrors = 0;
     } catch (error) {
       if (++consecutiveTransportErrors < 5) continue;
