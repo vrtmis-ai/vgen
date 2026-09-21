@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AdminApi, AdminFamily } from "../../features/admin/adminApi";
 import { BANK_LABEL, CATEGORY_LABEL, LEVEL_LABEL } from "../../features/content/labels";
 import { mediaSrc } from "../../features/content/media";
+import { readDuration } from "../../components/controls";
 import { ApiError } from "../../runtime/apiError";
 import {
   CONTENT_MEDIA_LIMITS,
@@ -448,12 +449,17 @@ function CourseEditor({ api, families, initial, ...frame }: FrameProps & { api: 
                 purpose="lesson"
                 accept="video/mp4,video/webm"
                 value={lesson.videoUrl ? { url: lesson.videoUrl, kind: "video" } : undefined}
-                onPick={(file) =>
-                  void videoSeconds(file).then((seconds) => {
-                    if (seconds) patchLesson(lesson.id, { seconds });
-                  })
-                }
-                onChange={(media) => patchLesson(lesson.id, { videoUrl: media?.url })}
+                onChange={(media) => {
+                  patchLesson(lesson.id, { videoUrl: media?.url });
+                  // Read from the stored copy rather than the picked file: it
+                  // is the one visitors will play, and its length is the one
+                  // the syllabus should print.
+                  if (media) {
+                    void readDuration(mediaSrc(media.url), "video").then((seconds) => {
+                      if (seconds) patchLesson(lesson.id, { seconds: Math.max(1, Math.round(seconds)) });
+                    });
+                  }
+                }}
               />
             </div>
           ))}
@@ -696,7 +702,6 @@ function MediaField({
   accept,
   value,
   onChange,
-  onPick,
 }: {
   api: AdminApi;
   label: string;
@@ -705,7 +710,6 @@ function MediaField({
   accept: string;
   value: { url: string; kind: "image" | "video" } | undefined;
   onChange: (media: ContentMedia | undefined) => void;
-  onPick?: (file: File) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -725,7 +729,6 @@ function MediaField({
       setError(`این فایل ${Math.ceil(file.size / MB)} مگابایت است؛ سقف ${limit / MB} مگابایت است.`);
       return;
     }
-    onPick?.(file);
     setBusy(true);
     try {
       onChange(await api.uploadContentMedia(file, purpose));
@@ -853,23 +856,6 @@ function blank(kind: EditableContentKind, families: AdminFamily[]): ContentWrite
     };
   }
   return { kind: "prompt_fragment", status: "published", item: { label: "", fragment: "", category: "camera", note: "" } };
-}
-
-/** Whole seconds, read from the file itself before it has finished uploading. Null if the browser cannot tell. */
-function videoSeconds(file: File): Promise<number | null> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    const done = (seconds: number | null) => {
-      URL.revokeObjectURL(url);
-      resolve(seconds);
-    };
-    video.preload = "metadata";
-    video.onloadedmetadata = () =>
-      done(Number.isFinite(video.duration) && video.duration > 0 ? Math.max(1, Math.round(video.duration)) : null);
-    video.onerror = () => done(null);
-    video.src = url;
-  });
 }
 
 function uploadError(failure: unknown): string {
