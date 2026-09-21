@@ -1,0 +1,59 @@
+{
+  "models": ["gpt-image/1.5-image-to-image"],
+  "title": "GPT Image-1.5 - Image to Image",
+  "docUrl": "https://docs.kie.ai/market/gpt-image/1-5-image-to-image.md",
+  "endpoint": "/api/v1/jobs/createTask",
+  "fetchedAt": "2026-09-21",
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "GPT Image-1.5 - Image to Image — input",
+    "type": "object",
+    "description": "Input parameters for the generation task",
+    "properties": {
+      "input_urls": {
+        "description": "Upload an image file to use as input for the API (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 10.0MB)",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "maxItems": 16,
+        "examples": [["https://static.aiquickdraw.com/tools/example/1765962794374_GhtqB9oX.webp"]]
+      },
+      "prompt": {
+        "description": "A text description of the image you want to generate",
+        "type": "string",
+        "examples": [
+          "Edit the image to dress the woman using the provided clothing images. Preserve her exact likeness, expression, hairstyle, and proportions. Replace only the clothing, fitting the garments naturally to her existing pose and body geometry with realistic fabric behavior. Match lighting, shadows, and color temperature to the original photo so the outfit integrates photorealistically, without looking pasted on."
+        ]
+      },
+      "aspect_ratio": {
+        "description": "Width-height ratio of the image, determining its visual form.",
+        "type": "string",
+        "enum": ["1:1", "2:3", "3:2"],
+        "default": "3:2",
+        "examples": ["3:2"]
+      },
+      "quality": {
+        "description": "Quality: medium=balanced, high=slow/detailed.",
+        "type": "string",
+        "enum": ["medium", "high"],
+        "default": "medium",
+        "examples": ["medium"]
+      }
+    },
+    "required": ["input_urls", "prompt", "aspect_ratio", "quality"]
+  },
+  "examples": [
+    {
+      "model": "gpt-image/1.5-image-to-image",
+      "callBackUrl": "https://your-domain.com/api/callback",
+      "input": {
+        "input_urls": ["https://static.aiquickdraw.com/tools/example/1765962794374_GhtqB9oX.webp"],
+        "prompt": "Edit the image to dress the woman using the provided clothing images. Preserve her exact likeness, expression, hairstyle, and proportions. Replace only the clothing, fitting the garments naturally to her existing pose and body geometry with realistic fabric behavior. Match lighting, shadows, and color temperature to the original photo so the outfit integrates photorealistically, without looking pasted on.",
+        "aspect_ratio": "3:2",
+        "quality": "medium"
+      }
+    }
+  ]
+}
