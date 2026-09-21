@@ -46,6 +46,7 @@ gallery had no route at all.
 | `generation.downloadUrl()` | `GET /generation/jobs/:id/outputs/:index/download` | `routes/jobs.ts`      | **Live** |
 | `generation.references()`  | `GET /generation/jobs/:id/references`              | `routes/jobs.ts`      | **Live** |
 | `generation.remove()`      | `DELETE /generation/jobs/:id`                      | `routes/jobs.ts`      | **Live** |
+| `generation.cancel()`      | `POST /generation/jobs/:id/cancel`                 | `routes/jobs.ts`      | **Live** |
 | `gallery.list()`           | `GET /gallery`                                     | `routes/gallery.ts`   | **Live** |
 | `assets.upload()`          | `POST /assets`                                     | `routes/assets.ts`    | **Live** |
 | `campaign.getActive()`     | `GET /campaigns/active`                            | `routes/campaigns.ts` | **Live** |
@@ -1519,7 +1520,8 @@ The same shape, scoped to the caller. Somebody else's job is a **404, not a
 403** — a job id is not a capability, and a 403 would confirm it exists.
 
 Poll this after submitting. `status` walks `queued` → `running` → `succeeded`
-or `failed`; the terminal states are final and nothing moves afterwards. Once it
+or `failed` — or `queued` → `cancelled` when the customer takes it back first;
+the terminal states are final and nothing moves afterwards. Once it
 succeeds, `outputs` carries the files:
 
 ```jsonc
@@ -1595,12 +1597,45 @@ reaped on their own schedule, not by this.
 refusal is the point of the route rather than an edge of it: a live job has
 credits held against it, and a row that vanished while its hold stood would
 leave the customer short by an amount nothing on their screen could account for.
-There is no cancel here — stopping a generation is a different act with a
-different effect on the money, and deleting the row would be neither.
+Stopping a queued generation is a different act with a different effect on
+the money — `POST /generation/jobs/:jobId/cancel`, below — and deleting the row
+would be neither.
 
 **404** for a job that is not the caller's, a job already removed, and a `draft`
 — same reason as the read above: whether an id exists is not this caller's
 business.
+
+### `POST /generation/jobs/:jobId/cancel`
+
+Takes back a generation that has not started, with its coins. No body; the
+same session as the other job routes.
+
+| Job state                             | Answer                                                          |
+| ------------------------------------- | --------------------------------------------------------------- |
+| `queued`                              | **200** — the job, same shape as the GET, `status: "cancelled"` |
+| already `cancelled`                   | **200** — the same job again; a double tap is not a failure     |
+| `running`                             | **409 `job_started`** — the worker got there first              |
+| `succeeded` / `failed` / `expired`    | **409 `job_finished`**                                          |
+| someone else's, removed, or a `draft` | **404 `job_not_found`**                                         |
+| no session                            | **401 `unauthorized`**                                          |
+
+**`queued` only.** A running job has already gone to a provider, which may bill
+us whatever we do.
+
+**The money is `fail()`'s, in one transaction.** The hold is released, a free
+generation's slice of today's allowance is given back, and the row ends
+`cancelled` with `completed_at` set, `micro_credits_charged = 0` and **no error
+code** — it did not fail, and `record_job_event` emits `job.cancelled` from the
+status alone. `releaseJobMoney` in `jobRunnerRepository.ts` is the one
+implementation both use. The concurrency slot comes back at once, since only
+`queued` and `running` count against `max_concurrent_jobs`.
+
+**Safe against the worker** because the cancel locks the row `for update` and
+`claim()` is a single conditional `update … where status in ('queued','running')`.
+If the cancel commits first, the claim matches nothing and the runner skips the
+job with no provider call. If the claim commits first, the cancel reads
+`running` and answers `job_started`. The BullMQ entry stays in the queue and is
+skipped when its turn comes.
 
 ### `GET /gallery`
 

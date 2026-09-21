@@ -258,17 +258,21 @@ export function createDemoGenerationAdapters(now: () => number): {
       return [];
     },
 
-    /* The same three answers the route in issue #81 describes: a queued job is
-       cancelled, one a worker has claimed is too late, and one that has already
-       settled has nothing left to call off. */
+    /* The route's answers (`POST /generation/jobs/:jobId/cancel`): a queued job
+       is cancelled, a second cancel says the same thing again, one a worker has
+       claimed is too late, one that has settled has nothing left to call off,
+       and a draft was never submitted, so there is no such job. */
     async cancel(jobId) {
       const stored = jobs.get(jobId) ?? recall(jobId);
-      if (!stored) throw new ApiError({ code: "job_not_found", message: "No such job.", status: 404 });
-      const job = currentJob(stored);
+      const job = stored ? currentJob(stored) : null;
+      if (!stored || !job || job.status === "draft") {
+        throw new ApiError({ code: "job_not_found", message: "No such job.", status: 404 });
+      }
+      if (job.status === "cancelled") return;
       if (job.status === "running") {
         throw new ApiError({ code: "job_started", message: "That generation has already started.", status: 409 });
       }
-      if (job.status !== "queued" && job.status !== "draft") {
+      if (job.status !== "queued") {
         throw new ApiError({ code: "job_finished", message: "That generation has already finished.", status: 409 });
       }
       stored.cancelled = true;
