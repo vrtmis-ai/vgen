@@ -212,6 +212,9 @@ export default function StudioImage({
     !freeNow && s.price !== null && s.spendable !== null && s.price * count > s.spendable
       ? shortfallRefusal(s.price * count, s.spendable, n)
       : null;
+  // Held until the press answers it. See FormPanel.
+  const [pressed, setPressed] = useState<GenerationRefusal | null>(null);
+  const refusal = submitError ?? (shortfall ? pressed : null);
   const [viewing, setViewing] = useState<ViewerAsset | null>(null);
   const view = useViewMode("image", { mode: "grid", density: 4 });
 
@@ -716,10 +719,9 @@ export default function StudioImage({
                 account, a request that did not arrive. Above the control row,
                 because this dock is pinned to the bottom of the window and a
                 box under it lifts «بساز» out from under the pointer. */}
-            {submitError && <SubmitRefusalNote refusal={submitError} onAction={onErrorAction} className="mt-3" />}
             {/* The same notice, before the press instead of after it: the price
                 of what is about to be sent, against what the wallet holds. */}
-            {!submitError && shortfall && <SubmitRefusalNote refusal={shortfall} onAction={onErrorAction} className="mt-3" />}
+            {refusal && <SubmitRefusalNote refusal={refusal} onAction={onErrorAction} className="mt-3" />}
 
             <div className="mt-3 flex items-end gap-2">
               <div className="hide-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
@@ -806,14 +808,18 @@ export default function StudioImage({
                    colour is enough: it is the only lime in the dock. */
                 <button
                   disabled={!visitor && !s.ready}
-                  onClick={(event) =>
-                    visitor
-                      ? signIn()
-                      : ignition.ignite(event, () => {
-                          reveal.arm();
-                          onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, refs);
-                        })
-                  }
+                  onClick={(event) => {
+                    if (visitor) return signIn();
+                    /* The count is this dock's own multiplier, so the sum the
+                       button prints is the sum the balance is asked about —
+                       `useCreateState` only knows the price of one. */
+                    if (shortfall) return setPressed(shortfall);
+                    setPressed(null);
+                    ignition.ignite(event, () => {
+                      reveal.arm();
+                      onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, refs);
+                    });
+                  }}
                   aria-busy={ignition.igniting || undefined}
                   className={`${CHIP_CLASS} relative justify-center overflow-hidden px-4 transition-opacity disabled:opacity-35`}
                   style={{

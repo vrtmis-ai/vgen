@@ -181,7 +181,13 @@ export function useCreateState(families: Family[], refs: RefMap = {}) {
   const spendable = useSpendable();
   const short = !freeNow && price !== null && spendable !== null && price > spendable;
 
-  const ready = validation.valid && price !== null && !short && !isSubmitting;
+  /* `short` is deliberately **not** in here. A balance that is too small does
+     not make the button unpressable — it makes the press answer «سکه کافی
+     نیست» instead of starting a job. A disabled primary control is the one
+     thing on the dock that cannot say why it is dark, and on a phone there is
+     no hover to recover that; the press is the one moment attention is
+     guaranteed to be on it. Owner's call, 2026-09-20. */
+  const ready = validation.valid && price !== null && !isSubmitting;
 
   return {
     family,

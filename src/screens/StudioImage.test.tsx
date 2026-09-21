@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDemoServices } from "../adapters/demo/demoServices";
@@ -255,5 +255,86 @@ describe("a refused tile too short to print the reason", () => {
     await userEvent.click(opener);
 
     expect(screen.getByText(/این درخواست پذیرفته نشد/)).toBeInTheDocument();
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   An empty wallet, answered by the press.
+
+   No model belongs to a plan any more, so the only thing between a press and a
+   generation is the price against the balance. That could disable the button,
+   and did — but a dark primary control is the one thing on a dock that cannot
+   say why it is dark, and the dock sits under a thumb on a phone where there
+   is no hover to recover it. So the button stays lit, the press is what asks,
+   and the answer is the notice every other refusal already draws, with the
+   wallet one tap away. Nothing goes to the API: the sum is local.
+   --------------------------------------------------------------------------- */
+
+const BROKE: Session = { ...ACCOUNT, wallet: { spendable: 0.01, grants: [], tier: 1 } };
+
+function showWithWallet(session: Session) {
+  const onGenerate = vi.fn();
+  const onErrorAction = vi.fn();
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <AppServicesProvider services={createDemoServices()}>
+        <LanguageProvider initialLang="fa">
+          <CatalogProvider families={catalog.families}>
+            <SessionProvider value={session}>
+              <StudioImage gens={[]} onGenerate={onGenerate} onOpenModel={vi.fn()} onRemove={vi.fn()} onErrorAction={onErrorAction} />
+            </SessionProvider>
+          </CatalogProvider>
+        </LanguageProvider>
+      </AppServicesProvider>
+    </QueryClientProvider>,
+  );
+  return { onGenerate, onErrorAction };
+}
+
+describe("pressing create with too few coins", () => {
+  /* jsdom has no `matchMedia`, and the ignition asks it whether to skip the
+     field before it schedules the submit — without this the press throws
+     inside the handler and the job is never sent. */
+  beforeEach(() => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({ matches: false, media: "", addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("says nothing until the press", async () => {
+    showWithWallet(BROKE);
+    await userEvent.type(screen.getByPlaceholderText(/توصیف/), "یک گربه");
+
+    // The price is already on the button; a standing red notice would nag
+    // somebody who is still writing.
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("button", { name: /بساز/ })).toBeEnabled();
+  });
+
+  it("answers the press instead of starting a job, and offers the wallet", async () => {
+    const { onGenerate, onErrorAction } = showWithWallet(BROKE);
+    await userEvent.type(screen.getByPlaceholderText(/توصیف/), "یک گربه");
+
+    await userEvent.click(screen.getByRole("button", { name: /بساز/ }));
+
+    expect(onGenerate).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("موجودی‌ات");
+
+    await userEvent.click(screen.getByRole("button", { name: "شارژ کیف پول" }));
+    expect(onErrorAction).toHaveBeenCalledWith("wallet");
+  });
+
+  it("starts the job when the wallet covers it", async () => {
+    const { onGenerate } = showWithWallet(ACCOUNT);
+    await userEvent.type(screen.getByPlaceholderText(/توصیف/), "یک گربه");
+
+    await userEvent.click(screen.getByRole("button", { name: /بساز/ }));
+
+    /* Awaited, because the press lights the field first and hands the job over
+       when the sweep reaches the far edge — see `useIgnition`. */
+    await waitFor(() => expect(onGenerate).toHaveBeenCalled(), { timeout: 4_000 });
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });
