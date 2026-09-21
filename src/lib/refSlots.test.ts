@@ -8,6 +8,10 @@ import {
   pairsImages,
   refGroups,
   frameWord,
+  dockSlots,
+  entrancesOf,
+  resolveEntrance,
+  toEntranceKeys,
   slotsForKind,
   slotsInGroup,
 } from "./refSlots";
@@ -187,5 +191,70 @@ describe("dependenciesMet", () => {
 
   it("fails on an end frame with no start", () => {
     expect(dependenciesMet(kling, { image_url_end: 1 })).toBe(false);
+  });
+});
+
+/* #96. Wan 2.7 is the model the issue was written about: four variants, one
+   model, and which runs is decided by what is attached. Tested against the real
+   catalogue rows, because the resolver is only as right as the roles they carry. */
+describe("one model, several entrances", () => {
+  const wan = FAMILIES.find((family) => family.id === "wan")!;
+  const entry = wan.variants.find((variant) => variant.id === "wan-2-7")!;
+  const entrances = entrancesOf(wan, entry);
+  const runs = (filled: Record<string, number>) => resolveEntrance(wan, entrances, filled).id;
+
+  it("gathers the entry and its entrances, entry first, from any of them", () => {
+    expect(entrances.map((variant) => variant.id)).toEqual(["wan-2-7", "wan-2-7-i2v", "wan-2-7-videoedit", "wan-2-7-r2v"]);
+    const fromEntrance = entrancesOf(
+      wan,
+      wan.variants.find((variant) => variant.id === "wan-2-7-r2v")!,
+    );
+    expect(fromEntrance.map((variant) => variant.id)).toEqual(entrances.map((variant) => variant.id));
+  });
+
+  it.each([
+    [{}, "wan-2-7"],
+    [{ "source_video:video": 1 }, "wan-2-7-videoedit"],
+    [{ "first_frame:image": 1 }, "wan-2-7-i2v"],
+    [{ "first_frame:image": 1, "last_frame:image": 1 }, "wan-2-7-i2v"],
+    [{ "reference:image": 2 }, "wan-2-7-r2v"],
+    [{ "reference:image": 1, "first_frame:image": 1 }, "wan-2-7-r2v"],
+    [{ "source_video:video": 1, "reference:image": 1 }, "wan-2-7-videoedit"],
+    [{ "source_audio:audio": 1 }, "wan-2-7"],
+    [{ "source_audio:audio": 1, "first_frame:image": 1 }, "wan-2-7-i2v"],
+  ])("runs %o as %s", (filled, expected) => {
+    expect(runs(filled)).toBe(expected);
+  });
+
+  it("offers the union by role, none of it required, the end frame still after the start", () => {
+    const slots = dockSlots(wan, entrances);
+    expect(slots.map((slot) => slot.key).sort()).toEqual(
+      ["first_frame:image", "last_frame:image", "reference:image", "source_audio:audio", "source_video:video"].sort(),
+    );
+    expect(slots.some((slot) => slot.required)).toBe(false);
+    expect(slots.find((slot) => slot.key === "last_frame:image")?.requires).toBe("first_frame:image");
+    // Five references on r2v, one on videoedit: the box takes the larger.
+    expect(slots.find((slot) => slot.key === "reference:image")?.max).toBe(5);
+  });
+
+  it("sends the opening frame under whatever the running entrance calls it", () => {
+    const i2v = wan.variants.find((variant) => variant.id === "wan-2-7-i2v")!;
+    const r2v = wan.variants.find((variant) => variant.id === "wan-2-7-r2v")!;
+    expect(toEntranceKeys(wan, i2v, { "first_frame:image": ["a"] })).toEqual({ first_frame_url: ["a"] });
+    expect(toEntranceKeys(wan, r2v, { "first_frame:image": ["a"], "reference:image": ["b"] })).toEqual({
+      first_frame: ["a"],
+      reference_image: ["b"],
+    });
+  });
+
+  it("keeps a file the entrance cannot take under its role, so validation can name it", () => {
+    expect(toEntranceKeys(wan, entry, { "source_video:video": ["clip"] })).toEqual({ "source_video:video": ["clip"] });
+  });
+
+  it("leaves an ordinary model exactly as it was", () => {
+    const seedance = FAMILIES.find((family) => family.variants.some((variant) => variant.id === "seedance-2"))!;
+    const variant = seedance.variants.find((candidate) => candidate.id === "seedance-2")!;
+    expect(entrancesOf(seedance, variant)).toEqual([variant]);
+    expect(dockSlots(seedance, [variant])).toEqual(variantRefs(seedance, variant));
   });
 });

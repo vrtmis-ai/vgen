@@ -67,6 +67,27 @@ Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
 });
 
 /**
+ * jsdom has no `matchMedia`, and the create buttons ask it whether to play the
+ * ignition sweep before submitting — so a press threw inside its own handler
+ * and no test could ever get as far as a submitted job. A headless run has no
+ * motion to reduce, so it answers "reduce" and the press submits at once.
+ */
+vi.stubGlobal(
+  "matchMedia",
+  (query: string): MediaQueryList =>
+    ({
+      matches: query.includes("prefers-reduced-motion: reduce"),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList,
+);
+
+/**
  * Blob URLs without Vitest's shim. jsdom has no `URL.createObjectURL`; Vitest
  * 4.1 supplies one that converts a jsdom Blob by reading jsdom's private
  * internals (`blob[implSymbol]._buffer`), and jsdom 30.1 moved them — so every

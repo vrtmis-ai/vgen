@@ -2,7 +2,17 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSession, useSpendable } from "../runtime/providers/SessionProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, CaretDown, Sparkle, X } from "@phosphor-icons/react";
-import { defaultInput, variantControls, variantRefs, variantMaxPrompt, type Family, type ModelKind, type Variant } from "../data/models";
+import {
+  carryInput,
+  defaultInput,
+  variantControls,
+  variantRefs,
+  variantMaxPrompt,
+  type Family,
+  type ModelKind,
+  type Variant,
+} from "../data/models";
+import { dockSlots, entrancesOf, resolveEntrance, roleKey, toEntranceKeys } from "../lib/refSlots";
 import { priceCoins, priceRefusal } from "../data/pricing";
 import { CoinMark } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
@@ -201,12 +211,14 @@ export default function Generate({
   }, [refImages]);
   useEffect(() => () => revokeAll(liveRefs.current), []);
 
-  const controls = variantControls(family, variant);
-  const refs = variantRefs(family, variant);
-  const maxPrompt = variantMaxPrompt(family, variant);
-  const basic = useMemo(() => controls.filter((c) => !("advanced" in c && c.advanced)), [controls]);
-  const advanced = useMemo(() => controls.filter((c) => "advanced" in c && c.advanced), [controls]);
-  const multiVariant = family.variants.length > 1;
+  /* `variant` is what was picked. For a model with entrances (#96) that is the
+     entry, the slots are the entrances' merged by role, and the variant that
+     runs is resolved below from what is attached — see `useCreateState`, which
+     the studios read the same rule from. */
+  const entrances = entrancesOf(family, variant);
+  const grouped = entrances.length > 1;
+  const refs = dockSlots(family, entrances);
+  const multiVariant = family.variants.filter((v) => !v.entryOf).length > 1;
 
   function selectVariant(v: Variant) {
     setVariant(v);
@@ -245,14 +257,35 @@ export default function Generate({
      replaying what actually ran, and a first frame that comes back as a last
      frame is a different generation. */
   const startFrameSlot = startFrom ? refs.find((slot) => (slot.media ?? "image") === startFrom.kind) : undefined;
+  const reusedFrom = reuse ? family.variants.find((candidate) => candidate.id === reuse.variantId) : undefined;
+  const reusedRefs = (reuse?.references ?? []).map((reference) => {
+    const slot = grouped && reusedFrom ? variantRefs(family, reusedFrom).find((candidate) => candidate.key === reference.slot) : undefined;
+    return slot ? { ...reference, slot: roleKey(slot) } : reference;
+  });
   const carriedRefs: CarriedRef[] = (
     startFrom && startFrameSlot
       ? [{ slot: startFrameSlot.key, assetId: startFrom.assetId, url: startFrom.url, kind: startFrom.kind, label: "فریم شروع" }]
-      : (reuse?.references ?? [])
+      : reusedRefs
   ).filter((reference) => !dismissed.includes(reference.assetId) && refs.some((slot) => slot.key === reference.slot));
 
   const assetRefs: Record<string, string[]> = {};
   for (const reference of carriedRefs) (assetRefs[reference.slot] ??= []).push(reference.assetId);
+
+  /* The variant that runs, and everything that prices or checks it. Files are
+     held by role on a grouped model, so they are handed to validation and to
+     the submit under the running entrance's own keys. */
+  const heldCounts: Record<string, number> = {};
+  for (const [key, files] of Object.entries(refImages)) heldCounts[key] = (heldCounts[key] ?? 0) + files.length;
+  for (const [key, ids] of Object.entries(assetRefs)) heldCounts[key] = (heldCounts[key] ?? 0) + ids.length;
+  const running = grouped ? resolveEntrance(family, entrances, heldCounts) : variant;
+  const runningRefImages = grouped ? toEntranceKeys(family, running, refImages) : refImages;
+  const runningAssetRefs = grouped ? toEntranceKeys(family, running, assetRefs) : assetRefs;
+  const controls = variantControls(family, running);
+  const maxPrompt = variantMaxPrompt(family, running);
+  const basic = useMemo(() => controls.filter((c) => !("advanced" in c && c.advanced)), [controls]);
+  const advanced = useMemo(() => controls.filter((c) => "advanced" in c && c.advanced), [controls]);
+  // Switching entrance keeps whatever of the chosen settings the new one takes.
+  useEffect(() => setInput((previous) => carryInput(variantControls(family, running), previous)), [family, running]);
 
   // Some models (image-to-video) are rejected outright without their input image.
   // Blocking here is cheaper than letting the provider 422 a paid job.
@@ -279,12 +312,12 @@ export default function Generate({
   // KIE bills whole seconds and `duration` is a float, so round up: quoting a
   // 7.36s clip at 7.36 × the per-second rate loses the fraction on every job.
   const clipSeconds = videoFiles.reduce((longest, f) => Math.max(longest, Math.ceil(f.duration ?? 0)), 0);
-  const price = priceCoins(variant, input, { chars, clipSeconds });
+  const price = priceCoins(running, input, { chars, clipSeconds });
   // Both mean "no number to show", and they are not the same thing to say. A
   // refusal is the catalogue declining to sell a combination; anything else is
   // our price list missing a row the catalogue still offers, which is a bug and
   // should not be dressed up as a deliberate limit.
-  const refusal = price == null ? priceRefusal(variant, input, { chars, clipSeconds }) : null;
+  const refusal = price == null ? priceRefusal(running, input, { chars, clipSeconds }) : null;
   // .mkv and iPhone HEVC .mov are both in the accept list and neither decodes
   // reliably in a browser, so `duration` can come back undefined. On a per-second
   // model that number *is* the price, and substituting anything for it sells a
@@ -293,8 +326,15 @@ export default function Generate({
   // would be a dead button for no reason.
   const clipUnreadable =
     videoFiles.some((f) => f.duration == null) &&
-    priceCoins(variant, input, { chars, clipSeconds: 0 }) !== priceCoins(variant, input, { chars, clipSeconds: 1 });
-  const validation = validateGenerationInput({ family, variant, prompt, input, refs: refImages, assetRefs });
+    priceCoins(running, input, { chars, clipSeconds: 0 }) !== priceCoins(running, input, { chars, clipSeconds: 1 });
+  const validation = validateGenerationInput({
+    family,
+    variant: running,
+    prompt,
+    input,
+    refs: runningRefImages,
+    assetRefs: runningAssetRefs,
+  });
   /* The same gate as the studios, and the only one left: no model belongs to a
      plan, so a generation is stopped by its price against the balance or by
      nothing. Null is a visitor, who is asked to sign in rather than told they
@@ -354,7 +394,7 @@ export default function Generate({
     setSubmitError(null);
     reveal.arm();
     try {
-      const nextReceipt = await onGenerate(prompt.trim(), input, variant, refImages, assetRefs);
+      const nextReceipt = await onGenerate(prompt.trim(), input, running, runningRefImages, runningAssetRefs);
       if (nextReceipt) setReceipt(nextReceipt);
       else setSubmitError({ code: "invalid_request", message: "درخواست ساخته نشد؛ ورودی‌ها را دوباره بررسی کنید." });
     } catch (error: unknown) {
@@ -442,28 +482,30 @@ export default function Generate({
                 so its versions are the only choice on it. */}
             {multiVariant && (
               <Section className="flex flex-wrap gap-1.5 p-2.5">
-                {family.variants.map((v) => {
-                  const on = v.id === variant.id;
-                  return (
-                    <button
-                      key={v.id}
-                      onClick={() => selectVariant(v)}
-                      aria-pressed={on}
-                      className="flex h-8 items-center gap-1.5 rounded-[7px] px-2.5 text-[12px] font-semibold transition-colors"
-                      style={{
-                        background: on ? "var(--vg-primary-a14)" : "var(--vg-surface-overlay)",
-                        color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
-                      }}
-                    >
-                      {v.label}
-                      {v.badge && (
-                        <span className="text-[10px] font-medium" style={{ color: "var(--vg-text-faint)" }}>
-                          {v.badge}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                {family.variants
+                  .filter((v) => !v.entryOf)
+                  .map((v) => {
+                    const on = v.id === entrances[0]!.id;
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => selectVariant(v)}
+                        aria-pressed={on}
+                        className="flex h-8 items-center gap-1.5 rounded-[7px] px-2.5 text-[12px] font-semibold transition-colors"
+                        style={{
+                          background: on ? "var(--vg-primary-a14)" : "var(--vg-surface-overlay)",
+                          color: on ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+                        }}
+                      >
+                        {v.label}
+                        {v.badge && (
+                          <span className="text-[10px] font-medium" style={{ color: "var(--vg-text-faint)" }}>
+                            {v.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
               </Section>
             )}
 

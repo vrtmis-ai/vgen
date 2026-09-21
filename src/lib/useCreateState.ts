@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { defaultInput, variantControls, type Control, type Family, type Variant } from "../data/models";
+import { carryInput, defaultInput, variantControls, type Control, type Family, type Variant } from "../data/models";
+import { dockSlots, entrancesOf, resolveEntrance, toEntranceKeys } from "./refSlots";
 import { useAccess } from "./access";
 import { unlimitedFit } from "./unlimited";
 import { useSpendable } from "../runtime/providers/SessionProvider";
@@ -139,7 +140,19 @@ export function useCreateState(families: Family[], refs: RefMap = {}) {
    * belonging to the previous family in state; the lookup falls back to the new
    * family's first, which is the only sane default.
    */
-  const variant: Variant = family.variants.find((v) => v.id === variantId) ?? family.variants[0]!;
+  const picked: Variant = family.variants.find((v) => v.id === variantId) ?? family.variants[0]!;
+
+  /* The variant that actually runs. For most models that is the one picked;
+     for a model with entrances (#96) it is whichever the attachments call for,
+     and the dock holds its files by role so they can follow it. `refs` is in
+     role keys then, and `submitRefs` is the same files under the running
+     entrance's own keys — what validation checks and what gets sent. */
+  const entrances = useMemo(() => entrancesOf(family, picked), [family, picked]);
+  const grouped = entrances.length > 1;
+  const slots = useMemo(() => dockSlots(family, entrances), [family, entrances]);
+  const filled = Object.fromEntries(Object.entries(refs).map(([key, files]) => [key, files.length]));
+  const variant: Variant = grouped ? resolveEntrance(family, entrances, filled) : picked;
+  const submitRefs = grouped ? toEntranceKeys(family, variant, refs) : refs;
 
   // Keep the id honest after a family change, so the chip and the price agree.
   useEffect(() => setVariantId(family.variants[0]!.id), [family]);
@@ -147,10 +160,11 @@ export function useCreateState(families: Family[], refs: RefMap = {}) {
   const controls = useMemo(() => variantControls(family, variant), [family, variant]);
   const [input, setInput] = useState<InputMap>(() => defaultInput(controls));
 
-  // A different control set means different keys. Carrying the old ones over is
-  // not merely stale — the provider answers unknown keys with a 422. Variants
-  // may override controls too, so this has to key off the resolved list.
-  useEffect(() => setInput(defaultInput(controls)), [controls]);
+  // A different control set means different keys, and the provider answers
+  // unknown ones with a 422 — so only what the new controls still accept is
+  // kept. Keeping it matters now that attaching a file can switch the entrance
+  // under somebody who has already picked a ratio and a length.
+  useEffect(() => setInput((previous) => carryInput(controls, previous)), [controls]);
 
   /**
    * Which pipe the customer would rather be served through.
@@ -164,7 +178,7 @@ export function useCreateState(families: Family[], refs: RefMap = {}) {
   const [preferUnlimited, setPreferUnlimited] = useState(false);
 
   const price = priceCoins(variant, input, { chars: prompt.length, clipSeconds: 0 });
-  const validation = validateGenerationInput({ family, variant, prompt, input, refs });
+  const validation = validateGenerationInput({ family, variant, prompt, input, refs: submitRefs });
 
   /* Free through the flat-fee pipe, as this account is set up right now. Read
      here rather than in each dock because it decides the price the button
@@ -192,10 +206,19 @@ export function useCreateState(families: Family[], refs: RefMap = {}) {
   return {
     family,
     setFamily,
+    /** The variant that runs — for a model with entrances, the one the attachments call for. */
     variant,
+    /** What was picked in the picker. For a model with entrances this is the entry, and it
+     *  does not change when an attachment resolves a different one — which is what a surface
+     *  clearing its files on a model switch has to key off. */
+    pickedId: picked.id,
     setVariant: (id: string) => setVariantId(id),
-    /** More than one is worth a control; exactly one is noise. */
-    hasVariants: family.variants.length > 1,
+    /** More than one is worth a control; exactly one is noise. Entrances are not models. */
+    hasVariants: family.variants.filter((v) => !v.entryOf).length > 1,
+    /** The upload slots to draw: the model's own, or its entrances' merged by role. */
+    slots,
+    /** The attached files under the running variant's keys — what to submit. */
+    submitRefs,
     controls,
     chips: chipControls(controls),
     input,

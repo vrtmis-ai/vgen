@@ -117,14 +117,31 @@ function auditFeatureCodes(): string[] {
   );
 }
 
+/**
+ * Every `entryOf` names an entry the dock can actually reach (#96): a variant of
+ * the same family that is its own model. An entrance pointing at another
+ * entrance, or at nothing, is a variant no picker row leads to.
+ */
+function auditEntrances(): string[] {
+  return FAMILIES.flatMap((f) =>
+    f.variants.flatMap((v) => {
+      if (!v.entryOf) return [];
+      const entry = f.variants.find((candidate) => candidate.id === v.entryOf);
+      if (!entry) return [`${v.id} is an entrance to "${v.entryOf}", which is not a variant of ${f.id}`];
+      if (entry.entryOf) return [`${v.id} is an entrance to "${v.entryOf}", which is itself an entrance`];
+      return [];
+    }),
+  );
+}
+
 async function main() {
   // Before the network, so a data mistake fails the same way whether or not
   // KIE is reachable. Everything below this point needs the live rate table.
-  const featureProblems = auditFeatureCodes();
+  const featureProblems = [...auditFeatureCodes(), ...auditEntrances()];
   if (featureProblems.length) {
-    console.error(`${featureProblems.length} variants are routed to a feature that does not exist:`);
+    console.error(`${featureProblems.length} variants point at something that does not exist:`);
     for (const p of featureProblems) console.error(`  ${p}`);
-    console.error("Add the feature in a migration, or fix the featureCode in models.ts.");
+    console.error("Add the feature in a migration, or fix the featureCode or entryOf in models.ts.");
     process.exit(2);
   }
 
@@ -180,7 +197,7 @@ ${drift}
 
   if (planProblems.length === 0 && !drift) {
     console.log("every priced combination resolves to a real price row ✅");
-    console.log("every variant routes to a seeded feature ✅");
+    console.log("every variant routes to a seeded feature, and every entrance to a real entry ✅");
     console.log("plan ladder holds and every plan clears the margin floor ✅");
     console.log("the browser's price list carries no supplier path and no cost ✅");
     process.exit(0);

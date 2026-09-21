@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSession } from "../runtime/providers/SessionProvider";
 import { CaretLeft, Sparkle, PencilSimple } from "@phosphor-icons/react";
-import { type Family, type Variant, variantRefs } from "../data/models";
+import type { Family, Variant } from "../data/models";
 import { type InputMap, type RefMap } from "./controls";
 import { RefBox } from "./RefBox";
 import { useIgnition } from "./Ignition";
@@ -166,12 +166,11 @@ export function FormPanel({
 
   const onFamily = s.setFamily;
 
-  /* The slots this model actually offers. `variantRefs` resolves the variant's
-     own list against the family's, which is how "this variant has no slots"
-     (`refs: null`) stays different from "inherit the family's".
+  /* The slots this model actually offers — its own, or for a model with
+     entrances the union of theirs (#96). See `useCreateState`.
 
      They are not drawn one per upload area any more — see `RefBox`. */
-  const slots = variantRefs(family, variant);
+  const slots = s.slots;
 
   /* The references have names — `@Image1`, `@Video3` — and the prompt can
      point at one. See `lib/refTags`: a prompt that says "the attached image"
@@ -479,7 +478,7 @@ export function FormPanel({
             // is nothing to ask and nothing to wait for.
             if (shortfall) return setPressed(shortfall);
             setPressed(null);
-            ignition.ignite(event, () => onGenerate(family, variant, prompt.trim(), input, refImages));
+            ignition.ignite(event, () => onGenerate(family, variant, prompt.trim(), input, s.submitRefs));
           }}
           aria-busy={ignition.igniting || undefined}
           className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
