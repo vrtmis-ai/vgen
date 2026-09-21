@@ -217,7 +217,8 @@ export function ModelPicker({
   useFloatingDismiss({ anchor, surfaceRef: ref, onClose });
 
   const match = (s: string) => s.toLowerCase().includes(q.trim().toLowerCase());
-  const variants = family.variants.filter((v) => !q || match(`${family.name} ${v.label}`));
+  // Entrances are not models of their own: the dock reaches them from what is attached (#96).
+  const variants = family.variants.filter((v) => !v.entryOf && (!q || match(`${family.name} ${v.label}`)));
   const others = families.filter((f) => f.id !== family.id && (!q || match(f.name) || match(f.blurb)));
 
   const moveFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {

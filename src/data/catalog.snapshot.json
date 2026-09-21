@@ -574,6 +574,7 @@
           "id": "gpt-image-2-5-flare-edit",
           "featureCode": "image_edit",
           "label": "۲٫۵ Flare ویرایش",
+          "entryOf": "gpt-image-2-5-flare",
           "refs": [
             {
               "key": "input_urls",
@@ -761,6 +762,7 @@
           "id": "gpt-image-2-5-sunburst-edit",
           "featureCode": "image_edit",
           "label": "۲٫۵ Sunburst ویرایش",
+          "entryOf": "gpt-image-2-5-sunburst",
           "refs": [
             {
               "key": "input_urls",
@@ -1998,6 +2000,7 @@
           "featureCode": "image_to_video",
           "label": "۳٫۰ Turbo تصویر",
           "badge": "سریع",
+          "entryOf": "kling-3-turbo",
           "refs": [
             {
               "key": "image_urls",
@@ -2097,6 +2100,7 @@
           "id": "kling-2-6-i2v",
           "featureCode": "image_to_video",
           "label": "۲٫۶ تصویر",
+          "entryOf": "kling-2-6",
           "refs": [
             {
               "key": "image_urls",
@@ -2321,6 +2325,7 @@
           "id": "kling-2-5-turbo-i2v",
           "featureCode": "image_to_video",
           "label": "۲٫۵ Turbo تصویر",
+          "entryOf": "kling-2-5-turbo",
           "refs": [
             {
               "group": "frame",
@@ -2472,6 +2477,7 @@
           "id": "minimax-h3-i2v",
           "featureCode": "image_to_video",
           "label": "H3 تصویر",
+          "entryOf": "minimax-h3",
           "refs": [
             {
               "group": "frame",
@@ -2525,6 +2531,7 @@
           "id": "minimax-h3-ref",
           "featureCode": "image_to_video",
           "label": "H3 مرجع",
+          "entryOf": "minimax-h3",
           "refs": [
             {
               "key": "reference_image_urls",
@@ -2643,6 +2650,7 @@
           "featureCode": "image_to_video",
           "maxPrompt": 800,
           "label": "۲٫۵ تصویر",
+          "entryOf": "wan-2-5",
           "refs": [
             {
               "key": "image_url",
@@ -2755,6 +2763,7 @@
           "id": "wan-2-6-i2v",
           "featureCode": "image_to_video",
           "label": "۲٫۶ تصویر",
+          "entryOf": "wan-2-6",
           "refs": [
             {
               "key": "image_urls",
@@ -2917,6 +2926,7 @@
           "id": "wan-2-7-i2v",
           "featureCode": "image_to_video",
           "label": "۲٫۷ تصویر",
+          "entryOf": "wan-2-7",
           "refs": [
             {
               "group": "frame",
@@ -3000,6 +3010,7 @@
           "featureCode": "video_edit",
           "label": "۲٫۷ ویرایش",
           "badge": "ویدیو",
+          "entryOf": "wan-2-7",
           "refs": [
             {
               "key": "video_url",
@@ -3148,6 +3159,7 @@
           "id": "wan-2-7-r2v",
           "featureCode": "image_to_video",
           "label": "۲٫۷ مرجع",
+          "entryOf": "wan-2-7",
           "refs": [
             {
               "key": "reference_image",

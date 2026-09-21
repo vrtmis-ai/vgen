@@ -170,6 +170,8 @@ export const CatalogVariantSchema = z.object({
   maxPrompt: z.number().int().positive().optional(),
   label: z.string(),
   badge: z.string().optional(),
+  /** The variant this one is another way into — see `Variant.entryOf`. Named so zod keeps it. */
+  entryOf: z.string().min(1).optional(),
   /** Absent for the variants served only by the metered pipe. */
   unlimited: UnlimitedPipeSchema.optional(),
   refs: z.array(CatalogRefSlotSchema).nullable().optional(),

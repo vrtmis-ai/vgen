@@ -1,4 +1,4 @@
-import type { RefSlot, SlotMedia } from "../data/models";
+import { variantRefs, type Family, type RefSlot, type SlotMedia, type Variant } from "../data/models";
 
 /* ---------------------------------------------------------------------------
    How a model's upload slots are grouped and laid out.
@@ -122,4 +122,119 @@ export function dependenciesMet(slots: RefSlot[], filled: Record<string, number>
  */
 export function frameWord(slot: RefSlot): string {
   return slot.role === "last_frame" ? "پایان" : "شروع";
+}
+
+/* ---------------------------------------------------------------------------
+   One model, several entrances (#96).
+
+   Wan 2.7 is four variants and one model: which runs is decided by what is
+   attached. The dock offers the union of the entrances' slots and resolves the
+   entrance from the files each time it prices or submits.
+
+   Slots are held by what they are for — role and media — rather than by the
+   provider's key, because the same opening frame is `first_frame_url` on one
+   entrance and `first_frame` on another. `toEntranceKeys` renames them back
+   for the entrance that actually runs. An ordinary model, with no entrances,
+   goes through all of this untouched.
+   --------------------------------------------------------------------------- */
+
+/** The key a slot is held under in a grouped dock: what it is, not what one provider calls it. */
+export function roleKey(slot: RefSlot): string {
+  return `${slot.role}:${slot.media ?? "image"}`;
+}
+
+/** The entry and the variants that name it, entry first. Just the variant for an ordinary model. */
+export function entrancesOf(family: Family, variant: Variant): Variant[] {
+  const entryId = variant.entryOf ?? variant.id;
+  const entry = family.variants.find((candidate) => candidate.id === entryId) ?? variant;
+  return [entry, ...family.variants.filter((candidate) => candidate.entryOf === entryId)];
+}
+
+/**
+ * The slots a dock offers: the model's own, or its entrances' merged by role.
+ *
+ * A merged slot is required only if the entry requires it — attaching nothing
+ * is itself a way in — so its label says optional where an entrance's said
+ * required. The resolved entrance's own limits still apply: validation runs
+ * against it, not against this union.
+ */
+export function dockSlots(family: Family, entrances: Variant[]): RefSlot[] {
+  const entry = entrances[0];
+  if (!entry) return [];
+  if (entrances.length === 1) return variantRefs(family, entry);
+  const entryRequires = new Set(
+    variantRefs(family, entry)
+      .filter((slot) => slot.required)
+      .map(roleKey),
+  );
+  const union = new Map<string, RefSlot>();
+  for (const member of entrances) {
+    const own = variantRefs(family, member);
+    for (const slot of own) {
+      const key = roleKey(slot);
+      const held = union.get(key);
+      if (held) {
+        union.set(key, { ...held, max: Math.max(held.max, slot.max) });
+        continue;
+      }
+      const dependency = slot.requires ? own.find((other) => other.key === slot.requires) : undefined;
+      const required = entryRequires.has(key);
+      union.set(key, {
+        key,
+        role: slot.role,
+        label: required ? slot.label : slot.label.replace("(الزامی)", "(اختیاری)"),
+        max: slot.max,
+        ...(slot.group ? { group: slot.group } : {}),
+        ...(slot.media ? { media: slot.media } : {}),
+        ...(slot.maxMb ? { maxMb: slot.maxMb } : {}),
+        ...(required ? { required: true } : {}),
+        ...(dependency ? { requires: roleKey(dependency) } : {}),
+      });
+    }
+  }
+  return [...union.values()];
+}
+
+/**
+ * Which entrance the attachments call for, counted by role key.
+ *
+ * The one that takes everything attached and is missing the fewest of its
+ * own required inputs, entry first on a tie: nothing attached is the entry, a
+ * clip is the edit, a frame is image-to-video, references are
+ * reference-to-video. When no entrance takes the whole set the entry stays,
+ * and validation names the file it cannot place.
+ */
+export function resolveEntrance(family: Family, entrances: Variant[], filled: Record<string, number>): Variant {
+  const has = (key: string) => (filled[key] ?? 0) > 0;
+  const attached = Object.keys(filled).filter(has);
+  let best = entrances[0]!;
+  let fewestMissing = Number.POSITIVE_INFINITY;
+  for (const member of entrances) {
+    const own = variantRefs(family, member);
+    const takes = new Set(own.map(roleKey));
+    if (!attached.every((key) => takes.has(key))) continue;
+    const missing = own.filter((slot) => slot.required && !has(roleKey(slot))).length;
+    if (missing < fewestMissing) {
+      best = member;
+      fewestMissing = missing;
+    }
+  }
+  return best;
+}
+
+/**
+ * What a grouped dock holds, under the keys the running entrance names.
+ *
+ * A role the entrance has no slot for keeps its role key, so validation reports
+ * it as a file this model cannot take rather than the file silently vanishing.
+ */
+export function toEntranceKeys<T>(family: Family, entrance: Variant, held: Record<string, T[]>): Record<string, T[]> {
+  const own = variantRefs(family, entrance);
+  const out: Record<string, T[]> = {};
+  for (const [key, items] of Object.entries(held)) {
+    if (items.length === 0) continue;
+    const target = own.find((slot) => roleKey(slot) === key)?.key ?? key;
+    out[target] = [...(out[target] ?? []), ...items];
+  }
+  return out;
 }

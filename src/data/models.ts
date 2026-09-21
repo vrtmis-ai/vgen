@@ -160,6 +160,20 @@ export interface Variant {
   unlimited?: { dailyCap: number | null; minTier: 1 | 2 | 3; limits?: Record<string, string[]> };
   label: string; // short version label for the switcher
   badge?: string;
+  /**
+   * The variant this one is another way into (#96).
+   *
+   * Wan 2.7 is published as four variants — a prompt, a frame, a clip to edit,
+   * references — and they are one model: which one runs is decided entirely by
+   * what is attached. The picker shows the entry and hides the variants that
+   * name it here; the dock offers the union of their slots and runs whichever
+   * entrance the attachments call for. Unset — every variant published before
+   * this — means the variant is its own model.
+   *
+   * Not derivable: `seedance-2`, `-fast` and `-mini` share a prefix and are
+   * three models at three prices, and two entrances can share a feature code.
+   */
+  entryOf?: string;
   refs?: RefSlot[] | null; // null = no input slots; undefined = inherit family.refs
   controls?: Control[]; // undefined = inherit family.controls
 }
@@ -751,6 +765,7 @@ export const FAMILIES: Family[] = [
       { id: "gpt-image-2-5-flare", featureCode: "image_generate", label: "۲٫۵ Flare", badge: "جدید", controls: gptImage25Controls },
       {
         id: "gpt-image-2-5-flare-edit",
+        entryOf: "gpt-image-2-5-flare",
         featureCode: "image_edit",
         label: "۲٫۵ Flare ویرایش",
         controls: gptImage25Controls,
@@ -759,6 +774,7 @@ export const FAMILIES: Family[] = [
       { id: "gpt-image-2-5-sunburst", featureCode: "image_generate", label: "۲٫۵ Sunburst", controls: gptImage25Controls },
       {
         id: "gpt-image-2-5-sunburst-edit",
+        entryOf: "gpt-image-2-5-sunburst",
         featureCode: "image_edit",
         label: "۲٫۵ Sunburst ویرایش",
         controls: gptImage25Controls,
@@ -1117,6 +1133,7 @@ export const FAMILIES: Family[] = [
       {
         // No aspect_ratio: the frame follows the image.
         id: "kling-3-turbo-i2v",
+        entryOf: "kling-3-turbo",
         featureCode: "image_to_video",
         label: "۳٫۰ Turbo تصویر",
         badge: "سریع",
@@ -1137,6 +1154,7 @@ export const FAMILIES: Family[] = [
       },
       {
         id: "kling-2-6-i2v",
+        entryOf: "kling-2-6",
         featureCode: "image_to_video",
         label: "۲٫۶ تصویر",
         refs: [{ key: "image_urls", role: "reference", label: "تصویر ورودی (الزامی)", max: 1, required: true, maxMb: 10 }],
@@ -1182,6 +1200,7 @@ export const FAMILIES: Family[] = [
         // tail_image_url — instead of one image_urls array, and has no
         // aspect_ratio, which follows the start frame.
         id: "kling-2-5-turbo-i2v",
+        entryOf: "kling-2-5-turbo",
         featureCode: "image_to_video",
         label: "۲٫۵ Turbo تصویر",
         refs: [
@@ -1255,6 +1274,7 @@ export const FAMILIES: Family[] = [
         // Either frame alone is accepted upstream; the start is required here
         // because a slot cannot say "one of these two".
         id: "minimax-h3-i2v",
+        entryOf: "minimax-h3",
         featureCode: "image_to_video",
         label: "H3 تصویر",
         refs: [
@@ -1288,6 +1308,7 @@ export const FAMILIES: Family[] = [
         // Reference video is left out for the same reason — it is billed by
         // its own duration, and nothing prices that.
         id: "minimax-h3-ref",
+        entryOf: "minimax-h3",
         featureCode: "image_to_video",
         label: "H3 مرجع",
         refs: [
@@ -1323,6 +1344,7 @@ export const FAMILIES: Family[] = [
         // Its image model names the slot image_url — singular, one string — and
         // has no aspect_ratio; the frame follows the image.
         id: "wan-2-5-i2v",
+        entryOf: "wan-2-5",
         featureCode: "image_to_video",
         maxPrompt: 800,
         label: "۲٫۵ تصویر",
@@ -1339,6 +1361,7 @@ export const FAMILIES: Family[] = [
       },
       {
         id: "wan-2-6-i2v",
+        entryOf: "wan-2-6",
         featureCode: "image_to_video",
         label: "۲٫۶ تصویر",
         refs: [{ key: "image_urls", role: "reference", label: "تصویر ورودی (الزامی)", max: 1, required: true, maxMb: 10 }],
@@ -1369,6 +1392,7 @@ export const FAMILIES: Family[] = [
         // video. Not offered: a slot cannot say "one of these two", and the
         // frame is what people come here for.
         id: "wan-2-7-i2v",
+        entryOf: "wan-2-7",
         featureCode: "image_to_video",
         label: "۲٫۷ تصویر",
         refs: [
@@ -1404,6 +1428,7 @@ export const FAMILIES: Family[] = [
         // integer in [2,10]". The description is the stricter reading, so 1 is
         // not offered.
         id: "wan-2-7-videoedit",
+        entryOf: "wan-2-7",
         featureCode: "video_edit",
         label: "۲٫۷ ویرایش",
         badge: "ویدیو",
@@ -1467,6 +1492,7 @@ export const FAMILIES: Family[] = [
         // Note this model uses `aspect_ratio` while its text-to-video sibling
         // uses `ratio` — same family, different field name.
         id: "wan-2-7-r2v",
+        entryOf: "wan-2-7",
         featureCode: "image_to_video",
         label: "۲٫۷ مرجع",
         refs: [
@@ -1869,6 +1895,36 @@ export function variantMaxPrompt(family: Family, variant: Variant): number | nul
  * The exhaustive `switch` is the point: a new Control kind is now a compile
  * error here instead of another silently missing field.
  */
+/**
+ * The defaults for `controls`, keeping whatever `previous` set that they still accept.
+ *
+ * For a switch between two variants of one model — an entrance resolved from an
+ * attachment, above all — where resetting to defaults would throw away the
+ * duration and ratio somebody chose because they attached a picture. Keys the
+ * new controls do not have are dropped rather than carried, because the
+ * provider answers unknown keys with a 422.
+ */
+export function carryInput(
+  controls: Control[],
+  previous: Record<string, string | number | boolean>,
+): Record<string, string | number | boolean> {
+  const next = defaultInput(controls);
+  for (const c of controls) {
+    const value = previous[c.key];
+    if (value === undefined) continue;
+    const fits =
+      c.kind === "aspect" || c.kind === "segment"
+        ? c.options.some((option) => option.value === String(value))
+        : c.kind === "slider"
+          ? Number(value) >= c.min && Number(value) <= c.max
+          : c.kind === "toggle"
+            ? typeof value === "boolean"
+            : typeof value === "string";
+    if (fits) next[c.key] = value;
+  }
+  return next;
+}
+
 export function defaultInput(controls: Control[]): Record<string, string | number | boolean> {
   const out: Record<string, string | number | boolean> = {};
   for (const c of controls) {

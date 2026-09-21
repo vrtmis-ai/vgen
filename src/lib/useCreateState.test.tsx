@@ -153,3 +153,33 @@ function prompted2() {
   act(() => result.current.setPrompt("a small red boat"));
   return result;
 }
+
+/* The price and the controls follow the entrance the attachments resolve to,
+   and a setting the new entrance also takes survives the switch (#96). */
+describe("a model with entrances", () => {
+  const wan = FAMILIES.find((candidate) => candidate.id === "wan")!;
+  const file = (name: string, type: string) => ({ file: new File(["x"], name, { type }), url: `blob:${name}` });
+
+  function onWan27(refs: RefMap) {
+    const { result, rerender } = renderHook(({ held }: { held: RefMap }) => useCreateState([wan], held), {
+      wrapper,
+      initialProps: { held: {} as RefMap },
+    });
+    act(() => result.current.setVariant("wan-2-7"));
+    rerender({ held: refs });
+    return result;
+  }
+
+  it("runs the entry with nothing attached, and the edit once a clip is", () => {
+    expect(onWan27({}).current.variant.id).toBe("wan-2-7");
+    const edited = onWan27({ "source_video:video": [file("in.mp4", "video/mp4")] });
+    expect(edited.current.variant.id).toBe("wan-2-7-videoedit");
+    expect(edited.current.submitRefs).toHaveProperty("video_url");
+  });
+
+  it("prices the entrance that will run, not the row that was picked", () => {
+    const framed = onWan27({ "first_frame:image": [file("a.png", "image/png")] });
+    expect(framed.current.variant.id).toBe("wan-2-7-i2v");
+    expect(framed.current.submitRefs).toEqual({ first_frame_url: [expect.objectContaining({ url: "blob:a.png" })] });
+  });
+});

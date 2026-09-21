@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Plus, Minus, Sparkle, DownloadSimple, ArrowsClockwise, ArrowsOut, X, SpeakerHigh } from "@phosphor-icons/react";
-import { variantRefs, type Family, type Variant } from "../data/models";
+import type { Family, Variant } from "../data/models";
 import { groupOf } from "../lib/refSlots";
 import { insertTag, refTags, tagUsed } from "../lib/refTags";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
@@ -227,7 +227,7 @@ export default function StudioImage({
      slot grid the video panel needs. If an image model ever declares two, this
      picks the first and the second becomes unreachable, which is the moment to
      move this surface onto `RefUpload`. */
-  const slot = variantRefs(s.family, s.variant)[0];
+  const slot = s.slots[0];
   const picked = slot ? (refs[slot.key] ?? []) : [];
   /* The pictures have names the prompt can use — `@Image1`, `@Image2` — as in
      the video dock. Nano Banana takes up to fourteen, and "put the jacket from
@@ -836,7 +836,7 @@ export default function StudioImage({
                     setPressed(null);
                     ignition.ignite(event, () => {
                       reveal.arm();
-                      onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, refs);
+                      onGenerate(s.family, s.variant, s.prompt.trim(), s.input, s.preferUnlimited, s.submitRefs);
                     });
                   }}
                   aria-busy={ignition.igniting || undefined}
