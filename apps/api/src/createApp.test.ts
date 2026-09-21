@@ -78,6 +78,7 @@ function healthyDependencies(): ApiDependencies {
       downloadUrl: vi.fn(async () => "https://files.example/vgen-job.png"),
       references: vi.fn(async () => []),
       remove: vi.fn(async () => "removed" as const),
+      cancel: vi.fn(async (): Promise<"cancelled" | "started" | "finished" | "not_found"> => "cancelled"),
     },
     assetUploads: {
       upload: vi.fn(async () => ({
@@ -435,6 +436,50 @@ describe("removing a generation", () => {
     const response = await app.inject({ method: "DELETE", url: "/api/v1/generation/jobs/abc" });
     expect(response.statusCode).toBe(401);
     expect(dependencies.generationLibrary.remove).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
+describe("cancelling a generation that has not started", () => {
+  const cancel = (app: ReturnType<typeof createApp>) => app.inject({ method: "POST", url: "/api/v1/generation/jobs/abc/cancel" });
+
+  it("answers with the job, in the same shape as reading it", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    dependencies.generationLibrary.get = vi.fn(async () => generationJob({ status: "cancelled" }));
+    const app = createApp(dependencies);
+
+    const response = await cancel(app);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: "cancelled" });
+    expect(dependencies.generationLibrary.cancel).toHaveBeenCalledWith("abc", "22222222-2222-4222-8222-222222222222");
+    await app.close();
+  });
+
+  it.each([
+    ["started", 409, "job_started"],
+    ["finished", 409, "job_finished"],
+    ["not_found", 404, "job_not_found"],
+  ] as const)("answers %s with %i %s", async (outcome, status, code) => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.getCurrent = vi.fn(async () => authedSession);
+    dependencies.generationLibrary.cancel = vi.fn(async () => outcome);
+    const app = createApp(dependencies);
+
+    const response = await cancel(app);
+
+    expect(response.statusCode).toBe(status);
+    expect(response.json()).toMatchObject({ error: { code } });
+    await app.close();
+  });
+
+  it("does not let an anonymous visitor cancel anything", async () => {
+    const dependencies = healthyDependencies();
+    const app = createApp(dependencies);
+
+    expect((await cancel(app)).statusCode).toBe(401);
+    expect(dependencies.generationLibrary.cancel).not.toHaveBeenCalled();
     await app.close();
   });
 });

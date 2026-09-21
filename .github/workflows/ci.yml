@@ -8,6 +8,19 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Least privilege for GITHUB_TOKEN, which is otherwise whatever the repository
+# default happens to be — and that default is write on repositories created
+# before GitHub changed it. Nothing here writes: every job checks the code out,
+# runs a check and uploads an artifact. `codeql.yml` sets its own, wider, per
+# job, because publishing to the Security tab genuinely needs one write.
+#
+# This is also the setting that decides what a pull request from a fork can
+# reach. The trigger above is `pull_request`, not `pull_request_target`, so a
+# fork's code already runs without secrets; pinning the token to read means a
+# workflow change arriving in a PR cannot quietly grant itself more.
+permissions:
+  contents: read
+
 concurrency:
   # A new push to the same branch cancels the run it superseded. The last commit
   # is the only one whose result anybody acts on.

@@ -36,11 +36,32 @@ export function CookieConsent({ initial }: { initial: string | undefined }) {
   };
 
   return (
+    /* Anchored to the top, at the inline-end corner, and this is the only place
+       it can go.
+
+       It used to be a centred card at `bottom-0`, which put it exactly where
+       the create dock lives. Measured on a 390px viewport: the dock occupies
+       y=678..826 of an 844px screen, the notice covered y=708..832, and
+       `elementFromPoint` at the centre of the Generate button returned the
+       notice. A visitor's first action on the product was not merely obscured,
+       it was unclickable — in both studios — until they dismissed a banner
+       about cookies we barely set.
+
+       The bottom is the dock's, on every route and every width, so there is no
+       offset that frees it. The top-inline-START corner is the sticky view
+       controls. That leaves the top-inline-END corner, which nothing else
+       claims. 97px clears the promo bar (44) plus the top bar (45) with room to
+       spare, and it is a constant rather than a measurement so the notice never
+       moves when the promo bar is dismissed. */
     <div
       role="dialog"
       aria-label="کوکی‌ها"
-      className="fixed inset-x-0 bottom-0 z-50 mx-auto mb-3 w-[calc(100%-1.5rem)] max-w-[520px] rounded-2xl p-3.5 shadow-lg"
-      style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
+      className="fixed top-[97px] z-50 w-[calc(100%-1.5rem)] max-w-[380px] rounded-2xl p-3.5 shadow-lg"
+      style={{
+        insetInlineEnd: "0.75rem",
+        background: "var(--vg-surface)",
+        border: "1px solid var(--vg-border-subtle)",
+      }}
     >
       <p className="text-[12.5px] leading-6" style={{ color: "var(--vg-text)" }}>
         این سایت فقط کوکی‌های ضروری می‌گذارد — برای واردماندن، زبان، و همین انتخاب. هیچ ردیاب و هیچ کوکی تبلیغاتی وجود ندارد.

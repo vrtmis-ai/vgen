@@ -180,9 +180,9 @@ export function registerGenerationJobsRoute(
    * 409 rather than a silent success while the job is still going. A queued or
    * running generation has credits held against it, and hiding it would leave
    * the customer with coins missing from their balance and nothing on screen
-   * that accounts for them. There is no cancel here: stopping a generation is a
-   * different act with a different effect on the money, and quietly deleting
-   * the row would be neither.
+   * that accounts for them. Stopping a queued generation is a different act
+   * with a different effect on the money — `POST …/cancel`, below — and quietly
+   * deleting the row would be neither.
    */
   app.delete<{ Params: { jobId: string } }>("/api/v1/generation/jobs/:jobId", async (request, reply) => {
     const session = await sessions.getCurrent(request);
@@ -198,5 +198,31 @@ export function registerGenerationJobsRoute(
       return reply.code(409).send({ error: { code: "job_running", message: "That generation has not finished yet." } });
     }
     return reply.code(200).send({ outcome });
+  });
+
+  /**
+   * Take back a generation that has not started, and its coins with it.
+   *
+   * `queued` only — see `cancelForUser`. Answers with the job in the same shape
+   * as the GET above, so the screen can redraw from it, and answers the same
+   * way to a second cancel so a double tap is not an error.
+   */
+  app.post<{ Params: { jobId: string } }>("/api/v1/generation/jobs/:jobId/cancel", async (request, reply) => {
+    const session = await sessions.getCurrent(request);
+    if (session.status !== "authed") {
+      return reply.code(401).send({ error: { code: "unauthorized", message: "Authentication required." } });
+    }
+
+    const outcome = await library.cancel(request.params.jobId, session.user.id);
+    if (outcome === "not_found") return reply.code(404).send({ error: { code: "job_not_found", message: "No such job." } });
+    if (outcome === "started") {
+      return reply.code(409).send({ error: { code: "job_started", message: "That generation has already started." } });
+    }
+    if (outcome === "finished") {
+      return reply.code(409).send({ error: { code: "job_finished", message: "That generation has already finished." } });
+    }
+    const job = await library.get(request.params.jobId, session.user.id);
+    if (!job) return reply.code(404).send({ error: { code: "job_not_found", message: "No such job." } });
+    return reply.code(200).send(job);
   });
 }

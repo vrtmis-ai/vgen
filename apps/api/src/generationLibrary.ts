@@ -24,6 +24,8 @@ export interface GenerationLibraryApplication {
   references(jobId: string, userId: string): Promise<JobReference[]>;
   /** Take a settled generation off the account's wall. */
   remove(jobId: string, userId: string): Promise<"removed" | "still_running" | "not_found">;
+  /** Take back a generation that has not started, with its coins. */
+  cancel(jobId: string, userId: string): Promise<"cancelled" | "started" | "finished" | "not_found">;
 }
 
 /**
@@ -114,6 +116,10 @@ export class GenerationLibraryService implements GenerationLibraryApplication {
    */
   remove(jobId: string, userId: string): Promise<"removed" | "still_running" | "not_found"> {
     return this.gallery.removeForUser(jobId, userId);
+  }
+
+  cancel(jobId: string, userId: string): Promise<"cancelled" | "started" | "finished" | "not_found"> {
+    return this.gallery.cancelForUser(jobId, userId);
   }
 
   private async withUrls(record: GenerationRecord): Promise<GenerationJob> {

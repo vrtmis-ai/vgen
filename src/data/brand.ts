@@ -29,6 +29,12 @@ export const BRAND = {
    * with Persian phonetics.
    */
   tagline: "TECHNOLOGY WITH EMPATHY",
+  /**
+   * Where the site lives, for the places that say so in print rather than in a
+   * link — the early-access gate sets it under the mark, the way a holding page
+   * does. Latin either way: a domain is not translated.
+   */
+  domain: "deev.com",
 } as const;
 
 /** "آکادمی DEEV" and friends — the name inside a Persian noun phrase. */

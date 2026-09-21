@@ -463,7 +463,13 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
         setGens((previous) =>
           previous.map((candidate) => (candidate.id === id ? { ...candidate, status: "cancelled", outputUrl: undefined } : candidate)),
         );
-        await queryClient.invalidateQueries({ queryKey: ["gallery-history"] });
+        // The wallet too: the job-state effect stops refreshing it once nothing
+        // is in flight, so cancelling the last queued job would leave the coins
+        // it just returned missing from the balance.
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["gallery-history"] }),
+          queryClient.invalidateQueries({ queryKey: appQueryKeys.wallet }),
+        ]);
         return "cancelled";
       } catch (error: unknown) {
         // Not corrected here. The poll is already asking about this job every

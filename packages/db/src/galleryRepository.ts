@@ -1,5 +1,7 @@
 import type { Sql } from "postgres";
 import { microCreditsToCoins } from "@vgen/core";
+import { releaseJobMoney } from "./jobRunnerRepository";
+import { atomically } from "./transaction";
 
 /**
  * A customer's generations, one shape whether you ask for one or for a page.
@@ -290,5 +292,46 @@ export class PostgresGalleryRepository {
     if (job.status === "queued" || job.status === "running") return "still_running";
     await this.sql`update jobs set deleted_at = now() where id = ${jobId} and deleted_at is null`;
     return "removed";
+  }
+
+  /**
+   * Take back a generation that has not started.
+   *
+   * `queued` only: a running job has already gone to a provider, which may bill
+   * us whatever we do. The refund is `fail()`'s, and the row ends `cancelled`
+   * with no error code — it did not fail, and `record_job_event` emits
+   * `job.cancelled` from the status alone.
+   *
+   * `for update` is the point, because unlike a removal this races the worker.
+   * `claim()` is a single `update … where status in ('queued','running')`: if
+   * this commits first, the claim finds `cancelled`, matches nothing, and the
+   * runner skips the job with no provider call. If the claim commits first, this
+   * reads `running` and says so. Cancelling twice is not an error — a double tap
+   * or a retry after a timeout gets the same answer, and the hold is released
+   * only by the first.
+   */
+  async cancelForUser(jobId: string, userId: string): Promise<"cancelled" | "started" | "finished" | "not_found"> {
+    return atomically(this.sql)(async (transaction) => {
+      const tx = transaction as unknown as Sql;
+      const [job] = await tx<{ account_id: string; status: GenerationRecord["status"]; entitlement_id: string | null }[]>`
+        select account_id, status, entitlement_id from jobs
+        where id = ${jobId}
+          and deleted_at is null
+          and status <> 'draft'
+          and account_id = (select personal_account_id from users where id = ${userId})
+        for update
+      `;
+      if (!job) return "not_found";
+      if (job.status === "cancelled") return "cancelled";
+      if (job.status === "running") return "started";
+      if (job.status !== "queued") return "finished";
+
+      await releaseJobMoney(tx, jobId, job);
+      await tx`
+        update jobs set status = 'cancelled', completed_at = now(), micro_credits_charged = 0
+        where id = ${jobId}
+      `;
+      return "cancelled";
+    });
   }
 }
