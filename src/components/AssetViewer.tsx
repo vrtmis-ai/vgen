@@ -113,7 +113,7 @@ export function downloadAsset(downloadUrl: (jobId: string) => string, asset: Vie
   if (asset.jobId) el.href = downloadUrl(asset.jobId);
   else {
     el.href = asset.url;
-    el.download = `vgen-${asset.id}.jpg`;
+    el.download = `DEEV-${asset.id}.jpg`;
   }
   el.rel = "noopener";
   el.click();
