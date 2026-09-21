@@ -1,7 +1,16 @@
-import { ContentSnapshotSchema, type ContentSnapshot } from "@vgen/contracts";
-import { toContentItem } from "@vgen/core";
-import type { Sql } from "postgres";
+import { randomUUID } from "node:crypto";
+import {
+  ContentEntrySchema,
+  ContentSnapshotSchema,
+  type ContentEntry,
+  type ContentSnapshot,
+  type ContentWrite,
+  type EditableContentKind,
+} from "@vgen/contracts";
+import { fromContentItem, toContentItem } from "@vgen/core";
+import type { Sql, TransactionSql } from "postgres";
 import { PublicDocument, fingerprintOf } from "./publicDocument";
+import { atomically } from "./transaction";
 
 /**
  * The editorial content, read out of `content_items`.
@@ -133,4 +142,132 @@ export class PostgresContentRepository implements CustomerContentRepository {
       earlyAccess: enabled("early_access") ?? true,
     };
   }
+}
+
+interface ContentRow {
+  id: string;
+  kind: string;
+  code: string;
+  status: string;
+  title: string | null;
+  subtitle: string | null;
+  body: string | null;
+  category: string | null;
+  family_code: string | null;
+  seed: string | null;
+  payload: Record<string, unknown>;
+}
+
+/** What a new row's code starts with, so a code read in a log still says what it is. */
+const CODE_PREFIX: Record<EditableContentKind, string> = { preset: "fx", course: "c", prompt_fragment: "f" };
+
+/**
+ * Effects, courses and the prompt bank, as the admin panel edits them.
+ *
+ * Every write builds the row with `fromContentItem` and reads it straight back
+ * through `toContentItem`, the function the public document is built with, so
+ * a row that would break `GET /content` is refused here instead of being
+ * found by a visitor.
+ *
+ * Deleting archives. The seeder is insert-only and matches on (kind, code), so
+ * a seeded row that was hard-deleted would be inserted again by the next
+ * deploy; an archived one stays archived. Archived rows are not listed, so to
+ * the panel they are gone.
+ */
+export class PostgresAdminContentRepository {
+  constructor(private readonly sql: Sql) {}
+
+  async list(kind: EditableContentKind): Promise<ContentEntry[]> {
+    const rows = await this.sql<ContentRow[]>`
+      select id, kind, code, status, title, subtitle, body, category, family_code, seed, payload
+      from content_items
+      where kind = ${kind} and status <> 'archived'
+      order by sort_order asc, created_at asc
+    `;
+    return rows.map(entryOf);
+  }
+
+  /** New rows go first: the one just added is the one the admin is looking for. */
+  async create(write: ContentWrite, userId: string): Promise<ContentEntry | "unknown_family"> {
+    return atomically(this.sql)(async (tx) => {
+      if (!(await familyExists(tx, write))) return "unknown_family";
+      const code = `${CODE_PREFIX[write.kind]}-${randomUUID().slice(0, 8)}`;
+      const row = checked(fromContentItem(write, code, code));
+      const [saved] = await tx<ContentRow[]>`
+        insert into content_items (kind, code, status, sort_order, title, subtitle, body, category, family_code, seed, payload, updated_by)
+        values (
+          ${row.kind}, ${row.code}, ${write.status},
+          (select coalesce(min(sort_order), 0) - 1 from content_items where kind = ${row.kind}),
+          ${row.title}, ${row.subtitle}, ${row.body}, ${row.category}, ${row.familyCode}, ${row.seed},
+          ${tx.json(row.payload as never)}, ${userId}
+        )
+        returning id, kind, code, status, title, subtitle, body, category, family_code, seed, payload
+      `;
+      return entryOf(saved!);
+    });
+  }
+
+  /** Keeps the row's code, seed and place in the order; replaces everything else. */
+  async update(id: string, write: ContentWrite, userId: string): Promise<ContentEntry | "not_found" | "unknown_family"> {
+    return atomically(this.sql)(async (tx) => {
+      const [current] = await tx<{ kind: string; code: string; seed: string | null }[]>`
+        select kind, code, seed from content_items where id = ${id} and status <> 'archived' for update
+      `;
+      if (!current || current.kind !== write.kind) return "not_found";
+      if (!(await familyExists(tx, write))) return "unknown_family";
+      const row = checked(fromContentItem(write, current.code, current.seed ?? current.code));
+      const [saved] = await tx<ContentRow[]>`
+        update content_items set
+          status = ${write.status},
+          title = ${row.title},
+          subtitle = ${row.subtitle},
+          body = ${row.body},
+          category = ${row.category},
+          family_code = ${row.familyCode},
+          payload = ${tx.json(row.payload as never)},
+          updated_by = ${userId}
+        where id = ${id}
+        returning id, kind, code, status, title, subtitle, body, category, family_code, seed, payload
+      `;
+      return entryOf(saved!);
+    });
+  }
+
+  async archive(id: string, userId: string): Promise<{ kind: string; code: string } | null> {
+    const [archived] = await this.sql<{ kind: string; code: string }[]>`
+      update content_items set status = 'archived', updated_by = ${userId}
+      where id = ${id} and status <> 'archived' and kind in ('preset', 'course', 'prompt_fragment')
+      returning kind, code
+    `;
+    return archived ?? null;
+  }
+}
+
+function entryOf(row: ContentRow): ContentEntry {
+  const parsed = toContentItem({ ...row, familyCode: row.family_code });
+  return ContentEntrySchema.parse({ id: row.id, kind: parsed.kind, status: row.status, item: parsed.item });
+}
+
+/** Throws when the row would not read back, which would be a bug in `fromContentItem` rather than bad input. */
+function checked<T extends Parameters<typeof toContentItem>[0]>(row: T): T {
+  toContentItem(row);
+  return row;
+}
+
+/**
+ * The seeder's rule, kept for the panel: a card pointing at a family no active
+ * model carries opens nothing, and the person who notices is a customer.
+ */
+async function familyExists(tx: TransactionSql, write: ContentWrite): Promise<boolean> {
+  const family = write.kind === "prompt_fragment" ? undefined : write.item.familyId;
+  if (family === undefined) return true;
+  const [row] = await tx<{ ok: boolean }[]>`
+    select exists (
+      select 1
+      from provider_models model
+      join providers provider on provider.id = model.provider_id
+      where model.is_active and provider.is_active and model.capabilities ? 'variant' and model.family = ${family}
+    ) as ok
+  `;
+  return row?.ok === true;
 }

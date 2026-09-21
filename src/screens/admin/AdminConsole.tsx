@@ -4,6 +4,7 @@ import type { AdminApi } from "../../features/admin/adminApi";
 import type { AdminSessionState } from "../../runtime/contracts/admin";
 import { AccessSection } from "./AccessSection";
 import { AdminSignIn } from "./AdminSignIn";
+import { ContentSection } from "./ContentSection";
 import { DashboardSection } from "./DashboardSection";
 import { ProvidersSection } from "./ProvidersSection";
 import { RoutingSection } from "./RoutingSection";
@@ -49,7 +50,7 @@ export function AdminConsole() {
   return <Console api={api!} session={session.data} />;
 }
 
-type SectionId = "dashboard" | "users" | "routing" | "providers" | "access" | "staff" | "security";
+type SectionId = "dashboard" | "users" | "routing" | "providers" | "content" | "access" | "staff" | "security";
 
 function Console({ api, session }: { api: AdminApi; session: AdminSessionState }) {
   const { signOut } = useAdminSignIn(api);
@@ -66,6 +67,7 @@ function Console({ api, session }: { api: AdminApi; session: AdminSessionState }
     },
     { id: "routing", label: "مسیر مدل‌ها", group: "کاتالوگ", visible: permits(session, "catalog.read") },
     { id: "providers", label: "ارائه‌دهنده‌ها", group: "کاتالوگ", visible: permits(session, "catalog.read") },
+    { id: "content", label: "افکت‌ها و آکادمی", group: "محتوا", visible: permits(session, "content.read") },
     {
       id: "access",
       label: "دعوت و تخفیف",
@@ -143,6 +145,7 @@ function Console({ api, session }: { api: AdminApi; session: AdminSessionState }
             ) : null}
             {current === "routing" ? <RoutingSection api={api} canWrite={permits(session, "catalog.write")} /> : null}
             {current === "providers" ? <ProvidersSection api={api} canWrite={permits(session, "catalog.write")} /> : null}
+            {current === "content" ? <ContentSection api={api} canWrite={permits(session, "content.write")} /> : null}
             {current === "staff" ? (
               <StaffSection
                 api={api}

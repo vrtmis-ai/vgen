@@ -1,7 +1,7 @@
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PostgresAccessRepository } from "./accessRepository";
-import { PostgresContentRepository } from "./contentRepository";
+import { PostgresAdminContentRepository, PostgresContentRepository } from "./contentRepository";
 import { connect, expectDbError, inRollback, makeUser } from "./integrationHarness";
 
 let sql: Sql;
@@ -297,6 +297,133 @@ describe("the early access flag on the served document", () => {
       await access.setEarlyAccess(false, null);
 
       expect((await content.list()).flags.earlyAccess).toBe(false);
+    });
+  });
+});
+
+/**
+ * The admin panel's writes. What matters is what the public document does
+ * afterwards, because that is what a visitor sees: a new effect appears first,
+ * a draft disappears, an archived row stays gone.
+ */
+describe("editing effects, courses and the prompt bank", () => {
+  async function aFamily(tx: Sql): Promise<string> {
+    const [row] = await tx<{ family: string }[]>`
+      select model.family from provider_models model join providers provider on provider.id = model.provider_id
+      where model.is_active and provider.is_active and model.capabilities ? 'variant' and model.family is not null
+      order by model.family limit 1
+    `;
+    return row!.family;
+  }
+
+  const cover = "/api/v1/content/media/0192f7a0-0000-7000-8000-000000000001.jpg";
+  const effect = (familyId: string, title = "نور نئون") =>
+    ({
+      kind: "preset",
+      status: "published",
+      item: {
+        title,
+        prompt: "neon rim light, rain-soaked street, ",
+        familyId,
+        openEnded: true,
+        kind: "video",
+        category: "vfx",
+        coverUrl: cover,
+      },
+    }) as const;
+
+  it("serves a new effect first, with its cover", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const created = await new PostgresAdminContentRepository(tx).create(effect(await aFamily(tx)), userId);
+      if (created === "unknown_family") throw new Error("expected a created row");
+
+      const [first] = (await new PostgresContentRepository(tx).list()).presets;
+      expect(first).toMatchObject({ id: created.item.id, title: "نور نئون", coverUrl: cover });
+      expect(created.item.id).toMatch(/^fx-/);
+    });
+  });
+
+  it("refuses an effect on a family no active model carries", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      expect(await new PostgresAdminContentRepository(tx).create(effect("no-such-family"), userId)).toBe("unknown_family");
+    });
+  });
+
+  it("keeps the code on an edit, and a draft leaves the public document", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = new PostgresAdminContentRepository(tx);
+      const family = await aFamily(tx);
+      const created = await admin.create(effect(family), userId);
+      if (created === "unknown_family") throw new Error("expected a created row");
+
+      const edited = await admin.update(created.id, { ...effect(family, "نور سرد"), status: "draft" }, userId);
+
+      expect(edited).toMatchObject({ status: "draft", item: { id: created.item.id, title: "نور سرد" } });
+      const served = (await new PostgresContentRepository(tx).list()).presets.map((preset) => preset.id);
+      expect(served).not.toContain(created.item.id);
+    });
+  });
+
+  it("archives on delete, so the row is gone from the panel and the site and stays gone", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = new PostgresAdminContentRepository(tx);
+      const family = await aFamily(tx);
+      const created = await admin.create(effect(family), userId);
+      if (created === "unknown_family") throw new Error("expected a created row");
+
+      expect(await admin.archive(created.id, userId)).toEqual({ kind: "preset", code: created.item.id });
+
+      expect((await admin.list("preset")).map((entry) => entry.id)).not.toContain(created.id);
+      expect((await new PostgresContentRepository(tx).list()).presets.map((preset) => preset.id)).not.toContain(created.item.id);
+      expect(await admin.archive(created.id, userId)).toBeNull();
+      expect(await admin.update(created.id, effect(family), userId)).toBe("not_found");
+    });
+  });
+
+  it("round-trips a course's lessons and cover video", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const created = await new PostgresAdminContentRepository(tx).create(
+        {
+          kind: "course",
+          status: "published",
+          item: {
+            title: "نورپردازی سینمایی",
+            blurb: "سه درس کوتاه.",
+            level: "beginner",
+            cover: { url: "/api/v1/content/media/0192f7a0-0000-7000-8000-000000000002.mp4", kind: "video" },
+            lessons: [
+              { id: "l-1", title: "نور کلیدی", seconds: 95, videoUrl: "/api/v1/content/media/0192f7a0-0000-7000-8000-000000000003.mp4" },
+            ],
+          },
+        },
+        userId,
+      );
+      if (created === "unknown_family") throw new Error("expected a created row");
+
+      const served = (await new PostgresContentRepository(tx).list()).courses.find((course) => course.id === created.item.id);
+      expect(served).toMatchObject({ cover: { kind: "video" }, lessons: [{ title: "نور کلیدی", seconds: 95 }] });
+    });
+  });
+
+  it("will not turn an effect into a prompt-bank entry", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = new PostgresAdminContentRepository(tx);
+      const created = await admin.create(effect(await aFamily(tx)), userId);
+      if (created === "unknown_family") throw new Error("expected a created row");
+
+      const crossed = await admin.update(
+        created.id,
+        { kind: "prompt_fragment", status: "published", item: { label: "x", fragment: "x", category: "camera", note: "x" } },
+        userId,
+      );
+
+      expect(crossed).toBe("not_found");
     });
   });
 });

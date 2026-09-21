@@ -12,6 +12,7 @@ import { registerAdminAnalyticsRoutes, type AdminAnalyticsDependencies } from ".
 import { registerAdminCatalogRoutes, type AdminCatalogDependencies } from "./adminCatalog";
 import { registerAdminCommunityRoutes, type AdminCommunityDependencies } from "./adminCommunity";
 import { registerAdminStaffRoutes, type AdminStaffDependencies } from "./adminStaff";
+import { registerAdminContentRoutes, type AdminContentDependencies } from "./adminContent";
 
 export interface AdminDependencies {
   admin: PostgresAdminRepository;
@@ -40,6 +41,8 @@ export interface AdminDependencies {
    * three above, and for the same reason: absent beats half-answering.
    */
   staff?: AdminStaffDependencies | undefined;
+  /** Effects, courses and the prompt bank. Optional like the four above, and for the same reason. */
+  content?: AdminContentDependencies | undefined;
   /** Reused so staff prove who they are the same way customers do, before the second factor. */
   verifyPassword(email: string, password: string): Promise<{ id: string; emailNormalized: string }>;
 }
@@ -176,6 +179,7 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
   if (dependencies.analytics) registerAdminAnalyticsRoutes(app, dependencies.analytics, { require, audit });
   if (dependencies.community) registerAdminCommunityRoutes(app, dependencies.community, { require, audit });
   if (dependencies.staff) registerAdminStaffRoutes(app, dependencies.staff, { require, audit });
+  if (dependencies.content) registerAdminContentRoutes(app, dependencies.content, { require, audit });
 
   // ------------------------------------------------------------ signing in
 

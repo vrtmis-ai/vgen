@@ -242,11 +242,19 @@ published rows.
 **Public.** The landing page's feature bento renders nine effects, three courses
 and a voice count to a visitor with no session.
 
-**Where it comes from.** `content_items`, seeded by `pnpm content:publish` from
-`src/data/content.rows.json`. That seeder never writes `status` on a row that
-already exists and never deletes — pulling something is a decision a person
-made, and a seed run must not reverse it. `sort_order` does update, because the
-file is still the source of truth for order while no panel exists.
+**Where it comes from.** `content_items`. Effects, courses and the prompt bank
+are edited at `/admin/content` (see Admin). `pnpm content:publish` seeds from
+`src/data/content.rows.json` and is **insert-only**: it runs on every deploy,
+and an upsert would put the file's title and prompt back over an admin's edit.
+A changed row in that file reaches a fresh database only.
+
+**Uploaded covers and lessons** are items' `coverUrl`, `cover.url` and
+`videoUrl`, stored as `/api/v1/content/media/<uuid>.<ext>` — relative, so the
+same row works on any host; the browser resolves it against
+`NEXT_PUBLIC_API_BASE_URL`. `GET /content/media/:file` answers **302** to a
+freshly signed URL on the files host, cached for 30 minutes of the signature's 60. The bucket stays private: the route only signs keys under `content/`, and
+only names the upload route issued, so it cannot be pointed at a customer's
+generation. Anything else is **404**.
 
 **`flags` is here because of first paint, not because it is content.** The
 layout already blocks on this route for every visitor including anonymous ones,
@@ -1035,6 +1043,65 @@ what is left of the term — leaving the credits behind would mean "deactivate"
 left the account holding the month's coins. Spent credits are not clawed back.
 
 Audited as `staff.plan.granted` / `staff.plan.revoked`.
+
+### `GET · POST /admin/content` · `PUT · DELETE /admin/content/:id`
+
+Effects (`preset`), academy courses (`course`) and the prompt bank
+(`prompt_fragment`), edited from the panel's «افکت‌ها و آکادمی» section. The
+other four collections in `GET /content` still come only from the seed file.
+`content.read` lists; `content.write` does everything else. The seeded `admin`
+role holds `*` and so both.
+
+- **`GET /admin/content?kind=preset|course|prompt_fragment`** → `{ entries }`:
+  every row of that kind that is not archived, drafts included, in the order
+  the site shows them. Each entry is `{ id, kind, status, item }` — `id` is the
+  row's uuid, `item.id` is the code the site uses (`p1`, `fx-1a2b3c4d`), and
+  `item` is exactly what `GET /content` would serve. Schema:
+  `ContentEntriesSchema`.
+- **`POST /admin/content`** → **201** `{ entry }`. Body `{ kind, status, item }`
+  (`ContentWriteSchema`), where `status` is `draft` or `published` and `item`
+  is the served item without `id` and `seed` — the server gives a new row its
+  code and placeholder art. New rows go first in the order.
+- **`PUT /admin/content/:id`** → `{ entry }`. The same body; replaces
+  everything but the code, the seed and the place in the order. The kind cannot
+  change: a preset id with a course body is **404**.
+- **`DELETE /admin/content/:id`** → `{ id, status: "archived" }`. **Archives**
+  rather than deletes. The seeder is insert-only and runs on every deploy, so a
+  hard-deleted seeded row would be inserted again; an archived one stays
+  archived, and neither route lists it.
+
+**400** `validation_failed` names the field (a prompt of spaces, a cover that
+is not an http(s) link or an upload path, a title over its cap). **422**
+`unknown_family` when no active model carries the chosen family — the card
+would open nothing. **404** for a malformed id, an archived row, or the wrong
+kind. Every write is audited as `content.create` / `content.update` /
+`content.delete` with the row's code as the target.
+
+What is saved is on the site on the next request: the public document's
+fingerprint counts published rows and their newest `updated_at`.
+
+### `POST /admin/content/media?purpose=cover|lesson`
+
+One file, multipart, under `content.write`. → **201**
+`{ url, kind: "image"|"video", byteSize }`, where `url` is
+`/api/v1/content/media/<uuid>.<ext>`: the value to put in an item's `coverUrl`,
+`cover.url` or a lesson's `videoUrl`. The type is read from the bytes, not
+the header.
+
+| Purpose  | Accepts                      | Limit                                                           |
+| -------- | ---------------------------- | --------------------------------------------------------------- |
+| `cover`  | JPEG, PNG, WebP, GIF         | 5 MB                                                            |
+| `cover`  | MP4, WebM (a course's cover) | 20 MB — it autoplays on the Academy grid, so it is a short loop |
+| `lesson` | MP4, WebM                    | 150 MB — about ten minutes of 720p                              |
+
+**413** `file_too_large` over the limit, **415** `unsupported_media_type` for
+anything else — a picture as a lesson, QuickTime, HTML. The limits are
+`CONTENT_MEDIA_LIMITS` in the content contract, and the panel checks them
+before it sends a byte. The API holds one upload in memory while it stores it,
+which is the other reason for a ceiling. Audited as `content.media.upload`.
+
+A file whose form is then cancelled stays in storage unreferenced. Nothing
+links to it, so nothing serves it.
 
 ### `GET /plans`
 

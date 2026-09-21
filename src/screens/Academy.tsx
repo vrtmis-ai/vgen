@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Play, Lock, Clock, Copy, Check, ArrowUpRight } from "@phosphor-icons/react";
+import { Play, Lock, Clock, Copy, Check, ArrowUpRight, MagnifyingGlass } from "@phosphor-icons/react";
 import { LEVEL_LABEL, courseMinutes, BANK_LABEL, BANK_BLURB } from "../features/content/labels";
 import { usePublishedContent } from "../features/content/ContentProvider";
-import type { Course, PromptFragment } from "../runtime/contracts/content";
+import { CourseCover, mediaSrc } from "../features/content/media";
+import type { Course, Lesson, PromptFragment } from "../runtime/contracts/content";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 
 import { useI18n } from "../lib/i18n";
@@ -33,12 +34,7 @@ function CourseCard({ c, onOpen }: { c: Course; onOpen: () => void }) {
   return (
     <button onClick={onOpen} className="group block w-full text-start">
       <div className="relative overflow-hidden rounded-xl" style={{ background: "var(--vg-surface)" }}>
-        <img
-          src={art(c.seed)}
-          alt=""
-          loading="lazy"
-          className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        />
+        <CourseCover course={c} className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
         <span
           className="absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover:opacity-100"
           style={{ background: "rgba(0,0,0,0.35)" }}
@@ -98,10 +94,22 @@ function CourseCard({ c, onOpen }: { c: Course; onOpen: () => void }) {
    compose — a camera move plus a lighting setup plus a lens is one shot — so
    the user is assembling a sentence, not choosing a preset. Sending them to the
    studio on every click would throw away the two fragments they already had. */
+/** Case, Arabic letter forms and the half-space are not what anybody means to search by. */
+function normalise(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/\u200c/g, " ");
+}
+
 function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?: string) => void }) {
+  const { n } = useI18n();
   const families = useCatalogFamilies();
   const entries = usePublishedContent().fragments;
   const [cat, setCat] = useState<PromptFragment["category"]>("camera");
+  const [query, setQuery] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
 
   // Taken from the catalog rather than written in. Every term here is a
@@ -117,7 +125,16 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
   }, [copied]);
 
   const cats = (["camera", "lighting", "lens", "motion", "grade"] as const).filter((c) => entries.some((x) => x.category === c));
-  const shown = entries.filter((x) => x.category === cat);
+  // The admin can empty a category now; falling back keeps the bank from
+  // opening on a tab with nothing under it.
+  const active = cats.includes(cat) ? cat : (cats[0] ?? cat);
+  // A search looks through every category — someone typing "dolly" should not
+  // first have to know it is filed under camera — and matches the Persian
+  // name, the English term and the note alike.
+  const needle = normalise(query);
+  const shown = needle
+    ? entries.filter((x) => [x.label, x.fragment, x.note].some((text) => normalise(text).includes(needle)))
+    : entries.filter((x) => x.category === active);
 
   return (
     <section className="mt-14">
@@ -129,13 +146,33 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
         آموزش دیده‌اند.
       </p>
 
-      <div className="hide-scrollbar -mx-4 mt-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
+      <label className="relative mt-4 block max-w-[420px]">
+        <MagnifyingGlass
+          size={15}
+          className="pointer-events-none absolute top-1/2 -translate-y-1/2"
+          style={{ insetInlineStart: "0.75rem", color: "var(--vg-text-faint)" }}
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="جستجو در بانک پرامپت…"
+          aria-label="جستجو در بانک پرامپت"
+          className="h-10 w-full rounded-xl ps-9 pe-3 text-[13px] outline-none"
+          style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)", color: "var(--vg-text)" }}
+        />
+      </label>
+
+      <div className="hide-scrollbar -mx-4 mt-3 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
         {cats.map((c) => {
-          const on = c === cat;
+          const on = !needle && c === active;
           return (
             <button
               key={c}
-              onClick={() => setCat(c)}
+              onClick={() => {
+                setCat(c);
+                setQuery("");
+              }}
               aria-pressed={on}
               className="h-9 shrink-0 rounded-lg px-3 text-[12.5px] font-semibold transition-colors"
               style={{
@@ -150,8 +187,8 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
         })}
       </div>
 
-      <p className="mt-3 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
-        {BANK_BLURB[cat]}
+      <p className="mt-3 text-[12px]" style={{ color: "var(--vg-text-faint)" }} aria-live="polite">
+        {needle ? (shown.length ? `${n(shown.length)} نتیجه` : "چیزی پیدا نشد.") : BANK_BLURB[active]}
       </p>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -209,7 +246,6 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
 }
 
 export default function Academy({ onOpenModel }: { onOpenModel: (familyId: string, prompt?: string) => void }) {
-  const { n } = useI18n();
   const courses = usePublishedContent().courses;
   const [open, setOpen] = useState<Course | null>(null);
 
@@ -245,76 +281,123 @@ export default function Academy({ onOpenModel }: { onOpenModel: (familyId: strin
 
       <BankSection onOpenModel={onOpenModel} />
 
-      {open && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center"
-          style={{ background: "rgba(9,9,9,0.9)" }}
-          onClick={() => setOpen(null)}
-        >
-          <div
-            className="max-h-[86dvh] w-full max-w-[560px] overflow-y-auto rounded-t-3xl p-5 sm:rounded-3xl"
-            style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img src={art(open.seed)} alt="" loading="lazy" decoding="async" className="mb-4 aspect-video w-full rounded-xl object-cover" />
-            <h3 className="text-[19px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
-              {open.title}
-            </h3>
-            <p className="mt-1.5 text-[13px] leading-6" style={{ color: "var(--vg-text-muted)" }}>
-              {open.blurb}
-            </p>
+      {open && <CourseSheet course={open} onClose={() => setOpen(null)} onOpenModel={onOpenModel} />}
+    </motion.div>
+  );
+}
 
-            <div className="mt-4 flex flex-col">
-              {open.lessons.map((l, i) => (
-                <div
-                  key={l.id}
-                  className="flex items-center gap-3 border-b py-2.5 last:border-0"
-                  style={{ borderColor: "var(--vg-border-subtle)" }}
-                >
-                  <span className="vg-numeric w-5 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
-                    {n(i + 1)}
-                  </span>
-                  {/* A lesson with no video yet is listed and greyed, not
+/**
+ * One course, and now the place its lessons play.
+ *
+ * The player takes the cover's place rather than opening over the sheet: the
+ * lesson list stays under it, so moving to the next lesson is one tap and the
+ * syllabus never leaves the screen.
+ */
+function CourseSheet({
+  course: open,
+  onClose,
+  onOpenModel,
+}: {
+  course: Course;
+  onClose: () => void;
+  onOpenModel: (familyId: string, prompt?: string) => void;
+}) {
+  const { n } = useI18n();
+  const [playing, setPlaying] = useState<Lesson | null>(null);
+  const first = open.lessons.find((lesson) => lesson.videoUrl);
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center"
+      style={{ background: "rgba(9,9,9,0.9)" }}
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[86dvh] w-full max-w-[560px] overflow-y-auto rounded-t-3xl p-5 sm:rounded-3xl"
+        style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {playing?.videoUrl ? (
+          <video
+            key={playing.id}
+            src={mediaSrc(playing.videoUrl)}
+            controls
+            autoPlay
+            playsInline
+            className="mb-4 aspect-video w-full rounded-xl bg-black"
+            aria-label={playing.title}
+          />
+        ) : (
+          <CourseCover course={open} className="mb-4 aspect-video w-full rounded-xl object-cover" />
+        )}
+        <h3 className="text-[19px] font-extrabold" style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}>
+          {open.title}
+        </h3>
+        <p className="mt-1.5 text-[13px] leading-6" style={{ color: "var(--vg-text-muted)" }}>
+          {open.blurb}
+        </p>
+
+        <div className="mt-4 flex flex-col">
+          {open.lessons.map((l, i) => (
+            <button
+              key={l.id}
+              type="button"
+              disabled={!l.videoUrl}
+              onClick={() => setPlaying(l)}
+              aria-current={playing?.id === l.id ? "true" : undefined}
+              className="flex w-full items-center gap-3 border-b py-2.5 text-start last:border-0 enabled:hover:bg-white/[0.03]"
+              style={{
+                borderColor: "var(--vg-border-subtle)",
+                background: playing?.id === l.id ? "var(--vg-primary-a14)" : undefined,
+              }}
+            >
+              <span className="vg-numeric w-5 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
+                {n(i + 1)}
+              </span>
+              {/* A lesson with no video yet is listed and greyed, not
                       hidden — the syllabus is the promise, and hiding the gap
                       hides it from us too. */}
-                  {l.videoUrl ? (
-                    <Play size={13} weight="fill" style={{ color: "var(--vg-primary-soft)" }} />
-                  ) : (
-                    <Lock size={13} style={{ color: "var(--vg-text-faint)" }} />
-                  )}
-                  <span className="flex-1 text-[13px]" style={{ color: l.videoUrl ? "var(--vg-text)" : "var(--vg-text-muted)" }}>
-                    {l.title}
-                  </span>
-                  <span className="vg-numeric text-[11.5px]" style={{ color: "var(--vg-text-faint)" }}>
-                    {mmss(l.seconds)}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-5 flex gap-2">
-              <button
-                className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl text-[13.5px] font-bold"
-                style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
-              >
-                شروع دوره
-              </button>
-              {open.familyId && (
-                <button
-                  onClick={() => onOpenModel(open.familyId!)}
-                  className="h-11 rounded-xl px-4 text-[12.5px] font-semibold"
-                  style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-                >
-                  رفتن به مدل
-                </button>
+              {l.videoUrl ? (
+                <Play size={13} weight="fill" style={{ color: "var(--vg-primary-soft)" }} />
+              ) : (
+                <Lock size={13} style={{ color: "var(--vg-text-faint)" }} />
               )}
-            </div>
-            <p className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
-              ویدیوها هنوز آپلود نشده‌اند — این فهرست درس‌هاست.
-            </p>
-          </div>
+              <span className="flex-1 text-[13px]" style={{ color: l.videoUrl ? "var(--vg-text)" : "var(--vg-text-muted)" }}>
+                {l.title}
+              </span>
+              <span className="vg-numeric text-[11.5px]" style={{ color: "var(--vg-text-faint)" }}>
+                {mmss(l.seconds)}
+              </span>
+            </button>
+          ))}
         </div>
-      )}
-    </motion.div>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            disabled={!first}
+            onClick={() => first && setPlaying(first)}
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl text-[13.5px] font-bold disabled:opacity-50"
+            style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+          >
+            <Play size={14} weight="fill" />
+            شروع دوره
+          </button>
+          {open.familyId && (
+            <button
+              onClick={() => onOpenModel(open.familyId!)}
+              className="h-11 rounded-xl px-4 text-[12.5px] font-semibold"
+              style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
+            >
+              رفتن به مدل
+            </button>
+          )}
+        </div>
+        {!first && (
+          <p className="mt-2 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+            ویدیوها هنوز آپلود نشده‌اند — این فهرست درس‌هاست.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

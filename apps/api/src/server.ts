@@ -9,6 +9,7 @@ import {
   PostgresModelRoutesRepository,
   PostgresAuthRepository,
   PostgresCatalogRepository,
+  PostgresAdminContentRepository,
   PostgresContentRepository,
   PostgresCommunityRepository,
   PostgresCommunityModeration,
@@ -32,6 +33,7 @@ import {
   createS3StorageHealthAdapter,
 } from "@vgen/adapters";
 import { AssetUploadService } from "./assetUploads";
+import { ContentMediaService } from "./contentMedia";
 import { GenerationLibraryService } from "./generationLibrary";
 import { CustomerSessionService, SessionCookiePrincipalResolver } from "./customerSession";
 import { sealingKeyFrom } from "@vgen/core";
@@ -210,6 +212,7 @@ const objectStore = createS3ObjectStore({
 // A fresh volume has no bucket. Finding that out on somebody's first upload
 // would be a 500 for them and a puzzle for us.
 await objectStore.ensureBucket();
+const contentMedia = new ContentMediaService(objectStore);
 const app = createApp(
   {
     database: {
@@ -228,6 +231,7 @@ const app = createApp(
     customerWallet: new PostgresWalletRepository(sql),
     customerCatalog: new PostgresCatalogRepository(sql),
     customerContent: new PostgresContentRepository(sql),
+    contentMedia,
     customerCommunity: new PostgresCommunityRepository(sql),
     communitySubmissions: new PostgresCommunitySubmissions(sql),
     customerPlans: plansRepository,
@@ -264,6 +268,7 @@ const app = createApp(
         catalog: { routes: modelRoutesRepository, secrets: process.env },
         analytics: { analytics: analyticsRepository, bans: bansRepository },
         community: { moderation: new PostgresCommunityModeration(sql) },
+        content: { content: new PostgresAdminContentRepository(sql), media: contentMedia },
         staff: {
           staff: adminRepository,
           planGrants: new PostgresPlanGrantsRepository(sql),
