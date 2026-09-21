@@ -208,6 +208,10 @@ export function useCreateState(families: Family[], refs: RefMap = {}) {
     setFamily,
     /** The variant that runs — for a model with entrances, the one the attachments call for. */
     variant,
+    /** What was picked in the picker. For a model with entrances this is the entry, and it
+     *  does not change when an attachment resolves a different one — which is what a surface
+     *  clearing its files on a model switch has to key off. */
+    pickedId: picked.id,
     setVariant: (id: string) => setVariantId(id),
     /** More than one is worth a control; exactly one is noise. Entrances are not models. */
     hasVariants: family.variants.filter((v) => !v.entryOf).length > 1,

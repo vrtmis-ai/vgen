@@ -115,6 +115,47 @@ describe("the image studio's input slot", () => {
     expect(box.getAttribute("placeholder")).toMatch(/پرامپت نمی‌گیرد/);
   });
 
+  /* The picture is what says "edit this": the customer picked GPT Image 2.5
+     Flare, not a second row called ویرایش (#96). The dock used to clear its
+     files whenever the running variant changed — and attaching a picture is
+     what changes it here — so the picture that chose the edit entrance was
+     thrown away and the plain row ran instead. */
+  it("submits the edit entrance once a picture is attached", async () => {
+    const onGenerate = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AppServicesProvider services={createDemoServices()}>
+          <LanguageProvider initialLang="fa">
+            <CatalogProvider families={catalog.families}>
+              <SessionProvider value={ACCOUNT}>
+                <StudioImage
+                  gens={[]}
+                  onGenerate={onGenerate}
+                  onOpenModel={vi.fn()}
+                  onRemove={vi.fn()}
+                  submitError={null}
+                  onErrorAction={vi.fn()}
+                />
+              </SessionProvider>
+            </CatalogProvider>
+          </LanguageProvider>
+        </AppServicesProvider>
+      </QueryClientProvider>,
+    );
+    // Flare is GPT Image's first version, so picking the model lands on it.
+    const user = await pickFamily(/GPT Image/i);
+
+    await user.upload(document.querySelector<HTMLInputElement>("input[type=file]")!, new File(["png"], "in.png", { type: "image/png" }));
+    await user.type(screen.getByRole("textbox"), "a violet sky");
+    await user.click(screen.getByRole("button", { name: /بساز/ }));
+
+    await waitFor(() => expect(onGenerate).toHaveBeenCalled());
+    const [, variant, , , , refs] = onGenerate.mock.calls[0]!;
+    expect(variant.id).toBe("gpt-image-2-5-flare-edit");
+    // Under the entrance's own field name, not the role the dock held it by.
+    expect(Object.keys(refs as Record<string, unknown>)).toEqual(["input_urls"]);
+  });
+
   it("offers no upload on a model that takes no file", async () => {
     show();
     await pickFamily(/Seedream/i);

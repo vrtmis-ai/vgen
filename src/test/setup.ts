@@ -66,6 +66,27 @@ Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
   value: () => null,
 });
 
+/**
+ * jsdom has no `matchMedia`, and the create buttons ask it whether to play the
+ * ignition sweep before submitting — so a press threw inside its own handler
+ * and no test could ever get as far as a submitted job. A headless run has no
+ * motion to reduce, so it answers "reduce" and the press submits at once.
+ */
+vi.stubGlobal(
+  "matchMedia",
+  (query: string): MediaQueryList =>
+    ({
+      matches: query.includes("prefers-reduced-motion: reduce"),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList,
+);
+
 vi.stubGlobal(
   "fetch",
   vi.fn(

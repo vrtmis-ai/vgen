@@ -273,7 +273,11 @@ export default function StudioImage({
      Switching model has to drop them — the next model's slot has a different
      name and the API would be handed a file for a field it does not have — and
      revoke their object URLs with them, or the tab leaks a blob per upload. */
-  const variantId = s.variant.id;
+  /* Cleared when the customer picks a different model — not when an
+     attachment resolves a different entrance of the same one (#96). Keying
+     this on the running variant made the dock eat the picture that had just
+     chosen the edit entrance, and fall straight back to the plain row. */
+  const variantId = s.pickedId;
   useEffect(() => {
     setTooBig(null);
     setRefs((previous) => {
