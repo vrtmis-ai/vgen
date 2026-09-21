@@ -467,14 +467,7 @@ export class PostgresJobRunnerRepository {
     });
   }
 
-  /**
-   * The generation did not land: give everything back.
-   *
-   * Both refunds are unconditional in the sense that matters — a paid job gets
-   * its hold released, a granted job gets its slice of the day back, and a job
-   * that is somehow both gets both. Neither is skipped because the other
-   * applied.
-   */
+  /** The generation did not land: give everything back (`releaseJobMoney`) and say why. */
   async fail(jobId: string, errorCode: string, errorMessage: string): Promise<void> {
     await atomically(this.sql)(async (transaction) => {
       const tx = transaction as unknown as Sql;
@@ -483,15 +476,7 @@ export class PostgresJobRunnerRepository {
       `;
       if (!job || (job.status !== "running" && job.status !== "queued")) return;
 
-      const [hold] = await tx<{ id: string }[]>`
-        select id from credit_holds
-        where ref_type = 'job' and ref_id = ${jobId} and status = 'held'
-      `;
-      if (hold) await tx`select release_hold(${hold.id})`;
-
-      if (job.entitlement_id) {
-        await new PostgresEntitlementsRepository(tx).release(tx, job.entitlement_id, job.account_id);
-      }
+      await releaseJobMoney(tx, jobId, job);
 
       await tx`
         update jobs set
@@ -503,5 +488,29 @@ export class PostgresJobRunnerRepository {
         where id = ${jobId}
       `;
     });
+  }
+}
+
+/**
+ * Give back everything a job that will never be charged is holding: the coins
+ * on hold, and its slice of today's free allowance.
+ *
+ * Both are unconditional in the sense that matters — a paid job gets its hold
+ * released, a granted job gets its slice of the day back, and a job that is
+ * somehow both gets both. Neither is skipped because the other applied.
+ *
+ * Shared by the worker's `fail()` and a customer cancelling a queued job, which
+ * are the same refund with a different last word on the row. Call it inside the
+ * caller's transaction, after locking the job `for update`.
+ */
+export async function releaseJobMoney(tx: Sql, jobId: string, job: { account_id: string; entitlement_id: string | null }): Promise<void> {
+  const [hold] = await tx<{ id: string }[]>`
+    select id from credit_holds
+    where ref_type = 'job' and ref_id = ${jobId} and status = 'held'
+  `;
+  if (hold) await tx`select release_hold(${hold.id})`;
+
+  if (job.entitlement_id) {
+    await new PostgresEntitlementsRepository(tx).release(tx, job.entitlement_id, job.account_id);
   }
 }

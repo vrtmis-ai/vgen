@@ -1,5 +1,6 @@
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { PostgresGalleryRepository } from "./galleryRepository";
 import { PostgresGenerationRepository } from "./generationRepository";
 import { PostgresJobRunnerRepository } from "./jobRunnerRepository";
 import { PostgresQuotesRepository } from "./quotesRepository";
@@ -109,6 +110,7 @@ function storedOutput(jobId: string, index = 0) {
 
 interface Submitted {
   jobId: string;
+  userId: string;
   accountId: string;
   coins: number;
   startingCoins: number;
@@ -137,7 +139,7 @@ async function submitPaid(
   });
   if (created.outcome !== "created") throw new Error(`expected a job, got ${created.outcome}`);
 
-  return { jobId: created.job.id, accountId, coins: quote.quote.coins, startingCoins };
+  return { jobId: created.job.id, userId, accountId, coins: quote.quote.coins, startingCoins };
 }
 
 async function balanceOf(tx: Sql, accountId: string) {
@@ -373,6 +375,127 @@ describe("settling a job that succeeded", () => {
       expect(balance.spendable).toBe((startingCoins - coins) * COIN);
       const [assets] = await tx<{ count: string }[]>`select count(*)::text as count from assets where job_id = ${jobId}`;
       expect(Number(assets?.count)).toBe(1);
+    });
+  });
+});
+
+/* Issue #81. The same refund as a failure, asked for by the customer, and only
+   while nothing has been sent to a provider. The race with the worker's claim
+   is in generationConcurrency.integration.test.ts, because it has to commit. */
+describe("a customer cancelling a job that has not started", () => {
+  it("gives every coin back and ends the job cancelled, not failed", async () => {
+    await inRollback(sql, async (tx) => {
+      const { jobId, userId, accountId, startingCoins } = await submitPaid(tx);
+
+      expect(await new PostgresGalleryRepository(tx).cancelForUser(jobId, userId)).toBe("cancelled");
+
+      const [job] = await tx<{ status: string; error_code: string | null; micro_credits_charged: string; completed_at: Date | null }[]>`
+        select status, error_code, micro_credits_charged, completed_at from jobs where id = ${jobId}
+      `;
+      expect(job?.status).toBe("cancelled");
+      // Not a failure, so no error code to show up as noise on job.cancelled.
+      expect(job?.error_code).toBeNull();
+      expect(Number(job?.micro_credits_charged)).toBe(0);
+      expect(job?.completed_at).not.toBeNull();
+
+      const balance = await balanceOf(tx, accountId);
+      expect(balance.held).toBe(0);
+      expect(balance.spendable).toBe(startingCoins * COIN);
+    });
+  });
+
+  it("answers a second cancel the same way, and releases the hold only once", async () => {
+    await inRollback(sql, async (tx) => {
+      const { jobId, userId, accountId, startingCoins } = await submitPaid(tx);
+      const gallery = new PostgresGalleryRepository(tx);
+
+      expect(await gallery.cancelForUser(jobId, userId)).toBe("cancelled");
+      expect(await gallery.cancelForUser(jobId, userId)).toBe("cancelled");
+
+      const [hold] = await tx<{ status: string }[]>`select status from credit_holds where ref_type = 'job' and ref_id = ${jobId}`;
+      expect(hold?.status).toBe("released");
+      const balance = await balanceOf(tx, accountId);
+      expect(balance.held).toBe(0);
+      expect(balance.spendable).toBe(startingCoins * COIN);
+    });
+  });
+
+  it("gives a granted job its slice of the day back", async () => {
+    await inRollback(sql, async (tx) => {
+      const granted = await grantedVariant(tx);
+      const { userId, accountId } = await makeUser(tx);
+      await subscribe(tx, accountId, granted.minTier);
+      const quotes = new PostgresQuotesRepository(tx);
+
+      const quote = await quotes.create({ userId, variantId: granted.variantId, params: granted.params });
+      if (quote.outcome !== "quoted") throw new Error(`expected a quote, got ${quote.outcome}`);
+      const before = quote.quote.unlimited?.remainingToday ?? null;
+      const created = await new PostgresGenerationRepository(tx).createQueued({
+        userId,
+        quoteId: quote.quote.id,
+        params: granted.params,
+        idempotencyKey: nextKey(),
+      });
+      if (created.outcome !== "created") throw new Error(`expected a job, got ${created.outcome}`);
+
+      expect(await new PostgresGalleryRepository(tx).cancelForUser(created.job.id, userId)).toBe("cancelled");
+
+      const after = await quotes.create({ userId, variantId: granted.variantId, params: granted.params });
+      if (after.outcome !== "quoted") throw new Error(`expected a quote, got ${after.outcome}`);
+      expect(after.quote.unlimited?.remainingToday ?? null).toBe(before);
+    });
+  });
+
+  it("refuses once the worker has the job, and leaves it running with its hold", async () => {
+    await inRollback(sql, async (tx) => {
+      const { jobId, userId } = await submitPaid(tx);
+      await new PostgresJobRunnerRepository(tx).claim(jobId);
+
+      expect(await new PostgresGalleryRepository(tx).cancelForUser(jobId, userId)).toBe("started");
+
+      const [job] = await tx<{ status: string }[]>`select status from jobs where id = ${jobId}`;
+      expect(job?.status).toBe("running");
+      const [hold] = await tx<{ status: string }[]>`select status from credit_holds where ref_type = 'job' and ref_id = ${jobId}`;
+      expect(hold?.status).toBe("held");
+    });
+  });
+
+  it("refuses a job that has already settled", async () => {
+    await inRollback(sql, async (tx) => {
+      const { jobId, userId } = await submitPaid(tx);
+      const runner = new PostgresJobRunnerRepository(tx);
+      await runner.claim(jobId);
+      await runner.fail(jobId, "provider_failed", "No.");
+
+      expect(await new PostgresGalleryRepository(tx).cancelForUser(jobId, userId)).toBe("finished");
+    });
+  });
+
+  it("does not find somebody else's job, a removed one, or a draft", async () => {
+    await inRollback(sql, async (tx) => {
+      const { jobId } = await submitPaid(tx);
+      const stranger = await makeUser(tx);
+      const gallery = new PostgresGalleryRepository(tx);
+      expect(await gallery.cancelForUser(jobId, stranger.userId)).toBe("not_found");
+
+      const removed = await submitPaid(tx);
+      await tx`update jobs set deleted_at = now() where id = ${removed.jobId}`;
+      expect(await gallery.cancelForUser(removed.jobId, removed.userId)).toBe("not_found");
+
+      const draft = await submitPaid(tx);
+      await tx`update jobs set status = 'draft' where id = ${draft.jobId}`;
+      expect(await gallery.cancelForUser(draft.jobId, draft.userId)).toBe("not_found");
+    });
+  });
+
+  it("leaves the ledger balanced", async () => {
+    await inRollback(sql, async (tx) => {
+      const { jobId, userId, accountId } = await submitPaid(tx);
+      await new PostgresGalleryRepository(tx).cancelForUser(jobId, userId);
+
+      expect(await tx`select account_id from v_balance_drift where account_id = ${accountId}`).toHaveLength(0);
+      expect(await tx`select account_id from v_lot_drift where account_id = ${accountId}`).toHaveLength(0);
+      expect(await tx`select id from v_ledger_continuity_breaks where account_id = ${accountId}`).toHaveLength(0);
     });
   });
 });

@@ -1,6 +1,8 @@
 import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { PostgresGalleryRepository } from "./galleryRepository";
 import { PostgresGenerationRepository } from "./generationRepository";
+import { PostgresJobRunnerRepository } from "./jobRunnerRepository";
 import { PostgresQuotesRepository } from "./quotesRepository";
 import { COIN } from "./integrationHarness";
 import { available, bothOf, connectPool, inFlight, outcomesOf, resetAccount, sharedAccount, type RaceAccount } from "./raceHarness";
@@ -282,4 +284,46 @@ it("prices the variant these tests submit", async () => {
   const { quote } = await quoteFor(pool, account);
   expect(quote.coins).toBeGreaterThan(0);
   expect(quote.coins * COIN).toBeGreaterThan(0);
+});
+
+/* Issue #81: a customer cancelling a queued job while the worker claims it.
+   Cancel locks the row `for update`; claim is one conditional UPDATE that waits
+   on that lock and re-reads the committed row. Whichever commits first owns the
+   job — and the one outcome that must never happen is both: a refund for a job
+   a provider is about to be paid to run. Several rounds, because one passing
+   round of a race proves nothing. */
+describe("a cancel and the worker's claim at once", () => {
+  it("gives the job to exactly one of them", async () => {
+    for (let round = 0; round < 8; round += 1) {
+      const account = await ready("cancel-claim", { concurrency: 2 });
+      const created = await new PostgresGenerationRepository(pool).createQueued({
+        userId: account.userId,
+        quoteId: account.quote.id,
+        params: account.params,
+        idempotencyKey: nextKey(),
+      });
+      if (created.outcome !== "created") throw new Error(`expected a job, got ${created.outcome}`);
+      const jobId = created.job.id;
+
+      const [cancel, claim] = await bothOf(
+        () => new PostgresGalleryRepository(pool).cancelForUser(jobId, account.userId),
+        () => new PostgresJobRunnerRepository(pool).claim(jobId),
+      );
+      if (!cancel.ok || !claim.ok) throw new Error("neither side should throw");
+
+      const [job] = await pool<{ status: string }[]>`select status from jobs where id = ${jobId}`;
+      const [hold] = await pool<{ status: string }[]>`select status from credit_holds where ref_type = 'job' and ref_id = ${jobId}`;
+      if (cancel.value === "cancelled") {
+        // The runner treats a null claim as "skipped": no attempt, no provider call.
+        expect(claim.value).toBeNull();
+        expect(job?.status).toBe("cancelled");
+        expect(hold?.status).toBe("released");
+      } else {
+        expect(cancel.value).toBe("started");
+        expect(claim.value?.id).toBe(jobId);
+        expect(job?.status).toBe("running");
+        expect(hold?.status).toBe("held");
+      }
+    }
+  });
 });

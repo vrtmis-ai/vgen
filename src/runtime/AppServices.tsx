@@ -141,9 +141,8 @@ export interface AppServices {
      * Call off a generation that has not started yet.
      *
      * Optional, and its absence is the answer to "can this deployment cancel?"
-     * — the endpoint is issue #81 and is not built, so the HTTP adapter only
-     * offers this where `NEXT_PUBLIC_JOB_CANCEL` says the API has it. A screen
-     * asks by looking for the method rather than by reading a flag of its own.
+     * — both adapters have it today; a screen asks by looking for the method
+     * rather than by reading a flag of its own.
      *
      * Only `queued` can be cancelled. A job the worker has already claimed
      * answers 409 `job_started`, because the provider is running it and the
