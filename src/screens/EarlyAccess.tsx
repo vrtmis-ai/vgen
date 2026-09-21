@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { OAuthFailureNotice } from "../components/OAuthFailureNotice";
+import { ArrowRight } from "@phosphor-icons/react";
+import { BRAND } from "../data/brand";
+import { Wordmark } from "../components/brandMarks";
 import { useI18n, type TKey } from "../lib/i18n";
 import { ApiError } from "../runtime/apiError";
 import { useAppServices } from "../runtime/AppServices";
 import { SIGN_IN_PATH, SIGN_UP_PATH } from "../runtime/providers/authActions";
-import { AuthScene, PILL, PillField } from "./Auth";
 
 /* What a visitor who is not signed in sees while `early_access` is on, on every
    route the app layout serves.
@@ -21,7 +23,16 @@ import { AuthScene, PILL, PillField } from "./Auth";
 
    The legal pages stay one click away. They live outside the app layout, so the
    gate never covers them, and eNamad's reviewer has to be able to reach them
-   from the front page. */
+   from the front page.
+
+   Drawn as a holding page rather than as the sign-in screen it borrowed from:
+   the mark, the word, the field, and the brand's light behind all three. It is
+   the first thing anyone sees of this product and for most of them it is the
+   only thing, so it is composed rather than assembled — but nothing functional
+   left with the redesign. The code is still checked before anyone is sent on,
+   the refusal is still said under the field, an account that already exists
+   still has a way in, and the legal row is still there for the reviewer who
+   has to find it. */
 
 const LEGAL: { label: TKey; href: string }[] = [
   { label: "lp_footer_terms", href: "/terms" },
@@ -32,7 +43,7 @@ const LEGAL: { label: TKey; href: string }[] = [
 ];
 
 export default function EarlyAccess() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const router = useRouter();
   const services = useAppServices();
   const [code, setCode] = useState("");
@@ -63,72 +74,112 @@ export default function EarlyAccess() {
   };
 
   return (
-    <AuthScene>
+    <main className="vg-soon vg-grain relative flex min-h-[100dvh] flex-col items-center justify-center px-5 py-14">
       {/* A social sign-in refused by the invite gate lands back here. */}
       <OAuthFailureNotice />
-      <div className="grid gap-7">
-        <div className="text-center">
-          <h1
-            className="text-[clamp(2rem,7vw,2.6rem)] font-extrabold leading-[1.18]"
-            style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
-          >
-            {t("ea_title")}
-          </h1>
-          <p className="mt-2 text-[15px] font-light leading-[1.9]" style={{ color: "var(--vg-text-muted)" }}>
-            {t("ea_sub")}
-          </p>
-        </div>
+
+      <div className="relative z-10 flex w-full max-w-[560px] flex-col items-center text-center">
+        <span style={{ color: "var(--vg-text)" }}>
+          <Wordmark height={52} title={BRAND.name} />
+        </span>
+
+        {/* Tracked out only in Latin. Persian letters join, and spacing them
+            breaks the joins — «ب ه ز و د ی» is not a styled word, it is a
+            broken one. */}
+        <h1
+          className={`mt-9 text-[clamp(2.1rem,7.5vw,3.1rem)] font-extrabold leading-[1.15] ${lang === "en" ? "tracking-[0.2em]" : ""}`}
+          style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+        >
+          {t("ea_soon")}
+        </h1>
+
+        <p
+          className={`mt-3 text-[13.5px] font-semibold ${lang === "en" ? "tracking-[0.28em]" : "tracking-normal"}`}
+          style={{ color: "var(--vg-primary-soft)" }}
+        >
+          {t("ea_limited")}
+        </p>
 
         <form
-          className="grid gap-5"
+          className="mt-8 w-full max-w-[420px]"
           onSubmit={(event) => {
             event.preventDefault();
             void submit();
           }}
         >
-          <PillField label={t("auth_invite_label")} error={failure ? t(failure) : undefined}>
-            {({ id, describedBy }) => (
-              <input
-                id={id}
-                aria-describedby={describedBy}
-                className={`${PILL} focus:border-accent`}
-                style={{ borderColor: "var(--vg-border)", background: "rgb(255 255 255 / 0.02)", color: "var(--vg-text)" }}
-                value={code}
-                onChange={(event) => {
-                  setCode(event.target.value);
-                  setFailure(null);
-                }}
-                autoComplete="off"
-                dir="ltr"
-                required
-              />
+          <div className="relative">
+            <input
+              value={code}
+              onChange={(event) => {
+                setCode(event.target.value);
+                setFailure(null);
+              }}
+              aria-label={t("auth_invite_label")}
+              aria-invalid={failure ? true : undefined}
+              aria-describedby={failure ? "ea-error" : undefined}
+              placeholder="****-****"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              dir="ltr"
+              required
+              /* Centred and tracked out, so an eight-character code reads as
+                 the shape on the card it was sent on rather than as a word. */
+              className="vg-ease h-[52px] w-full rounded-full bg-transparent text-center text-[15px] font-semibold tracking-[0.3em] outline-none"
+              style={{
+                border: `1px solid ${failure ? "var(--vg-danger)" : "var(--vg-primary)"}`,
+                color: "var(--vg-text)",
+                paddingInline: "3.25rem",
+              }}
+            />
+            {/* The form submits on Enter, which is what a phone keyboard's Go
+                key does — but a field with no visible way on is a field people
+                stare at. Shown once there is something to send. */}
+            {code.trim() !== "" && (
+              <button
+                type="submit"
+                disabled={checking}
+                aria-label={t("ea_submit")}
+                title={t("ea_submit")}
+                className="vg-ease absolute top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full disabled:opacity-50"
+                style={{ insetInlineEnd: 7, background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+              >
+                <ArrowRight size={16} weight="bold" className="rtl:-scale-x-100" />
+              </button>
             )}
-          </PillField>
-          <button
-            type="submit"
-            disabled={!code.trim() || checking}
-            className="vg-ease w-full rounded-full py-3.5 text-[15px] font-bold enabled:active:scale-[0.99] disabled:cursor-default"
-            style={
-              code.trim() && !checking
-                ? { background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }
-                : { background: "var(--vg-surface-raised)", color: "var(--vg-text-faint)" }
-            }
+          </div>
+
+          <p
+            id="ea-error"
+            role="alert"
+            className="mt-3 min-h-[1.25rem] text-[12.5px] leading-[1.7]"
+            style={{ color: failure ? "var(--vg-danger)" : "transparent" }}
           >
-            {checking ? t("ea_checking") : t("ea_submit")}
-          </button>
+            {failure ? t(failure) : checking ? t("ea_checking") : "\u00a0"}
+          </p>
         </form>
+
+        <p className={`mt-1 text-[11.5px] ${lang === "en" ? "tracking-[0.22em]" : ""}`} style={{ color: "var(--vg-text-muted)" }}>
+          {t("ea_code_required")}
+        </p>
+        <p className="vg-numeric mt-3 text-[11px] tracking-[0.18em]" dir="ltr" style={{ color: "var(--vg-text-faint)" }}>
+          {BRAND.domain}
+        </p>
       </div>
 
-      <div className="mt-8 flex flex-col items-center gap-6 text-[12.5px]">
+      {/* Quiet, under everything, and not in the mockup — but an account that
+          already exists needs a way in, and the legal row is what eNamad's
+          reviewer has to be able to reach from the front page. */}
+      <div className="relative z-10 mt-12 flex flex-col items-center gap-4 text-[12px]">
         <button
           type="button"
           className="vg-ease hover:text-[color:var(--vg-text)]"
-          style={{ color: "var(--vg-accent)" }}
+          style={{ color: "var(--vg-text-muted)" }}
           onClick={() => router.push(SIGN_IN_PATH)}
         >
           {t("auth_to_signin")}
         </button>
-        <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[12px]">
+        <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11.5px]">
           {LEGAL.map(({ label, href }) => (
             <a
               key={href}
@@ -141,6 +192,6 @@ export default function EarlyAccess() {
           ))}
         </nav>
       </div>
-    </AuthScene>
+    </main>
   );
 }
