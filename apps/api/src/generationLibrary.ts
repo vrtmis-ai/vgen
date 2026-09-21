@@ -83,8 +83,8 @@ export class GenerationLibraryService implements GenerationLibraryApplication {
     if (output.externalUrl) return output.externalUrl;
     const extension = EXTENSIONS[output.mimeType];
     // Numbered past the first: a Suno job is two takes, and two files of one
-    // name land as "vgen-….mp3" and "vgen-… (1).mp3".
-    const filename = `vgen-${record.id}${index > 0 ? `-${index + 1}` : ""}${extension ? `.${extension}` : ""}`;
+    // name land as "DEEV-….mp3" and "DEEV-… (1).mp3".
+    const filename = `DEEV-${record.id}${index > 0 ? `-${index + 1}` : ""}${extension ? `.${extension}` : ""}`;
     return this.store.signedUrl(output.key, this.expirySeconds, { downloadAs: filename });
   }
 
