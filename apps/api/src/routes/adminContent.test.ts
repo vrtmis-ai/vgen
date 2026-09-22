@@ -86,6 +86,13 @@ function appFor(permissions: string[] = ["*"]) {
   return { app, audit, content, put };
 }
 
+/** `audit_log.target_id` is a uuid column: anything else fails the insert after the write already happened. */
+function expectAuditTargetsFitTheColumn(audit: ReturnType<typeof vi.fn>) {
+  for (const [, , entry] of audit.mock.calls as unknown as [unknown, unknown, { targetId?: string }][]) {
+    if (entry.targetId !== undefined) expect(entry.targetId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  }
+}
+
 function upload(bytes: Buffer) {
   const CRLF = String.fromCharCode(13, 10);
   const boundary = "----deevtest";
@@ -129,7 +136,7 @@ describe("editing content", () => {
     expect(audit).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      expect.objectContaining({ action: "content.create", targetId: "fx-1234abcd" }),
+      expect.objectContaining({ action: "content.create", targetId: ID, after: expect.objectContaining({ code: "fx-1234abcd" }) }),
     );
   });
 
@@ -245,5 +252,27 @@ describe("serving an upload", () => {
     for (const name of ["..%2Fuploads%2Fx.png", "x.png", `${ID}.html`]) {
       expect((await app.inject({ method: "GET", url: `/api/v1/content/media/${name}` })).statusCode).toBe(404);
     }
+  });
+});
+
+describe("the audit trail", () => {
+  it("only ever names a uuid as the target, whatever was written", async () => {
+    const { app, audit } = appFor();
+
+    await app.inject({ method: "POST", url: "/api/v1/admin/content", payload: write });
+    await app.inject({ method: "PUT", url: `/api/v1/admin/content/${ID}`, payload: write });
+    await app.inject({ method: "DELETE", url: `/api/v1/admin/content/${ID}` });
+    await app.inject({ method: "POST", url: "/api/v1/admin/content/media?purpose=cover", ...upload(png()) });
+
+    expect(audit).toHaveBeenCalledTimes(4);
+    expectAuditTargetsFitTheColumn(audit);
+    expect(audit).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        action: "content.media.upload",
+        after: expect.objectContaining({ url: expect.stringMatching(/^\/api\/v1\/content\/media\//) }),
+      }),
+    );
   });
 });

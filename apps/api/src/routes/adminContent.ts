@@ -36,9 +36,10 @@ const NOT_FOUND = { error: { code: "not_found", message: "That item does not exi
  * Effects, courses and the prompt bank, edited from the panel.
  *
  * `content.read` lists; `content.write` creates, edits, deletes and uploads.
- * Every write is audited with the row's code, which is the id the public
- * document and the screens use, so an entry in `audit_log` can be matched to
- * the card somebody complained about.
+ * Every write is audited. `audit_log.target_id` is a uuid column, so the
+ * target is the row's uuid and the code the site uses (`p1`, `fx-…`) goes in
+ * `after` beside it — that is what matches an entry to the card somebody
+ * complained about. An upload has no row yet, so it has no target at all.
  */
 export function registerAdminContentRoutes(app: FastifyInstance, dependencies: AdminContentDependencies, guard: AdminGuard): void {
   const { content, media } = dependencies;
@@ -59,8 +60,8 @@ export function registerAdminContentRoutes(app: FastifyInstance, dependencies: A
     await guard.audit(request, session, {
       action: "content.create",
       targetType: write.kind,
-      targetId: entry.item.id,
-      after: { status: entry.status, title: titleOf(entry) },
+      targetId: entry.id,
+      after: { code: entry.item.id, status: entry.status, title: titleOf(entry) },
     });
     return reply.code(201).send({ entry });
   });
@@ -77,8 +78,8 @@ export function registerAdminContentRoutes(app: FastifyInstance, dependencies: A
     await guard.audit(request, session, {
       action: "content.update",
       targetType: write.kind,
-      targetId: entry.item.id,
-      after: { status: entry.status, title: titleOf(entry) },
+      targetId: entry.id,
+      after: { code: entry.item.id, status: entry.status, title: titleOf(entry) },
     });
     return reply.send({ entry });
   });
@@ -93,8 +94,8 @@ export function registerAdminContentRoutes(app: FastifyInstance, dependencies: A
     await guard.audit(request, session, {
       action: "content.delete",
       targetType: archived.kind,
-      targetId: archived.code,
-      after: { status: "archived" },
+      targetId: id.data,
+      after: { code: archived.code, status: "archived" },
     });
     return reply.send({ id: id.data, status: "archived" });
   });
@@ -129,8 +130,7 @@ export function registerAdminContentRoutes(app: FastifyInstance, dependencies: A
       await guard.audit(request, session, {
         action: "content.media.upload",
         targetType: "content_media",
-        targetId: stored.url,
-        after: { purpose, kind: stored.kind, byteSize: stored.byteSize },
+        after: { url: stored.url, purpose, kind: stored.kind, byteSize: stored.byteSize },
       });
       return reply.code(201).send(stored);
     } catch (error) {

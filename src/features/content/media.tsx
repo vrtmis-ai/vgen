@@ -1,7 +1,8 @@
 import { useReducedMotion } from "framer-motion";
 import type { Course, Preset } from "../../runtime/contracts/content";
 
-const picsum = (seed: string, w: number, h: number) => `https://picsum.photos/seed/${seed}/${w}/${h}`;
+/** The stock photo a row shows until somebody uploads its cover. Deterministic per seed. */
+export const placeholderArt = (seed: string, w: number, h: number): string => `https://picsum.photos/seed/${seed}/${w}/${h}`;
 
 /**
  * An admin's upload, as a browser can fetch it.
@@ -23,11 +24,11 @@ export function mediaSrc(ref: string): string {
 
 /** An effect's picture: the cover an admin uploaded, else placeholder art from its seed. */
 export const presetArt = (preset: Preset, w = 480, h = 640): string =>
-  preset.coverUrl ? mediaSrc(preset.coverUrl) : picsum(preset.seed, w, h);
+  preset.coverUrl ? mediaSrc(preset.coverUrl) : placeholderArt(preset.seed, w, h);
 
 /** A course's still: its cover picture, else placeholder art. A video cover is drawn by `CourseCover`. */
 export const courseArt = (course: Course, w = 800, h = 450): string =>
-  course.cover?.kind === "image" ? mediaSrc(course.cover.url) : picsum(course.seed, w, h);
+  course.cover?.kind === "image" ? mediaSrc(course.cover.url) : placeholderArt(course.seed, w, h);
 
 /**
  * A course's cover, picture or video.
