@@ -347,7 +347,7 @@ const DURATION_TIMEOUT_MS = 4_000;
  * all. Callers treat undefined as "unknown", which for a per-second model means
  * refusing to quote rather than guessing.
  */
-function readDuration(url: string, media: SlotMedia): Promise<number | undefined> {
+export function readDuration(url: string, media: SlotMedia): Promise<number | undefined> {
   if (media === "image") return Promise.resolve(undefined);
   return new Promise((resolve) => {
     const el = document.createElement(media === "video" ? "video" : "audio");

@@ -13,6 +13,16 @@ import {
   type AdminServingModelCreate,
   type AdminSessionState,
 } from "../../runtime/contracts/admin";
+import {
+  ContentEntriesSchema,
+  ContentEntrySchema,
+  ContentMediaSchema,
+  type ContentEntry,
+  type ContentMedia,
+  type ContentMediaPurpose,
+  type ContentWrite,
+  type EditableContentKind,
+} from "../../runtime/contracts/content";
 
 /**
  * The staff API, as one typed object.
@@ -391,6 +401,15 @@ const StaffPlanRevokedSchema = z.object({ userId: z.string(), revoked: z.boolean
 export type StaffMember = z.infer<typeof StaffMemberSchema>;
 export type StaffPlan = z.infer<typeof StaffPlanSchema>;
 
+/**
+ * A model family, as the content editor offers it. Read from the public
+ * catalogue — the one list of what a customer can actually open.
+ */
+const AdminFamiliesSchema = z.object({
+  families: z.array(z.object({ id: z.string(), name: z.string(), kind: z.enum(["image", "video", "audio"]) })),
+});
+export type AdminFamily = z.infer<typeof AdminFamiliesSchema>["families"][number];
+
 export interface AdminApi {
   getSession(): Promise<AdminSessionState>;
   signIn(email: string, password: string): Promise<void>;
@@ -452,12 +471,25 @@ export interface AdminApi {
   listAdminSessions(): Promise<AdminSessionRow[]>;
   revokeAdminSession(id: string): Promise<void>;
   revokeOtherAdminSessions(): Promise<number>;
+
+  listFamilies(): Promise<AdminFamily[]>;
+  listContent(kind: EditableContentKind): Promise<ContentEntry[]>;
+  createContent(write: ContentWrite): Promise<ContentEntry>;
+  updateContent(id: string, write: ContentWrite): Promise<ContentEntry>;
+  /** Archives it: gone from the site and this panel. */
+  deleteContent(id: string): Promise<void>;
+  uploadContentMedia(file: File, purpose: ContentMediaPurpose): Promise<ContentMedia>;
 }
 
 /** 204 and 200-with-no-body both parse as this. */
 const Empty = z.unknown().transform(() => undefined as void);
 
-export function createAdminApi(client: HttpClient): AdminApi {
+/**
+ * `uploads` is the same API with a longer patience: a 150MB lesson does not
+ * arrive in the fifteen seconds every other call gets. Defaults to `client`
+ * for the tests, which upload nothing that size.
+ */
+export function createAdminApi(client: HttpClient, uploads: HttpClient = client): AdminApi {
   return {
     getSession: () => client.request("/admin/session", { schema: AdminSessionSchema }),
     signIn: async (email, password) => {
@@ -572,9 +604,24 @@ export function createAdminApi(client: HttpClient): AdminApi {
     getEarlyAccess: async () => (await client.request("/admin/early-access", { schema: EarlyAccessSchema })).enabled,
     setEarlyAccess: async (enabled) =>
       (await client.request("/admin/early-access", { method: "PATCH", body: { enabled }, schema: EarlyAccessSchema })).enabled,
+
+    listFamilies: async () => (await client.request("/catalog", { schema: AdminFamiliesSchema })).families,
+    listContent: async (kind) => (await client.request(`/admin/content?kind=${kind}`, { schema: ContentEntriesSchema })).entries,
+    createContent: async (write) =>
+      (await client.request("/admin/content", { method: "POST", body: write, schema: z.object({ entry: ContentEntrySchema }) })).entry,
+    updateContent: async (id, write) =>
+      (await client.request(`/admin/content/${id}`, { method: "PUT", body: write, schema: z.object({ entry: ContentEntrySchema }) })).entry,
+    deleteContent: async (id) => {
+      await client.request(`/admin/content/${id}`, { method: "DELETE", schema: Empty });
+    },
+    uploadContentMedia: (file, purpose) => {
+      const form = new FormData();
+      form.append("file", file);
+      return uploads.request(`/admin/content/media?purpose=${purpose}`, { method: "POST", body: form, schema: ContentMediaSchema });
+    },
   };
 }
 
 export function createAdminApiFor(baseUrl: string): AdminApi {
-  return createAdminApi(createHttpClient({ baseUrl }));
+  return createAdminApi(createHttpClient({ baseUrl }), createHttpClient({ baseUrl, timeoutMs: 20 * 60_000 }));
 }

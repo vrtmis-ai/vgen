@@ -49,6 +49,12 @@ let sessionState: Awaited<ReturnType<AdminApi["getSession"]>> | null;
 
 function stubApi(): AdminApi {
   return {
+    listFamilies: vi.fn(async () => []),
+    listContent: vi.fn(async () => []),
+    createContent: vi.fn(),
+    updateContent: vi.fn(),
+    deleteContent: vi.fn(async () => undefined),
+    uploadContentMedia: vi.fn(),
     getSession: vi.fn(async () => {
       if (!sessionState) throw notFound();
       return sessionState;

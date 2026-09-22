@@ -65,3 +65,20 @@ export function assetKindFor(mimeType: string): "image" | "video" | "audio" | "d
   if (mimeType.startsWith("audio/")) return "audio";
   return "document";
 }
+
+/**
+ * The real type of an admin's upload for the effects and academy pages: the
+ * four image types above, or a video every browser plays inline — MP4 or WebM.
+ *
+ * QuickTime shares MP4's `ftyp` box and is refused by its brand: Chrome and
+ * Firefox will not reliably play a .mov, and the upload is the only place to
+ * say so before a visitor sees a blank player.
+ */
+export function sniffContentMediaType(bytes: Uint8Array): string | null {
+  const image = sniffImageMimeType(bytes);
+  if (image) return image;
+  const ascii = (from: number, length: number) => String.fromCharCode(...bytes.subarray(from, from + length));
+  if (bytes.length > 12 && ascii(4, 4) === "ftyp") return ascii(8, 4) === "qt  " ? null : "video/mp4";
+  if (starts(bytes, [0x1a, 0x45, 0xdf, 0xa3])) return "video/webm";
+  return null;
+}

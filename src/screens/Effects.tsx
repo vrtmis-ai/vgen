@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Sparkle, Copy, Check } from "@phosphor-icons/react";
 import { CATEGORY_LABEL } from "../features/content/labels";
 import { usePublishedContent } from "../features/content/ContentProvider";
+import { presetArt } from "../features/content/media";
 import type { Preset } from "../runtime/contracts/content";
 
 import { VendorMark } from "../components/VendorMark";
@@ -101,18 +102,22 @@ function EffectDetail({ preset, onGenerate, onBack }: { preset: Preset; onGenera
 
           {/* Their gallery: the same effect on different subjects. One large,
               the rest as a strip — a wall of equal thumbnails would not tell
-              you which one is the effect and which are variations. */}
+              you which one is the effect and which are variations. An effect
+              with a real cover shows just that: four random placeholder photos
+              beside an admin's picture would look like part of the effect. */}
           <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
             <img
-              src={art(preset.seed)}
+              src={presetArt(preset)}
               alt={`نمونهٔ ${preset.title}`}
               loading="lazy"
               decoding="async"
-              className="aspect-[3/4] w-full rounded-2xl object-cover sm:col-span-2 sm:aspect-[16/9]"
+              className={`aspect-[3/4] w-full rounded-2xl sm:col-span-2 ${preset.coverUrl ? "object-contain sm:aspect-auto sm:max-h-[70vh]" : "object-cover sm:aspect-[16/9]"}`}
+              style={preset.coverUrl ? { background: "var(--vg-surface)" } : undefined}
             />
-            {[1, 2, 3, 4].map((n) => (
-              <img key={n} src={art(preset.seed, n)} alt="" loading="lazy" className="aspect-[3/4] w-full rounded-xl object-cover" />
-            ))}
+            {!preset.coverUrl &&
+              [1, 2, 3, 4].map((n) => (
+                <img key={n} src={art(preset.seed, n)} alt="" loading="lazy" className="aspect-[3/4] w-full rounded-xl object-cover" />
+              ))}
           </div>
         </div>
 
@@ -166,7 +171,7 @@ function EffectCard({ preset, onOpen, onGenerate }: { preset: Preset; onOpen: ()
   return (
     <motion.div variants={riseItem} className="group relative aspect-[3/4] overflow-hidden rounded-xl">
       <img
-        src={art(preset.seed)}
+        src={presetArt(preset)}
         alt=""
         loading="lazy"
         className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"

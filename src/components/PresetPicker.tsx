@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { X, MagnifyingGlass } from "@phosphor-icons/react";
 import { CATEGORY_LABEL } from "../features/content/labels";
 import { usePublishedContent } from "../features/content/ContentProvider";
+import { presetArt } from "../features/content/media";
 import type { Preset } from "../runtime/contracts/content";
 import type { ModelKind } from "../data/models";
 import { useModalSurface } from "./FloatingSurface";
@@ -26,8 +27,6 @@ import { useModalSurface } from "./FloatingSurface";
    Modal rather than popover: this is a gallery, and a 380px popover cannot show
    a grid worth looking at.
    --------------------------------------------------------------------------- */
-
-const art = (seed: string) => `https://picsum.photos/seed/${seed}/360/480`;
 
 export function PresetPicker({
   kind,
@@ -181,7 +180,7 @@ export function PresetPicker({
                 style={on ? { outline: "2px solid var(--vg-primary)", outlineOffset: "-2px" } : undefined}
               >
                 <img
-                  src={art(p.seed)}
+                  src={presetArt(p, 360, 480)}
                   alt=""
                   loading="lazy"
                   className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"

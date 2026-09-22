@@ -6,23 +6,21 @@
  * list — now live in `content_items` (migration 0020) and reach the browser
  * through `GET /api/v1/content`.
  *
- * TWO RULES ABOUT WHAT THIS DOES NOT DO, both about not overruling a person:
+ * INSERT-ONLY. A row that already exists is never touched, because the admin
+ * panel edits effects, courses and the prompt bank in place, and this runs on
+ * every deploy: an upsert here would put back the seed file's title and prompt
+ * over whatever an admin wrote, and the deploy after an edit would undo it.
+ * (It used to update everything but `status`, which was right while this file
+ * was the only author.) So:
  *
- *   • It never writes `status` on a row that already exists. Pulling something
- *     is a decision someone made about what the public sees — usually because
- *     it was wrong, broken or worse — and a seed run must not reverse it. New
- *     rows take the status the seed file gives them; existing rows keep theirs.
- *   • It never deletes. A row an admin added through the panel is not in this
- *     file and must survive a re-seed. Removing content is `delete from
- *     content_items where kind = ... and code = ...`, run deliberately.
+ *   • A changed row in content.rows.json reaches a fresh database only. To
+ *     change one that exists, edit it in the panel.
+ *   • It never deletes. A row an admin added is not in this file and must
+ *     survive a re-seed. The panel's delete archives rather than deletes, so a
+ *     seeded row an admin removed is not inserted again here.
  *
- * `sort_order` DOES update, and the asymmetry is the point: order is a
- * presentation preference this file is still the source of truth for, while
- * status is a judgement the file has no standing to make twice.
- *
- * Idempotent by construction, like every other publisher here: `content_items`
- * has an updated_at trigger and the served content version derives from it, so
- * an unconditional upsert would hand every client a new version each run.
+ * Idempotent by construction: a second run inserts nothing, so the served
+ * content version does not move.
  *
  * Run: pnpm content:publish   (needs DATABASE_URL)
  */
@@ -91,35 +89,18 @@ try {
 
     let written = 0;
     for (const row of rows) {
-      // `status` is deliberately absent from the update list — see the header.
-      const [changed] = await tx<{ id: string }[]>`
+      // Insert-only — see the header.
+      const [inserted] = await tx<{ id: string }[]>`
         insert into content_items (kind, code, status, sort_order, title, subtitle, body, category, family_code, seed, payload)
         values (
           ${row.kind}, ${row.code}, ${row.status}, ${row.sortOrder},
           ${row.title}, ${row.subtitle}, ${row.body}, ${row.category},
           ${row.familyCode}, ${row.seed}, ${tx.json(row.payload as never)}
         )
-        on conflict (kind, code) do update set
-          sort_order  = excluded.sort_order,
-          title       = excluded.title,
-          subtitle    = excluded.subtitle,
-          body        = excluded.body,
-          category    = excluded.category,
-          family_code = excluded.family_code,
-          seed        = excluded.seed,
-          payload     = excluded.payload
-        where
-          content_items.sort_order  is distinct from excluded.sort_order
-          or content_items.title       is distinct from excluded.title
-          or content_items.subtitle    is distinct from excluded.subtitle
-          or content_items.body        is distinct from excluded.body
-          or content_items.category    is distinct from excluded.category
-          or content_items.family_code is distinct from excluded.family_code
-          or content_items.seed        is distinct from excluded.seed
-          or content_items.payload     is distinct from excluded.payload
+        on conflict (kind, code) do nothing
         returning id
       `;
-      if (changed) written += 1;
+      if (inserted) written += 1;
     }
 
     const counts = await tx<{ kind: string; count: string }[]>`

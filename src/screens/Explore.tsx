@@ -2,6 +2,7 @@ import { ArrowUpRight, Image as ImageIcon, VideoCamera, MusicNote, GraduationCap
 import { motion } from "framer-motion";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import { courseMinutes, LEVEL_LABEL } from "../features/content/labels";
+import { CourseCover, courseArt, presetArt } from "../features/content/media";
 import type { Course, FeaturedItem, Preset } from "../runtime/contracts/content";
 import { useCommunityFeed } from "../features/session/useSession";
 import type { CommunityPost } from "../runtime/contracts/community";
@@ -105,7 +106,8 @@ function Showcase({
   cta: string;
   onCta: () => void;
   items: React.ReactNode[];
-  tease: { key: string; seed: string }[];
+  /** `src` for the ones with real art; the rest are placeholders drawn from `seed`. */
+  tease: { key: string; seed: string; src?: string }[];
   ratio?: string;
   cols?: string;
 }) {
@@ -118,7 +120,7 @@ function Showcase({
           <div className={`grid max-h-[120px] grid-cols-2 gap-3 overflow-hidden ${cols}`} aria-hidden>
             {tease.map((t) => (
               <div key={t.key} className="overflow-hidden rounded-xl" style={{ background: "var(--vg-surface)", aspectRatio: ratio }}>
-                <img src={art(t.seed)} alt="" loading="lazy" className="size-full object-cover" />
+                <img src={t.src ?? art(t.seed)} alt="" loading="lazy" className="size-full object-cover" />
               </div>
             ))}
           </div>
@@ -292,7 +294,7 @@ export default function Explore({
       className="group relative block aspect-[3/4] w-full overflow-hidden rounded-xl text-start"
     >
       <img
-        src={art(p.seed, 480, 640)}
+        src={presetArt(p)}
         alt=""
         loading="lazy"
         className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
@@ -312,7 +314,7 @@ export default function Explore({
   const courseCard = (c: Course) => (
     <button key={c.id} onClick={() => onNav("academy")} className="block w-full text-start">
       <div className="overflow-hidden rounded-xl" style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}>
-        <img src={art(c.seed)} alt="" loading="lazy" className="aspect-video w-full object-cover" />
+        <CourseCover course={c} className="aspect-video w-full object-cover" />
       </div>
       <p className="mt-2 text-[13px] font-bold leading-snug" style={{ color: "var(--vg-text)" }}>
         {c.title}
@@ -430,7 +432,7 @@ export default function Explore({
           cta="همهٔ افکت‌ها"
           onCta={() => onNav("effects")}
           items={presets.slice(0, 8).map(presetCard)}
-          tease={presets.slice(8, 12).map((p) => ({ key: p.id, seed: p.seed }))}
+          tease={presets.slice(8, 12).map((p) => ({ key: p.id, seed: p.seed, src: presetArt(p) }))}
           ratio="3/4"
         />
 
@@ -443,7 +445,7 @@ export default function Explore({
           cta="همهٔ دوره‌ها"
           onCta={() => onNav("academy")}
           items={courses.slice(0, 4).map(courseCard)}
-          tease={courses.slice(4, 8).map((c) => ({ key: c.id, seed: c.seed }))}
+          tease={courses.slice(4, 8).map((c) => ({ key: c.id, seed: c.seed, src: courseArt(c) }))}
         />
 
         {/* 5 — community */}

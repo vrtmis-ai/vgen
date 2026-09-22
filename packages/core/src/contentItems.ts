@@ -7,6 +7,7 @@ import {
   SkillSchema,
   VoiceSchema,
   type ContentSnapshot,
+  type ContentWrite,
 } from "@vgen/contracts";
 
 /**
@@ -81,6 +82,7 @@ export function toContentItem(row: ContentSeedRow): ParsedContentItem {
           openEnded: payload["openEnded"] === true,
           kind: payload["kind"],
           ...maybe("badge", payload["badge"]),
+          ...maybe("coverUrl", payload["coverUrl"]),
         }),
       };
 
@@ -137,6 +139,7 @@ export function toContentItem(row: ContentSeedRow): ParsedContentItem {
           level: row.category,
           lessons: payload["lessons"],
           ...maybe("familyId", row.familyCode),
+          ...maybe("cover", payload["cover"]),
         }),
       };
 
@@ -158,5 +161,49 @@ export function toContentItem(row: ContentSeedRow): ParsedContentItem {
 
     default:
       throw new UnknownContentKindError(row.kind);
+  }
+}
+
+/**
+ * The other direction, for the three kinds the admin panel writes.
+ *
+ * Kept beside `toContentItem` because each is only right while it is the exact
+ * inverse of the other; the repository proves that on every write by reading
+ * the row it built back through `toContentItem` before storing it.
+ */
+export function fromContentItem(write: ContentWrite, code: string, seed: string): ContentSeedRow {
+  switch (write.kind) {
+    case "preset": {
+      const { title, prompt, category, familyId, openEnded, kind, badge, coverUrl } = write.item;
+      return {
+        kind: "preset",
+        code,
+        title,
+        subtitle: null,
+        body: prompt,
+        category,
+        familyCode: familyId,
+        seed,
+        payload: { openEnded, kind, ...maybe("badge", badge), ...maybe("coverUrl", coverUrl) },
+      };
+    }
+    case "course": {
+      const { title, blurb, level, familyId, lessons, cover } = write.item;
+      return {
+        kind: "course",
+        code,
+        title,
+        subtitle: blurb,
+        body: null,
+        category: level,
+        familyCode: familyId ?? null,
+        seed,
+        payload: { lessons, ...maybe("cover", cover) },
+      };
+    }
+    case "prompt_fragment": {
+      const { label, fragment, category, note } = write.item;
+      return { kind: "prompt_fragment", code, title: label, subtitle: note, body: fragment, category, familyCode: null, seed, payload: {} };
+    }
   }
 }

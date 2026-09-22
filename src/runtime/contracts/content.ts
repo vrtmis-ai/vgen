@@ -32,6 +32,17 @@ const ItemSchema = z.object({
   id: z.string().min(1),
 });
 
+/**
+ * Where an admin's upload is served from.
+ *
+ * Normally `/api/v1/content/media/<file>`, relative to the API's origin: the
+ * same row is read by production and by a laptop that restored its dump, and a
+ * host baked into it would be right for only one of them. A full http(s) link
+ * is accepted too, for a file that lives somewhere else. Never another scheme —
+ * this lands in an `src`.
+ */
+export const MediaRefSchema = z.union([z.url({ protocol: /^https?$/ }), z.string().regex(/^\/api\/v1\/content\/media\/[\w.-]+$/)]);
+
 /** A complete prompt behind a picture. Tapping one opens its family, pre-filled. */
 export const PresetSchema = ItemSchema.extend({
   title: z.string().min(1),
@@ -47,6 +58,8 @@ export const PresetSchema = ItemSchema.extend({
   kind: z.enum(["video", "image"]),
   category: z.enum(["camera", "transform", "vfx", "portrait", "product"]),
   badge: z.string().min(1).optional(),
+  /** The picture an admin uploaded. Absent on the seeded rows, which still draw placeholder art from `seed`. */
+  coverUrl: MediaRefSchema.optional(),
 });
 
 /**
@@ -96,7 +109,7 @@ export const LessonSchema = z.object({
   /** Whole seconds. Rendered mm:ss, Latin digits, tabular. */
   seconds: z.number().int().positive(),
   /** Absent until the video is uploaded — the row still lists, greyed. */
-  videoUrl: z.url().optional(),
+  videoUrl: MediaRefSchema.optional(),
 });
 
 /**
@@ -110,6 +123,8 @@ export const CourseSchema = ItemSchema.extend({
   level: z.enum(["beginner", "intermediate", "advanced"]),
   familyId: z.string().min(1).optional(),
   lessons: z.array(LessonSchema).min(1),
+  /** A picture or a short muted loop on the card. Absent means placeholder art from `seed`. */
+  cover: z.object({ url: MediaRefSchema, kind: z.enum(["image", "video"]) }).optional(),
 });
 
 /** An example output. Tapping it opens its model with the prompt pre-filled. */
@@ -190,3 +205,102 @@ export type Course = z.infer<typeof CourseSchema>;
 export type Example = z.infer<typeof ExampleSchema>;
 export type Voice = z.infer<typeof VoiceSchema>;
 export type ContentSnapshot = z.infer<typeof ContentSnapshotSchema>;
+
+/* ---------------------------------------------------------------------------
+   The admin panel's side of three of these collections.
+
+   Effects (presets), courses and the prompt bank are edited in the panel; the
+   other four still come from the seed file. The panel sees every row that is
+   not archived, with its status, and writes whole items — the server gives a
+   new row its code and placeholder seed, so neither is in the write.
+   --------------------------------------------------------------------------- */
+
+export const EditableContentKindSchema = z.enum(["preset", "course", "prompt_fragment"]);
+
+/** Draft or published. Deleting archives a row, and an archived row is not listed. */
+export const EditableContentStatusSchema = z.enum(["draft", "published"]);
+
+const Entry = { id: z.uuid(), status: EditableContentStatusSchema };
+
+export const ContentEntrySchema = z.discriminatedUnion("kind", [
+  z.object({ ...Entry, kind: z.literal("preset"), item: PresetSchema }),
+  z.object({ ...Entry, kind: z.literal("course"), item: CourseSchema }),
+  z.object({ ...Entry, kind: z.literal("prompt_fragment"), item: PromptFragmentSchema }),
+]);
+
+export const ContentEntriesSchema = z.object({ entries: z.array(ContentEntrySchema) });
+
+/** Caps on the free text, which the item schemas leave open because the seed file never needed them. */
+const text = (max: number) => z.string().trim().min(1).max(max);
+
+export const ContentWriteSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("preset"),
+      status: EditableContentStatusSchema,
+      item: PresetSchema.omit({ id: true, seed: true }).extend({ title: text(120), prompt: text(4000), badge: text(24).optional() }),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("course"),
+      status: EditableContentStatusSchema,
+      item: CourseSchema.omit({ id: true, seed: true }).extend({
+        title: text(120),
+        blurb: text(600),
+        lessons: z
+          .array(
+            LessonSchema.extend({
+              id: text(64),
+              title: text(160),
+              seconds: z
+                .number()
+                .int()
+                .positive()
+                .max(24 * 3600),
+            }),
+          )
+          .min(1)
+          .max(100),
+      }),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("prompt_fragment"),
+      status: EditableContentStatusSchema,
+      item: PromptFragmentSchema.omit({ id: true }).extend({ label: text(80), fragment: text(400), note: text(300) }),
+    })
+    .strict(),
+]);
+
+/**
+ * How big an upload may be, by what it is for.
+ *
+ * Covers are small because every visitor downloads them: a course's cover video
+ * autoplays on the Academy grid, so it is a short loop, not a lesson. A lesson
+ * is only fetched by someone who pressed play, and 150MB holds about ten
+ * minutes of 720p. The API holds one upload in memory while it stores it, which
+ * is the other reason there is a ceiling at all.
+ */
+export const CONTENT_MEDIA_LIMITS = {
+  image: 5 * 1024 * 1024,
+  coverVideo: 20 * 1024 * 1024,
+  lessonVideo: 150 * 1024 * 1024,
+} as const;
+
+export const ContentMediaPurposeSchema = z.enum(["cover", "lesson"]);
+
+export const ContentMediaSchema = z.object({
+  url: MediaRefSchema,
+  kind: z.enum(["image", "video"]),
+  byteSize: z.number().int().positive(),
+});
+
+export type MediaRef = z.infer<typeof MediaRefSchema>;
+export type EditableContentKind = z.infer<typeof EditableContentKindSchema>;
+export type EditableContentStatus = z.infer<typeof EditableContentStatusSchema>;
+export type ContentEntry = z.infer<typeof ContentEntrySchema>;
+export type ContentWrite = z.infer<typeof ContentWriteSchema>;
+export type ContentMediaPurpose = z.infer<typeof ContentMediaPurposeSchema>;
+export type ContentMedia = z.infer<typeof ContentMediaSchema>;

@@ -4,7 +4,7 @@ import { registerErrorHandling } from "./plugins/errors";
 import { registerRateLimits, type RateLimitBuckets } from "./plugins/rateLimit";
 import { registerCustomerSessionRoute, type CustomerSessionApplication } from "./routes/session";
 import { registerCatalogRoute, type CustomerCatalogApplication } from "./routes/catalog";
-import { registerContentRoute, type CustomerContentApplication } from "./routes/content";
+import { registerContentRoute, type ContentMediaReader, type CustomerContentApplication } from "./routes/content";
 import { registerCommunityRoutes, type CommunitySubmissionsApplication, type CustomerCommunityApplication } from "./routes/community";
 import { registerPlansRoute, type CustomerPlansApplication } from "./routes/plans";
 import { registerCampaignRoute, type CustomerCampaignApplication } from "./routes/campaigns";
@@ -40,6 +40,8 @@ export interface ApiDependencies {
   customerWallet: CustomerWalletApplication;
   customerCatalog: CustomerCatalogApplication;
   customerContent: CustomerContentApplication;
+  /** Admin uploads for the effects and academy pages. Absent in tests that are not about them; the route is then not mounted. */
+  contentMedia?: ContentMediaReader | undefined;
   customerCommunity: CustomerCommunityApplication;
   communitySubmissions: CommunitySubmissionsApplication;
   customerPlans: CustomerPlansApplication;
@@ -122,7 +124,7 @@ export function createApp(dependencies: ApiDependencies, options: ApiOptions = {
   const authProviders = authOptions ? OAuthProviderSchema.options.filter((provider) => authOptions[provider]) : [];
   registerCustomerSessionRoute(app, dependencies.customerSession, authProviders, Boolean(options.auth?.dependencies.sms));
   registerCatalogRoute(app, dependencies.customerCatalog);
-  registerContentRoute(app, dependencies.customerContent);
+  registerContentRoute(app, dependencies.customerContent, dependencies.contentMedia);
   registerCommunityRoutes(app, dependencies.customerSession, dependencies.customerCommunity, dependencies.communitySubmissions);
   registerPlansRoute(app, dependencies.customerPlans);
   registerCampaignRoute(app, dependencies.customerCampaigns);
