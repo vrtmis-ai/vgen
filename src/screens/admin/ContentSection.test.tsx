@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import type { AdminApi } from "../../features/admin/adminApi";
+import { ApiError } from "../../runtime/apiError";
 import type { ContentEntry } from "../../runtime/contracts/content";
 import { ContentSection } from "./ContentSection";
 
@@ -140,5 +141,50 @@ describe("the content section", () => {
 
     expect(screen.queryByRole("button", { name: /افکت تازه/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /ویرایش/ })).not.toBeInTheDocument();
+  });
+
+  /* The seeded rows have no uploaded cover, and the site still shows a photo
+     for each — placeholder art drawn from the seed. The panel said «بدون کاور»
+     beside every one of them, which read as covers that failed to load. */
+  it("shows the picture the site shows, marked when it is only placeholder art", async () => {
+    renderSection();
+    await screen.findByText("نور نئون");
+
+    const thumb = document.querySelector('img[src*="picsum.photos/seed/seed-p1"]');
+    expect(thumb).not.toBeNull();
+    expect(screen.getByText("موقت")).toBeInTheDocument();
+    expect(screen.queryByText("بدون کاور")).not.toBeInTheDocument();
+  });
+
+  it("uploads a file dropped on the cover field", async () => {
+    const api = renderSection();
+    await userEvent.click(await screen.findByRole("button", { name: /افکت تازه/ }));
+
+    const zone = screen.getByLabelText("تصویر کاور").closest("[data-dropzone]")!;
+    fireEvent.drop(zone, { dataTransfer: { files: [new File([new Uint8Array(10)], "cover.webp", { type: "image/webp" })] } });
+
+    await waitFor(() => expect(api.uploadContentMedia).toHaveBeenCalledWith(expect.any(File), "cover"));
+    expect(await screen.findByRole("button", { name: "برداشتن" })).toBeInTheDocument();
+  });
+
+  it("refuses a dropped file the field does not take, since a drop skips the picker's filter", async () => {
+    const api = renderSection();
+    await userEvent.click(await screen.findByRole("button", { name: /افکت تازه/ }));
+
+    const zone = screen.getByLabelText("تصویر کاور").closest("[data-dropzone]")!;
+    fireEvent.drop(zone, { dataTransfer: { files: [new File([new Uint8Array(10)], "brief.pdf", { type: "application/pdf" })] } });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("پذیرفته نیست");
+    expect(api.uploadContentMedia).not.toHaveBeenCalled();
+  });
+
+  it("does not blame the connection when the server fails", async () => {
+    const api = renderSection();
+    api.uploadContentMedia.mockRejectedValueOnce(new ApiError({ code: "http_error", message: "boom", status: 500 }));
+    await userEvent.click(await screen.findByRole("button", { name: /افکت تازه/ }));
+
+    await userEvent.upload(screen.getByLabelText("تصویر کاور"), new File([new Uint8Array(10)], "cover.png", { type: "image/png" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("سرور");
   });
 });

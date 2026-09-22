@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AdminApi, AdminFamily } from "../../features/admin/adminApi";
 import { BANK_LABEL, CATEGORY_LABEL, LEVEL_LABEL } from "../../features/content/labels";
-import { mediaSrc } from "../../features/content/media";
+import { courseArt, mediaSrc, placeholderArt, presetArt } from "../../features/content/media";
 import { readDuration } from "../../components/controls";
 import { ApiError } from "../../runtime/apiError";
 import {
@@ -54,7 +54,9 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
   const queryClient = useQueryClient();
   const [kind, setKind] = useState<EditableContentKind>("preset");
   const [search, setSearch] = useState("");
-  const [editing, setEditing] = useState<{ id: string | null; write: ContentWrite } | null>(null);
+  // `seed` rides beside the write rather than in it: the server keeps a row's
+  // seed, but the editor needs it to show the placeholder the site draws.
+  const [editing, setEditing] = useState<{ id: string | null; write: ContentWrite; seed?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const entries = useQuery({ queryKey: ["admin", "content", kind], queryFn: () => api.listContent(kind), retry: false });
@@ -87,8 +89,8 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
       onSave: (write: ContentWrite) => save.mutate({ id: editing.id, write }),
     };
     const initial = editing.write;
-    if (initial.kind === "preset") return <PresetEditor api={api} families={makable} initial={initial} {...frame} />;
-    if (initial.kind === "course") return <CourseEditor api={api} families={makable} initial={initial} {...frame} />;
+    if (initial.kind === "preset") return <PresetEditor api={api} families={makable} initial={initial} seed={editing.seed} {...frame} />;
+    if (initial.kind === "course") return <CourseEditor api={api} families={makable} initial={initial} seed={editing.seed} {...frame} />;
     return <FragmentEditor initial={initial} {...frame} />;
   }
 
@@ -188,7 +190,11 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
                 <button
                   onClick={() => {
                     setError(null);
-                    setEditing({ id: entry.id, write: toWrite(entry) });
+                    setEditing({
+                      id: entry.id,
+                      write: toWrite(entry),
+                      ...(entry.kind === "prompt_fragment" ? {} : { seed: entry.item.seed }),
+                    });
                   }}
                   aria-label={`ویرایش ${titleOf(entry)}`}
                   className="h-8 shrink-0 rounded-lg px-2.5 text-[12px]"
@@ -226,7 +232,13 @@ interface FrameProps {
   onSave: (write: ContentWrite) => void;
 }
 
-function PresetEditor({ api, families, initial, ...frame }: FrameProps & { api: AdminApi; families: AdminFamily[]; initial: PresetWrite }) {
+function PresetEditor({
+  api,
+  families,
+  initial,
+  seed,
+  ...frame
+}: FrameProps & { api: AdminApi; families: AdminFamily[]; initial: PresetWrite; seed?: string | undefined }) {
   const [draft, setDraft] = useState(initial);
   const item = draft.item;
   const set = (patch: Partial<PresetWrite["item"]>) => setDraft((previous) => ({ ...previous, item: { ...previous.item, ...patch } }));
@@ -306,13 +318,20 @@ function PresetEditor({ api, families, initial, ...frame }: FrameProps & { api: 
         purpose="cover"
         accept="image/jpeg,image/png,image/webp,image/gif"
         value={item.coverUrl ? { url: item.coverUrl, kind: "image" } : undefined}
+        fallback={seed ? placeholderArt(seed, 480, 640) : undefined}
         onChange={(media) => set({ coverUrl: media?.url })}
       />
     </EditorFrame>
   );
 }
 
-function CourseEditor({ api, families, initial, ...frame }: FrameProps & { api: AdminApi; families: AdminFamily[]; initial: CourseWrite }) {
+function CourseEditor({
+  api,
+  families,
+  initial,
+  seed,
+  ...frame
+}: FrameProps & { api: AdminApi; families: AdminFamily[]; initial: CourseWrite; seed?: string | undefined }) {
   const [draft, setDraft] = useState(initial);
   const item = draft.item;
   const set = (patch: Partial<CourseWrite["item"]>) => setDraft((previous) => ({ ...previous, item: { ...previous.item, ...patch } }));
@@ -387,6 +406,7 @@ function CourseEditor({ api, families, initial, ...frame }: FrameProps & { api: 
         purpose="cover"
         accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
         value={item.cover}
+        fallback={seed ? placeholderArt(seed, 800, 450) : undefined}
         onChange={(media) => set({ cover: media ? { url: media.url, kind: media.kind } : undefined })}
       />
 
@@ -701,6 +721,7 @@ function MediaField({
   purpose,
   accept,
   value,
+  fallback,
   onChange,
 }: {
   api: AdminApi;
@@ -709,14 +730,22 @@ function MediaField({
   purpose: ContentMediaPurpose;
   accept: string;
   value: { url: string; kind: "image" | "video" } | undefined;
+  /** What the site shows while there is no upload: the seeded rows' placeholder art. */
+  fallback?: string | undefined;
   onChange: (media: ContentMedia | undefined) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [over, setOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
   async function upload(file: File) {
     setError(null);
+    // A drop skips the picker's `accept`, so the type is checked here too.
+    if (!accept.split(",").includes(file.type)) {
+      setError(purpose === "lesson" ? "درس باید ویدیوی MP4 یا WebM باشد." : "این نوع فایل اینجا پذیرفته نیست.");
+      return;
+    }
     // Checked here as well as on the server so a 300MB mistake is refused
     // before it spends ten minutes uploading.
     const video = file.type.startsWith("video/");
@@ -742,13 +771,36 @@ function MediaField({
 
   return (
     <Field label={label} hint={hint} wide={purpose === "lesson"}>
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        onDragOver={(event) => {
+          event.preventDefault();
+          if (!busy) setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setOver(false);
+          const file = event.dataTransfer.files[0];
+          if (file && !busy) void upload(file);
+        }}
+        data-dropzone
+        className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-2 transition-colors"
+        style={{
+          borderColor: over ? "var(--vg-primary)" : "var(--vg-border)",
+          background: over ? "var(--vg-primary-a14)" : "transparent",
+        }}
+      >
         {value ? (
           value.kind === "video" ? (
             <video src={mediaSrc(value.url)} muted controls preload="metadata" className="h-20 max-w-[180px] rounded-lg bg-black" />
           ) : (
             <img src={mediaSrc(value.url)} alt="" className="h-20 max-w-[180px] rounded-lg object-cover" />
           )
+        ) : fallback ? (
+          <span className="relative">
+            <img src={fallback} alt="" className="h-20 max-w-[180px] rounded-lg object-cover" />
+            <PlaceholderTag />
+          </span>
         ) : null}
         <label className="inline-flex h-9 cursor-pointer items-center rounded-lg px-3 text-[12px]" style={inputStyle}>
           <input
@@ -763,8 +815,11 @@ function MediaField({
               if (file) void upload(file);
             }}
           />
-          {busy ? "در حال آپلود…" : value ? "جایگزینی فایل" : "انتخاب فایل"}
+          {busy ? "در حال آپلود…" : value || fallback ? "جایگزینی فایل" : "انتخاب فایل"}
         </label>
+        <span className="text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+          {over ? "رها کن تا آپلود شود" : "یا فایل را اینجا بکش و رها کن"}
+        </span>
         {value && !busy ? (
           <button
             type="button"
@@ -785,23 +840,38 @@ function MediaField({
   );
 }
 
+/**
+ * The picture the site shows for this row — the same function the public
+ * pages call, so the panel cannot disagree with them. A row nobody has
+ * uploaded a cover for still has one on the site (placeholder art drawn from
+ * its seed), and saying "no cover" here while the site shows a photo read as
+ * the panel failing to load it.
+ */
 function Thumb({ entry }: { entry: ContentEntry }) {
-  const box = "size-12 shrink-0 rounded-lg object-cover";
-  if (entry.kind === "preset" && entry.item.coverUrl) return <img src={mediaSrc(entry.item.coverUrl)} alt="" className={box} />;
-  if (entry.kind === "course" && entry.item.cover) {
-    return entry.item.cover.kind === "video" ? (
-      <video src={mediaSrc(entry.item.cover.url)} muted preload="metadata" className={`${box} bg-black`} />
-    ) : (
-      <img src={mediaSrc(entry.item.cover.url)} alt="" className={box} />
-    );
-  }
+  const box = "size-12 rounded-lg object-cover";
   if (entry.kind === "prompt_fragment") return null;
+  const uploaded = entry.kind === "preset" ? Boolean(entry.item.coverUrl) : Boolean(entry.item.cover);
+  return (
+    <span className="relative shrink-0">
+      {entry.kind === "course" && entry.item.cover?.kind === "video" ? (
+        <video src={mediaSrc(entry.item.cover.url)} muted preload="metadata" className={`${box} bg-black`} />
+      ) : (
+        <img src={entry.kind === "preset" ? presetArt(entry.item, 96, 128) : courseArt(entry.item, 160, 90)} alt="" className={box} />
+      )}
+      {uploaded ? null : <PlaceholderTag />}
+    </span>
+  );
+}
+
+/** Marks placeholder art: on the site today, but a stock photo until a cover is uploaded. */
+function PlaceholderTag() {
   return (
     <span
-      className="grid size-12 shrink-0 place-items-center rounded-lg text-center text-[9px] leading-3"
-      style={{ border: "1px dashed var(--vg-border)", color: "var(--vg-text-faint)" }}
+      className="absolute inset-x-0 bottom-0 rounded-b-lg py-px text-center text-[8.5px] leading-3"
+      style={{ background: "rgba(0,0,0,0.65)", color: "var(--vg-text-secondary)" }}
+      title="تصویر موقت سایت؛ با آپلود کاور جایگزین می‌شود"
     >
-      بدون کاور
+      موقت
     </span>
   );
 }
@@ -863,7 +933,9 @@ function uploadError(failure: unknown): string {
     if (failure.code === "file_too_large" || failure.code === "payload_too_large" || failure.status === 413)
       return "فایل از سقف مجاز بزرگ‌تر است.";
     if (failure.code === "unsupported_media_type") return "این نوع فایل پذیرفته نیست. تصویر JPEG/PNG/WebP/GIF یا ویدیوی MP4/WebM بفرست.";
-    if (failure.status === 401 || failure.status === 403) return "نشست تمام شده یا اجازه‌ی آپلود نداری.";
+    // The admin surface answers 404 to an expired staff session, by design.
+    if (failure.status === 401 || failure.status === 403 || failure.status === 404) return "نشست پنل تمام شده؛ دوباره وارد شو.";
+    if (failure.status >= 500) return "سرور نتوانست فایل را ذخیره کند؛ دوباره تلاش کن و اگر تکرار شد خبر بده.";
   }
   return "آپلود نشد؛ اتصال را بررسی کن و دوباره تلاش کن.";
 }
