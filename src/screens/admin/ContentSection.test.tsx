@@ -44,6 +44,8 @@ function renderSection(canWrite = true) {
     createContent: vi.fn(async () => effect),
     updateContent: vi.fn(async () => effect),
     deleteContent: vi.fn(async () => undefined),
+    moveContent: vi.fn(async () => "moved" as const),
+    setContentStatus: vi.fn(async () => 2),
     uploadContentMedia: vi.fn(async () => ({ url: COVER, kind: "image" as const, byteSize: 1234 })),
   };
   render(
@@ -250,5 +252,20 @@ describe("the shelves", () => {
     await userEvent.click(await screen.findByRole("button", { name: "حذف دوربین" }));
 
     expect(await screen.findByText(/۷|7/)).toBeInTheDocument();
+  });
+
+  /* New rows land first and nothing could change that afterwards, so the wall
+     was in the order somebody happened to add things. */
+  it("moves a row and publishes a selection in one go", async () => {
+    const api = renderSection();
+    await screen.findByText("نور نئون");
+
+    await userEvent.click(screen.getByRole("button", { name: "پایین بردن نور نئون" }));
+    await waitFor(() => expect(api.moveContent).toHaveBeenCalledWith(ID, "down"));
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "انتخاب نور نئون" }));
+    await userEvent.click(screen.getByRole("button", { name: "پیش‌نویس" }));
+
+    await waitFor(() => expect(api.setContentStatus).toHaveBeenCalledWith([ID], "draft"));
   });
 });

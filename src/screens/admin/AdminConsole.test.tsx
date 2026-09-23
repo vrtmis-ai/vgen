@@ -49,6 +49,8 @@ let sessionState: Awaited<ReturnType<AdminApi["getSession"]>> | null;
 
 function stubApi(): AdminApi {
   return {
+    moveContent: vi.fn(async () => "moved" as const),
+    setContentStatus: vi.fn(async () => 1),
     listFailures: vi.fn(async () => []),
     listAuditTrail: vi.fn(async () => []),
     getFxRate: vi.fn(async () => ({ rialPerUsd: 2_289_810, validFrom: 0, source: "wallex" })),
