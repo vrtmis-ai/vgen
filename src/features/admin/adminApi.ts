@@ -316,6 +316,35 @@ const PromosResponseSchema = z.object({ promos: z.array(PromoSchema) });
 const EarlyAccessSchema = z.object({ enabled: z.boolean() });
 const SiteBannerSchema = z.object({ enabled: z.boolean() });
 
+/** A generation that failed. `refunded` is the row charging nothing, which is what a refund looks like. */
+const FailedJobSchema = z.object({
+  id: z.string(),
+  at: z.number(),
+  status: z.string(),
+  customer: z.string().nullable(),
+  variantId: z.string().nullable(),
+  errorCode: z.string().nullable(),
+  errorMessage: z.string().nullable(),
+  refunded: z.boolean(),
+  attempts: z.number(),
+});
+const FailuresResponseSchema = z.object({ failures: z.array(FailedJobSchema) });
+
+const AuditEntrySchema = z.object({
+  id: z.string(),
+  at: z.number(),
+  actor: z.string().nullable(),
+  action: z.string(),
+  targetType: z.string().nullable(),
+  targetId: z.string().nullable(),
+  after: z.unknown(),
+});
+const AuditResponseSchema = z.object({ entries: z.array(AuditEntrySchema) });
+
+/** Rial, as the table stores it. Every number a person reads is Toman, a tenth of this. */
+const FxRateSchema = z.object({ rialPerUsd: z.number(), validFrom: z.number(), source: z.string().nullable() });
+const FxResponseSchema = z.object({ rate: FxRateSchema.nullable() });
+
 /**
  * A share waiting for a decision.
  *
@@ -444,6 +473,9 @@ const AdminFamiliesSchema = z.object({
 });
 export type AdminFamily = z.infer<typeof AdminFamiliesSchema>["families"][number];
 export type AdminPendingPost = z.infer<typeof PendingPostSchema>;
+export type AdminFailedJob = z.infer<typeof FailedJobSchema>;
+export type AdminAuditEntry = z.infer<typeof AuditEntrySchema>;
+export type AdminFxRate = z.infer<typeof FxRateSchema>;
 export type AdminReportedPost = z.infer<typeof ReportedPostSchema>;
 
 export interface AdminApi {
@@ -477,6 +509,13 @@ export interface AdminApi {
 
   getEarlyAccess(): Promise<boolean>;
   setEarlyAccess(enabled: boolean): Promise<boolean>;
+
+  listFailures(): Promise<AdminFailedJob[]>;
+  listAuditTrail(action?: string): Promise<AdminAuditEntry[]>;
+  getFxRate(): Promise<AdminFxRate | null>;
+  /** Ask the market now, with no plausibility band — a person pressing this is the override. */
+  refreshFxRate(): Promise<AdminFxRate | null>;
+  setFxRate(tomanPerUsd: number): Promise<AdminFxRate | null>;
 
   getSiteBanner(): Promise<boolean>;
   setSiteBanner(enabled: boolean): Promise<boolean>;
@@ -651,6 +690,15 @@ export function createAdminApi(client: HttpClient, uploads: HttpClient = client)
     },
     revokeStaffPlan: async (userId) =>
       (await client.request(`/admin/staff/${userId}/plan`, { method: "DELETE", schema: StaffPlanRevokedSchema })).coinsWithdrawn,
+
+    listFailures: async () => (await client.request("/admin/ops/failures", { schema: FailuresResponseSchema })).failures,
+    listAuditTrail: async (action) =>
+      (await client.request(`/admin/ops/audit${action ? `?action=${encodeURIComponent(action)}` : ""}`, { schema: AuditResponseSchema }))
+        .entries,
+    getFxRate: async () => (await client.request("/admin/ops/fx", { schema: FxResponseSchema })).rate,
+    refreshFxRate: async () => (await client.request("/admin/ops/fx/refresh", { method: "POST", schema: FxResponseSchema })).rate,
+    setFxRate: async (tomanPerUsd) =>
+      (await client.request("/admin/ops/fx", { method: "PATCH", body: { tomanPerUsd }, schema: FxResponseSchema })).rate,
 
     getSiteBanner: async () => (await client.request("/admin/site-banner", { schema: SiteBannerSchema })).enabled,
     setSiteBanner: async (enabled) =>

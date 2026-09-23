@@ -6,6 +6,7 @@ import { AccessSection } from "./AccessSection";
 import { AdminSignIn } from "./AdminSignIn";
 import { CommunitySection } from "./CommunitySection";
 import { ContentSection } from "./ContentSection";
+import { OpsSection } from "./OpsSection";
 import { DashboardSection } from "./DashboardSection";
 import { ProvidersSection } from "./ProvidersSection";
 import { RoutingSection } from "./RoutingSection";
@@ -51,7 +52,7 @@ export function AdminConsole() {
   return <Console api={api!} session={session.data} />;
 }
 
-type SectionId = "dashboard" | "users" | "routing" | "providers" | "content" | "community" | "access" | "staff" | "security";
+type SectionId = "dashboard" | "users" | "routing" | "providers" | "content" | "community" | "access" | "staff" | "security" | "ops";
 
 function Console({ api, session }: { api: AdminApi; session: AdminSessionState }) {
   const { signOut } = useAdminSignIn(api);
@@ -83,6 +84,14 @@ function Console({ api, session }: { api: AdminApi; session: AdminSessionState }
       visible: permits(session, "staff.read"),
     },
     { id: "security", label: "نشست‌ها", group: "امنیت", visible: permits(session, "security.read") },
+    // Failures and the rate need analytics.read; the log needs security.read.
+    // Either one is enough to open the page — each half says so when it cannot load.
+    {
+      id: "ops",
+      label: "وضعیت و دفتر",
+      group: "امنیت",
+      visible: permits(session, "analytics.read") || permits(session, "security.read"),
+    },
   ];
   const visible = sections.filter((section) => section.visible);
   const [current, setCurrent] = useState<SectionId>(visible[0]?.id ?? "dashboard");
@@ -158,6 +167,7 @@ function Console({ api, session }: { api: AdminApi; session: AdminSessionState }
               />
             ) : null}
             {current === "security" ? <SecuritySection api={api} canWrite={permits(session, "security.write")} /> : null}
+            {current === "ops" ? <OpsSection api={api} canWriteFx={permits(session, "fx.write")} /> : null}
             {current === "access" ? (
               <AccessSection api={api} canWrite={permits(session, "invites.write")} canFlags={permits(session, "flags.write")} />
             ) : null}

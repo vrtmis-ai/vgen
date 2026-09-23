@@ -3,6 +3,9 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { AdminGuard } from "./admin";
 
+/** Rial per Toman. The database stores Rial; every human number here is Toman. */
+const IRR_PER_TOMAN = 10;
+
 /**
  * What the business is doing, and what one customer has done.
  *
@@ -23,9 +26,27 @@ import type { AdminGuard } from "./admin";
  * tidied away afterwards by whoever did it.
  */
 
+/**
+ * The exchange rate, as the panel may touch it.
+ *
+ * `read` is the rate in force; `fetch` asks the market; `write` opens a new
+ * one. No plausibility band here, unlike the worker's hourly job: that band
+ * exists to stop an automated write of a silly number, and a person pressing
+ * the button with both numbers in front of them is the override it was asking
+ * for. A hand-typed rate is written `manual`, which the hourly job already
+ * treats as a placeholder it may replace.
+ */
+export interface AdminFxDependencies {
+  read(): Promise<{ rialPerUsd: number; validFrom: number; source: string | null } | null>;
+  fetch(): Promise<{ tomanPerUsd: number; source: string }>;
+  write(rialPerUsd: number, source: string): Promise<boolean>;
+}
+
 export interface AdminAnalyticsDependencies {
   analytics: PostgresAnalyticsRepository;
   bans: PostgresBansRepository;
+  /** Absent in tests of the customer surface; the rate routes are then not mounted. */
+  fx?: AdminFxDependencies | undefined;
 }
 
 const WindowSchema = z.enum(["today", "7d", "30d", "all"]).default("30d");
@@ -68,7 +89,7 @@ const CreateBanSchema = z
   .strict();
 
 export function registerAdminAnalyticsRoutes(app: FastifyInstance, dependencies: AdminAnalyticsDependencies, guard: AdminGuard): void {
-  const { analytics, bans } = dependencies;
+  const { analytics, bans, fx } = dependencies;
   const { require, audit } = guard;
 
   /**
@@ -88,6 +109,87 @@ export function registerAdminAnalyticsRoutes(app: FastifyInstance, dependencies:
   const windowOf = (request: FastifyRequest) => WindowSchema.parse((request.query as { window?: string } | undefined)?.window);
 
   // ------------------------------------------------------------- aggregates
+
+  /**
+   * The generations that failed lately.
+   *
+   * The dashboard has counted these since it shipped and listed none, so a
+   * customer reporting a failed video could only be answered in psql.
+   */
+  app.get("/api/v1/admin/ops/failures", async (request, reply) => {
+    const session = await guard.require(request, reply, "analytics.read");
+    if (!session) return;
+    const { limit } = z.object({ limit: z.coerce.number().int().min(1).max(200).optional() }).parse(request.query);
+    return reply.send({ failures: await analytics.recentFailures(limit) });
+  });
+
+  /** What staff have done. Written since the panel shipped, read by nothing until now. */
+  app.get("/api/v1/admin/ops/audit", async (request, reply) => {
+    const session = await guard.require(request, reply, "security.read");
+    if (!session) return;
+    const { limit, action } = z
+      .object({ limit: z.coerce.number().int().min(1).max(200).optional(), action: z.string().trim().max(64).optional() })
+      .parse(request.query);
+    return reply.send({ entries: await analytics.auditTrail({ ...(limit ? { limit } : {}), ...(action ? { action } : {}) }) });
+  });
+
+  if (fx) {
+    app.get("/api/v1/admin/ops/fx", async (request, reply) => {
+      const session = await guard.require(request, reply, "analytics.read");
+      if (!session) return;
+      return reply.send({ rate: await fx.read() });
+    });
+
+    /**
+     * Ask the market now.
+     *
+     * Checkout prices in Toman from this rate, and a rate the worker could not
+     * refresh — a source that was down, a move the band refused — is the thing
+     * somebody has to be able to unstick without an SSH session. This is that.
+     */
+    app.post("/api/v1/admin/ops/fx/refresh", { bodyLimit: 1024 }, async (request, reply) => {
+      const session = await guard.require(request, reply, "fx.write");
+      if (!session) return;
+
+      const before = await fx.read();
+      let fetched: { tomanPerUsd: number; source: string };
+      try {
+        fetched = await fx.fetch();
+      } catch (error) {
+        return reply.code(502).send({
+          error: { code: "fx_unavailable", message: error instanceof Error ? error.message : "The rate source did not answer." },
+        });
+      }
+      const written = await fx.write(fetched.tomanPerUsd * IRR_PER_TOMAN, fetched.source);
+      await guard.audit(request, session, {
+        action: "fx.refreshed",
+        targetType: "fx_rate",
+        before: before ? { tomanPerUsd: Math.round(before.rialPerUsd / IRR_PER_TOMAN), source: before.source } : null,
+        after: { tomanPerUsd: fetched.tomanPerUsd, source: fetched.source, changed: written },
+      });
+      return reply.send({ rate: await fx.read(), changed: written });
+    });
+
+    /** A rate by hand, for when the market's number is wrong or unreachable. */
+    app.patch("/api/v1/admin/ops/fx", { bodyLimit: 1024 }, async (request, reply) => {
+      const session = await guard.require(request, reply, "fx.write");
+      if (!session) return;
+      const { tomanPerUsd } = z
+        .object({ tomanPerUsd: z.number().int().min(1_000).max(10_000_000) })
+        .strict()
+        .parse(request.body);
+
+      const before = await fx.read();
+      const written = await fx.write(tomanPerUsd * IRR_PER_TOMAN, "manual");
+      await guard.audit(request, session, {
+        action: "fx.set",
+        targetType: "fx_rate",
+        before: before ? { tomanPerUsd: Math.round(before.rialPerUsd / IRR_PER_TOMAN), source: before.source } : null,
+        after: { tomanPerUsd, source: "manual", changed: written },
+      });
+      return reply.send({ rate: await fx.read(), changed: written });
+    });
+  }
 
   app.get("/api/v1/admin/analytics/overview", async (request, reply) => {
     const session = await require(request, reply, "analytics.read");
