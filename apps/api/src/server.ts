@@ -25,12 +25,15 @@ import {
   PostgresGenerationRepository,
   PostgresQuotesRepository,
   PostgresWalletRepository,
+  liveRate,
+  setRate,
 } from "@vgen/db";
 import {
   createRedisFixedWindowRateLimiter,
   createRedisHealthAdapter,
   createS3ObjectStore,
   createS3StorageHealthAdapter,
+  fetchTomanPerUsd,
 } from "@vgen/adapters";
 import { AssetUploadService } from "./assetUploads";
 import { ContentMediaService } from "./contentMedia";
@@ -266,7 +269,21 @@ const app = createApp(
         // variables this process would actually resolve a secret_ref against,
         // and a snapshot taken at boot would go stale on the first reload.
         catalog: { routes: modelRoutesRepository, secrets: process.env },
-        analytics: { analytics: analyticsRepository, bans: bansRepository },
+        analytics: {
+          analytics: analyticsRepository,
+          bans: bansRepository,
+          // The worker refreshes this hourly with a plausibility band; the
+          // panel is the override for when that band, or a source that is
+          // down, has left checkout on a stale number.
+          fx: {
+            read: async () => {
+              const rate = await liveRate(sql);
+              return rate ? { rialPerUsd: rate.rialPerUsd, validFrom: rate.validFrom.getTime(), source: rate.source } : null;
+            },
+            fetch: () => fetchTomanPerUsd(),
+            write: (rialPerUsd, source) => sql.begin((tx) => setRate(tx, rialPerUsd, source)) as Promise<boolean>,
+          },
+        },
         // Half an hour: long enough for a sitting at the queue, short enough
         // that a link pasted elsewhere stops working.
         community: { moderation: new PostgresCommunityModeration(sql, (key) => objectStore.signedUrl(key, 1800)) },

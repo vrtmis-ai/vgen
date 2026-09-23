@@ -1122,6 +1122,34 @@ which is the other reason for a ceiling. Audited as `content.media.upload`.
 A file whose form is then cancelled stays in storage unreferenced. Nothing
 links to it, so nothing serves it.
 
+### `GET /admin/ops/failures` · `GET /admin/ops/audit` · `GET · POST · PATCH /admin/ops/fx`
+
+The three things that needed a terminal on the server until now.
+
+- **`GET /admin/ops/failures?limit=`** (`analytics.read`) → `{ failures }`: the
+  generations that failed or expired lately, newest first — customer, model,
+  the provider's own error code and message, how many attempts, and
+  `refunded`, which is the settled row charging nothing. The dashboard has
+  counted failures since it shipped and listed none.
+- **`GET /admin/ops/audit?action=&limit=`** (`security.read`) → `{ entries }`:
+  `audit_log`, newest first, optionally filtered by an action prefix
+  (`content.`, `staff.`). Written by every mutating admin route since the
+  panel shipped and, until this route, read by nothing.
+- **`GET /admin/ops/fx`** (`analytics.read`) → `{ rate }` with `rialPerUsd`,
+  `validFrom` and `source`.
+- **`POST /admin/ops/fx/refresh`** and **`PATCH /admin/ops/fx`**
+  (`fx.write`) ask the market now, or take a rate by hand
+  (`{ tomanPerUsd }`, 1,000–10,000,000). **No plausibility band**, unlike the
+  worker's hourly job: that band exists to stop an automated write of a silly
+  number, and a person pressing the button with both numbers in front of them
+  is the override it was asking for. A hand-typed rate is written `manual`,
+  which the hourly job already treats as a placeholder it may replace. A source
+  that does not answer is **502** `fx_unavailable` and writes nothing.
+  Audited as `fx.refreshed` / `fx.set`.
+
+The table stores **Rial**; every number a person reads is **Toman**, a tenth of
+it. The routes convert at the edge.
+
 ### `GET /plans`
 
 The plan ladder. Public on purpose: someone deciding whether to sign up has to

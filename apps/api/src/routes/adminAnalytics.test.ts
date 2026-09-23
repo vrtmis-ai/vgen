@@ -80,6 +80,27 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN) {
     user: vi.fn(async (id: string) => (id === USER_ID ? USER : null)),
     adjustCredits: vi.fn(async () => undefined),
     revokeSessions: vi.fn(async () => 2),
+    recentFailures: vi.fn(async () => [
+      {
+        id: "j1",
+        at: 1,
+        status: "failed",
+        customer: "sara@example.test",
+        variantId: "flux-2-pro-edit",
+        errorCode: "provider_error",
+        errorMessage: "KIE returned 500",
+        refunded: true,
+        attempts: 2,
+      },
+    ]),
+    auditTrail: vi.fn(async () => [
+      { id: "a1", at: 1, actor: "admin@deev.test", action: "content.create", targetType: "preset", targetId: "p1", after: null },
+    ]),
+  };
+  const fx = {
+    read: vi.fn(async () => ({ rialPerUsd: 2_289_810, validFrom: 1, source: "wallex" })),
+    fetch: vi.fn(async () => ({ tomanPerUsd: 231_000, source: "wallex" })),
+    write: vi.fn(async () => true),
   };
   const bans = {
     listActive: vi.fn(async () => []),
@@ -103,11 +124,11 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN) {
       admin: admin as never,
       access: {} as never,
       verifyPassword: vi.fn() as never,
-      analytics: { analytics: analytics as never, bans: bans as never },
+      analytics: { analytics: analytics as never, bans: bans as never, fx },
     },
     { cookie: { secure: true } },
   );
-  return { app, admin, analytics, bans };
+  return { app, admin, analytics, bans, fx };
 }
 
 const AS_ADMIN = { cookie: "deev_admin=adm-tok" };
@@ -341,5 +362,97 @@ describe("ending someone's sessions", () => {
     expect(response.json().revoked).toBe(2);
     expect(admin.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "user.sessions_revoked" }));
     await app.close();
+  });
+});
+
+/* Three reads and one write that used to need a terminal on the server. */
+describe("operations", () => {
+  it("lists failures with the provider's words and whether the coins came back", async () => {
+    const { app } = build();
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/ops/failures", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().failures[0]).toMatchObject({ errorCode: "provider_error", refunded: true });
+    await app.close();
+  });
+
+  it("serves the audit log, filtered by what happened", async () => {
+    const { app, analytics } = build();
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/ops/audit?action=content.", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(200);
+    expect(analytics.auditTrail).toHaveBeenCalledWith(expect.objectContaining({ action: "content." }));
+    await app.close();
+  });
+
+  it("needs security.read for the log, which names who did what", async () => {
+    const { app } = build({ roles: ["support"], permissions: ["analytics.read"] });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/ops/audit", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(403);
+    await app.close();
+  });
+
+  /* Rial in the table, Toman on every screen. Getting that factor wrong is the
+     single easiest way for this panel to be ten times wrong. */
+  it("writes the fetched rate in Rial, and records both numbers", async () => {
+    const { app, fx, admin } = build();
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/admin/ops/fx/refresh", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(200);
+    expect(fx.write).toHaveBeenCalledWith(2_310_000, "wallex");
+    expect(admin.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "fx.refreshed" }));
+    await app.close();
+  });
+
+  it("says so rather than writing anything when the market does not answer", async () => {
+    const { app, fx } = build();
+    fx.fetch.mockRejectedValueOnce(new Error("wallex did not answer"));
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/admin/ops/fx/refresh", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toMatchObject({ error: { code: "fx_unavailable" } });
+    expect(fx.write).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("takes a rate by hand as a placeholder the hourly job may replace", async () => {
+    const { app, fx } = build();
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/admin/ops/fx",
+      headers: AS_ADMIN,
+      payload: { tomanPerUsd: 240_000 },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(fx.write).toHaveBeenCalledWith(2_400_000, "manual");
+    await app.close();
+  });
+
+  it("refuses a silly rate, and one from somebody without fx.write", async () => {
+    const { app, fx } = build();
+    const silly = await app.inject({ method: "PATCH", url: "/api/v1/admin/ops/fx", headers: AS_ADMIN, payload: { tomanPerUsd: 12 } });
+    expect(silly.statusCode).toBe(400);
+
+    const { app: readOnly, fx: readOnlyFx } = build({ roles: ["support"], permissions: ["analytics.read"] });
+    const refused = await readOnly.inject({
+      method: "PATCH",
+      url: "/api/v1/admin/ops/fx",
+      headers: AS_ADMIN,
+      payload: { tomanPerUsd: 240_000 },
+    });
+
+    expect(refused.statusCode).toBe(403);
+    expect(fx.write).not.toHaveBeenCalled();
+    expect(readOnlyFx.write).not.toHaveBeenCalled();
+    await app.close();
+    await readOnly.close();
   });
 });

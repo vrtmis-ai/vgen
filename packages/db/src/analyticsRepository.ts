@@ -166,6 +166,29 @@ export interface UserDetail extends UserRow {
 const n = (value: string | number | null | undefined): number => (value === null || value === undefined ? 0 : Number(value));
 const orNull = (value: string | number | null | undefined): number | null => (value === null || value === undefined ? null : Number(value));
 
+export interface FailedJobRow {
+  id: string;
+  at: number;
+  status: string;
+  customer: string | null;
+  variantId: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  /** Settled charging nothing, which is what a refund looks like on the row. */
+  refunded: boolean;
+  attempts: number;
+}
+
+export interface AuditRow {
+  id: string;
+  at: number;
+  actor: string | null;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  after: unknown;
+}
+
 export class PostgresAnalyticsRepository {
   constructor(private readonly sql: Sql) {}
 
@@ -580,6 +603,97 @@ export class PostgresAnalyticsRepository {
    * matches, and the balance cache moved with it. Doing any of that here would
    * be a second implementation of the money path.
    */
+  /**
+   * The generations that failed lately, one row each.
+   *
+   * `overview` has counted failures since the dashboard shipped and listed
+   * none, so "a customer says their video failed" could only be answered in
+   * psql. What that question needs is the provider's own words and whether the
+   * coins went back — a settled job charged zero was refunded, which is what
+   * `fail()` does through `releaseJobMoney`.
+   */
+  async recentFailures(limit = 50): Promise<FailedJobRow[]> {
+    const rows = await this.sql<
+      {
+        id: string;
+        created_at: Date;
+        status: string;
+        email: string | null;
+        variant_id: string | null;
+        error_code: string | null;
+        error_message: string | null;
+        micro_credits_charged: string | null;
+        attempts: string;
+      }[]
+    >`
+      select
+        job.id, job.created_at, job.status,
+        customer.email,
+        job.params ->> 'variantId' as variant_id,
+        job.error_code, job.error_message,
+        job.micro_credits_charged::text,
+        (select count(*)::text from job_attempts attempt where attempt.job_id = job.id) as attempts
+      from jobs job
+      left join accounts account on account.id = job.account_id
+      left join users customer on customer.personal_account_id = account.id and customer.deleted_at is null
+      where job.status in ('failed', 'expired') and job.deleted_at is null
+      order by job.created_at desc
+      limit ${limit}
+    `;
+    return rows.map((row) => ({
+      id: row.id,
+      at: row.created_at.getTime(),
+      status: row.status,
+      customer: row.email,
+      variantId: row.variant_id,
+      errorCode: row.error_code,
+      errorMessage: row.error_message,
+      // Settled and charged nothing: the hold was released and the coins are back.
+      refunded: Number(row.micro_credits_charged ?? "0") === 0,
+      attempts: Number(row.attempts),
+    }));
+  }
+
+  /**
+   * What staff have done, newest first.
+   *
+   * `audit_log` has been written by every mutating admin route since the panel
+   * shipped and read by nothing — while three places in the panel tell staff
+   * that every change is recorded. A record nobody can read is a record only in
+   * the sense that the rows exist.
+   */
+  async auditTrail(options: { limit?: number; action?: string | undefined } = {}): Promise<AuditRow[]> {
+    const limit = options.limit ?? 100;
+    const prefix = options.action?.trim();
+    const rows = await this.sql<
+      {
+        id: string;
+        created_at: Date;
+        actor: string | null;
+        action: string;
+        target_type: string | null;
+        target_id: string | null;
+        after_state: unknown;
+      }[]
+    >`
+      select entry.id, entry.created_at, actor.email as actor, entry.action, entry.target_type, entry.target_id, entry.after_state
+      from audit_log entry
+      left join users actor on actor.id = entry.actor_user_id
+      where ${prefix ? this.sql`entry.action like ${`${prefix}%`}` : this.sql`true`}
+      order by entry.created_at desc
+      limit ${limit}
+    `;
+    return rows.map((row) => ({
+      id: row.id,
+      at: row.created_at.getTime(),
+      actor: row.actor,
+      action: row.action,
+      targetType: row.target_type,
+      targetId: row.target_id,
+      after: row.after_state ?? null,
+    }));
+  }
+
   async adjustCredits(input: { userId: string; coins: number; note: string; actorUserId: string }): Promise<void> {
     const [account] = await this.sql<{ id: string }[]>`
       select account.id from accounts account
