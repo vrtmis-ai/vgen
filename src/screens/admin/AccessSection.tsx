@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { AdminApi, AdminInvite } from "../../features/admin/adminApi";
 import { ApiError } from "../../runtime/apiError";
-import { useEarlyAccess, useInviteMutations, useInvites, usePromoMutations, usePromos } from "../../features/admin/useAdmin";
+import { useEarlyAccess, useInviteMutations, useInvites, usePromoMutations, usePromos, useSiteBanner } from "../../features/admin/useAdmin";
 import { Cell, Muted, Table } from "./primitives";
 
 /**
@@ -18,9 +18,44 @@ export function AccessSection({ api, canWrite, canFlags }: { api: AdminApi; canW
   return (
     <div className="flex flex-col gap-8">
       <EarlyAccess api={api} canWrite={canFlags} />
+      <SiteBanner api={api} canWrite={canFlags} />
       <Invites api={api} canWrite={canWrite} />
       <Promos api={api} canWrite={canWrite} />
     </div>
+  );
+}
+
+/**
+ * The announcement strip across the top of the site.
+ *
+ * `GET`/`PATCH /admin/site-banner` have been live under `flags.write` since the
+ * strip shipped, and nothing called them: turning a finished campaign's strip
+ * off meant curl. Absent or deleted reads as on, which is why this can only
+ * ever show a real answer from the server.
+ */
+function SiteBanner({ api, canWrite }: { api: AdminApi; canWrite: boolean }) {
+  const { query, set } = useSiteBanner(api, true);
+
+  return (
+    <section>
+      <Heading>نوار اعلان</Heading>
+      {query.isPending ? (
+        <Muted>…</Muted>
+      ) : query.error ? (
+        <Muted>خوانده نشد.</Muted>
+      ) : (
+        <label className="mt-2 flex items-center gap-2 text-[13px]" style={{ color: "var(--vg-text)" }}>
+          <input
+            type="checkbox"
+            checked={query.data}
+            disabled={!canWrite || set.isPending}
+            onChange={(event) => set.mutate(event.target.checked)}
+          />
+          نوار اعلان بالای سایت نشان داده شود
+        </label>
+      )}
+      <Muted>متن نوار از کمپین فعال می‌آید؛ این تیک فقط نشان‌دادن یا ندادنش را تعیین می‌کند و در audit_log ثبت می‌شود.</Muted>
+    </section>
   );
 }
 

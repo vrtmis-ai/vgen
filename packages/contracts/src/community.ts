@@ -88,6 +88,15 @@ export const PendingPostSchema = z.object({
   prompt: z.string(),
   promptVisible: z.boolean(),
   submittedAt: z.number().int().nonnegative(),
+  /**
+   * The picture or clip itself, signed for the length of the moderator's
+   * sitting. Absent when the post has no stored asset behind it — an older
+   * share, or one whose file was removed — and the queue then says so rather
+   * than showing a placeholder somebody might approve by mistake.
+   */
+  previewUrl: z.url().optional(),
+  /** `image` or `video`, for which element to draw. Absent with `previewUrl`. */
+  previewKind: z.enum(["image", "video"]).optional(),
 });
 
 export const PendingPostsSchema = z.object({ posts: z.array(PendingPostSchema) });
