@@ -457,6 +457,8 @@ export interface AdminApi {
   createProvider(input: AdminProviderCreate): Promise<void>;
 
   listModels(): Promise<z.infer<typeof AdminCatalogModelsResponseSchema>>;
+  /** Show a model in the shop, or stop showing it. */
+  setModelActive(id: string, isActive: boolean): Promise<void>;
   createServingModel(input: AdminServingModelCreate): Promise<void>;
   listRoutes(modelId: string): Promise<z.infer<typeof AdminRoutesResponseSchema>>;
   replaceRoutes(modelId: string, routes: AdminRouteInput[]): Promise<z.infer<typeof AdminRoutesResponseSchema>>;
@@ -556,6 +558,9 @@ export function createAdminApi(client: HttpClient, uploads: HttpClient = client)
     },
 
     listModels: () => client.request("/admin/models", { schema: AdminCatalogModelsResponseSchema }),
+    setModelActive: async (id, isActive) => {
+      await client.request(`/admin/models/${id}`, { method: "PATCH", body: { isActive }, schema: z.object({ model: z.unknown() }) });
+    },
     createServingModel: async (input) => {
       await client.request("/admin/serving-models", { method: "POST", body: input, schema: AdminServingModelResponseSchema });
     },

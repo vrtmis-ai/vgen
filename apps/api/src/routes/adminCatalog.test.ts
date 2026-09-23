@@ -98,6 +98,9 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN, secrets: Record<st
         ],
       },
     ]),
+    setModelActive: vi.fn(async (id: string, isActive: boolean) =>
+      id === CATALOG_MODEL_ID ? { id, variantId: "qwen-image", isActive } : null,
+    ),
     listServingModels: vi.fn(async () => [
       {
         id: SERVING_MODEL_ID,
@@ -539,6 +542,56 @@ describe("moving a model in one request", () => {
 
     expect(response.statusCode).toBe(403);
     expect(routes.routeTo).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
+/* `provider_models.is_active` was a seeder's column: a model a provider had
+   broken could only be hidden with SQL on production, so the panel could route
+   a broken model anywhere it liked and never stop selling it. */
+describe("taking a model out of the shop", () => {
+  it("switches it off and records which one", async () => {
+    const { app, routes, admin } = build();
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/admin/models/${CATALOG_MODEL_ID}`,
+      headers: AS_ADMIN,
+      payload: { isActive: false },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(routes.setModelActive).toHaveBeenCalledWith(CATALOG_MODEL_ID, false);
+    expect(admin.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "model.deactivated", targetId: CATALOG_MODEL_ID }));
+    await app.close();
+  });
+
+  it("answers 404 for a row that is not a catalogue model", async () => {
+    const { app } = build();
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/admin/models/${SERVING_MODEL_ID}`,
+      headers: AS_ADMIN,
+      payload: { isActive: false },
+    });
+
+    expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("needs catalog.write, since it decides what is sold", async () => {
+    const { app, routes } = build({ roles: ["support"], permissions: ["catalog.read"] });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/admin/models/${CATALOG_MODEL_ID}`,
+      headers: AS_ADMIN,
+      payload: { isActive: false },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(routes.setModelActive).not.toHaveBeenCalled();
     await app.close();
   });
 });
