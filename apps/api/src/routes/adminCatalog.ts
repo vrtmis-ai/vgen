@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   AdminProviderCreateSchema,
   AdminProviderPatchSchema,
@@ -169,6 +170,32 @@ export function registerAdminCatalogRoutes(app: FastifyInstance, dependencies: A
       models: models satisfies AdminCatalogModel[],
       servingModels: servingModels satisfies AdminServingModel[],
     });
+  });
+
+  /**
+   * Show a model in the shop, or stop showing it.
+   *
+   * The one thing the panel could not do about a model a provider had broken:
+   * `is_active` was a seeder's column, so hiding it was a hand-written UPDATE
+   * on production. A customer sees the change on their next request, because
+   * the catalogue document's fingerprint counts active rows.
+   */
+  app.patch("/api/v1/admin/models/:id", { bodyLimit: 1024 }, async (request, reply) => {
+    const session = await require(request, reply, "catalog.write");
+    if (!session) return reply;
+    const { id } = request.params as { id: string };
+    const { isActive } = z.object({ isActive: z.boolean() }).strict().parse(request.body);
+
+    const model = await routes.setModelActive(id, isActive);
+    if (!model) return reply.code(404).send({ error: { code: "not_found", message: "No such model." } });
+
+    await audit(request, session, {
+      action: isActive ? "model.activated" : "model.deactivated",
+      targetType: "provider_model",
+      targetId: id,
+      after: { variantId: model.variantId, isActive: model.isActive },
+    });
+    return reply.send({ model });
   });
 
   /**

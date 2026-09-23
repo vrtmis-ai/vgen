@@ -369,6 +369,29 @@ export class PostgresModelRoutesRepository {
    * row without that key is a way to run something, not something to sell, and
    * it shows up in `listServingModels` instead.
    */
+  /**
+   * Take a model out of the shop, or put it back.
+   *
+   * `provider_models.is_active` decides whether a variant reaches the
+   * catalogue document at all, and until now only a seeder wrote it — so
+   * hiding a model a provider had broken meant SQL on production. The
+   * catalogue's own fingerprint counts active rows, so this reaches customers
+   * on their next request.
+   *
+   * Only a catalogue row can be switched: a destination with no `variant` key
+   * is not a thing anybody can buy, and turning one of those off is what
+   * `model_routes.isActive` is for.
+   */
+  async setModelActive(id: string, isActive: boolean): Promise<CatalogModelSummary | null> {
+    const [row] = await this.sql<{ id: string }[]>`
+      update provider_models set is_active = ${isActive}, updated_at = now()
+      where id = ${id} and capabilities ? 'variant'
+      returning id
+    `;
+    if (!row) return null;
+    return (await this.listCatalogModels()).find((model) => model.id === id) ?? null;
+  }
+
   async listCatalogModels(): Promise<CatalogModelSummary[]> {
     const rows = await this.sql<
       {

@@ -56,6 +56,7 @@ function stubApi(): AdminApi {
     listReportedPosts: vi.fn(async () => []),
     resolveReports: vi.fn(async () => 0),
     takeDownPost: vi.fn(async () => undefined),
+    setModelActive: vi.fn(async () => undefined),
     listFamilies: vi.fn(async () => []),
     listContent: vi.fn(async () => []),
     createContent: vi.fn(),
@@ -464,6 +465,24 @@ describe("choosing where a model runs", () => {
     sessionState = { status: "authed", email: "admin@deev.test", roles: ["admin"], permissions: ["*"] };
   };
 
+  /* Its own switch, distinct from a route's: this one decides whether the
+     model is sold at all, and it was a seeder's column until now. */
+  it("takes a model out of the shop, after asking", async () => {
+    signedIn();
+    renderConsole();
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+    await userEvent.setup().click(await screen.findByRole("button", { name: "مسیر مدل‌ها" }));
+
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const toggle = await screen.findByLabelText("نمایش Qwen Image در سایت");
+    await userEvent.setup().click(toggle);
+    expect(api.setModelActive).not.toHaveBeenCalled();
+
+    await userEvent.setup().click(toggle);
+    await waitFor(() => expect(api.setModelActive).toHaveBeenCalledWith("33333333-3333-4333-8333-333333333333", false));
+    confirm.mockRestore();
+  });
+
   it("groups destinations under the provider's name, not its code", async () => {
     signedIn();
     renderConsole();
@@ -501,8 +520,9 @@ describe("choosing where a model runs", () => {
 
     const row = (await screen.findByRole("button", { name: "Qwen Image" })).closest("tr")!;
     // The paths cell, not the whole row: the destination also appears in the
-    // move-to dropdown, and matching there would pass without this cell.
-    const paths = row.querySelectorAll("td")[2]!.textContent!;
+    // move-to dropdown, and matching there would pass without this cell. Its
+    // index moved when the shop switch took a column of its own.
+    const paths = row.querySelectorAll("td")[3]!.textContent!;
 
     // Home is a real destination and is listed as one. Leaving it out made a
     // model with no routes render as an empty cell that read as missing data.

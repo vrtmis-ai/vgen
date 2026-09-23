@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AdminApi } from "../../features/admin/adminApi";
 import {
+  adminKeys,
   useClearRoutes,
   useModels,
   useProviders,
@@ -85,7 +87,7 @@ export function RoutingSection({ api, canWrite }: { api: AdminApi; canWrite: boo
         «انتقال به» فقط مقصدهایی را نشان می‌دهد که برای همین مدل تعریف شده‌اند — نه هر نقطه‌پایانی هم‌نوع. برای افزودن مقصد تازه، روی نام
         مدل بزن.
       </p>
-      <Table head={["مدل", "اجرا روی", "مسیرها و اولویت‌ها", "انتقال به"]}>
+      <Table head={["مدل", "در سایت", "اجرا روی", "مسیرها و اولویت‌ها", "انتقال به"]}>
         {groups.map((group) => {
           const modelRows = group.models.map((model) => (
             <ModelRow
@@ -220,12 +222,23 @@ function ModelRow({
   return (
     <Row>
       <Cell>
-        <button onClick={onOpen} className="text-start underline-offset-2 hover:underline">
+        <button onClick={onOpen} className="text-start underline-offset-2 hover:underline" style={{ opacity: model.isActive ? 1 : 0.55 }}>
           {model.name}
         </button>
         <span className="ms-2 text-[11px]" style={{ color: "var(--vg-text-faint)" }} dir="ltr">
           {model.variantId}
         </span>
+        {model.isActive ? null : (
+          <span
+            className="ms-2 rounded-md px-1.5 py-0.5 text-[10.5px]"
+            style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-muted)" }}
+          >
+            خاموش
+          </span>
+        )}
+      </Cell>
+      <Cell>
+        <InShop api={api} model={model} canWrite={canWrite} />
       </Cell>
       <Cell>
         <span style={{ color: moved ? "var(--vg-primary-soft)" : "var(--vg-text-muted)" }} dir="ltr">
@@ -247,6 +260,42 @@ function ModelRow({
         />
       </Cell>
     </Row>
+  );
+}
+
+/**
+ * Whether customers can see this model at all.
+ *
+ * `provider_models.is_active` was a seeder's column: a model a provider had
+ * broken — the Flux 2 edits answering 500 all week — could only be hidden with
+ * SQL on production. Turning it off is confirmed, because it takes the model
+ * out of the shop for everyone on their next request.
+ *
+ * Distinct from a route's switch below it, which chooses *where* a live model
+ * runs. This one decides whether it is sold.
+ */
+function InShop({ api, model, canWrite }: { api: AdminApi; model: AdminCatalogModel; canWrite: boolean }) {
+  const queryClient = useQueryClient();
+  const set = useMutation({
+    mutationFn: (isActive: boolean) => api.setModelActive(model.id, isActive),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.models }),
+  });
+
+  return (
+    <label className="flex items-center gap-1.5 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
+      <input
+        type="checkbox"
+        checked={model.isActive}
+        disabled={!canWrite || set.isPending}
+        aria-label={`نمایش ${model.name} در سایت`}
+        onChange={(event) => {
+          const next = event.target.checked;
+          if (!next && !window.confirm(`«${model.name}» از سایت برداشته شود؟ مشتری‌ها دیگر آن را نمی‌بینند.`)) return;
+          set.mutate(next);
+        }}
+      />
+      {model.isActive ? "در سایت" : "خاموش"}
+    </label>
   );
 }
 
