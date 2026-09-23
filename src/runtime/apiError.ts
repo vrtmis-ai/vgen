@@ -16,13 +16,28 @@ export class ApiError extends Error {
   readonly status: number;
   readonly requestId: string | undefined;
   readonly retryAfterMs: number | undefined;
+  /**
+   * Whatever the envelope carried beside the code: the fields that failed
+   * validation, the count of items blocking a delete. Unknown rather than a
+   * shape, because it is per-code — a caller that wants it narrows it against
+   * the code it already branched on.
+   */
+  readonly details: unknown;
 
-  constructor(init: { code: string; message: string; status: number; requestId?: string | undefined; retryAfterMs?: number | undefined }) {
+  constructor(init: {
+    code: string;
+    message: string;
+    status: number;
+    requestId?: string | undefined;
+    retryAfterMs?: number | undefined;
+    details?: unknown;
+  }) {
     super(init.message);
     this.name = "ApiError";
     this.code = init.code;
     this.status = init.status;
     this.requestId = init.requestId;
     this.retryAfterMs = init.retryAfterMs;
+    this.details = init.details;
   }
 }

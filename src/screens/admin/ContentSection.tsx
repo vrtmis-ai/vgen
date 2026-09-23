@@ -1,12 +1,13 @@
 import { useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AdminApi, AdminFamily } from "../../features/admin/adminApi";
-import { BANK_LABEL, CATEGORY_LABEL, LEVEL_LABEL } from "../../features/content/labels";
+import { LEVEL_LABEL } from "../../features/content/labels";
 import { courseArt, mediaSrc, placeholderArt, presetArt } from "../../features/content/media";
 import { readDuration } from "../../components/controls";
 import { ApiError } from "../../runtime/apiError";
 import {
   CONTENT_MEDIA_LIMITS,
+  type ContentCategory,
   type ContentEntry,
   type ContentMedia,
   type ContentMediaPurpose,
@@ -36,13 +37,19 @@ import { Muted } from "./primitives";
 type PresetWrite = Extract<ContentWrite, { kind: "preset" }>;
 type CourseWrite = Extract<ContentWrite, { kind: "course" }>;
 type FragmentWrite = Extract<ContentWrite, { kind: "prompt_fragment" }>;
+type CategoryWrite = Extract<ContentWrite, { kind: "category" }>;
+type Scope = CategoryWrite["item"]["scope"];
 type LessonDraft = CourseWrite["item"]["lessons"][number];
 
 const TABS: { kind: EditableContentKind; label: string; add: string }[] = [
   { kind: "preset", label: "افکت‌ها", add: "افکت تازه" },
   { kind: "course", label: "دوره‌های آکادمی", add: "دوره‌ی تازه" },
   { kind: "prompt_fragment", label: "بانک پرامپت", add: "واژه‌ی تازه" },
+  { kind: "category", label: "دسته‌بندی‌ها", add: "دسته‌ی تازه" },
 ];
+
+/** Which list a shelf belongs to, in the panel's words. */
+const SCOPE_LABEL: Record<Scope, string> = { preset: "افکت‌ها", prompt_fragment: "بانک پرامپت" };
 
 const MB = 1024 * 1024;
 const inputStyle = { background: "var(--vg-surface)", color: "var(--vg-text)", border: "1px solid var(--vg-border-subtle)" };
@@ -63,7 +70,18 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
   // Audio families cannot run an effect or anchor a course.
   const families = useQuery({ queryKey: ["admin", "families"], queryFn: () => api.listFamilies(), staleTime: 5 * 60_000, retry: false });
   const makable = (families.data ?? []).filter((family) => family.kind !== "audio");
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin", "content", kind] });
+  // Loaded on every tab, not just its own: the effect and prompt-bank editors
+  // pick from these, and the lists print their labels. Drafts included, so a
+  // shelf can be prepared before it is published.
+  const categories = useQuery({ queryKey: ["admin", "content", "category"], queryFn: () => api.listContent("category"), retry: false });
+  const shelves = (scope: Scope) =>
+    (categories.data ?? []).flatMap((entry) => (entry.kind === "category" && entry.item.scope === scope ? [entry.item] : []));
+  const shelfLabel = (scope: Scope, slug: string) => shelves(scope).find((shelf) => shelf.slug === slug)?.label ?? slug;
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["admin", "content", kind] });
+    // An edited shelf changes what the other two tabs can offer and print.
+    if (kind === "category") await queryClient.invalidateQueries({ queryKey: ["admin", "content", "category"] });
+  };
 
   const save = useMutation({
     mutationFn: ({ id, write }: { id: string | null; write: ContentWrite }) =>
@@ -89,9 +107,11 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
       onSave: (write: ContentWrite) => save.mutate({ id: editing.id, write }),
     };
     const initial = editing.write;
-    if (initial.kind === "preset") return <PresetEditor api={api} families={makable} initial={initial} seed={editing.seed} {...frame} />;
+    if (initial.kind === "preset")
+      return <PresetEditor api={api} families={makable} shelves={shelves("preset")} initial={initial} seed={editing.seed} {...frame} />;
     if (initial.kind === "course") return <CourseEditor api={api} families={makable} initial={initial} seed={editing.seed} {...frame} />;
-    return <FragmentEditor initial={initial} {...frame} />;
+    if (initial.kind === "category") return <CategoryEditor initial={initial} {...frame} />;
+    return <FragmentEditor shelves={shelves("prompt_fragment")} initial={initial} {...frame} />;
   }
 
   const tab = TABS.find((candidate) => candidate.kind === kind)!;
@@ -154,7 +174,7 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
       {entries.isPending ? <Muted>در حال خواندن…</Muted> : null}
       {entries.error ? <Muted>فهرست خوانده نشد.</Muted> : null}
       {entries.data && shown.length === 0 ? <Muted>{needle ? "چیزی پیدا نشد." : "هنوز چیزی اینجا نیست."}</Muted> : null}
-      {remove.error ? <Muted>حذف نشد؛ دوباره تلاش کن.</Muted> : null}
+      {remove.error ? <Muted>{removeError(remove.error)}</Muted> : null}
 
       <div className="mt-3 flex flex-col gap-2">
         {shown.map((entry) => (
@@ -170,10 +190,12 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
               </div>
               <div className="truncate text-[11.5px]" style={{ color: "var(--vg-text-faint)" }}>
                 {entry.kind === "preset"
-                  ? `${familyName(entry.item.familyId)} · ${CATEGORY_LABEL[entry.item.category]}`
+                  ? `${familyName(entry.item.familyId)} · ${shelfLabel("preset", entry.item.category)}`
                   : entry.kind === "course"
                     ? `${LEVEL_LABEL[entry.item.level]} · ${entry.item.lessons.length} درس · ${entry.item.lessons.filter((lesson) => lesson.videoUrl).length} ویدیو`
-                    : `${BANK_LABEL[entry.item.category]} · ${entry.item.fragment}`}
+                    : entry.kind === "category"
+                      ? SCOPE_LABEL[entry.item.scope]
+                      : `${shelfLabel("prompt_fragment", entry.item.category)} · ${entry.item.fragment}`}
               </div>
             </div>
             <span
@@ -193,7 +215,8 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
                     setEditing({
                       id: entry.id,
                       write: toWrite(entry),
-                      ...(entry.kind === "prompt_fragment" ? {} : { seed: entry.item.seed }),
+                      // Only the two kinds that draw a picture carry one.
+                      ...(entry.kind === "preset" || entry.kind === "course" ? { seed: entry.item.seed } : {}),
                     });
                   }}
                   aria-label={`ویرایش ${titleOf(entry)}`}
@@ -235,10 +258,11 @@ interface FrameProps {
 function PresetEditor({
   api,
   families,
+  shelves,
   initial,
   seed,
   ...frame
-}: FrameProps & { api: AdminApi; families: AdminFamily[]; initial: PresetWrite; seed?: string | undefined }) {
+}: FrameProps & { api: AdminApi; families: AdminFamily[]; shelves: ContentCategory[]; initial: PresetWrite; seed?: string | undefined }) {
   const [draft, setDraft] = useState(initial);
   const item = draft.item;
   const set = (patch: Partial<PresetWrite["item"]>) => setDraft((previous) => ({ ...previous, item: { ...previous.item, ...patch } }));
@@ -281,20 +305,8 @@ function PresetEditor({
           style={inputStyle}
         />
       </Field>
-      <Field label="دسته">
-        <select
-          value={item.category}
-          onChange={(event) => set({ category: event.target.value as PresetWrite["item"]["category"] })}
-          aria-label="دسته"
-          className={`${inputClass} h-9`}
-          style={inputStyle}
-        >
-          {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+      <Field label="دسته" hint="دسته‌ها را در تب «دسته‌بندی‌ها» می‌سازی.">
+        <ShelfSelect shelves={shelves} value={item.category} onChange={(category) => set({ category })} />
       </Field>
       <Field label="برچسب (اختیاری)" hint="مثلاً «جدید» — گوشه‌ی کارت می‌نشیند.">
         <input
@@ -498,7 +510,7 @@ function CourseEditor({
   );
 }
 
-function FragmentEditor({ initial, ...frame }: FrameProps & { initial: FragmentWrite }) {
+function FragmentEditor({ shelves, initial, ...frame }: FrameProps & { shelves: ContentCategory[]; initial: FragmentWrite }) {
   const [draft, setDraft] = useState(initial);
   const item = draft.item;
   const set = (patch: Partial<FragmentWrite["item"]>) => setDraft((previous) => ({ ...previous, item: { ...previous.item, ...patch } }));
@@ -522,20 +534,8 @@ function FragmentEditor({ initial, ...frame }: FrameProps & { initial: FragmentW
           style={inputStyle}
         />
       </Field>
-      <Field label="دسته">
-        <select
-          value={item.category}
-          onChange={(event) => set({ category: event.target.value as FragmentWrite["item"]["category"] })}
-          aria-label="دسته"
-          className={`${inputClass} h-9`}
-          style={inputStyle}
-        >
-          {Object.entries(BANK_LABEL).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+      <Field label="دسته" hint="دسته‌ها را در تب «دسته‌بندی‌ها» می‌سازی.">
+        <ShelfSelect shelves={shelves} value={item.category} onChange={(category) => set({ category })} />
       </Field>
       <Field label="متن انگلیسی" hint="همان تکه‌ای که کاربر کپی می‌کند و به پرامپتش می‌چسباند." wide>
         <textarea
@@ -564,7 +564,98 @@ function FragmentEditor({ initial, ...frame }: FrameProps & { initial: FragmentW
   );
 }
 
+/**
+ * A shelf.
+ *
+ * Its list is fixed once it exists: every item under it points at a slug this
+ * row owns, and moving the shelf to the other list would file those items
+ * under a name that list has never heard of. Renaming is free, which is the
+ * thing an admin actually wants.
+ */
+function CategoryEditor({ initial, ...frame }: FrameProps & { initial: CategoryWrite }) {
+  const [draft, setDraft] = useState(initial);
+  const item = draft.item;
+  const set = (patch: Partial<CategoryWrite["item"]>) => setDraft((previous) => ({ ...previous, item: { ...previous.item, ...patch } }));
+
+  return (
+    <EditorFrame
+      title={frame.isNew ? "دسته‌ی تازه" : "ویرایش دسته"}
+      status={draft.status}
+      onStatus={(status) => setDraft((previous) => ({ ...previous, status }))}
+      canSave={Boolean(item.label.trim())}
+      {...frame}
+      onSave={() => frame.onSave(draft)}
+    >
+      <Field label="نام دسته">
+        <input
+          value={item.label}
+          onChange={(event) => set({ label: event.target.value })}
+          maxLength={60}
+          aria-label="نام دسته"
+          className={`${inputClass} h-9`}
+          style={inputStyle}
+        />
+      </Field>
+      <Field label="کجا" hint={frame.isNew ? "بعد از ساخت عوض نمی‌شود." : "دسته بعد از ساخت جابه‌جا نمی‌شود."}>
+        {frame.isNew ? (
+          <select
+            value={item.scope}
+            onChange={(event) => set({ scope: event.target.value as Scope })}
+            aria-label="کجا"
+            className={`${inputClass} h-9`}
+            style={inputStyle}
+          >
+            {Object.entries(SCOPE_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div className={`${inputClass} flex h-9 items-center`} style={{ ...inputStyle, color: "var(--vg-text-muted)" }}>
+            {SCOPE_LABEL[item.scope]}
+          </div>
+        )}
+      </Field>
+      {item.scope === "prompt_fragment" ? (
+        <Field label="توضیح زیر تب‌ها" hint="یک خط، زیر تب‌های بانک پرامپت." wide>
+          <textarea
+            value={item.blurb ?? ""}
+            onChange={(event) => set({ blurb: event.target.value || undefined })}
+            maxLength={200}
+            rows={2}
+            aria-label="توضیح زیر تب‌ها"
+            className={`${inputClass} py-2 leading-6`}
+            style={inputStyle}
+          />
+        </Field>
+      ) : null}
+    </EditorFrame>
+  );
+}
+
 /* -- pieces ------------------------------------------------------------------ */
+
+/** The shelves of one list. A row filed under a shelf that was deleted keeps its slug, shown as it is. */
+function ShelfSelect({ shelves, value, onChange }: { shelves: ContentCategory[]; value: string; onChange: (slug: string) => void }) {
+  const known = shelves.some((shelf) => shelf.slug === value);
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      aria-label="دسته"
+      className={`${inputClass} h-9`}
+      style={inputStyle}
+    >
+      {value && !known ? <option value={value}>{value} (حذف‌شده)</option> : null}
+      {shelves.map((shelf) => (
+        <option key={shelf.slug} value={shelf.slug}>
+          {shelf.label}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 function EditorFrame({
   title,
@@ -849,7 +940,7 @@ function MediaField({
  */
 function Thumb({ entry }: { entry: ContentEntry }) {
   const box = "size-12 rounded-lg object-cover";
-  if (entry.kind === "prompt_fragment") return null;
+  if (entry.kind === "prompt_fragment" || entry.kind === "category") return null;
   const uploaded = entry.kind === "preset" ? Boolean(entry.item.coverUrl) : Boolean(entry.item.cover);
   return (
     <span className="relative shrink-0">
@@ -879,13 +970,14 @@ function PlaceholderTag() {
 /* -- helpers ----------------------------------------------------------------- */
 
 function titleOf(entry: ContentEntry): string {
-  return entry.kind === "prompt_fragment" ? entry.item.label : entry.item.title;
+  return entry.kind === "prompt_fragment" || entry.kind === "category" ? entry.item.label : entry.item.title;
 }
 
 function searchText(entry: ContentEntry): string {
   if (entry.kind === "preset") return `${entry.item.title} ${entry.item.prompt}`;
   if (entry.kind === "course")
     return `${entry.item.title} ${entry.item.blurb} ${entry.item.lessons.map((lesson) => lesson.title).join(" ")}`;
+  if (entry.kind === "category") return `${entry.item.label} ${entry.item.slug}`;
   return `${entry.item.label} ${entry.item.fragment} ${entry.item.note}`;
 }
 
@@ -897,6 +989,10 @@ function toWrite(entry: ContentEntry): ContentWrite {
   if (entry.kind === "course") {
     const { id, seed, ...item } = entry.item;
     return { kind: "course", status: entry.status, item };
+  }
+  if (entry.kind === "category") {
+    const { id, slug, ...item } = entry.item;
+    return { kind: "category", status: entry.status, item };
   }
   const { id, ...item } = entry.item;
   return { kind: "prompt_fragment", status: entry.status, item };
@@ -925,7 +1021,8 @@ function blank(kind: EditableContentKind, families: AdminFamily[]): ContentWrite
       item: { title: "", blurb: "", level: "beginner", lessons: [{ id: newId(), title: "", seconds: 60 }] },
     };
   }
-  return { kind: "prompt_fragment", status: "published", item: { label: "", fragment: "", category: "camera", note: "" } };
+  if (kind === "category") return { kind: "category", status: "published", item: { scope: "preset", label: "" } };
+  return { kind: "prompt_fragment", status: "published", item: { label: "", fragment: "", category: "", note: "" } };
 }
 
 function uploadError(failure: unknown): string {
@@ -938,6 +1035,17 @@ function uploadError(failure: unknown): string {
     if (failure.status >= 500) return "سرور نتوانست فایل را ذخیره کند؛ دوباره تلاش کن و اگر تکرار شد خبر بده.";
   }
   return "آپلود نشد؛ اتصال را بررسی کن و دوباره تلاش کن.";
+}
+
+/** A shelf that still holds items is refused, and the count is the useful part. */
+function removeError(failure: unknown): string {
+  if (failure instanceof ApiError && failure.code === "category_in_use") {
+    const held = (failure.details as { inUse?: number } | undefined)?.inUse;
+    return held
+      ? `این دسته هنوز ${held} مورد دارد؛ اول آن‌ها را به دسته‌ی دیگری ببر.`
+      : "این دسته هنوز مورد دارد؛ اول آن‌ها را جابه‌جا کن.";
+  }
+  return "حذف نشد؛ دوباره تلاش کن.";
 }
 
 function saveError(failure: unknown): string {

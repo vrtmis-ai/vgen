@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AppServices } from "../../runtime/AppServices";
 import {
+  ContentCategorySchema,
   CourseSchema,
   ExampleSchema,
   FeaturedItemSchema,
@@ -28,6 +29,7 @@ import snapshot from "../../data/content.snapshot.json";
  * Regenerate with `pnpm content:publish && pnpm content:snapshot`.
  */
 const collections = {
+  categories: z.array(ContentCategorySchema).parse(snapshot.categories),
   presets: z.array(PresetSchema).parse(snapshot.presets),
   fragments: z.array(PromptFragmentSchema).parse(snapshot.fragments),
   skills: z.array(SkillSchema).parse(snapshot.skills),

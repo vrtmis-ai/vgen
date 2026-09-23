@@ -45,6 +45,7 @@ const EXPECTED_MIGRATIONS = [
   "0031_invite_limits.sql",
   "0032_music_and_sound.sql",
   "0033_packs_and_unlimited_window.sql",
+  "0034_content_categories.sql",
 ];
 
 describe("database migration chain", () => {

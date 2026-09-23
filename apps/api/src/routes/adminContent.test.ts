@@ -47,7 +47,10 @@ function appFor(permissions: string[] = ["*"]) {
     list: vi.fn(async () => [entry]),
     create: vi.fn(async (): Promise<ContentEntry | "unknown_family"> => entry),
     update: vi.fn(async (): Promise<ContentEntry | "not_found" | "unknown_family"> => entry),
-    archive: vi.fn(async (): Promise<{ kind: string; code: string } | null> => ({ kind: "preset", code: "fx-1234abcd" })),
+    archive: vi.fn(async (): Promise<{ kind: string; code: string } | { inUse: number } | null> => ({
+      kind: "preset",
+      code: "fx-1234abcd",
+    })),
   };
   const put = vi.fn(async (key: string, body: Uint8Array, mimeType: string) => ({
     bucket: "vgen",
@@ -176,6 +179,16 @@ describe("editing content", () => {
     expect((await app.inject({ method: "PUT", url: `/api/v1/admin/content/${ID}`, payload: write })).statusCode).toBe(404);
     expect((await app.inject({ method: "PUT", url: "/api/v1/admin/content/not-a-uuid", payload: write })).statusCode).toBe(404);
     expect(content.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("will not delete a shelf that still holds items, and says how many", async () => {
+    const { app, content } = appFor();
+    content.archive.mockResolvedValueOnce({ inUse: 7 });
+
+    const response = await app.inject({ method: "DELETE", url: `/api/v1/admin/content/${ID}` });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ error: { code: "category_in_use", details: { inUse: 7 } } });
   });
 
   it("archives on delete", async () => {

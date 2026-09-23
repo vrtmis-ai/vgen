@@ -204,16 +204,18 @@ production actually sends — which is the claim demo mode has to keep.
 
 ### `GET /content`
 
-Everything the product shows that is not a model and not a price: presets, the
-prompt bank, skills, the featured shelf, courses, explore examples and the
-ElevenLabs voice list. Seven collections that were TypeScript arrays under
-`src/data` until migration 0020.
+Everything the product shows that is not a model and not a price: the shelves,
+presets, the prompt bank, skills, the featured shelf, courses, explore examples
+and the ElevenLabs voice list. Seven collections that were TypeScript arrays
+under `src/data` until migration 0020, and an eighth — `categories` — that was
+a pair of zod enums until 0034.
 
 ```jsonc
 {
   "version": "content-…",
   "publishedAt": 1234567890,
   "flags": { "siteBanner": true, "earlyAccess": true },
+  "categories": [],
   "presets": [],
   "fragments": [],
   "skills": [],
@@ -226,10 +228,19 @@ ElevenLabs voice list. Seven collections that were TypeScript arrays under
 
 Schema: `ContentSnapshotSchema` in `src/runtime/contracts/content.ts`.
 
-**Seven arrays, not one tagged list.** They share one table — `content_items`,
+**Eight arrays, not one tagged list.** They share one table — `content_items`,
 discriminated by `kind` — because an admin thinks about them the same way:
 publish it, order it, pull it. They arrive split because a screen that wants
 courses should get courses rather than a filter it has to write.
+
+**`categories` are the shelves the effects wall and the prompt bank file their
+items under**, each `{ id, scope, slug, label, blurb? }`. A preset or a
+fragment names one by `slug`, never by id, so renaming «دوربین» moves nothing;
+`scope` is `preset` or `prompt_fragment`, and `blurb` is the line under the
+prompt bank's tabs. A screen reads labels from here — the five-value enums and
+the Persian maps in `src/features/content/labels.ts` are gone, because adding a
+shelf was a deploy. An item whose shelf was unpublished keeps its slug and the
+screens print the slug itself rather than nothing.
 
 **No `status` and no `order` on any item, and that is the point.** The route
 serves published rows already in the admin's order. `src/data/content.ts`
@@ -242,8 +253,8 @@ published rows.
 **Public.** The landing page's feature bento renders nine effects, three courses
 and a voice count to a visitor with no session.
 
-**Where it comes from.** `content_items`. Effects, courses and the prompt bank
-are edited at `/admin/content` (see Admin). `pnpm content:publish` seeds from
+**Where it comes from.** `content_items`. Shelves, effects, courses and the
+prompt bank are edited at `/admin/content` (see Admin). `pnpm content:publish` seeds from
 `src/data/content.rows.json` and is **insert-only**: it runs on every deploy,
 and an upsert would put the file's title and prompt back over an admin's edit.
 A changed row in that file reaches a fresh database only.
@@ -1046,8 +1057,9 @@ Audited as `staff.plan.granted` / `staff.plan.revoked`.
 
 ### `GET · POST /admin/content` · `PUT · DELETE /admin/content/:id`
 
-Effects (`preset`), academy courses (`course`) and the prompt bank
-(`prompt_fragment`), edited from the panel's «افکت‌ها و آکادمی» section. The
+Effects (`preset`), academy courses (`course`), the prompt bank
+(`prompt_fragment`) and the shelves those two are filed under (`category`),
+edited from the panel's «افکت‌ها و آکادمی» section. The
 other four collections in `GET /content` still come only from the seed file.
 `content.read` lists; `content.write` does everything else. The seeded `admin`
 role holds `*` and so both.
@@ -1066,9 +1078,16 @@ role holds `*` and so both.
   everything but the code, the seed and the place in the order. The kind cannot
   change: a preset id with a course body is **404**.
 - **`DELETE /admin/content/:id`** → `{ id, status: "archived" }`. **Archives**
-  rather than deletes. The seeder is insert-only and runs on every deploy, so a
+  rather than deletes. A `category` that still holds items is **409**
+  `category_in_use` with `details.inUse` — the count is the next question, and
+  moving those items somewhere else is not a decision this route makes. The seeder is insert-only and runs on every deploy, so a
   hard-deleted seeded row would be inserted again; an archived one stays
   archived, and neither route lists it.
+
+A `category` write carries `{ scope, label, blurb? }` and no slug: the server
+mints one (`c-<8 hex>`) on create and keeps it for the row's life, because it
+is what every item under the shelf points at. New shelves append to the end of
+their list — they are tabs — while every other kind lands first.
 
 **400** `validation_failed` names the field (a prompt of spaces, a cover that
 is not an http(s) link or an upload path, a title over its cap). **422**

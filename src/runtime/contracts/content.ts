@@ -43,6 +43,24 @@ const ItemSchema = z.object({
  */
 export const MediaRefSchema = z.union([z.url({ protocol: /^https?$/ }), z.string().regex(/^\/api\/v1\/content\/media\/[\w.-]+$/)]);
 
+/**
+ * A shelf the effects wall and the prompt bank file their items under.
+ *
+ * These were zod enums with their Persian words compiled into the client,
+ * which made adding a sixth shelf a deploy. They are rows now (`kind =
+ * 'category'`, migration 0034), and an item points at one by `slug` — never by
+ * this row's id — so renaming the label leaves every item where it was.
+ *
+ * `slug` is what the item stores and the server owns; `blurb` is the line
+ * under the prompt bank's tabs and is absent on an effects shelf.
+ */
+export const ContentCategorySchema = ItemSchema.extend({
+  scope: z.enum(["preset", "prompt_fragment"]),
+  slug: z.string().min(1),
+  label: z.string().min(1),
+  blurb: z.string().min(1).optional(),
+});
+
 /** A complete prompt behind a picture. Tapping one opens its family, pre-filled. */
 export const PresetSchema = ItemSchema.extend({
   title: z.string().min(1),
@@ -56,7 +74,8 @@ export const PresetSchema = ItemSchema.extend({
    */
   openEnded: z.boolean(),
   kind: z.enum(["video", "image"]),
-  category: z.enum(["camera", "transform", "vfx", "portrait", "product"]),
+  /** A `ContentCategory.slug` in the `preset` scope. A string, because an admin adds shelves. */
+  category: z.string().min(1),
   badge: z.string().min(1).optional(),
   /** The picture an admin uploaded. Absent on the seeded rows, which still draw placeholder art from `seed`. */
   coverUrl: MediaRefSchema.optional(),
@@ -71,7 +90,8 @@ export const PresetSchema = ItemSchema.extend({
 export const PromptFragmentSchema = ItemSchema.extend({
   label: z.string().min(1),
   fragment: z.string().min(1),
-  category: z.enum(["camera", "lighting", "lens", "motion", "grade"]),
+  /** A `ContentCategory.slug` in the `prompt_fragment` scope. */
+  category: z.string().min(1),
   note: z.string().min(1),
 });
 
@@ -186,6 +206,8 @@ export const ContentSnapshotSchema = z.object({
      */
     earlyAccess: z.boolean(),
   }),
+  /** The shelves, in the admin's order. A screen reads its labels from here rather than from a compiled map. */
+  categories: z.array(ContentCategorySchema),
   presets: z.array(PresetSchema),
   fragments: z.array(PromptFragmentSchema),
   skills: z.array(SkillSchema),
@@ -196,6 +218,7 @@ export const ContentSnapshotSchema = z.object({
 });
 
 export type ContentStatus = z.infer<typeof ContentStatusSchema>;
+export type ContentCategory = z.infer<typeof ContentCategorySchema>;
 export type Preset = z.infer<typeof PresetSchema>;
 export type PromptFragment = z.infer<typeof PromptFragmentSchema>;
 export type ContentSkill = z.infer<typeof SkillSchema>;
@@ -215,7 +238,7 @@ export type ContentSnapshot = z.infer<typeof ContentSnapshotSchema>;
    new row its code and placeholder seed, so neither is in the write.
    --------------------------------------------------------------------------- */
 
-export const EditableContentKindSchema = z.enum(["preset", "course", "prompt_fragment"]);
+export const EditableContentKindSchema = z.enum(["preset", "course", "prompt_fragment", "category"]);
 
 /** Draft or published. Deleting archives a row, and an archived row is not listed. */
 export const EditableContentStatusSchema = z.enum(["draft", "published"]);
@@ -226,6 +249,7 @@ export const ContentEntrySchema = z.discriminatedUnion("kind", [
   z.object({ ...Entry, kind: z.literal("preset"), item: PresetSchema }),
   z.object({ ...Entry, kind: z.literal("course"), item: CourseSchema }),
   z.object({ ...Entry, kind: z.literal("prompt_fragment"), item: PromptFragmentSchema }),
+  z.object({ ...Entry, kind: z.literal("category"), item: ContentCategorySchema }),
 ]);
 
 export const ContentEntriesSchema = z.object({ entries: z.array(ContentEntrySchema) });
@@ -270,6 +294,15 @@ export const ContentWriteSchema = z.discriminatedUnion("kind", [
       kind: z.literal("prompt_fragment"),
       status: EditableContentStatusSchema,
       item: PromptFragmentSchema.omit({ id: true }).extend({ label: text(80), fragment: text(400), note: text(300) }),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("category"),
+      status: EditableContentStatusSchema,
+      // No `slug`: the server mints one for a new shelf and keeps it forever
+      // after, because it is what every item under the shelf points at.
+      item: ContentCategorySchema.omit({ id: true, slug: true }).extend({ label: text(60), blurb: text(200).optional() }),
     })
     .strict(),
 ]);

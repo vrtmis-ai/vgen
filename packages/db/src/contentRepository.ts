@@ -90,6 +90,7 @@ export class PostgresContentRepository implements CustomerContentRepository {
     `;
 
     const snapshot: Omit<ContentSnapshot, "version" | "publishedAt" | "flags"> = {
+      categories: [],
       presets: [],
       fragments: [],
       skills: [],
@@ -107,7 +108,8 @@ export class PostgresContentRepository implements CustomerContentRepository {
       // Exhaustive by construction: ParsedContentItem's union and the seven
       // arrays are the same seven names, so a new kind fails to compile here
       // rather than being silently dropped from the payload.
-      if (parsed.kind === "preset") snapshot.presets.push(parsed.item);
+      if (parsed.kind === "category") snapshot.categories.push(parsed.item);
+      else if (parsed.kind === "preset") snapshot.presets.push(parsed.item);
       else if (parsed.kind === "prompt_fragment") snapshot.fragments.push(parsed.item);
       else if (parsed.kind === "skill") snapshot.skills.push(parsed.item);
       else if (parsed.kind === "featured") snapshot.featured.push(parsed.item);
@@ -159,7 +161,19 @@ interface ContentRow {
 }
 
 /** What a new row's code starts with, so a code read in a log still says what it is. */
-const CODE_PREFIX: Record<EditableContentKind, string> = { preset: "fx", course: "c", prompt_fragment: "f" };
+const CODE_PREFIX: Record<EditableContentKind, string> = { preset: "fx", course: "c", prompt_fragment: "f", category: "cat" };
+
+/**
+ * A row's second stable key, which survives every edit.
+ *
+ * For the kinds that draw a picture it is `seed`, the placeholder art. For a
+ * category it is the slug in `body`, which every item under the shelf points
+ * at — renaming the shelf must not move them, so the slug is minted once here
+ * and never taken from the admin.
+ */
+function stableKey(row: { kind: string; code: string; seed: string | null; body: string | null }): string {
+  return row.kind === "category" ? (row.body ?? row.code) : (row.seed ?? row.code);
+}
 
 /**
  * Effects, courses and the prompt bank, as the admin panel edits them.
@@ -192,12 +206,16 @@ export class PostgresAdminContentRepository {
     return atomically(this.sql)(async (tx) => {
       if (!(await familyExists(tx, write))) return "unknown_family";
       const code = `${CODE_PREFIX[write.kind]}-${randomUUID().slice(0, 8)}`;
-      const row = checked(fromContentItem(write, code, code));
+      // A shelf is a tab, and a new tab belongs at the end of the row rather
+      // than in front of the ones people already know. Everything else is a
+      // card, and a new card is the one the admin is looking for.
+      const last = write.kind === "category";
+      const row = checked(fromContentItem(write, code, write.kind === "category" ? `c-${randomUUID().slice(0, 8)}` : code));
       const [saved] = await tx<ContentRow[]>`
         insert into content_items (kind, code, status, sort_order, title, subtitle, body, category, family_code, seed, payload, updated_by)
         values (
           ${row.kind}, ${row.code}, ${write.status},
-          (select coalesce(min(sort_order), 0) - 1 from content_items where kind = ${row.kind}),
+          (select coalesce(${last ? tx`max(sort_order) + 1` : tx`min(sort_order) - 1`}, 0) from content_items where kind = ${row.kind}),
           ${row.title}, ${row.subtitle}, ${row.body}, ${row.category}, ${row.familyCode}, ${row.seed},
           ${tx.json(row.payload as never)}, ${userId}
         )
@@ -210,12 +228,12 @@ export class PostgresAdminContentRepository {
   /** Keeps the row's code, seed and place in the order; replaces everything else. */
   async update(id: string, write: ContentWrite, userId: string): Promise<ContentEntry | "not_found" | "unknown_family"> {
     return atomically(this.sql)(async (tx) => {
-      const [current] = await tx<{ kind: string; code: string; seed: string | null }[]>`
-        select kind, code, seed from content_items where id = ${id} and status <> 'archived' for update
+      const [current] = await tx<{ kind: string; code: string; seed: string | null; body: string | null }[]>`
+        select kind, code, seed, body from content_items where id = ${id} and status <> 'archived' for update
       `;
       if (!current || current.kind !== write.kind) return "not_found";
       if (!(await familyExists(tx, write))) return "unknown_family";
-      const row = checked(fromContentItem(write, current.code, current.seed ?? current.code));
+      const row = checked(fromContentItem(write, current.code, stableKey(current)));
       const [saved] = await tx<ContentRow[]>`
         update content_items set
           status = ${write.status},
@@ -233,13 +251,33 @@ export class PostgresAdminContentRepository {
     });
   }
 
-  async archive(id: string, userId: string): Promise<{ kind: string; code: string } | null> {
-    const [archived] = await this.sql<{ kind: string; code: string }[]>`
-      update content_items set status = 'archived', updated_by = ${userId}
-      where id = ${id} and status <> 'archived' and kind in ('preset', 'course', 'prompt_fragment')
-      returning kind, code
-    `;
-    return archived ?? null;
+  /**
+   * Gone from the panel and the site. A shelf still holding items is refused
+   * instead: archiving it would leave those items filed under a name nothing
+   * can print, and silently moving them somewhere else is not this function's
+   * decision to make.
+   */
+  async archive(id: string, userId: string): Promise<{ kind: string; code: string } | { inUse: number } | null> {
+    return atomically(this.sql)(async (tx) => {
+      const [current] = await tx<{ kind: string; category: string | null; body: string | null }[]>`
+        select kind, category, body from content_items
+        where id = ${id} and status <> 'archived' and kind in ('preset', 'course', 'prompt_fragment', 'category')
+        for update
+      `;
+      if (!current) return null;
+      if (current.kind === "category") {
+        const [held] = await tx<{ n: string }[]>`
+          select count(*)::text as n from content_items
+          where kind = ${current.category} and category = ${current.body} and status <> 'archived'
+        `;
+        const inUse = Number(held?.n ?? "0");
+        if (inUse > 0) return { inUse };
+      }
+      const [archived] = await tx<{ kind: string; code: string }[]>`
+        update content_items set status = 'archived', updated_by = ${userId} where id = ${id} returning kind, code
+      `;
+      return archived ?? null;
+    });
   }
 }
 
@@ -259,7 +297,7 @@ function checked<T extends Parameters<typeof toContentItem>[0]>(row: T): T {
  * model carries opens nothing, and the person who notices is a customer.
  */
 async function familyExists(tx: TransactionSql, write: ContentWrite): Promise<boolean> {
-  const family = write.kind === "prompt_fragment" ? undefined : write.item.familyId;
+  const family = write.kind === "preset" || write.kind === "course" ? write.item.familyId : undefined;
   if (family === undefined) return true;
   const [row] = await tx<{ ok: boolean }[]>`
     select exists (

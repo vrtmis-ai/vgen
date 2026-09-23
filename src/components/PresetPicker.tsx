@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import { createPortal } from "react-dom";
 import { X, MagnifyingGlass } from "@phosphor-icons/react";
-import { CATEGORY_LABEL } from "../features/content/labels";
+import { useShelves } from "../features/content/categories";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import { presetArt } from "../features/content/media";
 import type { Preset } from "../runtime/contracts/content";
@@ -51,6 +51,7 @@ export function PresetPicker({
   useModalSurface({ surfaceRef: dialogRef, onClose, initialFocusRef: searchRef });
 
   const presets = usePublishedContent().presets;
+  const shelves = useShelves("preset");
   const all = useMemo(() => presets.filter((p) => (kind === "video" ? p.kind === "video" : p.kind === "image")), [presets, kind]);
   const cats = useMemo(() => Array.from(new Set(all.map((p) => p.category))), [all]);
   const shown = all.filter((p) => (cat === "all" || p.category === cat) && (!q || p.title.includes(q.trim())));
@@ -140,7 +141,7 @@ export function PresetPicker({
                 border: "1px solid var(--vg-border-subtle)",
               }}
             >
-              {c === "all" ? "همه" : CATEGORY_LABEL[c]}
+              {c === "all" ? "همه" : shelves.labelOf(c)}
             </button>
           ))}
         </div>

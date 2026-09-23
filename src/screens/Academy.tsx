@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Play, Lock, Clock, Copy, Check, ArrowUpRight, MagnifyingGlass } from "@phosphor-icons/react";
-import { LEVEL_LABEL, courseMinutes, BANK_LABEL, BANK_BLURB } from "../features/content/labels";
+import { LEVEL_LABEL, courseMinutes } from "../features/content/labels";
+import { useShelves } from "../features/content/categories";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import { CourseCover, mediaSrc } from "../features/content/media";
-import type { Course, Lesson, PromptFragment } from "../runtime/contracts/content";
+import type { Course, Lesson } from "../runtime/contracts/content";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 
 import { useI18n } from "../lib/i18n";
@@ -108,7 +109,8 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
   const { n } = useI18n();
   const families = useCatalogFamilies();
   const entries = usePublishedContent().fragments;
-  const [cat, setCat] = useState<PromptFragment["category"]>("camera");
+  const shelves = useShelves("prompt_fragment");
+  const [cat, setCat] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -124,10 +126,11 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
     return () => clearTimeout(t);
   }, [copied]);
 
-  const cats = (["camera", "lighting", "lens", "motion", "grade"] as const).filter((c) => entries.some((x) => x.category === c));
-  // The admin can empty a category now; falling back keeps the bank from
-  // opening on a tab with nothing under it.
-  const active = cats.includes(cat) ? cat : (cats[0] ?? cat);
+  // Published shelves that actually hold something, in the admin's order.
+  const cats = shelves.list.map((shelf) => shelf.slug).filter((slug) => entries.some((x) => x.category === slug));
+  // Nothing chosen yet, or the chosen shelf was emptied or unpublished: open on
+  // the first one that has terms rather than on a tab with nothing under it.
+  const active = cat && cats.includes(cat) ? cat : (cats[0] ?? "");
   // A search looks through every category — someone typing "dolly" should not
   // first have to know it is filed under camera — and matches the Persian
   // name, the English term and the note alike.
@@ -181,14 +184,14 @@ function BankSection({ onOpenModel }: { onOpenModel: (familyId: string, prompt?:
                 border: "1px solid var(--vg-border-subtle)",
               }}
             >
-              {BANK_LABEL[c]}
+              {shelves.labelOf(c)}
             </button>
           );
         })}
       </div>
 
       <p className="mt-3 text-[12px]" style={{ color: "var(--vg-text-faint)" }} aria-live="polite">
-        {needle ? (shown.length ? `${n(shown.length)} نتیجه` : "چیزی پیدا نشد.") : BANK_BLURB[active]}
+        {needle ? (shown.length ? `${n(shown.length)} نتیجه` : "چیزی پیدا نشد.") : shelves.blurbOf(active)}
       </p>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
