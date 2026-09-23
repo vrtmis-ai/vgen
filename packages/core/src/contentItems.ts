@@ -1,4 +1,5 @@
 import {
+  ContentCategorySchema,
   CourseSchema,
   ExampleSchema,
   FeaturedItemSchema,
@@ -39,6 +40,7 @@ export interface ContentSeedRow {
 }
 
 export type ParsedContentItem =
+  | { kind: "category"; item: ContentSnapshot["categories"][number] }
   | { kind: "preset"; item: ContentSnapshot["presets"][number] }
   | { kind: "prompt_fragment"; item: ContentSnapshot["fragments"][number] }
   | { kind: "skill"; item: ContentSnapshot["skills"][number] }
@@ -69,6 +71,20 @@ export function toContentItem(row: ContentSeedRow): ParsedContentItem {
   const payload = row.payload ?? {};
 
   switch (row.kind) {
+    case "category":
+      return {
+        kind: "category",
+        item: ContentCategorySchema.parse({
+          id: row.code,
+          // The scope shares the `category` column with a preset's shelf and a
+          // course's level, and the slug shares `body` with a prompt. Columns
+          // rather than payload, because both are what a read filters on.
+          scope: row.category,
+          slug: row.body,
+          label: row.title,
+          ...maybe("blurb", row.subtitle),
+        }),
+      };
     case "preset":
       return {
         kind: "preset",
@@ -170,9 +186,27 @@ export function toContentItem(row: ContentSeedRow): ParsedContentItem {
  * Kept beside `toContentItem` because each is only right while it is the exact
  * inverse of the other; the repository proves that on every write by reading
  * the row it built back through `toContentItem` before storing it.
+ *
+ * `stable` is the row's second key, which the caller owns because it must
+ * survive every edit: placeholder art for the kinds that draw a picture, and
+ * for a category the slug its items point at.
  */
-export function fromContentItem(write: ContentWrite, code: string, seed: string): ContentSeedRow {
+export function fromContentItem(write: ContentWrite, code: string, stable: string): ContentSeedRow {
   switch (write.kind) {
+    case "category": {
+      const { scope, label, blurb } = write.item;
+      return {
+        kind: "category",
+        code,
+        title: label,
+        subtitle: blurb ?? null,
+        body: stable,
+        category: scope,
+        familyCode: null,
+        seed: null,
+        payload: {},
+      };
+    }
     case "preset": {
       const { title, prompt, category, familyId, openEnded, kind, badge, coverUrl } = write.item;
       return {
@@ -183,7 +217,7 @@ export function fromContentItem(write: ContentWrite, code: string, seed: string)
         body: prompt,
         category,
         familyCode: familyId,
-        seed,
+        seed: stable,
         payload: { openEnded, kind, ...maybe("badge", badge), ...maybe("coverUrl", coverUrl) },
       };
     }
@@ -197,13 +231,23 @@ export function fromContentItem(write: ContentWrite, code: string, seed: string)
         body: null,
         category: level,
         familyCode: familyId ?? null,
-        seed,
+        seed: stable,
         payload: { lessons, ...maybe("cover", cover) },
       };
     }
     case "prompt_fragment": {
       const { label, fragment, category, note } = write.item;
-      return { kind: "prompt_fragment", code, title: label, subtitle: note, body: fragment, category, familyCode: null, seed, payload: {} };
+      return {
+        kind: "prompt_fragment",
+        code,
+        title: label,
+        subtitle: note,
+        body: fragment,
+        category,
+        familyCode: null,
+        seed: stable,
+        payload: {},
+      };
     }
   }
 }

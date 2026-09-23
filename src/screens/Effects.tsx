@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useFamily } from "../features/catalog/CatalogProvider";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkle, Copy, Check } from "@phosphor-icons/react";
-import { CATEGORY_LABEL } from "../features/content/labels";
+import { useShelves } from "../features/content/categories";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import { presetArt } from "../features/content/media";
 import type { Preset } from "../runtime/contracts/content";
@@ -41,6 +41,7 @@ const art = (seed: string, n = 0) => `https://picsum.photos/seed/${seed}${n ? `-
  *  write their own. */
 function EffectDetail({ preset, onGenerate, onBack }: { preset: Preset; onGenerate: () => void; onBack: () => void }) {
   const family = useFamily(preset.familyId);
+  const shelves = useShelves("preset");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -90,7 +91,7 @@ function EffectDetail({ preset, onGenerate, onBack }: { preset: Preset; onGenera
               className="flex h-7 items-center rounded-md px-2 text-[11.5px] font-semibold"
               style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-secondary)" }}
             >
-              {CATEGORY_LABEL[preset.category]}
+              {shelves.labelOf(preset.category)}
             </span>
             <span
               className="flex h-7 items-center rounded-md px-2 text-[11.5px] font-semibold"
@@ -232,7 +233,8 @@ function EffectCard({ preset, onOpen, onGenerate }: { preset: Preset; onOpen: ()
 export default function Effects({ onOpen }: { onOpen: (familyId: string, prompt?: string) => void }) {
   // Already published and already ordered — the route did both in SQL.
   const all = usePublishedContent().presets;
-  const [cat, setCat] = useState<Preset["category"] | "all">("all");
+  const shelves = useShelves("preset");
+  const [cat, setCat] = useState<string>("all");
   const [kind, setKind] = useState<"all" | "video" | "image">("all");
   const [detail, setDetail] = useState<Preset | null>(null);
 
@@ -302,7 +304,7 @@ export default function Effects({ onOpen }: { onOpen: (familyId: string, prompt?
           </button>
         ))}
         <span className="mx-1 h-5 w-px" style={{ background: "var(--vg-border)" }} />
-        {(["all", ...Object.keys(CATEGORY_LABEL)] as (Preset["category"] | "all")[]).map((c) => (
+        {["all", ...shelves.list.map((shelf) => shelf.slug)].map((c) => (
           <button
             key={c}
             onClick={() => setCat(c)}
@@ -314,7 +316,7 @@ export default function Effects({ onOpen }: { onOpen: (familyId: string, prompt?
               border: "1px solid var(--vg-border-subtle)",
             }}
           >
-            {c === "all" ? "همهٔ دسته‌ها" : CATEGORY_LABEL[c]}
+            {c === "all" ? "همهٔ دسته‌ها" : shelves.labelOf(c)}
           </button>
         ))}
         <span className="vg-numeric ms-auto text-[12px]" style={{ color: "var(--vg-text-faint)" }}>

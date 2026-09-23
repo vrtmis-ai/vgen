@@ -18,7 +18,7 @@ export interface AdminContentDependencies {
     list(kind: EditableContentKind): Promise<ContentEntry[]>;
     create(write: ContentWrite, userId: string): Promise<ContentEntry | "unknown_family">;
     update(id: string, write: ContentWrite, userId: string): Promise<ContentEntry | "not_found" | "unknown_family">;
-    archive(id: string, userId: string): Promise<{ kind: string; code: string } | null>;
+    archive(id: string, userId: string): Promise<{ kind: string; code: string } | { inUse: number } | null>;
   };
   media: { store(bytes: Uint8Array, purpose: ContentMediaPurpose): Promise<ContentMedia> };
 }
@@ -91,6 +91,17 @@ export function registerAdminContentRoutes(app: FastifyInstance, dependencies: A
     if (!id.success) return reply.code(404).send(NOT_FOUND);
     const archived = await content.archive(id.data, session.userId);
     if (!archived) return reply.code(404).send(NOT_FOUND);
+    // A shelf that still holds items. Said with the count, because the next
+    // question is always "how many, and where are they?".
+    if ("inUse" in archived) {
+      return reply.code(409).send({
+        error: {
+          code: "category_in_use",
+          message: `That category still holds ${archived.inUse} item(s). Move them first.`,
+          details: { inUse: archived.inUse },
+        },
+      });
+    }
     await guard.audit(request, session, {
       action: "content.delete",
       targetType: archived.kind,
@@ -143,5 +154,5 @@ export function registerAdminContentRoutes(app: FastifyInstance, dependencies: A
 }
 
 function titleOf(entry: ContentEntry): string {
-  return entry.kind === "prompt_fragment" ? entry.item.label : entry.item.title;
+  return entry.kind === "prompt_fragment" || entry.kind === "category" ? entry.item.label : entry.item.title;
 }

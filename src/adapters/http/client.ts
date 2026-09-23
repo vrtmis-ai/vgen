@@ -11,6 +11,7 @@ const ErrorBodySchema = z.object({
       // matched; the x-request-id header was quietly covering for it, which is
       // why nothing looked broken.
       request_id: z.string().min(1).optional(),
+      details: z.unknown().optional(),
     })
     .optional(),
 });
@@ -139,6 +140,7 @@ export function createHttpClient({ baseUrl, fetchImpl = fetch, timeoutMs = 15_00
             status: response.status,
             ...(details?.request_id || requestId ? { requestId: details?.request_id ?? requestId } : {}),
             ...(response.status === 429 && retryAfterMs(response) !== undefined ? { retryAfterMs: retryAfterMs(response) } : {}),
+            ...(details?.details === undefined ? {} : { details: details.details }),
           });
         }
 

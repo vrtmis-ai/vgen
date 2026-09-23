@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { UnknownContentKindError, toContentItem, type ContentSeedRow } from "./contentItems";
+import { UnknownContentKindError, fromContentItem, toContentItem, type ContentSeedRow } from "./contentItems";
 
 /**
  * The mapping the seeder and the API both go through.
@@ -97,8 +97,34 @@ describe("toContentItem", () => {
     ).toThrow();
   });
 
-  it("refuses a preset whose category is not one the grid has a tab for", () => {
-    expect(() => toContentItem(preset({ category: "cinematography" }))).toThrow();
+  /* The five shelves were an enum until 0034 made them rows an admin adds, so
+     a category the grid has never heard of is now ordinary — it is a shelf
+     somebody made this morning. A preset with no shelf at all is still a card
+     that no tab can hold. */
+  it("takes a shelf an admin invented, and refuses a preset filed under none", () => {
+    expect(toContentItem(preset({ category: "cinematography" })).item).toMatchObject({ category: "cinematography" });
+    expect(() => toContentItem(preset({ category: "" }))).toThrow();
+  });
+
+  it("reads a shelf, and writes one back the same", () => {
+    const row = {
+      kind: "category",
+      code: "cat-preset-camera",
+      title: "دوربین",
+      subtitle: null,
+      body: "camera",
+      category: "preset",
+      familyCode: null,
+      seed: null,
+      payload: {},
+    };
+    const parsed = toContentItem(row);
+    if (parsed.kind !== "category") throw new Error("expected a category");
+    expect(parsed.item).toEqual({ id: "cat-preset-camera", scope: "preset", slug: "camera", label: "دوربین" });
+
+    expect(
+      fromContentItem({ kind: "category", status: "published", item: { scope: "preset", label: "دوربین" } }, "cat-preset-camera", "camera"),
+    ).toEqual(row);
   });
 
   it("refuses a fragment with no fragment", () => {

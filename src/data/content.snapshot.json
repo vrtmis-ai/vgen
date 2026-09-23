@@ -1,4 +1,71 @@
 {
+  "categories": [
+    {
+      "id": "cat-preset-camera",
+      "scope": "preset",
+      "slug": "camera",
+      "label": "دوربین"
+    },
+    {
+      "id": "cat-preset-transform",
+      "scope": "preset",
+      "slug": "transform",
+      "label": "دگرگونی"
+    },
+    {
+      "id": "cat-preset-vfx",
+      "scope": "preset",
+      "slug": "vfx",
+      "label": "جلوه‌ی ویژه"
+    },
+    {
+      "id": "cat-preset-portrait",
+      "scope": "preset",
+      "slug": "portrait",
+      "label": "پرتره"
+    },
+    {
+      "id": "cat-preset-product",
+      "scope": "preset",
+      "slug": "product",
+      "label": "محصول"
+    },
+    {
+      "id": "cat-bank-camera",
+      "scope": "prompt_fragment",
+      "slug": "camera",
+      "label": "حرکت دوربین",
+      "blurb": "دوربین چطور حرکت می‌کند. مهم‌ترین انتخاب در یک نمای ویدیویی."
+    },
+    {
+      "id": "cat-bank-lighting",
+      "scope": "prompt_fragment",
+      "slug": "lighting",
+      "label": "نورپردازی",
+      "blurb": "نور از کجا می‌آید. بیشترین تأثیر را روی حس تصویر دارد."
+    },
+    {
+      "id": "cat-bank-lens",
+      "scope": "prompt_fragment",
+      "slug": "lens",
+      "label": "لنز و قاب",
+      "blurb": "چقدر نزدیک، با چه عمق میدانی، در چه قابی."
+    },
+    {
+      "id": "cat-bank-motion",
+      "scope": "prompt_fragment",
+      "slug": "motion",
+      "label": "حرکت سوژه",
+      "blurb": "سوژه چه می‌کند — جدا از اینکه دوربین چه می‌کند."
+    },
+    {
+      "id": "cat-bank-grade",
+      "scope": "prompt_fragment",
+      "slug": "grade",
+      "label": "رنگ و حال‌وهوا",
+      "blurb": "رنگ، کنتراست و دوره‌ی زمانی‌ای که تصویر را تداعی می‌کند."
+    }
+  ],
   "presets": [
     {
       "id": "p1",

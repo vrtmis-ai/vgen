@@ -48,6 +48,7 @@ function healthyDependencies(): ApiDependencies {
         version: "bootstrap-v1",
         publishedAt: 0,
         flags: { siteBanner: true, earlyAccess: true },
+        categories: [],
         presets: [],
         fragments: [],
         skills: [],

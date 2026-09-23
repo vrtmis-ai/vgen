@@ -427,3 +427,97 @@ describe("editing effects, courses and the prompt bank", () => {
     });
   });
 });
+
+/**
+ * The shelves, which were an enum until 0034.
+ *
+ * What matters is the slug: it is what every item under a shelf points at, so
+ * renaming must not touch it and deleting must not orphan it.
+ */
+describe("the shelves effects and the prompt bank are filed under", () => {
+  /** Its own copy: the describe above keeps one for its own rows. */
+  async function aFamily(tx: Sql): Promise<string> {
+    const [row] = await tx<{ family: string }[]>`
+      select model.family from provider_models model join providers provider on provider.id = model.provider_id
+      where model.is_active and provider.is_active and model.capabilities ? 'variant' and model.family is not null
+      order by model.family limit 1
+    `;
+    return row!.family;
+  }
+
+  const shelf = (scope: "preset" | "prompt_fragment", label: string) =>
+    ({ kind: "category", status: "published", item: { scope, label } }) as const;
+
+  it("appends a new shelf after the ones people already know, and serves it", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = new PostgresAdminContentRepository(tx);
+
+      const created = await admin.create(shelf("preset", "تایپوگرافی"), userId);
+      if (created === "unknown_family") throw new Error("expected a created shelf");
+
+      const served = (await new PostgresContentRepository(tx).list()).categories;
+      const presetShelves = served.filter((category) => category.scope === "preset");
+      expect(presetShelves.at(-1)).toMatchObject({ label: "تایپوگرافی", scope: "preset" });
+      expect(created.kind === "category" && created.item.slug).toMatch(/^c-/);
+    });
+  });
+
+  it("keeps the slug when the label changes, so nothing under it moves", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = new PostgresAdminContentRepository(tx);
+      const created = await admin.create(shelf("prompt_fragment", "نور"), userId);
+      if (created === "unknown_family" || created.kind !== "category") throw new Error("expected a created shelf");
+
+      const renamed = await admin.update(created.id, shelf("prompt_fragment", "نورپردازی"), userId);
+
+      expect(renamed).toMatchObject({ item: { slug: created.item.slug, label: "نورپردازی" } });
+    });
+  });
+
+  it("refuses to delete a shelf with items on it, and allows it once they leave", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = new PostgresAdminContentRepository(tx);
+      const family = await aFamily(tx);
+      const created = await admin.create(shelf("preset", "شب"), userId);
+      if (created === "unknown_family" || created.kind !== "category") throw new Error("expected a created shelf");
+      const effect = await admin.create(
+        {
+          kind: "preset",
+          status: "published",
+          item: { title: "نئون", prompt: "neon, ", familyId: family, openEnded: true, kind: "video", category: created.item.slug },
+        },
+        userId,
+      );
+      if (effect === "unknown_family") throw new Error("expected a created effect");
+
+      expect(await admin.archive(created.id, userId)).toEqual({ inUse: 1 });
+
+      await admin.archive(effect.id, userId);
+      expect(await admin.archive(created.id, userId)).toMatchObject({ kind: "category" });
+    });
+  });
+
+  it("will not let one list hold two shelves with the same slug", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = new PostgresAdminContentRepository(tx);
+      const created = await admin.create(shelf("preset", "شب"), userId);
+      if (created === "unknown_family" || created.kind !== "category") throw new Error("expected a created shelf");
+
+      // The index, not the application: two admins adding a shelf at the same
+      // moment race past any check this code could make.
+      const error = await expectDbError(
+        tx,
+        () => tx`
+          insert into content_items (kind, code, status, sort_order, title, body, category)
+          values ('category', 'cat-dupe', 'published', 99, 'شب دیگر', ${created.item.slug}, 'preset')
+        `,
+      );
+
+      expect(error.message).toMatch(/content_items_category_slug_idx/);
+    });
+  });
+});

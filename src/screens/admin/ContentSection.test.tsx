@@ -26,6 +26,13 @@ const effect: ContentEntry = {
   },
 };
 
+const shelf: ContentEntry = {
+  id: "0192f7a0-0000-7000-8000-00000000000b",
+  kind: "category",
+  status: "published",
+  item: { id: "cat-preset-camera", scope: "preset", slug: "camera", label: "دوربین" },
+};
+
 function renderSection(canWrite = true) {
   const api = {
     listFamilies: vi.fn(async () => [
@@ -33,7 +40,7 @@ function renderSection(canWrite = true) {
       { id: "nano-banana", name: "Nano Banana", kind: "image" as const },
       { id: "suno", name: "Suno", kind: "audio" as const },
     ]),
-    listContent: vi.fn(async (kind: string) => (kind === "preset" ? [effect] : [])),
+    listContent: vi.fn(async (kind: string) => (kind === "preset" ? [effect] : kind === "category" ? [shelf] : [])),
     createContent: vi.fn(async () => effect),
     updateContent: vi.fn(async () => effect),
     deleteContent: vi.fn(async () => undefined),
@@ -186,5 +193,62 @@ describe("the content section", () => {
     await userEvent.upload(screen.getByLabelText("تصویر کاور"), new File([new Uint8Array(10)], "cover.png", { type: "image/png" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("سرور");
+  });
+});
+
+/* The five shelves were compiled in until 0034; they are rows now, and the
+   panel is where they are added, renamed and removed. */
+describe("the shelves", () => {
+  it("labels an effect's shelf from the rows, not from a table in the bundle", async () => {
+    renderSection();
+
+    await userEvent.click(await screen.findByRole("button", { name: "ویرایش نور نئون" }));
+
+    expect(await screen.findByRole("option", { name: "دوربین" })).toBeInTheDocument();
+  });
+
+  it("adds one", async () => {
+    const api = renderSection();
+    await userEvent.click(await screen.findByRole("tab", { name: "دسته‌بندی‌ها" }));
+    await userEvent.click(await screen.findByRole("button", { name: /دسته‌ی تازه/ }));
+
+    await userEvent.type(screen.getByLabelText("نام دسته"), "تایپوگرافی");
+    await userEvent.click(screen.getByRole("button", { name: "ذخیره" }));
+
+    await waitFor(() =>
+      expect(api.createContent).toHaveBeenCalledWith({
+        kind: "category",
+        status: "published",
+        item: { scope: "preset", label: "تایپوگرافی" },
+      }),
+    );
+  });
+
+  it("renames one without sending the slug its items point at", async () => {
+    const api = renderSection();
+    await userEvent.click(await screen.findByRole("tab", { name: "دسته‌بندی‌ها" }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "ویرایش دوربین" }));
+    const label = screen.getByLabelText("نام دسته");
+    await userEvent.clear(label);
+    await userEvent.type(label, "حرکت دوربین");
+    await userEvent.click(screen.getByRole("button", { name: "ذخیره" }));
+
+    await waitFor(() => expect(api.updateContent).toHaveBeenCalled());
+    const [, write] = api.updateContent.mock.calls[0] as unknown as [string, { item: Record<string, unknown> }];
+    expect(write.item).toEqual({ scope: "preset", label: "حرکت دوربین" });
+  });
+
+  it("says how many items are in the way when one cannot be deleted", async () => {
+    const api = renderSection();
+    api.deleteContent.mockRejectedValueOnce(
+      new ApiError({ code: "category_in_use", message: "in use", status: 409, details: { inUse: 7 } } as never),
+    );
+    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+    await userEvent.click(await screen.findByRole("tab", { name: "دسته‌بندی‌ها" }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "حذف دوربین" }));
+
+    expect(await screen.findByText(/۷|7/)).toBeInTheDocument();
   });
 });
