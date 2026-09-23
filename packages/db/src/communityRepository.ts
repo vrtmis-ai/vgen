@@ -251,7 +251,16 @@ export class PostgresCommunitySubmissions {
  * it, and that is exactly what the feed must not hand out.
  */
 export class PostgresCommunityModeration {
-  constructor(private readonly sql: Sql) {}
+  /**
+   * `signCover` turns a stored key into a link the moderator's browser can
+   * open. Passed in rather than imported: the object store belongs to the API
+   * process, and a URL signed in a repository would be stale by the time it
+   * reached a screen. Absent in tests, and the queue then carries no preview.
+   */
+  constructor(
+    private readonly sql: Sql,
+    private readonly signCover?: (key: string) => Promise<string>,
+  ) {}
 
   async listPending(limit = 100): Promise<PendingPosts> {
     const rows = await this.sql<
@@ -264,6 +273,8 @@ export class PostgresCommunityModeration {
         prompt: string | null;
         prompt_visible: boolean;
         submitted_at: Date | null;
+        cover_key: string | null;
+        cover_kind: string | null;
       }[]
     >`
       select
@@ -272,27 +283,39 @@ export class PostgresCommunityModeration {
         post.kind, post.family_code, post.caption,
         job.params ->> 'prompt' as prompt,
         post.prompt_visible,
-        post.submitted_at
+        post.submitted_at,
+        -- What the moderator is actually deciding about. The key, not a URL:
+        -- signing is the API's job, and a URL in a repository would expire
+        -- somewhere between here and the screen.
+        cover.storage_key as cover_key,
+        cover.kind as cover_kind
       from posts post
       join users author on author.id = post.author_user_id
       left join jobs job on job.id = post.job_id
+      left join assets cover on cover.id = post.cover_asset_id and cover.deleted_at is null
       where post.status = 'pending' and post.deleted_at is null
       order by post.submitted_at asc nulls last, post.id asc
       limit ${limit}
     `;
 
-    return PendingPostsSchema.parse({
-      posts: rows.map((row) => ({
-        id: row.id,
-        author: row.author ?? "—",
-        kind: row.kind === "video" || row.kind === "reel" ? row.kind : "image",
-        familyId: row.family_code ?? "unknown",
-        caption: row.caption ?? "",
-        prompt: row.prompt ?? "",
-        promptVisible: row.prompt_visible,
-        submittedAt: row.submitted_at?.getTime() ?? 0,
-      })),
-    });
+    const posts = await Promise.all(
+      rows.map(async (row) => {
+        const previewKind = row.cover_kind === "image" || row.cover_kind === "video" ? row.cover_kind : null;
+        return {
+          id: row.id,
+          author: row.author ?? "—",
+          kind: row.kind === "video" || row.kind === "reel" ? row.kind : "image",
+          familyId: row.family_code ?? "unknown",
+          caption: row.caption ?? "",
+          prompt: row.prompt ?? "",
+          promptVisible: row.prompt_visible,
+          submittedAt: row.submitted_at?.getTime() ?? 0,
+          ...(row.cover_key && previewKind && this.signCover ? { previewUrl: await this.signCover(row.cover_key), previewKind } : {}),
+        };
+      }),
+    );
+
+    return PendingPostsSchema.parse({ posts });
   }
 
   /**

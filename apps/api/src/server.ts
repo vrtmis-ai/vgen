@@ -267,7 +267,9 @@ const app = createApp(
         // and a snapshot taken at boot would go stale on the first reload.
         catalog: { routes: modelRoutesRepository, secrets: process.env },
         analytics: { analytics: analyticsRepository, bans: bansRepository },
-        community: { moderation: new PostgresCommunityModeration(sql) },
+        // Half an hour: long enough for a sitting at the queue, short enough
+        // that a link pasted elsewhere stops working.
+        community: { moderation: new PostgresCommunityModeration(sql, (key) => objectStore.signedUrl(key, 1800)) },
         content: { content: new PostgresAdminContentRepository(sql), media: contentMedia },
         staff: {
           staff: adminRepository,

@@ -49,6 +49,13 @@ let sessionState: Awaited<ReturnType<AdminApi["getSession"]>> | null;
 
 function stubApi(): AdminApi {
   return {
+    getSiteBanner: vi.fn(async () => true),
+    setSiteBanner: vi.fn(async () => true),
+    listPendingPosts: vi.fn(async () => []),
+    decidePost: vi.fn(async () => undefined),
+    listReportedPosts: vi.fn(async () => []),
+    resolveReports: vi.fn(async () => 0),
+    takeDownPost: vi.fn(async () => undefined),
     listFamilies: vi.fn(async () => []),
     listContent: vi.fn(async () => []),
     createContent: vi.fn(),

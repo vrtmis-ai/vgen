@@ -314,6 +314,40 @@ export type AdminSessionRow = z.infer<typeof AdminSessionRowSchema>;
 const InvitesResponseSchema = z.object({ invites: z.array(InviteSchema) });
 const PromosResponseSchema = z.object({ promos: z.array(PromoSchema) });
 const EarlyAccessSchema = z.object({ enabled: z.boolean() });
+const SiteBannerSchema = z.object({ enabled: z.boolean() });
+
+/**
+ * A share waiting for a decision.
+ *
+ * `previewUrl` is the file itself, signed for half an hour — a moderator
+ * approving a picture they cannot see is not moderating. It is absent on a
+ * post with no stored asset behind it, and the queue says so instead.
+ */
+const PendingPostSchema = z.object({
+  id: z.string(),
+  author: z.string(),
+  kind: z.enum(["image", "video", "reel"]),
+  familyId: z.string(),
+  caption: z.string(),
+  prompt: z.string(),
+  promptVisible: z.boolean(),
+  submittedAt: z.number(),
+  previewUrl: z.string().optional(),
+  previewKind: z.enum(["image", "video"]).optional(),
+});
+const PendingPostsResponseSchema = z.object({ posts: z.array(PendingPostSchema) });
+
+/** What people have complained about, busiest first. A read over the reports, not a second status on the post. */
+const ReportedPostSchema = z.object({
+  postId: z.string(),
+  caption: z.string(),
+  prompt: z.string(),
+  author: z.string(),
+  reports: z.number(),
+  categories: z.array(z.string()),
+  firstReportedAt: z.number(),
+});
+const ReportedPostsResponseSchema = z.object({ reported: z.array(ReportedPostSchema) });
 const OutcomeSchema = z.object({ outcome: z.enum(["deleted", "revoked"]) }).loose();
 const InviteResponseSchema = z.object({ invite: InviteSchema });
 
@@ -409,6 +443,8 @@ const AdminFamiliesSchema = z.object({
   families: z.array(z.object({ id: z.string(), name: z.string(), kind: z.enum(["image", "video", "audio"]) })),
 });
 export type AdminFamily = z.infer<typeof AdminFamiliesSchema>["families"][number];
+export type AdminPendingPost = z.infer<typeof PendingPostSchema>;
+export type AdminReportedPost = z.infer<typeof ReportedPostSchema>;
 
 export interface AdminApi {
   getSession(): Promise<AdminSessionState>;
@@ -439,6 +475,16 @@ export interface AdminApi {
 
   getEarlyAccess(): Promise<boolean>;
   setEarlyAccess(enabled: boolean): Promise<boolean>;
+
+  getSiteBanner(): Promise<boolean>;
+  setSiteBanner(enabled: boolean): Promise<boolean>;
+
+  listPendingPosts(): Promise<AdminPendingPost[]>;
+  decidePost(id: string, decision: "approve" | "reject", reason?: string): Promise<void>;
+  listReportedPosts(): Promise<AdminReportedPost[]>;
+  /** How many open reports were marked looked at. */
+  resolveReports(id: string): Promise<number>;
+  takeDownPost(id: string, reason: string): Promise<void>;
 
   getOverview(window: AnalyticsWindow): Promise<AdminOverview>;
   listModelMargin(window: AnalyticsWindow): Promise<AdminModelMargin[]>;
@@ -600,6 +646,30 @@ export function createAdminApi(client: HttpClient, uploads: HttpClient = client)
     },
     revokeStaffPlan: async (userId) =>
       (await client.request(`/admin/staff/${userId}/plan`, { method: "DELETE", schema: StaffPlanRevokedSchema })).coinsWithdrawn,
+
+    getSiteBanner: async () => (await client.request("/admin/site-banner", { schema: SiteBannerSchema })).enabled,
+    setSiteBanner: async (enabled) =>
+      (await client.request("/admin/site-banner", { method: "PATCH", body: { enabled }, schema: SiteBannerSchema })).enabled,
+
+    listPendingPosts: async () => (await client.request("/admin/community/pending", { schema: PendingPostsResponseSchema })).posts,
+    decidePost: async (id, decision, reason) => {
+      await client.request(`/admin/community/pending/${id}`, {
+        method: "POST",
+        body: { decision, ...(reason ? { reason } : {}) },
+        schema: z.object({ id: z.string(), status: z.string() }),
+      });
+    },
+    listReportedPosts: async () => (await client.request("/admin/community/reports", { schema: ReportedPostsResponseSchema })).reported,
+    resolveReports: async (id) =>
+      (await client.request(`/admin/community/reports/${id}/resolve`, { method: "POST", schema: z.object({ resolved: z.number() }) }))
+        .resolved,
+    takeDownPost: async (id, reason) => {
+      await client.request(`/admin/community/posts/${id}`, {
+        method: "DELETE",
+        body: { reason },
+        schema: z.object({ id: z.string(), visible: z.boolean() }),
+      });
+    },
 
     getEarlyAccess: async () => (await client.request("/admin/early-access", { schema: EarlyAccessSchema })).enabled,
     setEarlyAccess: async (enabled) =>

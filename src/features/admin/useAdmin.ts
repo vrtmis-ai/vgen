@@ -39,6 +39,7 @@ export const adminKeys = {
   invites: ["admin", "invites"] as const,
   promos: ["admin", "promos"] as const,
   earlyAccess: ["admin", "early-access"] as const,
+  siteBanner: ["admin", "site-banner"] as const,
   overview: (window: AnalyticsWindow) => ["admin", "analytics", "overview", window] as const,
   modelMargin: (window: AnalyticsWindow) => ["admin", "analytics", "models", window] as const,
   providerHealth: (window: AnalyticsWindow) => ["admin", "analytics", "providers", window] as const,
@@ -305,6 +306,18 @@ export function useStaffMutations(api: AdminApi) {
       onSuccess: refresh,
     }),
     revokePlan: useMutation({ mutationFn: (userId: string) => api.revokeStaffPlan(userId), onSuccess: refresh }),
+  };
+}
+
+/** The announcement strip, which had routes and no control at all until now. */
+export function useSiteBanner(api: AdminApi, enabled: boolean) {
+  const queryClient = useQueryClient();
+  return {
+    query: useQuery({ queryKey: adminKeys.siteBanner, enabled, queryFn: () => api.getSiteBanner(), retry: false }),
+    set: useMutation({
+      mutationFn: (value: boolean) => api.setSiteBanner(value),
+      onSuccess: (value) => queryClient.setQueryData(adminKeys.siteBanner, value),
+    }),
   };
 }
 
