@@ -565,6 +565,10 @@ export interface AdminApi {
   updateContent(id: string, write: ContentWrite): Promise<ContentEntry>;
   /** Archives it: gone from the site and this panel. */
   deleteContent(id: string): Promise<void>;
+  /** One place up or down the order the site draws. At either end it is a no-op. */
+  moveContent(id: string, direction: "up" | "down"): Promise<"moved" | "at_the_end" | "not_found">;
+  /** Publish or unpublish several at once; answers how many changed. */
+  setContentStatus(ids: string[], status: "draft" | "published"): Promise<number>;
   uploadContentMedia(file: File, purpose: ContentMediaPurpose): Promise<ContentMedia>;
 }
 
@@ -734,6 +738,17 @@ export function createAdminApi(client: HttpClient, uploads: HttpClient = client)
       (await client.request("/admin/content", { method: "POST", body: write, schema: z.object({ entry: ContentEntrySchema }) })).entry,
     updateContent: async (id, write) =>
       (await client.request(`/admin/content/${id}`, { method: "PUT", body: write, schema: z.object({ entry: ContentEntrySchema }) })).entry,
+    moveContent: async (id, direction) =>
+      (
+        await client.request(`/admin/content/${id}/move`, {
+          method: "POST",
+          body: { direction },
+          schema: z.object({ id: z.string(), outcome: z.enum(["moved", "at_the_end", "not_found"]) }),
+        })
+      ).outcome,
+    setContentStatus: async (ids, status) =>
+      (await client.request("/admin/content/bulk", { method: "POST", body: { ids, status }, schema: z.object({ changed: z.number() }) }))
+        .changed,
     deleteContent: async (id) => {
       await client.request(`/admin/content/${id}`, { method: "DELETE", schema: Empty });
     },

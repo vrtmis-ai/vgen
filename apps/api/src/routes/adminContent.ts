@@ -19,6 +19,8 @@ export interface AdminContentDependencies {
     create(write: ContentWrite, userId: string): Promise<ContentEntry | "unknown_family">;
     update(id: string, write: ContentWrite, userId: string): Promise<ContentEntry | "not_found" | "unknown_family">;
     archive(id: string, userId: string): Promise<{ kind: string; code: string } | { inUse: number } | null>;
+    move(id: string, direction: "up" | "down", userId: string): Promise<"moved" | "at_the_end" | "not_found">;
+    setStatus(ids: string[], status: "draft" | "published", userId: string): Promise<number>;
   };
   media: { store(bytes: Uint8Array, purpose: ContentMediaPurpose): Promise<ContentMedia> };
 }
@@ -109,6 +111,53 @@ export function registerAdminContentRoutes(app: FastifyInstance, dependencies: A
       after: { code: archived.code, status: "archived" },
     });
     return reply.send({ id: id.data, status: "archived" });
+  });
+
+  /**
+   * One place up or down the order the site draws.
+   *
+   * New rows land first and there was no way to change that afterwards, so the
+   * effects wall was in the order somebody happened to add things.
+   */
+  app.post("/api/v1/admin/content/:id/move", { bodyLimit: 1024 }, async (request, reply) => {
+    const session = await guard.require(request, reply, "content.write");
+    if (!session) return;
+    const id = z.uuid().safeParse((request.params as { id: string }).id);
+    if (!id.success) return reply.code(404).send(NOT_FOUND);
+    const { direction } = z
+      .object({ direction: z.enum(["up", "down"]) })
+      .strict()
+      .parse(request.body);
+
+    const outcome = await content.move(id.data, direction, session.userId);
+    if (outcome === "not_found") return reply.code(404).send(NOT_FOUND);
+    // Already at the end is not an error: the button is simply a no-op there,
+    // and answering 4xx would make the panel show a failure for a press that
+    // did exactly what it should.
+    if (outcome === "moved") {
+      await guard.audit(request, session, { action: "content.moved", targetType: "content_item", targetId: id.data, after: { direction } });
+    }
+    return reply.send({ id: id.data, outcome });
+  });
+
+  /** Publish or unpublish several at once — the one-by-one version of this is a lot of clicks. */
+  app.post("/api/v1/admin/content/bulk", { bodyLimit: 16 * 1024 }, async (request, reply) => {
+    const session = await guard.require(request, reply, "content.write");
+    if (!session) return;
+    const body = z
+      .object({ ids: z.array(z.uuid()).min(1).max(200), status: z.enum(["draft", "published"]) })
+      .strict()
+      .parse(request.body);
+
+    const changed = await content.setStatus(body.ids, body.status, session.userId);
+    if (changed > 0) {
+      await guard.audit(request, session, {
+        action: body.status === "published" ? "content.published" : "content.unpublished",
+        targetType: "content_item",
+        after: { count: changed, ids: body.ids.slice(0, 20) },
+      });
+    }
+    return reply.send({ changed });
   });
 
   /**

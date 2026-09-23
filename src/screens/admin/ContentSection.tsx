@@ -65,6 +65,9 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
   // seed, but the editor needs it to show the placeholder the site draws.
   const [editing, setEditing] = useState<{ id: string | null; write: ContentWrite; seed?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Which rows the bulk buttons act on. Cleared when the tab changes, because
+  // the ids under it change with it.
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
 
   const entries = useQuery({ queryKey: ["admin", "content", kind], queryFn: () => api.listContent(kind), retry: false });
   // Audio families cannot run an effect or anchor a course.
@@ -94,6 +97,17 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
     onError: (failure) => setError(saveError(failure)),
   });
   const remove = useMutation({ mutationFn: (id: string) => api.deleteContent(id), onSuccess: refresh });
+  const move = useMutation({
+    mutationFn: ({ id, direction }: { id: string; direction: "up" | "down" }) => api.moveContent(id, direction),
+    onSuccess: refresh,
+  });
+  const publish = useMutation({
+    mutationFn: ({ ids, status }: { ids: string[]; status: "draft" | "published" }) => api.setContentStatus(ids, status),
+    onSuccess: async () => {
+      setPicked(new Set());
+      await refresh();
+    },
+  });
 
   if (editing) {
     const frame = {
@@ -134,6 +148,7 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
             onClick={() => {
               setKind(candidate.kind);
               setSearch("");
+              setPicked(new Set());
             }}
             className="h-8 rounded-lg px-3 text-[12.5px] font-semibold"
             style={{
@@ -157,6 +172,27 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
           className={`${inputClass} h-9 max-w-[320px]`}
           style={inputStyle}
         />
+        {canWrite && picked.size > 0 ? (
+          <span className="flex items-center gap-2 text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
+            {picked.size} انتخاب‌شده
+            <button
+              onClick={() => publish.mutate({ ids: [...picked], status: "published" })}
+              disabled={publish.isPending}
+              className="h-9 rounded-lg px-3 text-[12px]"
+              style={inputStyle}
+            >
+              انتشار
+            </button>
+            <button
+              onClick={() => publish.mutate({ ids: [...picked], status: "draft" })}
+              disabled={publish.isPending}
+              className="h-9 rounded-lg px-3 text-[12px]"
+              style={inputStyle}
+            >
+              پیش‌نویس
+            </button>
+          </span>
+        ) : null}
         {canWrite ? (
           <button
             onClick={() => {
@@ -175,6 +211,7 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
       {entries.error ? <Muted>فهرست خوانده نشد.</Muted> : null}
       {entries.data && shown.length === 0 ? <Muted>{needle ? "چیزی پیدا نشد." : "هنوز چیزی اینجا نیست."}</Muted> : null}
       {remove.error ? <Muted>{removeError(remove.error)}</Muted> : null}
+      {move.error || publish.error ? <Muted>انجام نشد؛ دوباره تلاش کن.</Muted> : null}
 
       <div className="mt-3 flex flex-col gap-2">
         {shown.map((entry) => (
@@ -183,6 +220,21 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
             className="flex items-center gap-3 rounded-xl p-2"
             style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}
           >
+            {canWrite ? (
+              <input
+                type="checkbox"
+                checked={picked.has(entry.id)}
+                aria-label={`انتخاب ${titleOf(entry)}`}
+                onChange={(event) =>
+                  setPicked((previous) => {
+                    const next = new Set(previous);
+                    if (event.target.checked) next.add(entry.id);
+                    else next.delete(entry.id);
+                    return next;
+                  })
+                }
+              />
+            ) : null}
             <Thumb entry={entry} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-[13px] font-bold" style={{ color: "var(--vg-text)" }}>
@@ -209,6 +261,26 @@ export function ContentSection({ api, canWrite }: { api: AdminApi; canWrite: boo
             </span>
             {canWrite ? (
               <>
+                {/* The order the site draws. A swap with the neighbour, so two
+                    admins nudging different rows do not undo each other. */}
+                <button
+                  onClick={() => move.mutate({ id: entry.id, direction: "up" })}
+                  disabled={move.isPending}
+                  aria-label={`بالا بردن ${titleOf(entry)}`}
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-[13px]"
+                  style={inputStyle}
+                >
+                  ↑
+                </button>
+                <button
+                  onClick={() => move.mutate({ id: entry.id, direction: "down" })}
+                  disabled={move.isPending}
+                  aria-label={`پایین بردن ${titleOf(entry)}`}
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-[13px]"
+                  style={inputStyle}
+                >
+                  ↓
+                </button>
                 <button
                   onClick={() => {
                     setError(null);

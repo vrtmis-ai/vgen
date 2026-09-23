@@ -51,6 +51,8 @@ function appFor(permissions: string[] = ["*"]) {
       kind: "preset",
       code: "fx-1234abcd",
     })),
+    move: vi.fn(async (): Promise<"moved" | "at_the_end" | "not_found"> => "moved"),
+    setStatus: vi.fn(async () => 3),
   };
   const put = vi.fn(async (key: string, body: Uint8Array, mimeType: string) => ({
     bucket: "vgen",
@@ -287,5 +289,57 @@ describe("the audit trail", () => {
         after: expect.objectContaining({ url: expect.stringMatching(/^\/api\/v1\/content\/media\//) }),
       }),
     );
+  });
+});
+
+/* New rows land first and nothing could change that afterwards, so the effects
+   wall was in the order somebody happened to add things. */
+describe("ordering and publishing in bulk", () => {
+  it("moves a row one place and records which way", async () => {
+    const { app, content, audit } = appFor();
+
+    const response = await app.inject({ method: "POST", url: `/api/v1/admin/content/${ID}/move`, payload: { direction: "up" } });
+
+    expect(response.json()).toEqual({ id: ID, outcome: "moved" });
+    expect(content.move).toHaveBeenCalledWith(ID, "up", "admin-1");
+    expect(audit).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ action: "content.moved" }));
+  });
+
+  it("treats the end of the list as a no-op rather than a failure", async () => {
+    const { app, content, audit } = appFor();
+    content.move.mockResolvedValueOnce("at_the_end");
+
+    const response = await app.inject({ method: "POST", url: `/api/v1/admin/content/${ID}/move`, payload: { direction: "down" } });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ outcome: "at_the_end" });
+    // Nothing moved, so nothing to record.
+    expect(audit).not.toHaveBeenCalled();
+  });
+
+  it("publishes several at once and says how many changed", async () => {
+    const { app, content } = appFor();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/content/bulk",
+      payload: { ids: [ID, "0192f7a0-0000-7000-8000-00000000000b"], status: "draft" },
+    });
+
+    expect(response.json()).toEqual({ changed: 3 });
+    expect(content.setStatus).toHaveBeenCalledWith([ID, "0192f7a0-0000-7000-8000-00000000000b"], "draft", "admin-1");
+  });
+
+  it("refuses a bulk change with no ids, and one from a reader", async () => {
+    const { app } = appFor();
+    expect(
+      (await app.inject({ method: "POST", url: "/api/v1/admin/content/bulk", payload: { ids: [], status: "draft" } })).statusCode,
+    ).toBe(400);
+
+    const { app: reader, content } = appFor(["content.read"]);
+    const refused = await reader.inject({ method: "POST", url: `/api/v1/admin/content/${ID}/move`, payload: { direction: "up" } });
+
+    expect(refused.statusCode).toBe(403);
+    expect(content.move).not.toHaveBeenCalled();
   });
 });

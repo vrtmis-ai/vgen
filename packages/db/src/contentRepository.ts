@@ -252,6 +252,55 @@ export class PostgresAdminContentRepository {
   }
 
   /**
+   * One place up or down the list the site draws.
+   *
+   * A swap with the neighbour rather than a rewritten order: two admins
+   * nudging different rows at the same time then change different pairs, where
+   * renumbering the whole list would make the second write undo the first.
+   * The neighbour is the next row of the same kind — and, for a shelf, of the
+   * same list, since the two scopes share a kind and their orders interleave.
+   * At either end there is no neighbour and nothing happens.
+   */
+  async move(id: string, direction: "up" | "down", userId: string): Promise<"moved" | "at_the_end" | "not_found"> {
+    return atomically(this.sql)(async (tx) => {
+      const [row] = await tx<{ kind: string; sort_order: number; category: string | null }[]>`
+        select kind, sort_order, category from content_items
+        where id = ${id} and status <> 'archived' and kind in ('preset', 'course', 'prompt_fragment', 'category')
+        for update
+      `;
+      if (!row) return "not_found";
+
+      const sameList = row.kind === "category" ? tx`and category = ${row.category}` : tx``;
+      const [neighbour] = await tx<{ id: string; sort_order: number }[]>`
+        select id, sort_order from content_items
+        where kind = ${row.kind} and status <> 'archived' ${sameList}
+          and ${direction === "up" ? tx`sort_order < ${row.sort_order}` : tx`sort_order > ${row.sort_order}`}
+        order by ${direction === "up" ? tx`sort_order desc` : tx`sort_order asc`}
+        limit 1
+        for update
+      `;
+      if (!neighbour) return "at_the_end";
+
+      await tx`update content_items set sort_order = ${neighbour.sort_order}, updated_by = ${userId} where id = ${id}`;
+      await tx`update content_items set sort_order = ${row.sort_order}, updated_by = ${userId} where id = ${neighbour.id}`;
+      return "moved";
+    });
+  }
+
+  /** Publish or unpublish several rows at once. Returns how many actually changed. */
+  async setStatus(ids: string[], status: "draft" | "published", userId: string): Promise<number> {
+    if (ids.length === 0) return 0;
+    const changed = await this.sql<{ id: string }[]>`
+      update content_items set status = ${status}, updated_by = ${userId}
+      where id = any(${this.sql.array(ids)}::uuid[])
+        and status <> 'archived' and status <> ${status}
+        and kind in ('preset', 'course', 'prompt_fragment', 'category')
+      returning id
+    `;
+    return changed.length;
+  }
+
+  /**
    * Gone from the panel and the site. A shelf still holding items is refused
    * instead: archiving it would leave those items filed under a name nothing
    * can print, and silently moving them somewhere else is not this function's

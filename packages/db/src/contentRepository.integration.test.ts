@@ -521,3 +521,43 @@ describe("the shelves effects and the prompt bank are filed under", () => {
     });
   });
 });
+
+/* New rows land first and nothing could change that afterwards. A swap with
+   the neighbour, not a renumbered list: two admins nudging different rows then
+   touch different pairs. */
+describe("the order the site draws", () => {
+  it("swaps with the neighbour, and does nothing at the end", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = new PostgresAdminContentRepository(tx);
+      const first = await admin.create({ kind: "category", status: "published", item: { scope: "preset", label: "الف" } }, userId);
+      const second = await admin.create({ kind: "category", status: "published", item: { scope: "preset", label: "ب" } }, userId);
+      if (first === "unknown_family" || second === "unknown_family") throw new Error("expected two shelves");
+
+      // Both were appended, so `second` is last. Moving it up puts it before `first`.
+      expect(await admin.move(second.id, "up", userId)).toBe("moved");
+
+      const shelves = await admin.list("category");
+      const order = shelves.map((entry) => entry.item.id);
+      expect(order.indexOf(second.item.id)).toBeLessThan(order.indexOf(first.item.id));
+
+      // The top of the list has no neighbour above it — the seeded shelves are
+      // in this list too, so that is the first of those, not one of the pair.
+      expect(await admin.move(shelves[0]!.id, "up", userId)).toBe("at_the_end");
+    });
+  });
+
+  it("publishes and unpublishes several at once, counting only what changed", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = new PostgresAdminContentRepository(tx);
+      const draft = await admin.create({ kind: "category", status: "draft", item: { scope: "preset", label: "پیش‌نویس" } }, userId);
+      const live = await admin.create({ kind: "category", status: "published", item: { scope: "preset", label: "زنده" } }, userId);
+      if (draft === "unknown_family" || live === "unknown_family") throw new Error("expected two shelves");
+
+      // Only the draft moves; the published one is already where it is asked to be.
+      expect(await admin.setStatus([draft.id, live.id], "published", userId)).toBe(1);
+      expect(await admin.setStatus([draft.id, live.id], "draft", userId)).toBe(2);
+    });
+  });
+});
