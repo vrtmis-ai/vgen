@@ -219,9 +219,27 @@ export default function EarlyAccess() {
         {listed ? (
           /* The form is gone rather than emptied: there is nothing left to do
              here, and a field still sitting there invites a second go. */
-          <p className="mt-8 max-w-[420px] text-[13px] leading-[1.9]" style={{ color: "var(--vg-text-secondary)" }}>
-            {t("ea_queue_done_note")}
-          </p>
+          <div className="mt-8 flex max-w-[420px] flex-col items-center gap-5">
+            <p className="text-[13px] leading-[1.9]" style={{ color: "var(--vg-text-secondary)" }}>
+              {t("ea_queue_done_note")}
+            </p>
+            {/* Not a dead end. The code arrives by email, and somebody reading
+                this on the tab they left open needs a way to the field without
+                reloading the page to find it. */}
+            <button
+              type="button"
+              onClick={() => {
+                setListed(false);
+                setQueueing(false);
+                setCode("");
+                setFailure(null);
+              }}
+              className="vg-ease h-12 rounded-full px-5 text-[15px] hover:bg-white/5"
+              style={{ color: "var(--vg-text-secondary)", boxShadow: "inset 0 0 0 1px var(--vg-border)" }}
+            >
+              {t("ea_have_code")}
+            </button>
+          </div>
         ) : (
           <form
             className="vg-arrive mt-8 w-full max-w-[420px]"
