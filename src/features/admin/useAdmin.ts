@@ -48,7 +48,8 @@ export const adminKeys = {
   adminSessions: ["admin", "sessions"] as const,
   staff: ["admin", "staff"] as const,
   staffRoles: ["admin", "staff", "roles"] as const,
-  staffPlan: (userId: string) => ["admin", "staff", userId, "plan"] as const,
+  userPlan: (userId: string) => ["admin", "users", userId, "plan"] as const,
+  plans: ["admin", "plans"] as const,
 };
 
 export type AdminAvailability = { available: true; api: AdminApi } | { available: false; reason: string };
@@ -286,21 +287,48 @@ export function useStaffRoles(api: AdminApi, enabled: boolean) {
   return useQuery({ queryKey: adminKeys.staffRoles, enabled, queryFn: () => api.listStaffRoles(), retry: false });
 }
 
-export function useStaffPlan(api: AdminApi, userId: string | null) {
+export function useUserPlan(api: AdminApi, userId: string | null) {
   return useQuery({
-    queryKey: adminKeys.staffPlan(userId ?? ""),
+    queryKey: adminKeys.userPlan(userId ?? ""),
     enabled: userId !== null,
-    queryFn: () => api.getStaffPlan(userId!),
+    queryFn: () => api.getUserPlan(userId!),
     retry: false,
   });
+}
+
+/** The ladder a grant picker offers. It changes when somebody reprices it, not on a timer. */
+export function usePlanLadder(api: AdminApi, enabled: boolean) {
+  return useQuery({ queryKey: adminKeys.plans, enabled, queryFn: () => api.listPlans(), staleTime: 10 * 60_000, retry: false });
+}
+
+/**
+ * Granting and revoking one account's plan.
+ *
+ * Invalidates the grant, the customer drawer, the customer list and the staff
+ * table, because a grant moves a balance all four of them show and the same
+ * control now appears on two screens. One over-wide invalidation beats four
+ * precise ones that can each be the one somebody forgets.
+ */
+export function usePlanGrant(api: AdminApi, userId: string) {
+  const queryClient = useQueryClient();
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: adminKeys.userPlan(userId) });
+    await queryClient.invalidateQueries({ queryKey: adminKeys.user(userId) });
+    await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    await queryClient.invalidateQueries({ queryKey: adminKeys.staff });
+  };
+  return {
+    grant: useMutation({ mutationFn: (planCode: string) => api.grantUserPlan(userId, planCode), onSuccess: refresh }),
+    revoke: useMutation({ mutationFn: () => api.revokeUserPlan(userId), onSuccess: refresh }),
+  };
 }
 
 export function useStaffMutations(api: AdminApi) {
   const queryClient = useQueryClient();
   // The list carries the resolved permission set, so every one of these
-  // changes it — including the plan ones, which do not, but which sit in the
-  // same table and would otherwise leave a stale row on screen beside a fresh
-  // one. One invalidation is cheaper than four correct ones.
+  // changes it. Plans used to live here too and now live in `usePlanGrant`,
+  // which invalidates this table as well — the control is on two screens and
+  // only one of them is this one.
   const refresh = () => queryClient.invalidateQueries({ queryKey: adminKeys.staff });
   return {
     appoint: useMutation({
@@ -312,11 +340,6 @@ export function useStaffMutations(api: AdminApi) {
       onSuccess: refresh,
     }),
     revoke: useMutation({ mutationFn: (userId: string) => api.revokeStaff(userId), onSuccess: refresh }),
-    grantPlan: useMutation({
-      mutationFn: (input: { userId: string; planCode: string }) => api.grantStaffPlan(input.userId, input.planCode),
-      onSuccess: refresh,
-    }),
-    revokePlan: useMutation({ mutationFn: (userId: string) => api.revokeStaffPlan(userId), onSuccess: refresh }),
   };
 }
 

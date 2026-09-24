@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { AdminApi, AdminBan } from "../../features/admin/adminApi";
 import { useUser, useUserActions, useUsers } from "../../features/admin/useAdmin";
+import { GrantPlan } from "./GrantPlan";
 import { Cell, Muted, Row, Stat, Table, num, usd, when } from "./primitives";
 
 /**
@@ -25,7 +26,18 @@ const SORTS: { id: "spent" | "purchased" | "balance" | "created"; label: string 
   { id: "created", label: "تازه‌ترین" },
 ];
 
-export function UsersSection({ api, canWrite, canGrant }: { api: AdminApi; canWrite: boolean; canGrant: boolean }) {
+export function UsersSection({
+  api,
+  canWrite,
+  canGrant,
+  canGrantPlans,
+}: {
+  api: AdminApi;
+  canWrite: boolean;
+  canGrant: boolean;
+  /** `plans.grant`. Comping an account is a different act from nudging a balance. */
+  canGrantPlans: boolean;
+}) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<(typeof SORTS)[number]["id"]>("spent");
   const [page, setPage] = useState(0);
@@ -33,7 +45,18 @@ export function UsersSection({ api, canWrite, canGrant }: { api: AdminApi; canWr
 
   const users = useUsers(api, { search: search.trim() || undefined, sort, limit: PAGE, offset: page * PAGE }, true);
 
-  if (openId) return <UserDetail api={api} userId={openId} canWrite={canWrite} canGrant={canGrant} onClose={() => setOpenId(null)} />;
+  if (openId) {
+    return (
+      <UserDetail
+        api={api}
+        userId={openId}
+        canWrite={canWrite}
+        canGrant={canGrant}
+        canGrantPlans={canGrantPlans}
+        onClose={() => setOpenId(null)}
+      />
+    );
+  }
 
   const total = users.data?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE));
@@ -157,12 +180,14 @@ function UserDetail({
   userId,
   canWrite,
   canGrant,
+  canGrantPlans,
   onClose,
 }: {
   api: AdminApi;
   userId: string;
   canWrite: boolean;
   canGrant: boolean;
+  canGrantPlans: boolean;
   onClose: () => void;
 }) {
   const detail = useUser(api, userId);
@@ -235,6 +260,11 @@ function UserDetail({
 
       <div className="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-2">
         {canGrant ? <AdjustCredits actions={actions} /> : null}
+        {/* Granting a plan and adjusting a balance are neighbours because they
+            are the two ways to put coins on an account, and the difference
+            between them — a plan expires, an adjustment does not — is easiest
+            to see side by side. */}
+        {canGrantPlans ? <GrantPlan api={api} userId={userId} /> : null}
         {canWrite ? <BanControls actions={actions} hasBan={bans.length > 0} /> : null}
       </div>
 

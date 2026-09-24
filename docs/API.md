@@ -1036,12 +1036,22 @@ rich enough to be interesting is one where a typo grants more than it reads as.
 Audited as `staff.appointed`, `staff.permissions.changed` (both sides) and
 `staff.revoked`.
 
-### `GET · POST · DELETE /admin/staff/:userId/plan`
+### `GET · POST · DELETE /admin/users/:userId/plan`
 
-Turns a plan on for a member of staff. Permission `plans.grant` — its own, and
-not `staff.write`, because it spends the company's capacity rather than
-delegating authority and the people who should do one are not always the people
-who should do the other. Rule 2 above applies here too.
+Turns a plan on for **anybody — a customer or a colleague**. `POST` and `DELETE`
+need `plans.grant`; `GET` needs `users.read`, because reading a stranger's
+billing state is a customer-data question.
+
+`plans.grant` is its own permission rather than `staff.write`, because it spends
+the company's capacity rather than delegating authority and the people who
+should do one are not always the people who should do the other.
+
+These were `/admin/staff/:userId/plan` and answered **404** `not_staff` for
+anybody holding no role, so comping a paying account meant a hand-written INSERT
+over SSH. The repository underneath was never staff-specific — its header says
+the shape is general because the operation is — so only the route was narrow.
+The rank rules still apply **when the target holds a role**: a customer has
+nothing to outrank, a colleague senior to you still does. **403** `outranked`.
 
 ```jsonc
 // POST { "planCode": "pro" } → 201
@@ -1075,7 +1085,14 @@ hand out two terms' credits. Deactivating cancels the subscription and expires
 what is left of the term — leaving the credits behind would mean "deactivate"
 left the account holding the month's coins. Spent credits are not clawed back.
 
-Audited as `staff.plan.granted` / `staff.plan.revoked`.
+A user with no personal account is **404** `no_account`, and an unknown plan
+code is **404** `unknown_plan` — the panel offers a select built from
+`GET /plans` rather than a text field, so the second should not be reachable
+from it.
+
+Audited as `plan.granted` / `plan.revoked` (renamed from `staff.plan.*` with the
+route, since the ops log filters by action prefix and these are no longer about
+staff).
 
 ### `GET · POST /admin/content` · `PUT · DELETE /admin/content/:id`
 

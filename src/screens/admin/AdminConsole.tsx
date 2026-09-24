@@ -158,7 +158,12 @@ function Console({ api, session }: { api: AdminApi; session: AdminSessionState }
           <main className="min-w-0 flex-1">
             {current === "dashboard" ? <DashboardSection api={api} /> : null}
             {current === "users" ? (
-              <UsersSection api={api} canWrite={permits(session, "users.write")} canGrant={permits(session, "credits.grant")} />
+              <UsersSection
+                api={api}
+                canWrite={permits(session, "users.write")}
+                canGrant={permits(session, "credits.grant")}
+                canGrantPlans={permits(session, "plans.grant")}
+              />
             ) : null}
             {current === "routing" ? <RoutingSection api={api} canWrite={permits(session, "catalog.write")} /> : null}
             {current === "providers" ? <ProvidersSection api={api} canWrite={permits(session, "catalog.write")} /> : null}

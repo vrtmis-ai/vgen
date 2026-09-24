@@ -283,9 +283,13 @@ function stubApi(): AdminApi {
     appointStaff: vi.fn(async () => null),
     setStaffPermissions: vi.fn(async () => {}),
     revokeStaff: vi.fn(async () => {}),
-    getStaffPlan: vi.fn(async () => null),
-    grantStaffPlan: vi.fn(async () => {}),
-    revokeStaffPlan: vi.fn(async () => 0),
+    getUserPlan: vi.fn(async () => null),
+    grantUserPlan: vi.fn(async () => {}),
+    revokeUserPlan: vi.fn(async () => 0),
+    listPlans: vi.fn(async () => [
+      { code: "pro", name: "Pro", coinsPerTerm: 1100, termDays: 30 },
+      { code: "starter", name: "Starter", coinsPerTerm: 300, termDays: 0 },
+    ]),
   };
 }
 
@@ -841,6 +845,61 @@ describe("the customer list", () => {
     // A disabled field is still an invitation to find out who can use it.
     expect(screen.queryByLabelText("تعداد سکه")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("دامنه‌ی مسدودی")).not.toBeInTheDocument();
+  });
+
+  /* Comping an account used to be a hand-written INSERT: the route existed and
+     refused anybody who held no staff role. */
+  it("activates a plan for a plain customer, from a list of real codes", async () => {
+    signedIn(["*"]);
+    const user = userEvent.setup();
+    renderConsole();
+    await openCustomer(user);
+
+    await user.selectOptions(await screen.findByLabelText("پلن"), "pro");
+    // Said before the press, not discovered after it.
+    expect(screen.getByText(/1,100 سکه برای 30 روز/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "فعال کن" }));
+
+    await waitFor(() => expect(api.grantUserPlan).toHaveBeenCalledWith(USER_ROW.id, "pro"));
+  });
+
+  it("says a pack does not expire, because it does not", async () => {
+    signedIn(["*"]);
+    const user = userEvent.setup();
+    renderConsole();
+    await openCustomer(user);
+
+    await user.selectOptions(await screen.findByLabelText("پلن"), "starter");
+
+    expect(screen.getByText(/بدون تاریخ انقضا/)).toBeInTheDocument();
+  });
+
+  it("offers no plan control without plans.grant, even with credits.grant", async () => {
+    // Nudging a balance and putting somebody on a plan are different acts with
+    // different permissions, and the screen has to keep them apart.
+    signedIn(["analytics.read", "users.read", "credits.grant"]);
+    const user = userEvent.setup();
+    renderConsole();
+    await openCustomer(user);
+
+    expect(await screen.findByLabelText("تعداد سکه")).toBeInTheDocument();
+    expect(screen.queryByLabelText("پلن")).not.toBeInTheDocument();
+  });
+
+  it("refuses to stack a second plan and says what is already there", async () => {
+    signedIn(["*"]);
+    api.grantUserPlan = vi.fn(async () => {
+      throw new ApiError({ code: "already_active", message: "A plan is already active.", status: 409 });
+    });
+    const user = userEvent.setup();
+    renderConsole();
+    await openCustomer(user);
+
+    await user.selectOptions(await screen.findByLabelText("پلن"), "pro");
+    await user.click(screen.getByRole("button", { name: "فعال کن" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("این حساب همین حالا روی یک پلن است. اول لغوش کن.");
   });
 
   it("will not move a balance without a reason", async () => {

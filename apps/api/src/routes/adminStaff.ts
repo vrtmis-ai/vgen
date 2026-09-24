@@ -285,10 +285,30 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
     return reply.send({ userId, revoked: true });
   });
 
-  // ------------------------------------------------------- plans for staff
+  // ------------------------------------------------- plans, for anybody
 
   /**
-   * Turn a plan on for a member of staff.
+   * Whether this actor may grant a plan to this person.
+   *
+   * A customer holds no role, so there is nothing to outrank and the answer is
+   * yes. A colleague does, and comping somebody senior to you is the same
+   * escalation as editing them — the rank rules apply unchanged. So the check
+   * is conditional on the target being staff rather than a gate on it.
+   */
+  const mayGrantTo = async (session: AdminSession, userId: string): Promise<string | null> => {
+    const target = await staff.staffMember(userId);
+    return target ? mayAct(session, target) : null;
+  };
+
+  /**
+   * Turn a plan on for anybody — a customer or a colleague.
+   *
+   * These used to be `/admin/staff/:userId/plan` and refused a customer with
+   * `not_staff`, which meant comping a paying account was a hand-written INSERT
+   * over SSH. The repository underneath was never staff-specific: its own
+   * header says the shape is general because the operation is, and a second
+   * implementation would be a second set of rules about credits that could
+   * disagree with the first. Only the route was narrow.
    *
    * Its own permission, because it is a different act from appointing
    * somebody: it spends the company's own capacity rather than delegating
@@ -299,16 +319,14 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
    * one term of the plan — a lot of credits that expires when the term does —
    * so the ceiling is the grant. See planGrantsRepository.
    */
-  app.post("/api/v1/admin/staff/:userId/plan", { bodyLimit: 4 * 1024 }, async (request, reply) => {
+  app.post("/api/v1/admin/users/:userId/plan", { bodyLimit: 4 * 1024 }, async (request, reply) => {
     const session = await guard.require(request, reply, "plans.grant");
     if (!session) return;
 
     const { userId } = request.params as { userId: string };
     const body = GrantPlanSchema.parse(request.body);
-    const target = await staff.staffMember(userId);
-    if (!target) return reply.code(404).send({ error: { code: "not_staff", message: "That person holds no role." } });
 
-    const refusal = mayAct(session, target);
+    const refusal = await mayGrantTo(session, userId);
     if (refusal) return reply.code(403).send({ error: { code: "outranked", message: refusal } });
 
     const accountId = await dependencies.accountForUser(userId);
@@ -328,8 +346,10 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
       return reply.code(404).send({ error: { code: result.outcome, message: "That plan could not be granted." } });
     }
 
+    // `plan.granted`, not `staff.plan.granted`: these are no longer about
+    // staff, and the ops log filters by action prefix.
     await guard.audit(request, session, {
-      action: "staff.plan.granted",
+      action: "plan.granted",
       targetType: "user",
       targetId: userId,
       after: { planCode: body.planCode, coins: result.grant?.coins, endsAt: result.grant?.endsAt },
@@ -337,15 +357,13 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
     return reply.code(201).send({ plan: result.grant });
   });
 
-  app.delete("/api/v1/admin/staff/:userId/plan", async (request, reply) => {
+  app.delete("/api/v1/admin/users/:userId/plan", async (request, reply) => {
     const session = await guard.require(request, reply, "plans.grant");
     if (!session) return;
 
     const { userId } = request.params as { userId: string };
-    const target = await staff.staffMember(userId);
-    if (!target) return reply.code(404).send({ error: { code: "not_staff", message: "That person holds no role." } });
 
-    const refusal = mayAct(session, target);
+    const refusal = await mayGrantTo(session, userId);
     if (refusal) return reply.code(403).send({ error: { code: "outranked", message: refusal } });
 
     const accountId = await dependencies.accountForUser(userId);
@@ -357,7 +375,7 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
     }
 
     await guard.audit(request, session, {
-      action: "staff.plan.revoked",
+      action: "plan.revoked",
       targetType: "user",
       targetId: userId,
       after: { coinsWithdrawn: result.coinsWithdrawn },
@@ -365,9 +383,15 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
     return reply.send({ userId, revoked: true, coinsWithdrawn: result.coinsWithdrawn });
   });
 
-  /** What is live on a staff account right now, for the row that shows it. */
-  app.get("/api/v1/admin/staff/:userId/plan", async (request, reply) => {
-    const session = await guard.require(request, reply, "staff.read");
+  /**
+   * What is live on an account right now, for the row that shows it.
+   *
+   * `users.read` rather than `staff.read`, because the subject is now any
+   * customer: reading a stranger's billing state is a customer-data question,
+   * which is the permission that answers it.
+   */
+  app.get("/api/v1/admin/users/:userId/plan", async (request, reply) => {
+    const session = await guard.require(request, reply, "users.read");
     if (!session) return;
     const { userId } = request.params as { userId: string };
     const accountId = await dependencies.accountForUser(userId);
