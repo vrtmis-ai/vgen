@@ -105,6 +105,23 @@ export function normalizeHandle(raw: string): string | null {
 }
 
 /**
+ * Leading and trailing dots and underscores, removed by walking the ends.
+ *
+ * `/^[._]+|[._]+$/` says the same thing and is quadratic on a string of
+ * nothing but dots: the anchored tail makes the engine retry from every
+ * position. The seed here is an email's local part, which nobody promises is
+ * short — a sign-up form is a place a stranger types — so this is a loop.
+ */
+function trimSeparators(value: string): string {
+  const isEdge = (character: string | undefined) => character === "." || character === "_";
+  let start = 0;
+  let end = value.length;
+  while (start < end && isEdge(value[start])) start += 1;
+  while (end > start && isEdge(value[end - 1])) end -= 1;
+  return value.slice(start, end);
+}
+
+/**
  * A handle from whatever we know about somebody — usually their email's local
  * part — for the accounts nobody asked. This one cannot fail: OAuth and the
  * phone code have no form to ask on, and `handle` is NOT NULL.
@@ -113,12 +130,10 @@ export function normalizeHandle(raw: string): string | null {
  * end and the base is trimmed to make room, so the result is always in range.
  */
 export function mintHandle(seed: string, suffix = ""): string {
-  const stripped = asciiDigits(seed.trim().toLowerCase())
-    .replace(/[^a-z0-9._]/g, "")
-    .replace(/^[._]+|[._]+$/g, "");
+  const stripped = trimSeparators(asciiDigits(seed.trim().toLowerCase()).replace(/[^a-z0-9._]/g, ""));
 
   const room = HANDLE_MAX - suffix.length;
-  let base = stripped.slice(0, room).replace(/[._]+$/, "");
+  let base = trimSeparators(stripped.slice(0, room));
   // Too short, empty, or a word we keep: fall back rather than return
   // something that would fail its own validator.
   if (base.length + suffix.length < HANDLE_MIN || isReservedHandle(base + suffix)) {

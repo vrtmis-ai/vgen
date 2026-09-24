@@ -67,6 +67,15 @@ describe("minting one for an account nobody asked", () => {
     valid(mintHandle("admin"));
   });
 
+  /* A sign-up form is a place a stranger types, and the regex this used to trim
+     with was quadratic on a string of nothing but dots. */
+  it("does not slow down on a pathological seed", () => {
+    const started = performance.now();
+    valid(mintHandle(".".repeat(50_000)));
+    valid(mintHandle(`${"._".repeat(30_000)}sara`));
+    expect(performance.now() - started).toBeLessThan(250);
+  });
+
   it("pads a seed too short to be a handle", () => {
     expect(mintHandle("a".slice(0, HANDLE_MIN - 2)).length).toBeGreaterThanOrEqual(HANDLE_MIN);
     valid(mintHandle("a"));

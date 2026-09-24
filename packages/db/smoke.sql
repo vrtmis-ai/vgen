@@ -18,7 +18,7 @@ BEGIN
 
   -- signup dance: user -> account -> back-link (the circular FK)
   INSERT INTO users (email, handle) VALUES ('a@x.io', 'Cinephile') RETURNING id INTO u1;
-  INSERT INTO users (email) VALUES ('b@x.io') RETURNING id INTO u2;
+  INSERT INTO users (email, handle) VALUES ('b@x.io', 'smoke.b') RETURNING id INTO u2;
   INSERT INTO accounts (owner_user_id) VALUES (u1) RETURNING id INTO acct;
   UPDATE users SET personal_account_id = acct WHERE id = u1;
 
@@ -101,8 +101,8 @@ DECLARE
   conv uuid; msg uuid; rate uuid;
   n bigint; e record;
 BEGIN
-  INSERT INTO users (email) VALUES ('c@x.io') RETURNING id INTO u1;
-  INSERT INTO users (email) VALUES ('d@x.io') RETURNING id INTO u2;
+  INSERT INTO users (email, handle) VALUES ('c@x.io', 'smoke.c') RETURNING id INTO u1;
+  INSERT INTO users (email, handle) VALUES ('d@x.io', 'smoke.d') RETURNING id INTO u2;
   INSERT INTO accounts (owner_user_id) VALUES (u1) RETURNING id INTO acct;
 
   -- 10. post_count follows the approval transition, not the insert
@@ -228,7 +228,7 @@ DECLARE
   u uuid; acct uuid; planA uuid; lot_live uuid; lot_dead uuid; sub uuid; skill uuid; feat uuid;
   n bigint; r record;
 BEGIN
-  INSERT INTO users (email) VALUES ('e@x.io') RETURNING id INTO u;
+  INSERT INTO users (email, handle) VALUES ('e@x.io', 'smoke.e') RETURNING id INTO u;
   INSERT INTO accounts (owner_user_id) VALUES (u) RETURNING id INTO acct;
   INSERT INTO account_balances (account_id, micro_credits) VALUES (acct, 9000000);
 
@@ -312,7 +312,7 @@ DO $$
 DECLARE
   u uuid; acct uuid; bad uuid; n bigint; r record;
 BEGIN
-  INSERT INTO users (email) VALUES ('f@x.io') RETURNING id INTO u;
+  INSERT INTO users (email, handle) VALUES ('f@x.io', 'smoke.f') RETURNING id INTO u;
   INSERT INTO accounts (owner_user_id) VALUES (u) RETURNING id INTO acct;
 
   -- a clean wallet: two ledger entries, cache agrees
@@ -362,7 +362,7 @@ BEGIN
   ASSERT n = 1200000, 'held total not rebuilt from credit_holds';
 
   -- 21. a negative ledger is an accounting bug, not a stale cache: refuse it
-  INSERT INTO users (email) VALUES ('g@x.io') RETURNING id INTO u;
+  INSERT INTO users (email, handle) VALUES ('g@x.io', 'smoke.g') RETURNING id INTO u;
   INSERT INTO accounts (owner_user_id) VALUES (u) RETURNING id INTO bad;
   INSERT INTO account_balances (account_id, micro_credits) VALUES (bad, 500);
   INSERT INTO credit_ledger (account_id, entry_type, micro_credits, balance_after)
@@ -390,7 +390,7 @@ DO $$
 DECLARE
   u uuid; adm uuid; acct uuid; tok uuid; win timestamptz; n bigint; fp text;
 BEGIN
-  INSERT INTO users (email) VALUES ('h@x.io') RETURNING id INTO u;
+  INSERT INTO users (email, handle) VALUES ('h@x.io', 'smoke.h') RETURNING id INTO u;
   INSERT INTO accounts (owner_user_id) VALUES (u) RETURNING id INTO acct;
 
   -- 23. the plan-less default policy must collide with itself, not duplicate
@@ -443,7 +443,7 @@ BEGIN
   END;
 
   -- 27. an admin with no confirmed MFA is visible; enrolling clears them
-  INSERT INTO users (email) VALUES ('admin@x.io') RETURNING id INTO adm;
+  INSERT INTO users (email, handle) VALUES ('admin@x.io', 'smoke.admin') RETURNING id INTO adm;
   INSERT INTO user_roles (user_id, role_code) VALUES (adm, 'admin');
   ASSERT EXISTS (SELECT 1 FROM v_admins_without_mfa WHERE user_id = adm),
     'admin without MFA not surfaced';
@@ -476,7 +476,7 @@ BEGIN
   -- 29. trial farming shows up as one device across many accounts
   fp := 'sha256:device1';
   FOR n IN 1..3 LOOP
-    INSERT INTO users (email) VALUES ('farm' || n || '@x.io') RETURNING id INTO adm;
+    INSERT INTO users (email, handle) VALUES ('farm' || n || '@x.io', 'smoke.farm' || n) RETURNING id INTO adm;
     INSERT INTO accounts (owner_user_id) VALUES (adm) RETURNING id INTO acct;
     INSERT INTO device_fingerprints (fingerprint_hash, account_id, user_id, seen_at_signup)
       VALUES (fp, acct, adm, true);
@@ -515,7 +515,7 @@ BEGIN
     'rate_limit_violations is not partitioned';
 
   -- 33. a row routes into the partition for its own month
-  INSERT INTO users (email) VALUES ('i@x.io') RETURNING id INTO u;
+  INSERT INTO users (email, handle) VALUES ('i@x.io', 'smoke.i') RETURNING id INTO u;
   INSERT INTO login_attempts (identifier, user_id, method, succeeded)
     VALUES ('i@x.io', u, 'password', false);
 
@@ -620,9 +620,14 @@ BEGIN
   PERFORM anonymize_user(u);
 
   -- identity is gone
-  ASSERT (SELECT handle IS NULL AND display_name IS NULL AND phone IS NULL
+  -- The handle becomes a placeholder rather than null, for the same reason the
+  -- email does: the column is required (0036), and account deletion is not a
+  -- thing that may start failing because a column became required.
+  ASSERT (SELECT display_name IS NULL AND phone IS NULL
             AND status = 'deleted' AND deleted_at IS NOT NULL
           FROM users WHERE id = u), 'user was not anonymized';
+  ASSERT (SELECT handle::text ~ '^deleted[0-9a-f]{17}$' FROM users WHERE id = u),
+    'handle placeholder missing — the NOT NULL would have failed the deletion';
   ASSERT (SELECT email LIKE 'deleted+%@invalid' FROM users WHERE id = u),
     'email placeholder missing — the email-or-phone CHECK would have failed';
   ASSERT (SELECT count(*) FROM auth_identities WHERE user_id = u) = 0, 'oauth link survived';
@@ -790,7 +795,7 @@ DECLARE
   joined bigint; spent bigint; usable boolean; refused boolean;
 BEGIN
   INSERT INTO accounts (kind) VALUES ('personal') RETURNING id INTO acct;
-  INSERT INTO users (email, personal_account_id) VALUES ('smoke-admin@deev.test', acct) RETURNING id INTO admin_id;
+  INSERT INTO users (email, handle, personal_account_id) VALUES ('smoke-admin@deev.test', 'smoke.staff', acct) RETURNING id INTO admin_id;
 
   -- 55. an admin generates a capped campaign code that carries free credit
   INSERT INTO invite_codes (code, label, kind, created_by, max_redemptions, grant_micro_credits, grant_expires_days)
@@ -798,12 +803,12 @@ BEGIN
   RETURNING id INTO inv;
 
   INSERT INTO accounts (kind) VALUES ('personal') RETURNING id INTO a1;
-  INSERT INTO users (email, personal_account_id) VALUES ('smoke-one@deev.test', a1) RETURNING id INTO u1;
+  INSERT INTO users (email, handle, personal_account_id) VALUES ('smoke-one@deev.test', 'smoke.one', a1) RETURNING id INTO u1;
   PERFORM redeem_invite('apple-deev', u1, a1, '1.2.3.4'::inet);
 
   -- 56. codes are case-insensitive, because people retype them from posters
   INSERT INTO accounts (kind) VALUES ('personal') RETURNING id INTO a2;
-  INSERT INTO users (email, personal_account_id) VALUES ('smoke-two@deev.test', a2) RETURNING id INTO u2;
+  INSERT INTO users (email, handle, personal_account_id) VALUES ('smoke-two@deev.test', 'smoke.two', a2) RETURNING id INTO u2;
   PERFORM redeem_invite('Apple-DEEV', u2, a2, NULL);
 
   -- 57. the invitee actually receives the credit
@@ -814,7 +819,7 @@ BEGIN
 
   -- 58. the redemption cap holds
   INSERT INTO accounts (kind) VALUES ('personal') RETURNING id INTO a3;
-  INSERT INTO users (email, personal_account_id) VALUES ('smoke-three@deev.test', a3) RETURNING id INTO u3;
+  INSERT INTO users (email, handle, personal_account_id) VALUES ('smoke-three@deev.test', 'smoke.three', a3) RETURNING id INTO u3;
   refused := false;
   BEGIN PERFORM redeem_invite('apple-deev', u3, a3, NULL);
   EXCEPTION WHEN check_violation THEN refused := true; END;
