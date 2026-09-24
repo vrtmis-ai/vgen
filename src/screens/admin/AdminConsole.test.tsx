@@ -278,8 +278,8 @@ function stubApi(): AdminApi {
     revokeOtherAdminSessions: vi.fn(async () => 1),
     getEarlyAccess: vi.fn(async () => true),
     setEarlyAccess: vi.fn(async (value: boolean) => value),
-    listStaff: vi.fn(async () => ({ staff: [], grantable: ["*"] })),
-    listStaffRoles: vi.fn(async () => ({ roles: [], grantable: ["*"] })),
+    listStaff: vi.fn(async () => ({ staff: [], grantable: ["*"], rank: 100 })),
+    listStaffRoles: vi.fn(async () => ({ roles: [], grantable: ["*"], rank: 100 })),
     appointStaff: vi.fn(async () => null),
     setStaffPermissions: vi.fn(async () => {}),
     revokeStaff: vi.fn(async () => {}),
@@ -993,17 +993,22 @@ describe("the staff section", () => {
     roleName: "Moderator",
     permissions: ["community.read"],
     isCustom: true,
+    rank: 20,
     hasMfa: true,
     grantedAt: 1_780_000_000_000,
     grantedByEmail: "admin@deev.test",
   };
 
-  async function openStaff(staff: (typeof MEMBER)[], grantable: string[]) {
+  async function openStaff(staff: (typeof MEMBER)[], grantable: string[], myRank = 50) {
     sessionState = { status: "authed", email: "admin@deev.test", roles: ["admin"], permissions: ["*"] };
-    api.listStaff = vi.fn(async () => ({ staff, grantable }));
+    api.listStaff = vi.fn(async () => ({ staff, grantable, rank: myRank }));
     api.listStaffRoles = vi.fn(async () => ({
-      roles: [{ code: "moderator", name: "Moderator", permissions: ["community.read", "community.write"] }],
+      roles: [
+        { code: "owner", name: "Owner", permissions: ["*"], rank: 100 },
+        { code: "moderator", name: "Moderator", permissions: ["community.read", "community.write"], rank: 20 },
+      ],
       grantable,
+      rank: myRank,
     }));
     const user = userEvent.setup();
     renderConsole();
@@ -1061,6 +1066,41 @@ describe("the staff section", () => {
     // "inherit the role", which is a different instruction from an empty array
     // — that one would appoint somebody who can do nothing.
     await waitFor(() => expect(api.appointStaff).toHaveBeenCalledWith({ email: "new@deev.test", roleCode: "moderator" }));
+  });
+
+  /* Two accounts holding `*` look identical to the permission comparison, so
+     without rank the panel would draw a "change" button on the owner's row for
+     every admin and let the server say no. */
+  it("will not offer to change somebody who outranks the reader", async () => {
+    const owner = {
+      ...MEMBER,
+      userId: "u-owner",
+      email: "owner@deev.test",
+      roleCode: "owner",
+      roleName: "Owner",
+      permissions: ["*"],
+      rank: 100,
+    };
+    await openStaff([owner], ["*"], 50);
+
+    expect(await screen.findByText("owner@deev.test")).toBeInTheDocument();
+    expect(screen.getByText("بالاتر از تو")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "تغییر" })).not.toBeInTheDocument();
+  });
+
+  it("does not offer a role above the reader's own", async () => {
+    await openStaff([MEMBER], ["*"], 50);
+
+    await screen.findByPlaceholderText("ایمیل");
+    expect(screen.getByRole("option", { name: "Moderator" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
+  });
+
+  it("offers the owner role to an owner, which is how it is handed on", async () => {
+    await openStaff([MEMBER], ["*"], 100);
+
+    await screen.findByPlaceholderText("ایمیل");
+    expect(screen.getByRole("option", { name: "Owner" })).toBeInTheDocument();
   });
 
   it("says an address is your own before the round trip, not after it", async () => {

@@ -1,4 +1,4 @@
-import { permissionsWithin, type PlanGrant, type StaffMember } from "@vgen/db";
+import { permissionsWithin, type AdminSession, type PlanGrant, type StaffMember } from "@vgen/db";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AdminGuard } from "./admin";
@@ -12,7 +12,7 @@ import type { AdminGuard } from "./admin";
  * either powerless or complete. Making somebody a moderator meant running
  * `scripts/create-admin.ts` on the server.
  *
- * Three rules hold this together, and all three are about the same thing:
+ * Four rules hold this together, and all four are about the same thing:
  *
  *   1. **You cannot grant what you do not hold.** The whole of privilege
  *      escalation, checked with `permissionsWithin`.
@@ -20,9 +20,19 @@ import type { AdminGuard } from "./admin";
  *      an admin limited to the moderation queue could revoke the owner — the
  *      first rule stops them *granting* `*`, and says nothing about taking it
  *      away from the person who has it.
- *   3. **You cannot edit yourself.** Not a security rule so much as a
- *      lockout rule: the first two permit narrowing your own set, and the
- *      result is an admin console nobody can get back into.
+ *   3. **You cannot touch somebody ranked above you, or appoint anyone to a
+ *      role above your own.** Rule 2 compares permission sets, which settles
+ *      nothing between two accounts that both hold `*` — so before roles had a
+ *      rank (migration 0035), any admin could revoke any other admin,
+ *      including the one the business belongs to. Rank is the part of "senior"
+ *      that a permission list cannot express.
+ *   4. **You cannot edit yourself.** Not a security rule so much as a
+ *      lockout rule: the others permit narrowing your own set, and the result
+ *      is an admin console nobody can get back into.
+ *
+ * A lone owner is therefore safe without anything counting owners: no admin
+ * outranks them, no second owner exists to act on them, and rule 4 stops them
+ * removing themselves.
  */
 
 export interface AdminStaffDependencies {
@@ -39,7 +49,7 @@ export interface AdminStaffDependencies {
       grantedBy: string;
     }): Promise<{ userId: string; totp: { secret: string; uri: string } | null }>;
     revokeStaff(userId: string, roleCode: string): Promise<boolean>;
-    roles(): Promise<{ code: string; name: string; permissions: string[] }[]>;
+    roles(): Promise<{ code: string; name: string; permissions: string[]; rank: number }[]>;
     findUserByEmail(email: string): Promise<{ id: string; email: string | null } | null>;
   };
   planGrants: {
@@ -104,9 +114,10 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
    * distinction — "you are not senior enough" versus "that is you" — is not
    * one the caller can do anything different about.
    */
-  const mayAct = (actorPermissions: readonly string[], actorUserId: string, target: StaffMember): string | null => {
-    if (target.userId === actorUserId) return "You cannot change your own access.";
-    if (!permissionsWithin(actorPermissions, target.permissions)) {
+  const mayAct = (actor: AdminSession, target: StaffMember): string | null => {
+    if (target.userId === actor.userId) return "You cannot change your own access.";
+    if (target.rank > actor.rank) return "That person outranks you.";
+    if (!permissionsWithin(actor.permissions, target.permissions)) {
       return "That person holds access you do not, so you cannot change theirs.";
     }
     return null;
@@ -122,13 +133,16 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
       // but a form that offers a permission the server will refuse is a form
       // that wastes people's time.
       grantable: session.permissions,
+      // And how senior they are, for the same reason: two accounts holding `*`
+      // are told apart by this and by nothing in `grantable`.
+      rank: session.rank,
     });
   });
 
   app.get("/api/v1/admin/staff/roles", async (request, reply) => {
     const session = await guard.require(request, reply, "staff.read");
     if (!session) return;
-    return reply.send({ roles: await staff.roles(), grantable: session.permissions });
+    return reply.send({ roles: await staff.roles(), grantable: session.permissions, rank: session.rank });
   });
 
   /**
@@ -175,10 +189,16 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
     if (!permissionsWithin(session.permissions, effective)) {
       return reply.code(403).send({ error: { code: "beyond_your_own", message: "You cannot grant access you do not hold." } });
     }
+    /* Rank, separately, because the set above cannot express it: owner and
+       admin both hold `*`, so only this stops an admin minting an owner who
+       could then revoke them. */
+    if (role.rank > session.rank) {
+      return reply.code(403).send({ error: { code: "role_above_you", message: "That role outranks your own." } });
+    }
 
     const existing = user ? await staff.staffMember(user.id) : null;
     if (existing) {
-      const refusal = mayAct(session.permissions, session.userId, existing);
+      const refusal = mayAct(session, existing);
       if (refusal) return reply.code(403).send({ error: { code: "outranked", message: refusal } });
     }
 
@@ -218,7 +238,7 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
     const target = await staff.staffMember(userId);
     if (!target) return reply.code(404).send({ error: { code: "not_staff", message: "That person holds no role." } });
 
-    const refusal = mayAct(session.permissions, session.userId, target);
+    const refusal = mayAct(session, target);
     if (refusal) return reply.code(403).send({ error: { code: "outranked", message: refusal } });
 
     const roles = await staff.roles();
@@ -252,7 +272,7 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
     const target = await staff.staffMember(userId);
     if (!target) return reply.code(404).send({ error: { code: "not_staff", message: "That person holds no role." } });
 
-    const refusal = mayAct(session.permissions, session.userId, target);
+    const refusal = mayAct(session, target);
     if (refusal) return reply.code(403).send({ error: { code: "outranked", message: refusal } });
 
     await staff.revokeStaff(userId, target.roleCode);
@@ -288,7 +308,7 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
     const target = await staff.staffMember(userId);
     if (!target) return reply.code(404).send({ error: { code: "not_staff", message: "That person holds no role." } });
 
-    const refusal = mayAct(session.permissions, session.userId, target);
+    const refusal = mayAct(session, target);
     if (refusal) return reply.code(403).send({ error: { code: "outranked", message: refusal } });
 
     const accountId = await dependencies.accountForUser(userId);
@@ -325,7 +345,7 @@ export function registerAdminStaffRoutes(app: FastifyInstance, dependencies: Adm
     const target = await staff.staffMember(userId);
     if (!target) return reply.code(404).send({ error: { code: "not_staff", message: "That person holds no role." } });
 
-    const refusal = mayAct(session.permissions, session.userId, target);
+    const refusal = mayAct(session, target);
     if (refusal) return reply.code(403).send({ error: { code: "outranked", message: refusal } });
 
     const accountId = await dependencies.accountForUser(userId);

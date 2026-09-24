@@ -425,6 +425,8 @@ export const StaffMemberSchema = z.object({
   permissions: z.array(z.string()),
   /** True when the set above is theirs rather than the role's. */
   isCustom: z.boolean(),
+  /** Their role's seniority. Nobody may act on somebody ranked above them. */
+  rank: z.number(),
   hasMfa: z.boolean(),
   grantedAt: z.number(),
   grantedByEmail: z.string().nullable(),
@@ -434,11 +436,14 @@ const StaffListSchema = z.object({
   staff: z.array(StaffMemberSchema),
   /** What this admin may hand out. The server re-checks; this is so the form does not offer what it will refuse. */
   grantable: z.array(z.string()),
+  /** The reader's own rank, which `grantable` cannot imply: owner and admin both hold `*`. */
+  rank: z.number(),
 });
 
 const StaffRolesSchema = z.object({
-  roles: z.array(z.object({ code: z.string(), name: z.string(), permissions: z.array(z.string()) })),
+  roles: z.array(z.object({ code: z.string(), name: z.string(), permissions: z.array(z.string()), rank: z.number() })),
   grantable: z.array(z.string()),
+  rank: z.number(),
 });
 
 const StaffOneSchema = z.object({ staff: StaffMemberSchema.nullable() });
@@ -538,8 +543,12 @@ export interface AdminApi {
   liftBan(id: string, banId: string): Promise<AdminBan[]>;
   revokeUserSessions(id: string): Promise<number>;
 
-  listStaff(): Promise<{ staff: StaffMember[]; grantable: string[] }>;
-  listStaffRoles(): Promise<{ roles: { code: string; name: string; permissions: string[] }[]; grantable: string[] }>;
+  listStaff(): Promise<{ staff: StaffMember[]; grantable: string[]; rank: number }>;
+  listStaffRoles(): Promise<{
+    roles: { code: string; name: string; permissions: string[]; rank: number }[];
+    grantable: string[];
+    rank: number;
+  }>;
   /** `password` creates the account for an address nobody uses yet. */
   appointStaff(input: {
     email: string;

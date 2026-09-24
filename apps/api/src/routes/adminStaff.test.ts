@@ -4,22 +4,29 @@ import { registerErrorHandling } from "../plugins/errors";
 import { registerAdminStaffRoutes } from "./adminStaff";
 
 /* ---------------------------------------------------------------------------
-   Appointing staff, and the three rules that keep it from being an escalation.
+   Appointing staff, and the four rules that keep it from being an escalation.
 
      1. You cannot grant what you do not hold.
      2. You cannot touch somebody who holds what you do not. Rule 1 stops a
         limited admin *granting* `*`; on its own it says nothing about them
         taking `*` away from the person who has it, or handing that person's
         role to themselves.
-     3. You cannot edit yourself — the first two permit narrowing your own set,
+     3. You cannot touch somebody ranked above you, or appoint to a role above
+        your own. Rule 2 compares permission sets and therefore says nothing
+        at all between two accounts that both hold `*` — which is every pair of
+        admins, and was how any admin could revoke the owner.
+     4. You cannot edit yourself — the others permit narrowing your own set,
         and the result is a console nobody can get back into.
 
-   Every test here is one of those three, or the audit trail that proves which
+   Every test here is one of those four, or the audit trail that proves which
    of them fired.
    --------------------------------------------------------------------------- */
 
-const OWNER = { userId: "owner-1", permissions: ["*"] };
-const MODERATOR = { userId: "mod-1", permissions: ["community.read", "community.write"] };
+const OWNER = { userId: "owner-1", permissions: ["*"], rank: 100 };
+/* Holds everything the owner does. Rules 1 and 2 cannot tell them apart, which
+   is the whole reason rank exists. */
+const ADMIN = { userId: "admin-1", permissions: ["*"], rank: 50 };
+const MODERATOR = { userId: "mod-1", permissions: ["community.read", "community.write"], rank: 20 };
 
 const staffRow = (over: Partial<Record<string, unknown>> = {}) => ({
   userId: "target-1",
@@ -28,6 +35,7 @@ const staffRow = (over: Partial<Record<string, unknown>> = {}) => ({
   roleName: "Moderator",
   permissions: ["community.read"],
   isCustom: false,
+  rank: 20,
   hasMfa: true,
   grantedAt: 0,
   grantedByEmail: null,
@@ -35,7 +43,7 @@ const staffRow = (over: Partial<Record<string, unknown>> = {}) => ({
 });
 
 function appFor(
-  actor: { userId: string; permissions: string[] },
+  actor: { userId: string; permissions: string[]; rank: number },
   members: ReturnType<typeof staffRow>[] = [staffRow()],
   known: { id: string; email: string | null } | null = { id: "target-1", email: "target@example.test" },
 ) {
@@ -72,8 +80,9 @@ function appFor(
         appointStaff,
         revokeStaff,
         roles: vi.fn(async () => [
-          { code: "admin", name: "Administrator", permissions: ["*"] },
-          { code: "moderator", name: "Moderator", permissions: ["community.read", "community.write"] },
+          { code: "owner", name: "Owner", permissions: ["*"], rank: 100 },
+          { code: "admin", name: "Administrator", permissions: ["*"], rank: 50 },
+          { code: "moderator", name: "Moderator", permissions: ["community.read", "community.write"], rank: 20 },
         ]),
         findUserByEmail: vi.fn(async () => known),
       },
@@ -334,5 +343,85 @@ describe("plans for staff", () => {
     expect(response.json()).toMatchObject({ coinsWithdrawn: 5 });
     expect(revoke).toHaveBeenCalledWith("account-1", "owner-1");
     expect(audit).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ action: "staff.plan.revoked" }));
+  });
+});
+
+/* Rule 3. Rank is the only one of the four that can separate two accounts
+   holding `*`, which before migration 0035 meant any admin could remove the
+   person the business belongs to. */
+describe("rank", () => {
+  const ownerRow = staffRow({
+    userId: "owner-1",
+    email: "owner@example.test",
+    roleCode: "owner",
+    roleName: "Owner",
+    permissions: ["*"],
+    rank: 100,
+  });
+
+  it("refuses an admin who tries to revoke the owner, though they hold the same permissions", async () => {
+    const { app, revokeStaff } = appFor(ADMIN, [ownerRow]);
+
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/admin/staff/owner-1" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ error: { code: "outranked" } });
+    expect(revokeStaff).not.toHaveBeenCalled();
+  });
+
+  it("refuses an admin narrowing the owner's access", async () => {
+    const { app, upsertStaff } = appFor(ADMIN, [ownerRow]);
+
+    const response = await app.inject({ method: "PATCH", url: "/api/v1/admin/staff/owner-1", payload: { permissions: [] } });
+
+    expect(response.statusCode).toBe(403);
+    expect(upsertStaff).not.toHaveBeenCalled();
+  });
+
+  it("refuses an admin minting an owner, which is the same move one step round", async () => {
+    const { app, appointStaff } = appFor(ADMIN, [], null);
+
+    const response = await appoint(app, { email: "new@example.test", roleCode: "owner", password: "a-long-password" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ error: { code: "role_above_you" } });
+    expect(appointStaff).not.toHaveBeenCalled();
+  });
+
+  it("lets an owner appoint a second owner, which is how the role is handed on", async () => {
+    const { app, appointStaff } = appFor(OWNER, [], null);
+
+    const response = await appoint(app, { email: "new@example.test", roleCode: "owner", password: "a-long-password" });
+
+    expect(response.statusCode).toBe(201);
+    expect(appointStaff).toHaveBeenCalledWith(expect.objectContaining({ roleCode: "owner" }));
+  });
+
+  it("lets an owner act on an admin, because rank runs one way", async () => {
+    const admin = staffRow({
+      userId: "admin-1",
+      email: "admin@example.test",
+      roleCode: "admin",
+      roleName: "Administrator",
+      permissions: ["*"],
+      rank: 50,
+    });
+    const { app, revokeStaff } = appFor(OWNER, [admin]);
+
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/admin/staff/admin-1" });
+
+    expect(response.statusCode).toBe(200);
+    expect(revokeStaff).toHaveBeenCalledWith("admin-1", "admin");
+  });
+
+  /* The lone owner needs no counter of its own: nobody outranks them, no
+     second owner exists, and rule 4 stops them removing themselves. */
+  it("leaves a lone owner unremovable without anything counting owners", async () => {
+    const { app } = appFor(OWNER, [ownerRow]);
+
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/admin/staff/owner-1" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ error: { code: "outranked" } });
   });
 });

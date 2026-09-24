@@ -40,6 +40,12 @@ export interface AdminPrincipal {
   email: string | null;
   roles: string[];
   permissions: string[];
+  /**
+   * The highest rank among their roles, and the answer to "may you act on
+   * *this person*" — which permissions cannot answer, because the two accounts
+   * the question matters most between both hold `*`.
+   */
+  rank: number;
   hasMfa: boolean;
 }
 
@@ -97,6 +103,8 @@ export interface StaffMember {
   permissions: string[];
   /** True when the set above is theirs rather than the role's. */
   isCustom: boolean;
+  /** Their role's rank. Nobody may act on somebody ranked above them. */
+  rank: number;
   hasMfa: boolean;
   grantedAt: number;
   grantedByEmail: string | null;
@@ -140,11 +148,15 @@ export class PostgresAdminRepository {
 
   /** Null for anyone holding no role beyond plain 'user'. */
   async resolvePrincipal(userId: string): Promise<AdminPrincipal | null> {
-    const [row] = await this.sql<{ email: string | null; roles: string[]; permissions: string[]; has_mfa: boolean }[]>`
+    const [row] = await this.sql<{ email: string | null; roles: string[]; permissions: string[]; rank: number; has_mfa: boolean }[]>`
       select
         u.email,
         -- distinct: the permissions join below yields one row per permission.
         array_agg(distinct ur.role_code order by ur.role_code)                 as roles,
+        -- The highest of their roles. Somebody holding both owner and
+        -- moderator is an owner; taking the lowest would make an extra role a
+        -- demotion.
+        coalesce(max(r.rank), 0)                                               as rank,
         coalesce(jsonb_agg(distinct p.value) filter (where p.value is not null), '[]'::jsonb) as permissions,
         exists (select 1 from mfa_credentials m where m.user_id = u.id and m.confirmed_at is not null) as has_mfa
       from users u
@@ -165,7 +177,7 @@ export class PostgresAdminRepository {
       group by u.id, u.email
     `;
     if (!row) return null;
-    return { userId, email: row.email, roles: row.roles, permissions: row.permissions, hasMfa: row.has_mfa };
+    return { userId, email: row.email, roles: row.roles, permissions: row.permissions, rank: row.rank, hasMfa: row.has_mfa };
   }
 
   // ------------------------------------------------------------------- MFA
@@ -424,6 +436,7 @@ export class PostgresAdminRepository {
         role_name: string;
         permissions: string[];
         is_custom: boolean;
+        rank: number;
         has_mfa: boolean;
         granted_at: Date;
         granted_by_email: string | null;
@@ -439,6 +452,7 @@ export class PostgresAdminRepository {
           '{}'::text[]
         ) as permissions,
         ur.permissions is not null as is_custom,
+        r.rank,
         exists (select 1 from mfa_credentials m where m.user_id = ur.user_id and m.confirmed_at is not null) as has_mfa,
         ur.granted_at,
         granter.email as granted_by_email
@@ -456,6 +470,7 @@ export class PostgresAdminRepository {
       roleName: row.role_name,
       permissions: row.permissions,
       isCustom: row.is_custom,
+      rank: row.rank,
       hasMfa: row.has_mfa,
       grantedAt: row.granted_at.getTime(),
       grantedByEmail: row.granted_by_email,
@@ -561,14 +576,20 @@ export class PostgresAdminRepository {
     return rows.count > 0;
   }
 
-  /** The roles a new member of staff can be given, with what each one implies. */
-  async roles(): Promise<{ code: string; name: string; permissions: string[] }[]> {
-    const rows = await this.sql<{ code: string; name: string; permissions: string[] }[]>`
-      select code, name,
+  /**
+   * The roles a new member of staff can be given, with what each one implies.
+   *
+   * Ordered by rank, highest first, because that is the order the list means
+   * something in — alphabetical put Administrator above Owner and Moderator
+   * above Support, which reads as a hierarchy and is not one.
+   */
+  async roles(): Promise<{ code: string; name: string; permissions: string[]; rank: number }[]> {
+    const rows = await this.sql<{ code: string; name: string; permissions: string[]; rank: number }[]>`
+      select code, name, rank,
              coalesce((select array_agg(value order by value) from jsonb_array_elements_text(permissions)), '{}'::text[]) as permissions
-      from roles where code <> 'user' order by code
+      from roles where code <> 'user' order by rank desc, code
     `;
-    return rows.map((row) => ({ code: row.code, name: row.name, permissions: row.permissions }));
+    return rows.map((row) => ({ code: row.code, name: row.name, permissions: row.permissions, rank: row.rank }));
   }
 
   /** Find a person by email, so staff are appointed by the address they already sign in with. */
