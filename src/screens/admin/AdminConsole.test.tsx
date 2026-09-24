@@ -319,6 +319,42 @@ describe("the admin console", () => {
     expect(screen.queryByText("خطا")).not.toBeInTheDocument();
   });
 
+  /* The server has never answered this route with a 5xx — every recorded call
+     is a 200, a 202 or the signed-out 404. So the failures people actually see
+     are requests that never arrive, and one of those used to end the page. */
+  it("comes back from a dropped session request without a reload", async () => {
+    let calls = 0;
+    api.getSession = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) throw new ApiError({ code: "network_error", message: "no", status: 0 });
+      throw notFound();
+    });
+
+    renderConsole();
+
+    expect(await screen.findByRole("heading", { name: "ورود کارکنان" }, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByText("خطا")).not.toBeInTheDocument();
+    expect(calls).toBeGreaterThan(1);
+  });
+
+  it("offers a way out when the session cannot be read at all", async () => {
+    api.getSession = vi.fn(async () => {
+      throw new ApiError({ code: "network_error", message: "no", status: 0 });
+    });
+    const user = userEvent.setup();
+    renderConsole();
+
+    // Not a dead end. Without this the only recovery is a page reload, which is
+    // a thing the page should be able to do for itself.
+    const again = await screen.findByRole("button", { name: "تلاش دوباره" }, { timeout: 5000 });
+    api.getSession = vi.fn(async () => {
+      throw notFound();
+    });
+    await user.click(again);
+
+    expect(await screen.findByRole("heading", { name: "ورود کارکنان" }, { timeout: 4000 })).toBeInTheDocument();
+  });
+
   it("renders nothing of the panel between the password and the second factor", async () => {
     const user = userEvent.setup();
     renderConsole();
@@ -1025,6 +1061,32 @@ describe("the staff section", () => {
     // "inherit the role", which is a different instruction from an empty array
     // — that one would appoint somebody who can do nothing.
     await waitFor(() => expect(api.appointStaff).toHaveBeenCalledWith({ email: "new@deev.test", roleCode: "moderator" }));
+  });
+
+  it("says an address is your own before the round trip, not after it", async () => {
+    const user = await openStaff([MEMBER], ["*"]);
+
+    await user.type(await screen.findByPlaceholderText("ایمیل"), "admin@deev.test");
+
+    expect(screen.getByText("این آدرس خودت است. دسترسی خودت را از این‌جا نمی‌شود عوض کرد.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "افزودن" })).toBeDisabled();
+  });
+
+  /* The account that holds `*` cannot ask for more access than it holds, so
+     telling it that it might have is not a hedge — it is a wrong answer that
+     sends somebody to read the permission table for an hour. */
+  it("repeats the server's own refusal rather than guessing at permissions", async () => {
+    const user = await openStaff([MEMBER], ["*"]);
+    api.appointStaff = vi.fn(async () => {
+      throw new ApiError({ code: "self", message: "You cannot change your own access.", status: 409 });
+    });
+
+    await user.type(await screen.findByPlaceholderText("ایمیل"), "someone@deev.test");
+    await user.selectOptions(screen.getByRole("combobox"), "moderator");
+    await user.click(screen.getByRole("button", { name: "افزودن" }));
+
+    expect(await screen.findByText("این آدرس خودت است. دسترسی خودت را از این‌جا نمی‌شود عوض کرد.")).toBeInTheDocument();
+    expect(screen.queryByText("انجام نشد. شاید دسترسی خواسته‌شده بیشتر از توست.")).not.toBeInTheDocument();
   });
 
   it("creates a staff account with a password and shows its second-factor key once", async () => {

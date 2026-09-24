@@ -94,9 +94,20 @@ export function useAdminSession(api: AdminApi | null): UseQueryResult<AdminSessi
         throw error;
       }
     },
-    // No retry. A 404 here is an answer, and retrying it three times just makes
-    // the sign-in screen take a second longer to appear.
-    retry: false,
+    /* Retried, because a failure here is terminal for the whole panel: the
+       console renders an error instead of the sign-in form, and nothing
+       re-fires it.
+
+       This was `retry: false`, on the reasoning that a 404 is an answer and
+       not worth asking three times. True, but the 404 is already caught above
+       and turned into `null`, so the query *resolves* on a signed-out load and
+       react-query would never have retried it anyway. What `retry: false`
+       actually bought was a page that gives up on one dropped request — and a
+       dropped request is the only way this fails in practice: every
+       /admin/session call the server has recorded answered 200, 202 or 404,
+       never 5xx. The ones people lose never arrive. */
+    retry: 2,
+    retryDelay: 400,
     staleTime: 30_000,
   });
 }

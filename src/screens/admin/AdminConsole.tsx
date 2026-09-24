@@ -41,7 +41,13 @@ export function AdminConsole() {
   if (!availability.available) return <Notice title="در دسترس نیست">{availability.reason}</Notice>;
 
   if (session.isPending) return <Notice title="…">در حال بررسی نشست.</Notice>;
-  if (session.error) return <Notice title="خطا">نشست خوانده نشد. شبکه یا سرور در دسترس نیست.</Notice>;
+  if (session.error) {
+    return (
+      <Notice title="خطا" retry={{ onClick: () => void session.refetch(), busy: session.isFetching }}>
+        نشست خوانده نشد. شبکه یا سرور در دسترس نیست.
+      </Notice>
+    );
+  }
 
   // Null is signed out, and `mfa_required` is signed in but authorising
   // nothing. Both belong on the sign-in screen; only the second can resume.
@@ -178,7 +184,17 @@ function Console({ api, session }: { api: AdminApi; session: AdminSessionState }
   );
 }
 
-function Notice({ title, children }: { title: string; children: React.ReactNode }) {
+function Notice({
+  title,
+  children,
+  retry,
+}: {
+  title: string;
+  children: React.ReactNode;
+  /* A way out. Without one, a notice is a dead end that only a reload
+     clears, which is what the session error used to be. */
+  retry?: { onClick: () => void; busy: boolean };
+}) {
   return (
     <div className="mx-auto flex min-h-[60dvh] w-full max-w-[440px] flex-col justify-center px-5">
       <h2 className="text-[15px] font-bold" style={{ color: "var(--vg-text)" }}>
@@ -187,6 +203,16 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
       <p className="mt-1.5 text-[12.5px] leading-6" style={{ color: "var(--vg-text-faint)" }}>
         {children}
       </p>
+      {retry ? (
+        <button
+          onClick={retry.onClick}
+          disabled={retry.busy}
+          className="mt-3 self-start rounded-lg px-3.5 py-2 text-[12.5px] font-semibold disabled:opacity-50"
+          style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+        >
+          {retry.busy ? "…" : "تلاش دوباره"}
+        </button>
+      ) : null}
     </div>
   );
 }
