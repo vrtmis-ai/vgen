@@ -33,6 +33,17 @@ import type { Sql } from "postgres";
 export type AnalyticsWindow = "today" | "7d" | "30d" | "all";
 
 /**
+ * What a job produced, as `features.modality` records it.
+ *
+ * Counted by the feature rather than by the model's family: a family can serve
+ * more than one modality, and the feature is what the job was actually priced
+ * and routed as. The customer list has grouped by this since it shipped; the
+ * dashboard never did, so an account that made 400 videos and one that made
+ * 400 pictures were the same bar at forty times the cost.
+ */
+export type AnalyticsModality = "image" | "video" | "audio";
+
+/**
  * How many Tehran days back a window starts. `null` is all of history.
  *
  * `7d` is six days back, not seven: the window includes today, so counting a
@@ -68,8 +79,11 @@ export interface DailyPoint {
   /** A Tehran calendar day, as `YYYY-MM-DD`. */
   day: string;
   jobs: number;
+  jobsSucceeded: number;
+  jobsFailed: number;
   coinsSpent: number;
   providerCostUsd: number;
+  /** Signups. Not split by modality — a new account has not made anything yet. */
   newUsers: number;
 }
 
@@ -279,18 +293,49 @@ export class PostgresAnalyticsRepository {
   }
 
   /**
+   * The first day the chart should start on.
+   *
+   * `all` used to fall back to 29 days here, so the series behind the button
+   * labelled «از ابتدا» was the same month the 30d button drew — silently, with
+   * no way to tell from the picture. It starts at the first account now, capped
+   * at a year: a chart with three thousand bars in it is not a chart.
+   */
+  private spanStart(window: AnalyticsWindow) {
+    const days = DAYS_BACK[window];
+    if (days !== null) {
+      return this.sql`(date_trunc('day', now() at time zone 'Asia/Tehran') - make_interval(days => ${days}))::date`;
+    }
+    return this.sql`greatest(
+      (coalesce((select min(created_at) from users), now()) at time zone 'Asia/Tehran'),
+      ((now() at time zone 'Asia/Tehran') - interval '364 days')
+    )::date`;
+  }
+
+  /**
    * One row per Tehran day in the window, with the empty days filled in.
    *
    * `generate_series` rather than grouping what exists: a day with no jobs is a
    * fact about that day, and a sparkline that silently closed the gap would
    * draw a straight line through an outage.
+   *
+   * **The coin line comes from `jobs.micro_credits_charged`, not from the
+   * ledger's `capture` entries.** The two agree — `capture_hold` is called from
+   * exactly one place, which sets that column to the same number in the same
+   * transaction — but only the job carries a feature, so only the job can be
+   * filtered by modality or split by outcome. It also dates a day's spend to
+   * the day the job was *submitted*, which is the day every other series on
+   * this chart already attributes it to.
    */
-  async daily(window: AnalyticsWindow): Promise<DailyPoint[]> {
-    const days = DAYS_BACK[window] ?? 29;
+  async daily(window: AnalyticsWindow, modality?: AnalyticsModality): Promise<DailyPoint[]> {
+    // Joined only when it is being filtered on, so a job whose feature row has
+    // gone does not silently drop out of the unfiltered count.
+    const ofModality = modality
+      ? this.sql`join features feature on feature.id = job.feature_id and feature.modality = ${modality}`
+      : this.sql``;
     const rows = await this.sql<Record<string, string | null>[]>`
       with span as (
         select generate_series(
-          (date_trunc('day', now() at time zone 'Asia/Tehran') - make_interval(days => ${days}))::date,
+          ${this.spanStart(window)},
           (now() at time zone 'Asia/Tehran')::date,
           interval '1 day'
         )::date as day
@@ -298,20 +343,22 @@ export class PostgresAnalyticsRepository {
       select
         to_char(span.day, 'YYYY-MM-DD') as day,
         coalesce(j.jobs, 0) as jobs,
-        coalesce(l.coins_spent, 0) as coins_spent,
+        coalesce(j.succeeded, 0) as jobs_succeeded,
+        coalesce(j.failed, 0) as jobs_failed,
+        coalesce(j.coins_spent, 0) as coins_spent,
         coalesce(j.provider_cost_usd, 0) as provider_cost_usd,
         coalesce(u.new_users, 0) as new_users
       from span
       left join (
-        select (created_at at time zone 'Asia/Tehran')::date as day,
+        select (job.created_at at time zone 'Asia/Tehran')::date as day,
                count(*) as jobs,
-               coalesce(sum(provider_cost_usd), 0) as provider_cost_usd
-        from jobs where deleted_at is null group by 1
+               count(*) filter (where job.status = 'succeeded') as succeeded,
+               count(*) filter (where job.status = 'failed') as failed,
+               coalesce(sum(job.micro_credits_charged), 0) / 1e6 as coins_spent,
+               coalesce(sum(job.provider_cost_usd), 0) as provider_cost_usd
+        from jobs job ${ofModality}
+        where job.deleted_at is null group by 1
       ) j on j.day = span.day
-      left join (
-        select (created_at at time zone 'Asia/Tehran')::date as day, -sum(micro_credits) / 1e6 as coins_spent
-        from credit_ledger where entry_type = 'capture' group by 1
-      ) l on l.day = span.day
       left join (
         select (created_at at time zone 'Asia/Tehran')::date as day, count(*) as new_users
         from users group by 1
@@ -321,6 +368,8 @@ export class PostgresAnalyticsRepository {
     return rows.map((row) => ({
       day: String(row.day),
       jobs: n(row.jobs),
+      jobsSucceeded: n(row.jobs_succeeded),
+      jobsFailed: n(row.jobs_failed),
       coinsSpent: n(row.coins_spent),
       providerCostUsd: n(row.provider_cost_usd),
       newUsers: n(row.new_users),
@@ -335,8 +384,11 @@ export class PostgresAnalyticsRepository {
    * provider happened to serve it is the *answer*, which is why the serving
    * provider is a column rather than the grouping.
    */
-  async models(window: AnalyticsWindow): Promise<ModelMarginRow[]> {
+  async models(window: AnalyticsWindow, modality?: AnalyticsModality): Promise<ModelMarginRow[]> {
     const from = this.since(window);
+    const ofModality = modality
+      ? this.sql`join features feature on feature.id = job.feature_id and feature.modality = ${modality}`
+      : this.sql``;
     const rows = await this.sql<Record<string, string | null>[]>`
       select
         model.capabilities -> 'variant' ->> 'id' as variant_id,
@@ -351,6 +403,7 @@ export class PostgresAnalyticsRepository {
       from jobs job
       join provider_models model on model.id = job.provider_model_id
       join providers provider on provider.id = model.provider_id
+      ${ofModality}
       where job.created_at >= ${from} and job.deleted_at is null
       group by 1, 2, 3
       order by coalesce(sum(job.provider_cost_usd), 0) desc, count(*) desc

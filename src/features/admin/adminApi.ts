@@ -149,6 +149,8 @@ const OverviewSchema = z
         .object({
           day: z.string(),
           jobs: z.number(),
+          jobsSucceeded: z.number(),
+          jobsFailed: z.number(),
           coinsSpent: z.number(),
           providerCostUsd: z.number(),
           newUsers: z.number(),
@@ -275,6 +277,8 @@ export type AdminUserDetail = z.infer<typeof UserDetailSchema>;
 export type AdminBan = z.infer<typeof BanSchema>;
 
 export type AnalyticsWindow = "today" | "7d" | "30d" | "all";
+/** Undefined is every modality, not none. */
+export type AnalyticsModality = "image" | "video" | "audio" | undefined;
 
 export interface AdminUsersQuery {
   search?: string | undefined;
@@ -556,8 +560,8 @@ export interface AdminApi {
   resolveReports(id: string): Promise<number>;
   takeDownPost(id: string, reason: string): Promise<void>;
 
-  getOverview(window: AnalyticsWindow): Promise<AdminOverview>;
-  listModelMargin(window: AnalyticsWindow): Promise<AdminModelMargin[]>;
+  getOverview(window: AnalyticsWindow, modality?: AnalyticsModality): Promise<AdminOverview>;
+  listModelMargin(window: AnalyticsWindow, modality?: AnalyticsModality): Promise<AdminModelMargin[]>;
   listProviderHealth(window: AnalyticsWindow): Promise<AdminProviderHealth[]>;
 
   listUsers(query: AdminUsersQuery): Promise<z.infer<typeof UsersPageSchema>>;
@@ -671,9 +675,14 @@ export function createAdminApi(client: HttpClient, uploads: HttpClient = client)
     },
     removePromo: async (id) => (await client.request(`/admin/promos/${id}`, { method: "DELETE", schema: OutcomeSchema })).outcome,
 
-    getOverview: (window) => client.request(`/admin/analytics/overview?window=${window}`, { schema: OverviewSchema }),
-    listModelMargin: async (window) =>
-      (await client.request(`/admin/analytics/models?window=${window}`, { schema: ModelMarginSchema })).models,
+    getOverview: (window, modality) =>
+      client.request(`/admin/analytics/overview?window=${window}${modality ? `&modality=${modality}` : ""}`, { schema: OverviewSchema }),
+    listModelMargin: async (window, modality) =>
+      (
+        await client.request(`/admin/analytics/models?window=${window}${modality ? `&modality=${modality}` : ""}`, {
+          schema: ModelMarginSchema,
+        })
+      ).models,
     listProviderHealth: async (window) =>
       (await client.request(`/admin/analytics/providers?window=${window}`, { schema: ProviderHealthSchema })).providers,
 

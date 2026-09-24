@@ -7,6 +7,7 @@ import {
   type AdminApi,
   type AdminBan,
   type AdminUsersQuery,
+  type AnalyticsModality,
   type AnalyticsWindow,
   type CreateInviteInput,
   type UpdateInviteInput,
@@ -40,8 +41,10 @@ export const adminKeys = {
   promos: ["admin", "promos"] as const,
   earlyAccess: ["admin", "early-access"] as const,
   siteBanner: ["admin", "site-banner"] as const,
-  overview: (window: AnalyticsWindow) => ["admin", "analytics", "overview", window] as const,
-  modelMargin: (window: AnalyticsWindow) => ["admin", "analytics", "models", window] as const,
+  overview: (window: AnalyticsWindow, modality: AnalyticsModality) =>
+    ["admin", "analytics", "overview", window, modality ?? "all"] as const,
+  modelMargin: (window: AnalyticsWindow, modality: AnalyticsModality) =>
+    ["admin", "analytics", "models", window, modality ?? "all"] as const,
   providerHealth: (window: AnalyticsWindow) => ["admin", "analytics", "providers", window] as const,
   users: (query: AdminUsersQuery) => ["admin", "users", query] as const,
   user: (id: string) => ["admin", "user", id] as const,
@@ -369,28 +372,29 @@ export function useEarlyAccess(api: AdminApi, enabled: boolean) {
 // ---------------------------------------------------------------- analytics
 
 /**
- * The window is part of the key, not a parameter to one query.
+ * The window and the modality are part of the key, not parameters to one
+ * query.
  *
  * Switching from 30d to today then back is then instant and offline, which
- * matters because comparing two windows is the actual thing an operator does
- * with this screen — and a refetch on every toggle would make that a
- * three-second habit instead of a free one.
+ * matters because comparing two windows — or image against video — is the
+ * actual thing an operator does with this screen, and a refetch on every
+ * toggle would make that a three-second habit instead of a free one.
  */
-export function useOverview(api: AdminApi, window: AnalyticsWindow, enabled: boolean) {
+export function useOverview(api: AdminApi, window: AnalyticsWindow, modality: AnalyticsModality, enabled: boolean) {
   return useQuery({
-    queryKey: adminKeys.overview(window),
+    queryKey: adminKeys.overview(window, modality),
     enabled,
-    queryFn: () => api.getOverview(window),
+    queryFn: () => api.getOverview(window, modality),
     retry: false,
     staleTime: 60_000,
   });
 }
 
-export function useModelMargin(api: AdminApi, window: AnalyticsWindow, enabled: boolean) {
+export function useModelMargin(api: AdminApi, window: AnalyticsWindow, modality: AnalyticsModality, enabled: boolean) {
   return useQuery({
-    queryKey: adminKeys.modelMargin(window),
+    queryKey: adminKeys.modelMargin(window, modality),
     enabled,
-    queryFn: () => api.listModelMargin(window),
+    queryFn: () => api.listModelMargin(window, modality),
     retry: false,
     staleTime: 60_000,
   });
