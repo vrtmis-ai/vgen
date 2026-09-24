@@ -61,9 +61,43 @@ export const VerifyPhoneSchema = z
   })
   .strict();
 
+/**
+ * A username: the public name for an account, unique across the site.
+ *
+ * Latin only — `a–z 0–9 . _`, 3–24, starting and ending on a letter or digit.
+ * The rule and the reason both live in `@vgen/core`'s `normalizeHandle`, which
+ * the server calls on everything that reaches it; this schema is the shape
+ * check that lets a form say no without a round trip.
+ */
+export const HandleSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9][a-z0-9._]{1,22}[a-z0-9]$/, "not a username");
+
+/**
+ * Changing your own name. Both fields optional, because the form sends only
+ * what moved — and an empty body is a no-op rather than an error, since
+ * "save" on an unchanged form is not a mistake worth a 400.
+ */
+export const UpdateProfileSchema = z
+  .object({
+    handle: HandleSchema.optional(),
+    displayName: z.string().trim().min(1).max(80).optional(),
+  })
+  .strict();
+
 export const RegisterWithPasswordSchema = z
   .object({
     email: z.string().trim().toLowerCase().email().max(254),
+    /**
+     * Required here and nowhere else. The password form is the only sign-up
+     * path this deployment actually runs — the session says
+     * `authProviders: []` and `phoneSignIn: false` — so asking here covers
+     * everybody real, and OAuth and the phone code, which have no form to ask
+     * on, mint one instead.
+     */
+    handle: HandleSchema,
     // Only a floor. Composition rules push people toward `Password1!`, and the
     // real check lives in the hashing layer so every entry point shares it.
     password: z.string().min(10).max(512),

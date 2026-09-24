@@ -67,8 +67,11 @@ export async function expectDbError(tx: Sql, run: () => Promise<unknown>): Promi
 export async function makeUser(tx: Sql): Promise<{ userId: string; accountId: string }> {
   const [account] = await tx<{ id: string }[]>`insert into accounts (kind) values ('personal') returning id`;
   const email = `harness-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test`;
+  // `users.handle` is NOT NULL from 0036 and every real insert path mints one,
+  // so the harness does too rather than making the column a special case.
+  const handle = `h${Math.random().toString(36).slice(2, 12)}`;
   const [user] = await tx<{ id: string }[]>`
-    insert into users (email, personal_account_id) values (${email}, ${account!.id}) returning id
+    insert into users (email, handle, personal_account_id) values (${email}, ${handle}, ${account!.id}) returning id
   `;
   return { userId: user!.id, accountId: account!.id };
 }

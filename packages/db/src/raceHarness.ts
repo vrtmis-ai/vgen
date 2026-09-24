@@ -1,3 +1,4 @@
+import { mintHandle } from "@vgen/core";
 import postgres, { type Sql } from "postgres";
 import { TEST_DATABASE_URL, COIN } from "./integrationHarness";
 
@@ -59,7 +60,9 @@ export async function sharedAccount(sql: Sql, slot: string): Promise<RaceAccount
 
   const [account] = await sql<{ id: string }[]>`insert into accounts (kind) values ('personal') returning id`;
   const [user] = await sql<{ id: string }[]>`
-    insert into users (email, personal_account_id) values (${email}, ${account!.id}) returning id
+    insert into users (email, handle, personal_account_id)
+    values (${email}, ${mintHandle(email.split("@")[0] ?? "")}, ${account!.id})
+    returning id
   `;
   return { userId: user!.id, accountId: account!.id, email };
 }

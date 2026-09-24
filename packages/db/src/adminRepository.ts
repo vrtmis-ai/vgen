@@ -2,6 +2,7 @@ import {
   generateSessionToken,
   generateTotpSecret,
   hashPassword,
+  mintHandle,
   hashToken,
   openSecret,
   sealSecret,
@@ -530,9 +531,12 @@ export class PostgresAdminRepository {
       if (userId === null) {
         if (passwordHash === null) throw new Error("A new staff account needs a password");
         const [account] = await tx<{ id: string }[]>`insert into accounts (kind) values ('personal') returning id`;
+        // Minted rather than asked for: the appointment form takes an address
+        // and a role, and `users.handle` is NOT NULL from migration 0036. They
+        // can change it on their own profile like anybody else.
         const [user] = await tx<{ id: string }[]>`
-          insert into users (email, email_verified_at, password_hash, display_name, locale, personal_account_id)
-          values (${input.email}, now(), ${passwordHash}, 'Staff', 'fa', ${account!.id})
+          insert into users (email, handle, email_verified_at, password_hash, display_name, locale, personal_account_id)
+          values (${input.email}, ${mintHandle(input.email.split("@")[0] ?? "")}, now(), ${passwordHash}, 'Staff', 'fa', ${account!.id})
           returning id
         `;
         await tx`update accounts set owner_user_id = ${user!.id} where id = ${account!.id}`;

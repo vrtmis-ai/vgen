@@ -12,6 +12,13 @@ export const CustomerSessionUserSchema = z.object({
   id: z.string().uuid(),
   methods: z.array(z.enum(["email"])).min(1),
   emailNormalized: z.string().email(),
+  /**
+   * The public name, and the one the community feed credits people by. Not
+   * optional: `users.handle` is NOT NULL from migration 0036, and a client
+   * that has to cope with its absence is a client with a second way to draw
+   * every byline.
+   */
+  handle: z.string().min(3).max(24),
   displayName: z.string().min(1).optional(),
   avatarUrl: z.string().url().optional(),
   locale: z.enum(["fa", "en"]),

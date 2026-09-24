@@ -40,12 +40,35 @@ export class AnonymousPrincipalResolver implements PrincipalResolver {
   }
 }
 
+/** The half of the auth repository a person may point at their own row. */
+export interface ProfileWriter {
+  updateProfile(userId: string, changes: { handle?: string | undefined; displayName?: string | undefined }): Promise<CustomerSessionUser>;
+}
+
+/** Nothing is editable. For tests, and for an API built without an auth stack. */
+export class ReadOnlyProfiles implements ProfileWriter {
+  async updateProfile(): Promise<CustomerSessionUser> {
+    throw new Error("this API has no profile writer");
+  }
+}
+
 export class CustomerSessionService implements CustomerSessionApplication {
-  constructor(private readonly principals: PrincipalResolver) {}
+  constructor(
+    private readonly principals: PrincipalResolver,
+    private readonly profiles: ProfileWriter = new ReadOnlyProfiles(),
+  ) {}
 
   async getCurrent(request: FastifyRequest): Promise<CustomerIdentity> {
     const user = await this.principals.resolve(request);
     if (!user) return { status: "anonymous", host: "web" };
     return { status: "authed", host: "web", user };
+  }
+
+  async currentUserId(request: FastifyRequest): Promise<string | null> {
+    return (await this.principals.resolve(request))?.id ?? null;
+  }
+
+  updateProfile(userId: string, changes: { handle?: string | undefined; displayName?: string | undefined }): Promise<CustomerSessionUser> {
+    return this.profiles.updateProfile(userId, changes);
   }
 }

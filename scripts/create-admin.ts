@@ -28,7 +28,15 @@
  * anyone holding a database dump and this file. In production that is refused
  * rather than defaulted.
  */
-import { hashPassword, sealSecret, sealingKeyFrom, generateTotpSecret, totpEnrolmentUri, assertUsablePassword } from "@vgen/core";
+import {
+  hashPassword,
+  mintHandle,
+  sealSecret,
+  sealingKeyFrom,
+  generateTotpSecret,
+  totpEnrolmentUri,
+  assertUsablePassword,
+} from "@vgen/core";
 import { config } from "dotenv";
 import postgres from "postgres";
 
@@ -82,8 +90,8 @@ try {
     if (!userId) {
       const [account] = await tx<{ id: string }[]>`insert into accounts (kind) values ('personal') returning id`;
       const [user] = await tx<{ id: string }[]>`
-        insert into users (email, email_verified_at, password_hash, display_name, locale, personal_account_id)
-        values (${email}, now(), ${await hashPassword(password)}, 'Staff', 'fa', ${account!.id})
+        insert into users (email, handle, email_verified_at, password_hash, display_name, locale, personal_account_id)
+        values (${email}, ${mintHandle(email.split("@")[0] ?? "")}, now(), ${await hashPassword(password)}, 'Staff', 'fa', ${account!.id})
         returning id
       `;
       userId = user!.id;

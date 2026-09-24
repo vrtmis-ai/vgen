@@ -1,3 +1,4 @@
+import { useState, type FormEvent } from "react";
 import {
   Star,
   ImagesSquare,
@@ -9,6 +10,9 @@ import {
   ArrowRight,
   SignOut,
 } from "@phosphor-icons/react";
+import { useAuth } from "../features/session/useAuth";
+import { ApiError } from "../runtime/apiError";
+import { HandleSchema } from "../runtime/contracts/session";
 import type { Family } from "../data/models";
 import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import type { Generation } from "../lib/gallery";
@@ -87,18 +91,7 @@ export default function Profile({
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-start">
         <div>
           {/* identity */}
-          <div className="mb-6 flex items-center gap-4">
-            <span
-              className="grid h-16 w-16 place-items-center rounded-full font-display text-[22px] font-semibold"
-              style={{ background: "var(--color-accent)", color: "var(--color-on-accent)", boxShadow: "var(--shadow-accent)" }}
-            >
-              {name.slice(0, 1)}
-            </span>
-            <div>
-              <div className="t-h2">{name}</div>
-              {user?.emailNormalized && <div className="ltr t-caption text-ink3">{user.emailNormalized}</div>}
-            </div>
-          </div>
+          <Identity user={user} name={name} />
 
           {/* stats */}
           <div className="mb-6 grid grid-cols-3 gap-2.5">
@@ -165,5 +158,127 @@ export default function Profile({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Who you are, and the one place you can change it.
+ *
+ * Nothing about an account was editable before this: every field on `users` was
+ * written once at sign-up and never again, so somebody who mistyped their name
+ * at the door lived with it. The username matters more than the display name,
+ * because it is what the community feed credits shares by.
+ */
+function Identity({ user, name }: { user: AccountUser; name: string }) {
+  const { t } = useI18n();
+  const { updateProfile } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [handle, setHandle] = useState(user.handle);
+  const [displayName, setDisplayName] = useState(user.displayName ?? "");
+
+  // The same rule the server applies, so an impossible name is refused before
+  // the round trip rather than after it.
+  const handleOk = HandleSchema.safeParse(handle).success;
+  const moved = handle.trim().toLowerCase() !== user.handle || displayName.trim() !== (user.displayName ?? "");
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!handleOk || !moved) return;
+    updateProfile.mutate(
+      {
+        ...(handle.trim().toLowerCase() === user.handle ? {} : { handle: handle.trim().toLowerCase() }),
+        ...(displayName.trim() === (user.displayName ?? "") ? {} : { displayName: displayName.trim() }),
+      },
+      { onSuccess: () => setEditing(false) },
+    );
+  };
+
+  if (!editing) {
+    return (
+      <div className="mb-6 flex items-center gap-4">
+        <span
+          className="grid h-16 w-16 place-items-center rounded-full font-display text-[22px] font-semibold"
+          style={{ background: "var(--color-accent)", color: "var(--color-on-accent)", boxShadow: "var(--shadow-accent)" }}
+        >
+          {name.slice(0, 1)}
+        </span>
+        <div className="min-w-0">
+          <div className="t-h2">{name}</div>
+          <div className="ltr t-caption text-accent">@{user.handle}</div>
+          {user.emailNormalized && <div className="ltr t-caption text-ink3">{user.emailNormalized}</div>}
+        </div>
+        <button
+          onClick={() => setEditing(true)}
+          className="ms-auto shrink-0 rounded-xl border border-line px-3 py-1.5 t-caption active:scale-[0.98]"
+        >
+          {t("p_edit")}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="mb-6 grid gap-2.5 rounded-bezel border border-line bg-card p-3.5">
+      <label className="grid gap-1 t-caption text-ink3">
+        {t("auth_handle_label")}
+        <input
+          value={handle}
+          onChange={(event) => setHandle(event.target.value)}
+          aria-label={t("auth_handle_label")}
+          autoComplete="username"
+          minLength={3}
+          maxLength={24}
+          dir="ltr"
+          className="h-10 rounded-xl border border-line bg-transparent px-3 t-body"
+        />
+      </label>
+      <label className="grid gap-1 t-caption text-ink3">
+        {t("p_display_name")}
+        <input
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+          aria-label={t("p_display_name")}
+          maxLength={80}
+          className="h-10 rounded-xl border border-line bg-transparent px-3 t-body"
+        />
+      </label>
+
+      {!handleOk && handle.length > 0 && (
+        <p role="alert" className="t-caption" style={{ color: "var(--vg-danger)" }}>
+          {t("auth_err_handle_invalid")}
+        </p>
+      )}
+      {updateProfile.error && (
+        <p role="alert" className="t-caption" style={{ color: "var(--vg-danger)" }}>
+          {t(
+            updateProfile.error instanceof ApiError && updateProfile.error.code === "handle_taken"
+              ? "auth_err_handle_taken"
+              : "auth_err_generic",
+          )}
+        </p>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={!handleOk || !moved || updateProfile.isPending}
+          className="rounded-xl bg-accent px-3.5 py-2 t-caption font-semibold text-on-accent disabled:opacity-40"
+        >
+          {updateProfile.isPending ? t("p_edit_saving") : t("p_edit_save")}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setEditing(false);
+            setHandle(user.handle);
+            setDisplayName(user.displayName ?? "");
+            updateProfile.reset();
+          }}
+          className="rounded-xl border border-line px-3.5 py-2 t-caption"
+        >
+          {t("p_edit_cancel")}
+        </button>
+      </div>
+    </form>
   );
 }

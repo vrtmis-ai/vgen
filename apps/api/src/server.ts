@@ -189,7 +189,7 @@ const writeLimiter = createRedisFixedWindowRateLimiter(redisUrl, {
   hashSecret: rateLimitHashSecret,
 });
 
-const customerSession = new CustomerSessionService(new SessionCookiePrincipalResolver(authRepository));
+const customerSession = new CustomerSessionService(new SessionCookiePrincipalResolver(authRepository), authRepository);
 
 /**
  * The one object store, shared by uploads coming in and generations going out.

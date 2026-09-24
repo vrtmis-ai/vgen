@@ -1,5 +1,15 @@
 import type { CustomerSessionUser } from "@vgen/contracts";
-import { coinsToMicroCredits, generateOtpCode, generateSessionToken, hashPassword, hashPhone, hashToken, verifyPassword } from "@vgen/core";
+import {
+  coinsToMicroCredits,
+  generateOtpCode,
+  generateSessionToken,
+  hashPassword,
+  hashPhone,
+  hashToken,
+  mintHandle,
+  normalizeHandle,
+  verifyPassword,
+} from "@vgen/core";
 import type { Sql, TransactionSql } from "postgres";
 import { atomically } from "./transaction";
 
@@ -29,6 +39,8 @@ export class AuthError extends Error {
       | "otp_expired"
       | "otp_exhausted"
       | "account_taken"
+      | "handle_taken"
+      | "handle_invalid"
       | "account_suspended",
     message: string,
   ) {
@@ -67,6 +79,7 @@ type UserRow = {
   id: string;
   email: string | null;
   phone: string | null;
+  handle: string;
   display_name: string | null;
   locale: string;
   status: string;
@@ -81,6 +94,7 @@ function publicUser(row: UserRow): CustomerSessionUser {
     // account has none, and inventing one would be a lie the client stores;
     // the placeholder domain is reserved by RFC 2606 and cannot be delivered to.
     emailNormalized: row.email ?? `${row.id}@phone.invalid`,
+    handle: row.handle,
     ...(row.display_name ? { displayName: row.display_name } : {}),
     locale: row.locale === "en" ? "en" : "fa",
     isTeam: false,
@@ -227,17 +241,59 @@ export class PostgresAuthRepository {
     return this.createAccount({ phone: phoneE164 }, context);
   }
 
-  async registerWithPassword(email: string, password: string, context: SignupContext = {}): Promise<CustomerSessionUser> {
+  async registerWithPassword(email: string, password: string, handle: string, context: SignupContext = {}): Promise<CustomerSessionUser> {
     const normalized = email.trim().toLowerCase();
+    const wanted = normalizeHandle(handle);
+    if (!wanted) throw new AuthError("handle_invalid", "That is not a username");
+
     const [taken] = await this.sql<{ id: string }[]>`select id from users where email = ${normalized} limit 1`;
     if (taken) throw new AuthError("account_taken", "That email already has an account");
-    return this.createAccount({ email: normalized, passwordHash: await hashPassword(password) }, context);
+    /* Checked before the insert so the message names the right field — the
+       unique index would refuse it either way, but "that email already has an
+       account" for a taken *username* is the kind of wrong answer that costs
+       somebody twenty minutes. The insert still races; see createAccount. */
+    const [used] = await this.sql<{ id: string }[]>`select id from users where handle = ${wanted} limit 1`;
+    if (used) throw new AuthError("handle_taken", "That username is taken");
+
+    return this.createAccount({ email: normalized, handle: wanted, passwordHash: await hashPassword(password) }, context);
+  }
+
+  /**
+   * What somebody may change about themselves.
+   *
+   * Only their own row, by construction: the id comes from the session cookie
+   * and there is no parameter for anyone else's. A handle collision is the
+   * expected outcome rather than an exception — two people want `sara` — so it
+   * comes back as a named refusal, not a 23505 leaking out of the driver.
+   */
+  async updateProfile(
+    userId: string,
+    changes: { handle?: string | undefined; displayName?: string | undefined },
+  ): Promise<CustomerSessionUser> {
+    const handle = changes.handle === undefined ? null : normalizeHandle(changes.handle);
+    if (changes.handle !== undefined && handle === null) throw new AuthError("handle_invalid", "That is not a username");
+
+    if (handle !== null) {
+      const [used] = await this.sql<{ id: string }[]>`select id from users where handle = ${handle} and id <> ${userId} limit 1`;
+      if (used) throw new AuthError("handle_taken", "That username is taken");
+    }
+
+    const [row] = await this.sql<UserRow[]>`
+      update users set
+        handle = coalesce(${handle}, handle),
+        display_name = coalesce(${changes.displayName ?? null}, display_name),
+        updated_at = now()
+      where id = ${userId} and deleted_at is null
+      returning id, email, phone, handle, display_name, locale, status, personal_account_id
+    `;
+    if (!row) throw new AuthError("invalid_credentials", "No such account");
+    return publicUser(row);
   }
 
   async loginWithPassword(email: string, password: string): Promise<CustomerSessionUser> {
     const normalized = email.trim().toLowerCase();
     const [row] = await this.sql<(UserRow & { password_hash: string | null })[]>`
-      select id, email, phone, display_name, locale, status, personal_account_id, password_hash
+      select id, email, phone, handle, display_name, locale, status, personal_account_id, password_hash
       from users where email = ${normalized} limit 1
     `;
     // Hash even when the user does not exist, so a missing account and a wrong
@@ -266,7 +322,7 @@ export class PostgresAuthRepository {
     context: SignupContext = {},
   ): Promise<CustomerSessionUser> {
     const [linked] = await this.sql<UserRow[]>`
-      select u.id, u.email, u.phone, u.display_name, u.locale, u.status, u.personal_account_id
+      select u.id, u.email, u.phone, u.handle, u.display_name, u.locale, u.status, u.personal_account_id
       from auth_identities i join users u on u.id = i.user_id
       where i.provider = ${provider} and i.provider_uid = ${providerUid}
       limit 1
@@ -278,7 +334,7 @@ export class PostgresAuthRepository {
       // Same verified email, different provider: link rather than fork the
       // account, or the customer loses their balance by signing in differently.
       const [byEmail] = await this.sql<UserRow[]>`
-        select id, email, phone, display_name, locale, status, personal_account_id
+        select id, email, phone, handle, display_name, locale, status, personal_account_id
         from users where email = ${normalized} limit 1
       `;
       if (byEmail) {
@@ -306,6 +362,8 @@ export class PostgresAuthRepository {
       phone?: string | null;
       passwordHash?: string | null;
       displayName?: string | null;
+      /** Chosen at sign-up where there is a form to choose on; minted otherwise. */
+      handle?: string | null;
       identity?: { provider: string; providerUid: string } | undefined;
     },
     context: SignupContext,
@@ -323,10 +381,15 @@ export class PostgresAuthRepository {
       // flow each prove their own — so the timestamps are set here rather than
       // left for a confirmation step that has already happened.
       const verifiedAt = new Date();
+      /* `users.handle` is NOT NULL from migration 0036, and the OAuth and phone
+         paths have no form to ask on — so one is minted from whatever identity
+         we have. The retry below covers the race and the ordinary collision:
+         two people called `sara` at different domains. */
+      const handle = identity.handle ?? mintHandle(identity.email?.split("@")[0] ?? identity.phone ?? "");
       const [user] = await tx<UserRow[]>`
-        insert into users (email, phone, password_hash, display_name, locale, personal_account_id,
+        insert into users (email, phone, handle, password_hash, display_name, locale, personal_account_id,
                            email_verified_at, phone_verified_at, terms_accepted_at, terms_version)
-        values (${identity.email ?? null}, ${identity.phone ?? null}, ${identity.passwordHash ?? null},
+        values (${identity.email ?? null}, ${identity.phone ?? null}, ${handle}, ${identity.passwordHash ?? null},
                 ${identity.displayName ?? null}, ${context.locale ?? "fa"}, ${account!.id},
                 ${identity.email && !identity.passwordHash ? verifiedAt : null},
                 ${identity.phone ? verifiedAt : null},
@@ -335,7 +398,7 @@ export class PostgresAuthRepository {
                 -- funnels through this insert, so recording it once covers all
                 -- of them and a route added next year cannot forget.
                 ${context.termsVersion ? verifiedAt : null}, ${context.termsVersion ?? null})
-        returning id, email, phone, display_name, locale, status, personal_account_id
+        returning id, email, phone, handle, display_name, locale, status, personal_account_id
       `;
       await tx`update accounts set owner_user_id = ${user!.id} where id = ${account!.id}`;
 
@@ -431,7 +494,7 @@ export class PostgresAuthRepository {
 
   private async findUserByPhone(phoneE164: string): Promise<UserRow | undefined> {
     const [row] = await this.sql<UserRow[]>`
-      select id, email, phone, display_name, locale, status, personal_account_id
+      select id, email, phone, handle, display_name, locale, status, personal_account_id
       from users where phone = ${phoneE164} limit 1
     `;
     return row;
@@ -490,7 +553,7 @@ export class PostgresAuthRepository {
           and (last_used_at is null or last_used_at < now() - interval '5 minutes')
         returning 1
       )
-      select u.id, u.email, u.phone, u.display_name, u.locale, u.status, u.personal_account_id
+      select u.id, u.email, u.phone, u.handle, u.display_name, u.locale, u.status, u.personal_account_id
       from sessions s
       join users u on u.id = s.user_id
       where s.token_hash = ${hash}

@@ -10,6 +10,7 @@ export type { InputMap, InputValue } from "./types";
 export { applyParamOverrides, isEmptyOverrides, type ParamOverrides } from "./paramOverrides";
 export { UnknownContentKindError, fromContentItem, toContentItem, type ContentSeedRow, type ParsedContentItem } from "./contentItems";
 export { firstBrokenRule, foldForMatching, type PromptMatch, type PromptRule } from "./promptPolicy";
+export { HANDLE_MAX, HANDLE_MIN, HANDLE_PATTERN, isReservedHandle, mintHandle, normalizeHandle } from "./handles";
 export {
   WeakPasswordError,
   assertUsablePassword,

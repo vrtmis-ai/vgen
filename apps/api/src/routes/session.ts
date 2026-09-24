@@ -1,8 +1,17 @@
-import { CustomerSessionSchema, type CustomerIdentity, type OAuthProvider } from "@vgen/contracts";
+import {
+  CustomerSessionSchema,
+  UpdateProfileSchema,
+  type CustomerIdentity,
+  type CustomerSessionUser,
+  type OAuthProvider,
+} from "@vgen/contracts";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
 export interface CustomerSessionApplication {
   getCurrent(request: FastifyRequest): Promise<CustomerIdentity>;
+  /** Null when nobody is signed in, so the route answers 401 rather than guessing. */
+  currentUserId(request: FastifyRequest): Promise<string | null>;
+  updateProfile(userId: string, changes: { handle?: string | undefined; displayName?: string | undefined }): Promise<CustomerSessionUser>;
 }
 
 /**
@@ -23,4 +32,21 @@ export function registerCustomerSessionRoute(
   app.get("/api/v1/session", async (request) =>
     CustomerSessionSchema.parse({ ...(await sessions.getCurrent(request)), authProviders: [...authProviders], phoneSignIn }),
   );
+
+  /**
+   * Changing your own name.
+   *
+   * There was no route by which anybody could edit anything about themselves —
+   * every field on `users` was written once at sign-up and never again, and
+   * /profile was a page of read-only rows. The subject is always the session's
+   * own user; there is no parameter for anyone else's, which is what keeps this
+   * off the admin surface.
+   */
+  app.patch("/api/v1/me", { bodyLimit: 4 * 1024 }, async (request, reply) => {
+    const userId = await sessions.currentUserId(request);
+    if (!userId) return reply.code(401).send({ error: { code: "unauthorised", message: "Sign in first." } });
+
+    const changes = UpdateProfileSchema.parse(request.body);
+    return reply.send({ user: await sessions.updateProfile(userId, changes) });
+  });
 }

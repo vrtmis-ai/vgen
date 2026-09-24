@@ -186,10 +186,39 @@ describe("the sign-in screen", () => {
 
     await user.click(screen.getByRole("button", { name: "Use email instead" }));
     await user.type(screen.getByLabelText("Email"), "taken@deev.local");
+    await user.type(screen.getByLabelText("Username"), "someone.new");
     await user.type(screen.getByLabelText("Password"), "correct-horse-battery");
     await user.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("That email already has an account.");
+  });
+
+  /* `users.handle` has been a unique column since the first migration and
+     nothing ever wrote to it, so the community feed credited people by whatever
+     display name their signup happened to leave behind. */
+  it("asks for a username on the way in, and reports one that is taken", async () => {
+    const user = userEvent.setup();
+    await renderAuth(createDemoServices({ startAnonymous: true }), "signup");
+
+    await user.click(screen.getByRole("button", { name: "Use email instead" }));
+    await user.type(screen.getByLabelText("Email"), "fresh@deev.local");
+    await user.type(screen.getByLabelText("Username"), "taken");
+    await user.type(screen.getByLabelText("Password"), "correct-horse-battery");
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+
+    // Names the field it is about. Reporting a taken *email* here would send
+    // somebody to change the one thing that was fine.
+    expect(await screen.findByRole("alert")).toHaveTextContent("That username is taken. Pick another.");
+  });
+
+  it("does not ask a returning customer for one", async () => {
+    const user = userEvent.setup();
+    await renderAuth(createDemoServices({ startAnonymous: true }), "signin");
+
+    await user.click(screen.getByRole("button", { name: "Use email instead" }));
+
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Username")).not.toBeInTheDocument();
   });
 
   it("sends a visitor who is already signed in back to the app", async () => {

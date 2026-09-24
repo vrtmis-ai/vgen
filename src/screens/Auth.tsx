@@ -92,6 +92,10 @@ function messageFor(error: unknown, step: "phone" | "code" | "email"): Failure {
       return { key: "auth_err_invalid_credentials" };
     case "account_taken":
       return { key: "auth_err_account_taken" };
+    case "handle_taken":
+      return { key: "auth_err_handle_taken" };
+    case "handle_invalid":
+      return { key: "auth_err_handle_invalid" };
     case "account_suspended":
       // Terminal, and the only failure on this screen that retrying cannot fix.
       // It used to fall through to "something went wrong, please try again",
@@ -372,6 +376,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const [phone, setPhone] = useState("");
   const [digits, setDigits] = useState<string[]>(emptyCode);
   const [email, setEmail] = useState("");
+  const [handle, setHandle] = useState("");
   const [password, setPassword] = useState("");
   const [invite, setInvite] = useState("");
 
@@ -460,7 +465,12 @@ export default function Auth({ mode }: { mode: AuthMode }) {
     void run("email", () =>
       mode === "signin"
         ? login.mutateAsync({ email: email.trim(), password })
-        : register.mutateAsync({ email: email.trim(), password, inviteCode: invite.trim() || undefined }),
+        : register.mutateAsync({
+            email: email.trim(),
+            password,
+            handle: handle.trim().toLowerCase(),
+            inviteCode: invite.trim() || undefined,
+          }),
     );
   };
 
@@ -473,6 +483,9 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const onCode = codeSent && !onInvite;
   const onPhoneForm = !codeSent && method === "phone";
   const onEmailForm = method === "email" && !onInvite;
+  /* Which field a refusal belongs under. Without this the username errors
+     would appear beneath the password, which is the field they are not about. */
+  const handleRefused = failure?.key === "auth_err_handle_taken" || failure?.key === "auth_err_handle_invalid";
   const codeComplete = digits.every((digit) => digit !== "");
   /* A failure that resending cannot fix — out of attempts, or suspended. Kept
      apart from expiry because the two disagree about what to tell someone, and
@@ -702,10 +715,42 @@ export default function Auth({ mode }: { mode: AuthMode }) {
                 )}
               </PillField>
 
+              {/* Sign-up only. The server mints one for the OAuth and phone
+                  paths, which have no form to ask on — but this is the only
+                  sign-up path the deployment actually runs, so this is where
+                  people get to choose. */}
+              {mode === "signup" && (
+                <PillField
+                  label={t("auth_handle_label")}
+                  hint={t("auth_handle_hint")}
+                  error={onEmailForm && handleRefused ? failureText : undefined}
+                >
+                  {({ id, describedBy }) => (
+                    <input
+                      id={id}
+                      aria-describedby={describedBy}
+                      className={`${PILL} focus:border-accent`}
+                      style={pillStyle}
+                      value={handle}
+                      onChange={(event) => setHandle(event.target.value)}
+                      autoComplete="username"
+                      // Lowercased by the server anyway; doing it here means the
+                      // field shows the name that will actually be created.
+                      inputMode="text"
+                      pattern="[A-Za-z0-9][A-Za-z0-9._]{1,22}[A-Za-z0-9]"
+                      minLength={3}
+                      maxLength={24}
+                      dir="ltr"
+                      required
+                    />
+                  )}
+                </PillField>
+              )}
+
               <PillField
                 label={t("auth_password_label")}
                 hint={mode === "signup" ? t("auth_password_hint") : undefined}
-                error={onEmailForm ? failureText : undefined}
+                error={onEmailForm && !handleRefused ? failureText : undefined}
               >
                 {({ id, describedBy }) => (
                   <PasswordInput

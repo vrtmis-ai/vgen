@@ -77,6 +77,8 @@ const STATUS_BY_CODE: Record<AuthError["code"], number> = {
   otp_expired: 400,
   otp_exhausted: 429,
   account_taken: 409,
+  handle_taken: 409,
+  handle_invalid: 422,
   account_suspended: 403,
 };
 
@@ -197,7 +199,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     if (wait !== null) return tooMany(reply, wait);
 
     try {
-      const user = await auth.registerWithPassword(body.email, body.password, {
+      const user = await auth.registerWithPassword(body.email, body.password, body.handle, {
         ...(body.inviteCode ? { inviteCode: body.inviteCode } : {}),
         ...(body.deviceFingerprint ? { deviceFingerprint: body.deviceFingerprint } : {}),
         ip: request.ip,

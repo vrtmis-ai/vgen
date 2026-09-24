@@ -3,6 +3,7 @@ import type {
   LoginInput,
   OAuthProvider,
   PhoneVerificationStarted,
+  ProfileEdit,
   RegisterInput,
   StartPhoneVerificationInput,
   VerifyPhoneInput,
@@ -16,7 +17,7 @@ import type { PlansResponse } from "./contracts/plans";
 import type { CreateGenerationRequest, GenerationJob, GenerationQuote, JobReference, QuoteGenerationRequest } from "./contracts/generation";
 import type { UploadedAsset } from "./contracts/assets";
 import type { CheckoutOrder, CreateCheckoutOrderInput } from "./contracts/payment";
-import type { Session } from "./contracts/session";
+import type { AccountUser, Session } from "./contracts/session";
 import type { Wallet } from "./contracts/wallet";
 
 export interface RequestOptions {
@@ -55,6 +56,14 @@ export interface AppServices {
      */
     startProviderSignIn(provider: OAuthProvider, inviteCode?: string, options?: RequestOptions): Promise<void>;
     logout(options?: RequestOptions): Promise<void>;
+    /**
+     * Change your own name.
+     *
+     * On `auth` rather than a service of its own because it is the same
+     * cookie, the same row and the same refusals — and because the thing it
+     * returns is a session user, which every other call here also returns.
+     */
+    updateProfile(edit: ProfileEdit, options?: RequestOptions): Promise<AccountUser>;
   };
   /**
    * Presets, the prompt bank, skills, the featured shelf, courses, examples

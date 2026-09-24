@@ -13,6 +13,7 @@ const services = {
     checkInvite: vi.fn(),
     startProviderSignIn: vi.fn(),
     logout: vi.fn(),
+    updateProfile: vi.fn(),
   },
   catalog: { list: vi.fn() },
   content: { list: vi.fn() },

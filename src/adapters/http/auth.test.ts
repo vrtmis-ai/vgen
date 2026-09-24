@@ -5,7 +5,7 @@ import { ApiError, createHttpClient } from "./client";
 const AUTHED = {
   status: "authed",
   host: "web",
-  user: { id: "u1", methods: ["email"], emailNormalized: "a@b.co", locale: "fa" },
+  user: { id: "u1", methods: ["email"], emailNormalized: "a@b.co", handle: "someone", locale: "fa" },
 };
 
 const BASE_URL = "https://api.test/api/v1";
@@ -47,13 +47,13 @@ describe("http auth", () => {
     // The server's schemas are .strict(); an unexpected key is a
     // validation_failed rather than an ignored field.
     const { auth, fetchImpl } = harness(json(AUTHED));
-    await auth.register({ email: "a@b.co", password: "correct-horse-battery" });
-    expect(callOf(fetchImpl).body).toEqual({ email: "a@b.co", password: "correct-horse-battery" });
+    await auth.register({ email: "a@b.co", password: "correct-horse-battery", handle: "someone" });
+    expect(callOf(fetchImpl).body).toEqual({ email: "a@b.co", password: "correct-horse-battery", handle: "someone" });
   });
 
   it("passes an invite code through when there is one", async () => {
     const { auth, fetchImpl } = harness(json(AUTHED));
-    await auth.register({ email: "a@b.co", password: "correct-horse-battery", inviteCode: "APPLE-DEEV" });
+    await auth.register({ email: "a@b.co", password: "correct-horse-battery", handle: "someone", inviteCode: "APPLE-DEEV" });
     expect(callOf(fetchImpl).body).toMatchObject({ inviteCode: "APPLE-DEEV" });
   });
 
@@ -75,7 +75,9 @@ describe("http auth", () => {
 
   it("surfaces the server's error code, not its prose", async () => {
     const { auth } = harness(json({ error: { code: "invite_required", message: "DEEV is in early access", request_id: "req-1" } }, 403));
-    const error = await auth.register({ email: "a@b.co", password: "correct-horse-battery" }).catch((caught: unknown) => caught);
+    const error = await auth
+      .register({ email: "a@b.co", password: "correct-horse-battery", handle: "someone" })
+      .catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ code: "invite_required", status: 403, requestId: "req-1" });

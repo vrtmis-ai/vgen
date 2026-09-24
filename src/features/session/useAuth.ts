@@ -1,6 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppServices } from "../../runtime/AppServices";
-import type { LoginInput, OAuthProvider, RegisterInput, StartPhoneVerificationInput, VerifyPhoneInput } from "../../runtime/contracts/auth";
+import type {
+  LoginInput,
+  OAuthProvider,
+  ProfileEdit,
+  RegisterInput,
+  StartPhoneVerificationInput,
+  VerifyPhoneInput,
+} from "../../runtime/contracts/auth";
 import { appQueryKeys } from "./useSession";
 
 /**
@@ -67,5 +74,12 @@ export function useAuth() {
     },
   });
 
-  return { startPhoneVerification, verifyPhone, register, login, startProviderSignIn, logout };
+  /* Changing your own name. Only the session needs re-reading — the wallet and
+     the catalogue belong to the same account they did a moment ago. */
+  const updateProfile = useMutation({
+    mutationFn: (edit: ProfileEdit) => services.auth.updateProfile(edit),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: appQueryKeys.session }),
+  });
+
+  return { startPhoneVerification, verifyPhone, register, login, startProviderSignIn, logout, updateProfile };
 }

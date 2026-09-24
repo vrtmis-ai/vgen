@@ -232,7 +232,7 @@ describe("email and password", () => {
       const repository = auth(tx);
       const code = await usableInvite(tx, "password-user");
 
-      const created = await repository.registerWithPassword("person@example.test", "a good long password", {
+      const created = await repository.registerWithPassword("person@example.test", "a good long password", "person", {
         inviteCode: code,
       });
       const loggedIn = await repository.loginWithPassword("person@example.test", "a good long password");
@@ -258,11 +258,11 @@ describe("email and password", () => {
     await inRollback(sql, async (tx) => {
       const repository = auth(tx);
       const code = await usableInvite(tx, "one-per-email");
-      await repository.registerWithPassword("taken@example.test", "a good long password", { inviteCode: code });
+      await repository.registerWithPassword("taken@example.test", "a good long password", "taken", { inviteCode: code });
 
       const second = await usableInvite(tx, "one-per-email-2");
       await expect(
-        repository.registerWithPassword("TAKEN@example.test", "another long password", { inviteCode: second }),
+        repository.registerWithPassword("TAKEN@example.test", "another long password", "takentwo", { inviteCode: second }),
       ).rejects.toMatchObject({ code: "account_taken" });
     });
   });
@@ -273,7 +273,7 @@ describe("OAuth", () => {
     await inRollback(sql, async (tx) => {
       const repository = auth(tx);
       const code = await usableInvite(tx, "oauth-link");
-      const existing = await repository.registerWithPassword("both@example.test", "a good long password", {
+      const existing = await repository.registerWithPassword("both@example.test", "a good long password", "bothy", {
         inviteCode: code,
       });
 
@@ -535,14 +535,103 @@ describe("asking whether an invite code works, without spending it", () => {
         maxRedemptions: 1,
         expiresAt: new Date(Date.now() + 86_400_000),
       });
-      await auth(tx).registerWithPassword("first@example.test", "correct-horse-9", { inviteCode: "one-seat" });
+      await auth(tx).registerWithPassword("first@example.test", "correct-horse-9", "firstone", { inviteCode: "one-seat" });
 
       expect(await auth(tx).isInviteUsable("one-seat")).toBe(false);
       await expect(
-        auth(tx).registerWithPassword("second@example.test", "correct-horse-9", { inviteCode: "one-seat" }),
+        auth(tx).registerWithPassword("second@example.test", "correct-horse-9", "secondone", { inviteCode: "one-seat" }),
       ).rejects.toMatchObject({
         code: "invite_invalid",
       });
+    });
+  });
+});
+
+/* Migration 0036. The column existed from day one and nothing ever wrote to it,
+   so the community feed credited people by whatever display name signup left. */
+describe("usernames", () => {
+  it("leaves no account without one, and no two accounts sharing one", async () => {
+    await inRollback(sql, async (tx) => {
+      const [row] = await tx<{ nulls: number; total: number; distinct: number }[]>`
+        select count(*) filter (where handle is null)::int as nulls,
+               count(*)::int as total,
+               count(distinct handle)::int as distinct
+        from users
+      `;
+      expect(row?.nulls).toBe(0);
+      expect(row?.distinct).toBe(row?.total);
+    });
+  });
+
+  it("mints one for a sign-up path that has no form to ask on", async () => {
+    await inRollback(sql, async (tx) => {
+      const code = await usableInvite(tx, "handle-minted");
+      const user = await auth(tx).signInWithOAuth("google", "google-uid-handle", "minted.person@example.test", "Minted", {
+        inviteCode: code,
+      });
+
+      // OAuth and the phone code cannot ask, and the column is NOT NULL.
+      expect(user.handle).toBe("minted.person");
+    });
+  });
+
+  it("takes the one somebody chose at sign-up", async () => {
+    await inRollback(sql, async (tx) => {
+      const code = await usableInvite(tx, "handle-chosen");
+      const user = await auth(tx).registerWithPassword("someone@example.test", "a good long password", "Chosen.One", {
+        inviteCode: code,
+      });
+
+      expect(user.handle).toBe("chosen.one");
+    });
+  });
+
+  it("refuses a name that is taken, naming the field rather than the email", async () => {
+    await inRollback(sql, async (tx) => {
+      const first = await usableInvite(tx, "handle-race-1");
+      await auth(tx).registerWithPassword("first@example.test", "a good long password", "sara.makes", { inviteCode: first });
+
+      const second = await usableInvite(tx, "handle-race-2");
+      // Not `account_taken`: the email is free and saying otherwise sends
+      // somebody to change the wrong field.
+      await expect(
+        auth(tx).registerWithPassword("second@example.test", "a good long password", "Sara.Makes", { inviteCode: second }),
+      ).rejects.toMatchObject({ code: "handle_taken" });
+    });
+  });
+
+  it("changes it afterwards, and refuses a name somebody else holds", async () => {
+    await inRollback(sql, async (tx) => {
+      const code = await usableInvite(tx, "handle-edit");
+      const user = await auth(tx).registerWithPassword("editor@example.test", "a good long password", "before.name", {
+        inviteCode: code,
+      });
+
+      const updated = await auth(tx).updateProfile(user.id, { handle: "After.Name", displayName: "After" });
+      expect(updated.handle).toBe("after.name");
+      expect(updated.displayName).toBe("After");
+
+      // A seeded author's, which is a real row in the same table.
+      await expect(auth(tx).updateProfile(user.id, { handle: "reza.vfx" })).rejects.toMatchObject({ code: "handle_taken" });
+      // And its own is not a collision with itself.
+      await expect(auth(tx).updateProfile(user.id, { handle: "after.name" })).resolves.toMatchObject({ handle: "after.name" });
+    });
+  });
+
+  it("gives a deleted account a placeholder rather than nulling the column", async () => {
+    await inRollback(sql, async (tx) => {
+      const code = await usableInvite(tx, "handle-deleted");
+      const user = await auth(tx).registerWithPassword("leaving@example.test", "a good long password", "leaving.soon", {
+        inviteCode: code,
+      });
+
+      // 0007 nulled the handle along with the email. With the column required
+      // that would make account deletion start failing, which is not a thing
+      // that may start failing.
+      await tx`select anonymize_user(${user.id})`;
+
+      const [row] = await tx<{ handle: string }[]>`select handle::text from users where id = ${user.id}`;
+      expect(row?.handle).toMatch(/^deleted[0-9a-f]{17}$/);
     });
   });
 });
