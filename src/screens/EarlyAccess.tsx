@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { OAuthFailureNotice } from "../components/OAuthFailureNotice";
-import { ArrowRight } from "@phosphor-icons/react";
 import { BRAND } from "../data/brand";
 import { Wordmark } from "../components/brandMarks";
+import { readContact } from "../lib/contact";
 import { useI18n, type TKey } from "../lib/i18n";
 import { ApiError } from "../runtime/apiError";
 import { useAppServices } from "../runtime/AppServices";
@@ -49,10 +49,19 @@ export default function EarlyAccess() {
   const [code, setCode] = useState("");
   const [checking, setChecking] = useState(false);
   const [failure, setFailure] = useState<TKey | null>(null);
+  /* Two ways in, one field. Somebody with a code types it; somebody without
+     asks to be told when there is room. */
+  const [queueing, setQueueing] = useState(false);
+  const [listed, setListed] = useState(false);
 
   const submit = async () => {
     const trimmed = code.trim();
     setFailure(null);
+    // The button is never dark, so the empty press is answered here.
+    if (trimmed === "") {
+      setFailure("ea_invalid");
+      return;
+    }
     setChecking(true);
     try {
       if (await services.auth.checkInvite(trimmed)) {
@@ -66,6 +75,32 @@ export default function EarlyAccess() {
           ? "auth_err_rate_limited"
           : error instanceof ApiError && error.code === "validation_failed"
             ? "ea_invalid"
+            : "auth_err_generic",
+      );
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const join = async () => {
+    const contact = readContact(code);
+    setFailure(null);
+    // Checked here so an empty box or a stray word never becomes a request —
+    // and the demo adapter refuses the same input, so the two agree.
+    if (!contact) {
+      setFailure("ea_queue_invalid");
+      return;
+    }
+    setChecking(true);
+    try {
+      await services.auth.joinWaitlist(contact.value);
+      setListed(true);
+    } catch (error) {
+      setFailure(
+        error instanceof ApiError && error.code === "rate_limited"
+          ? "auth_err_rate_limited"
+          : error instanceof ApiError && error.code === "validation_failed"
+            ? "ea_queue_invalid"
             : "auth_err_generic",
       );
     } finally {
@@ -90,7 +125,7 @@ export default function EarlyAccess() {
           className={`mt-9 text-[clamp(2.1rem,7.5vw,3.1rem)] font-extrabold leading-[1.15] ${lang === "en" ? "tracking-[0.2em]" : ""}`}
           style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
         >
-          {t("ea_soon")}
+          {t(listed ? "ea_queue_done" : queueing ? "ea_queue_title" : "ea_soon")}
         </h1>
 
         <p
@@ -100,85 +135,126 @@ export default function EarlyAccess() {
           {t("ea_limited")}
         </p>
 
-        <form
-          className="mt-8 w-full max-w-[420px]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submit();
-          }}
-        >
-          <div className="relative">
-            <input
-              value={code}
-              onChange={(event) => {
-                setCode(event.target.value);
-                setFailure(null);
-              }}
-              aria-label={t("auth_invite_label")}
-              aria-invalid={failure ? true : undefined}
-              aria-describedby={failure ? "ea-error" : undefined}
-              placeholder="****-****"
-              autoComplete="off"
-              autoCapitalize="characters"
-              spellCheck={false}
-              dir="ltr"
-              required
-              /* Centred and tracked out, so an eight-character code reads as
+        {listed ? (
+          /* The form is gone rather than emptied: there is nothing left to do
+             here, and a field still sitting there invites a second go. */
+          <p className="mt-8 max-w-[420px] text-[13px] leading-[1.9]" style={{ color: "var(--vg-text-secondary)" }}>
+            {t("ea_queue_done_note")}
+          </p>
+        ) : (
+          <form
+            className="mt-8 w-full max-w-[420px]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void (queueing ? join() : submit());
+            }}
+          >
+            <div className="relative">
+              <input
+                value={code}
+                onChange={(event) => {
+                  setCode(event.target.value);
+                  setFailure(null);
+                }}
+                aria-label={t(queueing ? "ea_queue_placeholder" : "auth_invite_label")}
+                aria-invalid={failure ? true : undefined}
+                aria-describedby={failure ? "ea-error" : undefined}
+                placeholder={queueing ? t("ea_queue_placeholder") : "****-****"}
+                autoComplete={queueing ? "email" : "off"}
+                autoCapitalize={queueing ? "none" : "characters"}
+                spellCheck={false}
+                dir="ltr"
+                required
+                /* Centred and tracked out, so an eight-character code reads as
                  the shape on the card it was sent on rather than as a word. */
-              className="vg-ease h-[52px] w-full rounded-full bg-transparent text-center text-[15px] font-semibold tracking-[0.3em] outline-none"
-              style={{
-                border: `1px solid ${failure ? "var(--vg-danger)" : "var(--vg-primary)"}`,
-                color: "var(--vg-text)",
-                paddingInline: "3.25rem",
-              }}
-            />
-            {/* The form submits on Enter, which is what a phone keyboard's Go
-                key does — but a field with no visible way on is a field people
-                stare at. Shown once there is something to send. */}
-            {code.trim() !== "" && (
+                className={`vg-ease h-[52px] min-w-0 flex-1 rounded-full bg-transparent text-center outline-none ${
+                  queueing ? "text-[14px] font-medium" : "text-[15px] font-semibold tracking-[0.3em]"
+                }`}
+                style={{
+                  border: `1px solid ${failure ? "var(--vg-danger)" : "var(--vg-primary)"}`,
+                  color: "var(--vg-text)",
+                  paddingInline: "1.5rem",
+                }}
+              />
+              {/* Beside the field and always there, rather than an arrow that
+                  appeared inside it once something had been typed. The whole
+                  point of this page is that there is a way on; a control you
+                  have to type to discover is not one. */}
               <button
                 type="submit"
+                /* Lit even with the field empty. A dark primary button cannot
+                   say why it is dark, and on the one page where the only job
+                   is "get in", the control for getting in should never look
+                   switched off — the press answers instead. Same rule the
+                   create docks follow for an empty wallet. */
                 disabled={checking}
-                aria-label={t("ea_submit")}
-                title={t("ea_submit")}
-                className="vg-ease absolute top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full disabled:opacity-50"
-                style={{ insetInlineEnd: 7, background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+                className="vg-ease h-[52px] shrink-0 rounded-full px-7 text-[14px] font-bold whitespace-nowrap disabled:opacity-60"
+                style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
               >
-                <ArrowRight size={16} weight="bold" className="rtl:-scale-x-100" />
+                {checking ? t(queueing ? "ea_queue_sending" : "ea_checking") : t(queueing ? "ea_queue_submit" : "ea_submit")}
               </button>
+            </div>
+
+            <p
+              id="ea-error"
+              role="alert"
+              className="mt-3 min-h-[1.25rem] text-[12.5px] leading-[1.7]"
+              style={{ color: failure ? "var(--vg-danger)" : "transparent" }}
+            >
+              {failure ? t(failure) : checking ? t(queueing ? "ea_queue_sending" : "ea_checking") : "\u00a0"}
+            </p>
+
+            {/* Nothing once they are on the list: the note above already says what
+                happens next, and «فقط با کد دعوت» under it would be the page
+                asking again for the thing it just promised to send. */}
+            {!listed && (
+              <p className={`mt-1 text-[11.5px] ${lang === "en" ? "tracking-[0.22em]" : ""}`} style={{ color: "var(--vg-text-muted)" }}>
+                {t(queueing ? "ea_queue_hint" : "ea_code_required")}
+              </p>
             )}
-          </div>
 
-          <p
-            id="ea-error"
-            role="alert"
-            className="mt-3 min-h-[1.25rem] text-[12.5px] leading-[1.7]"
-            style={{ color: failure ? "var(--vg-danger)" : "transparent" }}
-          >
-            {failure ? t(failure) : checking ? t("ea_checking") : "\u00a0"}
-          </p>
-        </form>
-
-        <p className={`mt-1 text-[11.5px] ${lang === "en" ? "tracking-[0.22em]" : ""}`} style={{ color: "var(--vg-text-muted)" }}>
-          {t("ea_code_required")}
-        </p>
-        <p className="vg-numeric mt-3 text-[11px] tracking-[0.18em]" dir="ltr" style={{ color: "var(--vg-text-faint)" }}>
-          {BRAND.domain}
-        </p>
+            {/* The way between the two, and the only thing that decides which
+                job the one field is doing. Absent where the API cannot take a
+                name, so the gate is exactly what it was. */}
+            <button
+              type="button"
+              onClick={() => {
+                setQueueing((open) => !open);
+                setCode("");
+                setFailure(null);
+              }}
+              className="vg-ease mt-1 rounded-full px-4 py-2 text-[12.5px] font-semibold"
+              style={{
+                color: "var(--vg-primary-soft)",
+                background: "var(--vg-primary-a10)",
+                boxShadow: "inset 0 0 0 1px var(--vg-primary-a20)",
+              }}
+            >
+              {t(queueing ? "ea_have_code" : "ea_no_code")}
+            </button>
+          </form>
+        )}
       </div>
 
-      {/* Quiet, under everything, and not in the mockup — but an account that
-          already exists needs a way in, and the legal row is what eNamad's
-          reviewer has to be able to reach from the front page. */}
-      <div className="relative z-10 mt-12 flex flex-col items-center gap-4 text-[12px]">
-        <button
-          type="button"
-          className="vg-ease hover:text-[color:var(--vg-text)]"
-          style={{ color: "var(--vg-text-muted)" }}
-          onClick={() => router.push(SIGN_IN_PATH)}
-        >
-          {t("auth_to_signin")}
-        </button>
+      {/* Not in the mockup, and both have to be here: somebody who already has
+          an account needs a way in that they can actually see, and the legal
+          row is what eNamad's reviewer has to reach from the front page.
+
+          A bordered control rather than a line of faint text — the first
+          version was grey on black under everything else, which is where a
+          returning customer gives up and assumes the site is shut. */}
+      <div className="relative z-10 mt-10 flex flex-col items-center gap-5">
+        <div className="flex items-center gap-2.5 text-[12.5px]">
+          <span style={{ color: "var(--vg-text-muted)" }}>{t("ea_has_account")}</span>
+          <button
+            type="button"
+            className="vg-ease rounded-full px-4 py-1.5 text-[12.5px] font-semibold"
+            style={{ color: "var(--vg-text)", boxShadow: "inset 0 0 0 1px var(--vg-border-strong)" }}
+            onClick={() => router.push(SIGN_IN_PATH)}
+          >
+            {t("ea_signin_cta")}
+          </button>
+        </div>
         <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11.5px]">
           {LEGAL.map(({ label, href }) => (
             <a

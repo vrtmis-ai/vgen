@@ -34,7 +34,7 @@ export const BRAND = {
    * link — the early-access gate sets it under the mark, the way a holding page
    * does. Latin either way: a domain is not translated.
    */
-  domain: "deev.com",
+  domain: "deevapp.com",
 } as const;
 
 /** "آکادمی DEEV" and friends — the name inside a Persian noun phrase. */

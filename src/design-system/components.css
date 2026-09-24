@@ -1533,14 +1533,34 @@
   inset: -25%;
   z-index: -1;
   pointer-events: none;
-  /* Soft stops rather than a blur filter: the gradients are already smooth and
+  /* Each lobe is two stops, not one: a wide soft field and a tighter, brighter
+     core at the same centre. One gradient falls off evenly and reads as a wash
+     laid over the black; two read as light with a source somewhere behind the
+     frame, which is the difference between a background and a scene.
+
+     Soft stops rather than a blur filter — the gradients are already smooth and
      a blur across a viewport-sized layer is fill rate spent on nothing. */
   background:
-    radial-gradient(32% 42% at 22% 40%, rgb(var(--vg-primary-rgb) / 0.22), transparent 70%),
-    radial-gradient(30% 40% at 78% 38%, rgb(var(--vg-primary-rgb) / 0.2), transparent 70%),
-    radial-gradient(70% 45% at 50% 90%, rgb(var(--vg-primary-rgb) / 0.05), transparent 76%);
+    radial-gradient(26% 32% at 21% 38%, rgb(var(--vg-primary-rgb) / 0.3), transparent 62%),
+    radial-gradient(46% 56% at 22% 42%, rgb(var(--vg-primary-rgb) / 0.13), transparent 74%),
+    radial-gradient(22% 28% at 79% 35%, rgb(var(--vg-primary-rgb) / 0.26), transparent 62%),
+    radial-gradient(44% 52% at 78% 40%, rgb(var(--vg-primary-rgb) / 0.11), transparent 74%),
+    radial-gradient(80% 40% at 50% 96%, rgb(var(--vg-primary-rgb) / 0.07), transparent 72%);
   animation: vg-soon-drift 34s var(--vg-ease) infinite alternate;
   will-change: transform;
+}
+
+/* The vignette, over the light and under the type. Without it the lobes reach
+   the edges of the frame and the whole thing reads as a flat panel; pulling the
+   corners down to black is what puts the type in the middle of a room. Static
+   on purpose — a vignette that drifts with the light stops being the frame. */
+.vg-soon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(118% 88% at 50% 44%, transparent 30%, rgb(0 0 0 / 0.5) 78%, rgb(0 0 0 / 0.8) 100%);
 }
 
 @keyframes vg-soon-drift {

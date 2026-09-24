@@ -1,5 +1,6 @@
 import type { AppServices } from "../../runtime/AppServices";
 import { ApiError } from "../../runtime/apiError";
+import { readContact } from "../../lib/contact";
 import type { AccountUser, Session } from "../../runtime/contracts/session";
 
 /**
@@ -136,6 +137,16 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
       const session = authedAs(input.email.trim().toLowerCase());
       state.set(session);
       return session;
+    },
+
+    /* Remembers nothing: the list lives on a server this mode does not have.
+       It refuses what `readContact` refuses, so the form's own check and the
+       one behind it agree — a demo that accepts anything teaches the shape of
+       a screen that does not exist. */
+    async joinWaitlist(contact) {
+      if (!readContact(contact)) {
+        throw new ApiError({ code: "validation_failed", message: "That is not an address or a mobile number.", status: 400 });
+      }
     },
 
     async checkInvite(code) {
