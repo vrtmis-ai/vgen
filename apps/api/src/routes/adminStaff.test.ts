@@ -298,9 +298,12 @@ describe("removing staff", () => {
   });
 });
 
-describe("plans for staff", () => {
+/* These used to live under /admin/staff and refuse anybody who held no role,
+   which made comping a paying customer a hand-written INSERT over SSH. The
+   repository underneath was never staff-specific; only the route was. */
+describe("plans, for anybody", () => {
   const grantPlan = (app: FastifyInstance, userId: string, payload: unknown) =>
-    app.inject({ method: "POST", url: `/api/v1/admin/staff/${userId}/plan`, payload: payload as never });
+    app.inject({ method: "POST", url: `/api/v1/admin/users/${userId}/plan`, payload: payload as never });
 
   it("turns a plan on and writes down which one", async () => {
     const { app, grant, audit } = appFor(OWNER);
@@ -309,7 +312,7 @@ describe("plans for staff", () => {
 
     expect(response.statusCode).toBe(201);
     expect(grant).toHaveBeenCalledWith(expect.objectContaining({ accountId: "account-1", planCode: "pro", grantedBy: "owner-1" }));
-    expect(audit).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ action: "staff.plan.granted" }));
+    expect(audit).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ action: "plan.granted" }));
   });
 
   /* Rule 2 applies here too: turning a plan on for somebody spends the
@@ -337,12 +340,56 @@ describe("plans for staff", () => {
   it("turns it off again and reports what was withdrawn", async () => {
     const { app, revoke, audit } = appFor(OWNER);
 
-    const response = await app.inject({ method: "DELETE", url: "/api/v1/admin/staff/target-1/plan" });
+    const response = await app.inject({ method: "DELETE", url: "/api/v1/admin/users/target-1/plan" });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ coinsWithdrawn: 5 });
     expect(revoke).toHaveBeenCalledWith("account-1", "owner-1");
-    expect(audit).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ action: "staff.plan.revoked" }));
+    expect(audit).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ action: "plan.revoked" }));
+  });
+
+  /* The point of the change. A customer holds no role, so `staffMember` is
+     null — which used to be a 404 and is now simply "nobody to outrank". */
+  it("grants to a customer who holds no role at all", async () => {
+    const { app, grant } = appFor(OWNER, []);
+
+    const response = await grantPlan(app, "customer-1", { planCode: "pro" });
+
+    expect(response.statusCode).toBe(201);
+    expect(grant).toHaveBeenCalledWith(expect.objectContaining({ accountId: "account-1", planCode: "pro" }));
+  });
+
+  it("still refuses a customer with no personal account, which is a real 404", async () => {
+    const audit = vi.fn(async () => {});
+    const app = Fastify({ logger: false });
+    registerErrorHandling(app);
+    registerAdminStaffRoutes(
+      app,
+      {
+        staff: {
+          listStaff: vi.fn(async () => []),
+          staffMember: vi.fn(async () => null),
+          upsertStaff: vi.fn(async () => {}),
+          appointStaff: vi.fn(async () => ({ userId: "x", totp: null })),
+          revokeStaff: vi.fn(async () => true),
+          roles: vi.fn(async () => []),
+          findUserByEmail: vi.fn(async () => null),
+        },
+        planGrants: {
+          activeFor: vi.fn(async () => null),
+          grant: vi.fn(async () => ({ outcome: "granted" }) as never),
+          revoke: vi.fn(async () => ({ outcome: "revoked" as const, coinsWithdrawn: 0 })),
+        },
+        accountForUser: vi.fn(async () => null),
+      },
+      { require: vi.fn(async () => OWNER as never), audit } as never,
+    );
+
+    const response = await grantPlan(app, "ghost-1", { planCode: "pro" });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ error: { code: "no_account" } });
+    await app.close();
   });
 });
 

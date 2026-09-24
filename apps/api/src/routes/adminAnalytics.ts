@@ -243,6 +243,8 @@ export function registerAdminAnalyticsRoutes(app: FastifyInstance, dependencies:
 
   // ---------------------------------------------------------------- actions
 
+  /* Its sibling, `/admin/users/:userId/plan`, lives in adminStaff.ts beside
+     the permission that governs it. */
   app.post("/api/v1/admin/users/:id/credits", { bodyLimit: 4 * 1024 }, async (request, reply) => {
     const session = await require(request, reply, "credits.grant");
     if (!session) return reply;

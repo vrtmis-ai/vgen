@@ -452,6 +452,7 @@ const StaffTotpSchema = z.object({ secret: z.string(), uri: z.string() });
 const StaffAppointedSchema = StaffOneSchema.extend({ totp: StaffTotpSchema.nullable() });
 export type StaffTotp = z.infer<typeof StaffTotpSchema>;
 
+/** What a plan grant looks like once it is live on an account, staff or not. */
 export const StaffPlanSchema = z.object({
   subscriptionId: z.string(),
   planCode: z.string(),
@@ -468,6 +469,29 @@ const StaffPlanRevokedSchema = z.object({ userId: z.string(), revoked: z.boolean
 
 export type StaffMember = z.infer<typeof StaffMemberSchema>;
 export type StaffPlan = z.infer<typeof StaffPlanSchema>;
+
+/**
+ * The plan ladder as a picker needs it: enough to name the plan and to say, on
+ * the screen, what granting it will actually do.
+ *
+ * Loose, and only the four fields that matter here — the public document
+ * carries prices, presentation and an exchange rate that a grant form has no
+ * business re-rendering.
+ */
+const GrantablePlansSchema = z.object({
+  plans: z.array(
+    z
+      .object({
+        code: z.string(),
+        name: z.string(),
+        coinsPerTerm: z.number(),
+        /** 0 is a pack: the coins never expire and nothing lapses. */
+        termDays: z.number(),
+      })
+      .loose(),
+  ),
+});
+export type GrantablePlan = z.infer<typeof GrantablePlansSchema>["plans"][number];
 
 /**
  * A model family, as the content editor offers it. Read from the public
@@ -560,9 +584,12 @@ export interface AdminApi {
   setStaffPermissions(userId: string, permissions: string[] | null): Promise<void>;
   revokeStaff(userId: string): Promise<void>;
 
-  getStaffPlan(userId: string): Promise<StaffPlan | null>;
-  grantStaffPlan(userId: string, planCode: string): Promise<void>;
-  revokeStaffPlan(userId: string): Promise<number>;
+  /** Any user, not only staff: `plans.grant` comps a customer as readily as a colleague. */
+  getUserPlan(userId: string): Promise<StaffPlan | null>;
+  grantUserPlan(userId: string, planCode: string): Promise<void>;
+  revokeUserPlan(userId: string): Promise<number>;
+  /** The public ladder, for a picker that offers real codes instead of a text field. */
+  listPlans(): Promise<GrantablePlan[]>;
 
   listAdminSessions(): Promise<AdminSessionRow[]>;
   revokeAdminSession(id: string): Promise<void>;
@@ -697,12 +724,15 @@ export function createAdminApi(client: HttpClient, uploads: HttpClient = client)
       await client.request(`/admin/staff/${userId}`, { method: "DELETE", schema: z.object({ userId: z.string(), revoked: z.boolean() }) });
     },
 
-    getStaffPlan: async (userId) => (await client.request(`/admin/staff/${userId}/plan`, { schema: StaffPlanResponseSchema })).plan,
-    grantStaffPlan: async (userId, planCode) => {
-      await client.request(`/admin/staff/${userId}/plan`, { method: "POST", body: { planCode }, schema: StaffPlanResponseSchema });
+    getUserPlan: async (userId) => (await client.request(`/admin/users/${userId}/plan`, { schema: StaffPlanResponseSchema })).plan,
+    grantUserPlan: async (userId, planCode) => {
+      await client.request(`/admin/users/${userId}/plan`, { method: "POST", body: { planCode }, schema: StaffPlanResponseSchema });
     },
-    revokeStaffPlan: async (userId) =>
-      (await client.request(`/admin/staff/${userId}/plan`, { method: "DELETE", schema: StaffPlanRevokedSchema })).coinsWithdrawn,
+    revokeUserPlan: async (userId) =>
+      (await client.request(`/admin/users/${userId}/plan`, { method: "DELETE", schema: StaffPlanRevokedSchema })).coinsWithdrawn,
+    // The public route, read through the admin client because /admin lives
+    // outside the customer providers and has no other way to ask.
+    listPlans: async () => (await client.request("/plans", { schema: GrantablePlansSchema })).plans,
 
     listFailures: async () => (await client.request("/admin/ops/failures", { schema: FailuresResponseSchema })).failures,
     listAuditTrail: async (action) =>

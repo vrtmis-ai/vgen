@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { AdminApi, StaffMember, StaffTotp } from "../../features/admin/adminApi";
 import { useStaff, useStaffMutations, useStaffRoles } from "../../features/admin/useAdmin";
 import { ApiError } from "../../runtime/apiError";
+import { GrantPlan } from "./GrantPlan";
 import { Cell, Muted, Table, when } from "./primitives";
 
 /**
@@ -107,6 +108,7 @@ export function StaffSection({
             {staff.data.staff.map((member) => (
               <StaffRow
                 key={member.userId}
+                api={api}
                 member={member}
                 grantable={grantable}
                 canWrite={canWrite}
@@ -129,6 +131,7 @@ export function StaffSection({
 }
 
 function StaffRow({
+  api,
   member,
   grantable,
   canWrite,
@@ -140,6 +143,7 @@ function StaffRow({
   mutations,
   roleDefaults,
 }: {
+  api: AdminApi;
   member: StaffMember;
   grantable: string[];
   canWrite: boolean;
@@ -160,7 +164,6 @@ function StaffRow({
   const editable = canWrite && locked === null;
 
   const [draft, setDraft] = useState<string[]>(member.permissions);
-  const [planCode, setPlanCode] = useState("");
 
   return (
     <>
@@ -245,45 +248,11 @@ function StaffRow({
                 </button>
               </div>
 
-              {canGrantPlans && (
-                <div className="flex flex-wrap items-center gap-2 border-t pt-3" style={{ borderColor: "var(--vg-border-subtle)" }}>
-                  <span className="text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
-                    پلن:
-                  </span>
-                  <input
-                    value={planCode}
-                    onChange={(event) => setPlanCode(event.target.value)}
-                    placeholder="کد پلن"
-                    className="vg-field-pad h-8 w-[140px] rounded-lg text-[12.5px]"
-                    style={{ background: "var(--vg-surface)", color: "var(--vg-text)" }}
-                  />
-                  <button
-                    onClick={() => mutations.grantPlan.mutate({ userId: member.userId, planCode: planCode.trim() })}
-                    disabled={!planCode.trim() || mutations.grantPlan.isPending}
-                    className="rounded-lg px-3 py-1.5 text-[12.5px] disabled:opacity-40"
-                    style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-                  >
-                    فعال کن
-                  </button>
-                  <button
-                    onClick={() => mutations.revokePlan.mutate(member.userId)}
-                    disabled={mutations.revokePlan.isPending}
-                    className="rounded-lg px-3 py-1.5 text-[12.5px]"
-                    style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text)" }}
-                  >
-                    غیرفعال کن
-                  </button>
-                  {/* The sentence this feature was asked for. Worth saying on
-                      the screen rather than only in the schema: a plan granted
-                      here is one term of that plan, and its credits expire with
-                      the term — it is not unlimited access. */}
-                  <Muted>فعال‌کردن پلن، اعتبار یک دوره را می‌دهد و سقف ماهانهٔ همان پلن را دارد.</Muted>
-                </div>
-              )}
+              {/* The same control the customer list draws. A colleague and a
+                  customer are one route now, so they should not be two forms. */}
+              {canGrantPlans && <GrantPlan api={api} userId={member.userId} />}
 
-              {(mutations.setPermissions.error || mutations.revoke.error || mutations.grantPlan.error || mutations.revokePlan.error) && (
-                <Muted>انجام نشد. شاید دسترسی لازم را نداری.</Muted>
-              )}
+              {(mutations.setPermissions.error || mutations.revoke.error) && <Muted>انجام نشد. شاید دسترسی لازم را نداری.</Muted>}
             </div>
           </td>
         </tr>
