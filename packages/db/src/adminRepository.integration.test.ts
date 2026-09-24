@@ -441,3 +441,35 @@ describe("staff made by staff", () => {
     });
   });
 });
+
+/* Migration 0035. Two accounts holding `*` are indistinguishable to every rule
+   this repository had, which is how any admin could revoke the owner. */
+describe("role rank", () => {
+  it("resolves the highest of somebody's roles, so an extra role is never a demotion", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      const admin = repo(tx);
+
+      await admin.grantRole(userId, "moderator", null);
+      expect((await admin.resolvePrincipal(userId))!.rank).toBe(20);
+      expect((await admin.staffMember(userId))!.rank).toBe(20);
+
+      await admin.grantRole(userId, "owner", null);
+      expect((await admin.resolvePrincipal(userId))!.rank).toBe(100);
+    });
+  });
+
+  it("gives the owner exactly the admin's permissions, so nothing but rank tells them apart", async () => {
+    await inRollback(sql, async (tx) => {
+      const roles = await repo(tx).roles();
+      const owner = roles.find((role) => role.code === "owner")!;
+      const administrator = roles.find((role) => role.code === "admin")!;
+
+      expect(owner.permissions).toEqual(administrator.permissions);
+      expect(owner.rank).toBeGreaterThan(administrator.rank);
+      // Ordered by seniority. Alphabetical put Administrator above Owner, which
+      // reads as a hierarchy and is the opposite of the real one.
+      expect(roles[0]!.code).toBe("owner");
+    });
+  });
+});

@@ -23,6 +23,7 @@ function appointFailure(error: unknown): string {
   if (code === "beyond_your_own") return "این نقش دسترسی‌ای دارد که خودت نداری، و نمی‌شود چیزی داد که نداری.";
   if (code === "outranked") return "این نفر دسترسی‌ای دارد که تو نداری، پس تغییرش با تو نیست.";
   if (code === "no_such_role") return "چنین نقشی وجود ندارد.";
+  if (code === "role_above_you") return "این نقش از نقش خودت بالاتر است. فقط کسی که هم‌رتبه‌اش باشد می‌تواند آن را بدهد.";
   if (code === "forbidden") return "دسترسی staff.write را نداری.";
   if (code === "mfa_required") return "ورود دومرحله‌ای‌ات هنوز تأیید نشده. یک بار بیرون برو و دوباره وارد شو.";
   if (code === "not_found") return "نشستت منقضی شده. دوباره وارد شو.";
@@ -40,14 +41,18 @@ function appointFailure(error: unknown): string {
  * and nothing else got everything, because everything was the only thing on
  * offer.
  *
- * Two rules shape what this screen is allowed to show, and both are enforced on
- * the server as well — the checkbox list is a convenience, never the control:
+ * Three rules shape what this screen is allowed to show, and all three are
+ * enforced on the server as well — this list is a convenience, never the
+ * control:
  *
  *   · you can only offer permissions you hold yourself, so the list of
  *     checkboxes is built from `grantable`, which the server sends;
  *   · you cannot edit somebody who holds access you do not, and you cannot
  *     edit yourself. Those rows render read-only with the reason on them,
- *     rather than as buttons that will come back 403.
+ *     rather than as buttons that will come back 403;
+ *   · you cannot touch anybody ranked above you, or appoint to a role above
+ *     your own. Rank is the one of the three that `grantable` cannot imply —
+ *     an owner and an admin both hold `*` — so the server sends it too.
  */
 
 /** Does `held` cover `wanted`? The client half of the same comparison the server makes. */
@@ -78,14 +83,17 @@ export function StaffSection({
   const [editing, setEditing] = useState<string | null>(null);
 
   const grantable = staff.data?.grantable ?? [];
+  /* Zero until the list arrives, which refuses everything rather than
+     offering it — the wrong way to be wrong here is the permissive one. */
+  const myRank = staff.data?.rank ?? 0;
 
   return (
     <div className="flex flex-col gap-8">
       <section>
         <Heading>هم‌تیمی‌ها</Heading>
         <Muted>
-          دسترسی هر نفر جدا از نقشش قابل تنظیم است. نمی‌توانی دسترسی‌ای بدهی که خودت نداری، و نمی‌توانی دسترسی کسی را که از تو بیشتر دارد
-          تغییر دهی. هر تغییر در audit_log ثبت می‌شود.
+          دسترسی هر نفر جدا از نقشش قابل تنظیم است. نمی‌توانی دسترسی‌ای بدهی که خودت نداری، نمی‌توانی دسترسی کسی را که از تو بیشتر دارد
+          تغییر دهی، و نمی‌توانی کسی را به نقشی بالاتر از نقش خودت بگماری. هر تغییر در audit_log ثبت می‌شود.
         </Muted>
 
         {staff.isPending ? (
@@ -103,6 +111,7 @@ export function StaffSection({
                 grantable={grantable}
                 canWrite={canWrite}
                 canGrantPlans={canGrantPlans}
+                myRank={myRank}
                 isMe={meEmail !== null && member.email === meEmail}
                 editing={editing === member.userId}
                 onEdit={() => setEditing(editing === member.userId ? null : member.userId)}
@@ -114,7 +123,7 @@ export function StaffSection({
         )}
       </section>
 
-      {canWrite && <Appoint api={api} grantable={grantable} mutations={mutations} meEmail={meEmail} />}
+      {canWrite && <Appoint api={api} grantable={grantable} mutations={mutations} meEmail={meEmail} myRank={myRank} />}
     </div>
   );
 }
@@ -124,6 +133,7 @@ function StaffRow({
   grantable,
   canWrite,
   canGrantPlans,
+  myRank,
   isMe,
   editing,
   onEdit,
@@ -134,16 +144,19 @@ function StaffRow({
   grantable: string[];
   canWrite: boolean;
   canGrantPlans: boolean;
+  myRank: number;
   isMe: boolean;
   editing: boolean;
   onEdit: () => void;
   mutations: ReturnType<typeof useStaffMutations>;
   roleDefaults: { code: string; name: string; permissions: string[] }[];
 }) {
-  /* The same two refusals the server makes, so a row that cannot be changed
-     says why instead of offering a button that comes back 403. */
+  /* The same three refusals the server makes, so a row that cannot be changed
+     says why instead of offering a button that comes back 403. Rank is checked
+     first because it is the one `grantable` cannot see: an owner and an admin
+     both hold `*`, so the permission comparison below finds nothing wrong. */
   const outranks = !member.permissions.every((permission) => covers(grantable, permission));
-  const locked = isMe ? "خودت" : outranks ? "دسترسی بیشتر از تو" : null;
+  const locked = isMe ? "خودت" : member.rank > myRank ? "بالاتر از تو" : outranks ? "دسترسی بیشتر از تو" : null;
   const editable = canWrite && locked === null;
 
   const [draft, setDraft] = useState<string[]>(member.permissions);
@@ -155,6 +168,11 @@ function StaffRow({
         <Cell>{member.email ?? "—"}</Cell>
         <Cell>
           {member.roleName}
+          {member.rank > myRank && (
+            <span className="ms-1.5 text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
+              (بالاتر)
+            </span>
+          )}
           {member.isCustom && (
             <span className="ms-1.5 text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
               (سفارشی)
@@ -279,11 +297,13 @@ function Appoint({
   grantable,
   mutations,
   meEmail,
+  myRank,
 }: {
   api: AdminApi;
   grantable: string[];
   mutations: ReturnType<typeof useStaffMutations>;
   meEmail: string | null;
+  myRank: number;
 }) {
   const roles = useStaffRoles(api, true);
   const [email, setEmail] = useState("");
@@ -361,11 +381,15 @@ function Appoint({
             style={{ background: "var(--vg-surface)", color: "var(--vg-text)" }}
           >
             <option value="">نقش…</option>
-            {(roles.data?.roles ?? []).map((role) => (
-              <option key={role.code} value={role.code}>
-                {role.name}
-              </option>
-            ))}
+            {/* Roles above your own are left out rather than offered and
+                refused. The server checks again either way. */}
+            {(roles.data?.roles ?? [])
+              .filter((role) => role.rank <= myRank)
+              .map((role) => (
+                <option key={role.code} value={role.code}>
+                  {role.name}
+                </option>
+              ))}
           </select>
           <button
             type="submit"

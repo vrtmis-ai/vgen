@@ -961,12 +961,14 @@ Who is staff, and what each of them can do. Permissions `staff.read` and
       "roleName": "Moderator",
       "permissions": ["community.read"],
       "isCustom": true,
+      "rank": 20,
       "hasMfa": true,
       "grantedAt": 0,
       "grantedByEmail": "…",
     },
   ],
   "grantable": ["*"],
+  "rank": 50, // the reader's own
 }
 
 // POST { "email": "…", "roleCode": "moderator", "permissions": ["community.read"] } → 201
@@ -979,8 +981,8 @@ the only four possible admins and `admin` holds `["*"]`. `user_roles.permissions
 (migration 0029) is **NULL for inherit, an array to pin** — every row written
 before that column existed still resolves exactly as it did.
 
-**Three rules, all enforced on the server.** `grantable` is sent so a form does
-not offer what will be refused; it is never the control.
+**Four rules, all enforced on the server.** `grantable` and `rank` are sent so
+a form does not offer what will be refused; they are never the control.
 
 1. **You cannot grant what you do not hold.** Checked with `permissionsWithin`,
    and checked against the _effective_ set — naming a role whose own permissions
@@ -989,9 +991,29 @@ not offer what will be refused; it is never the control.
 2. **You cannot touch somebody who holds what you do not.** Rule 1 stops a
    limited admin _granting_ `*` and says nothing about them taking it away from
    the person who has it. **403** `outranked`.
-3. **You cannot edit yourself.** Not a security rule but a lockout rule: the
-   first two permit narrowing your own set, and the result is a console nobody
-   can get back into.
+3. **You cannot touch somebody ranked above you, or appoint anyone to a role
+   ranked above your own.** **403** `outranked` and `role_above_you`. Rule 2
+   compares permission sets, which settles nothing between two accounts that
+   both hold `*` — so before `roles.rank` (migration 0035) any admin could
+   revoke any other, including the owner.
+4. **You cannot edit yourself.** Not a security rule but a lockout rule: the
+   others permit narrowing your own set, and the result is a console nobody can
+   get back into.
+
+`roles` are `owner` 100, `admin` 50, `moderator` 20, `support` 10, and somebody
+holding two resolves to the higher — an extra role is never a demotion. `owner`
+and `admin` hold identical permissions (`["*"]`); the difference between them is
+not what they may do but who may undo them. A lone owner is therefore
+unremovable without anything counting owners: no admin outranks them, no second
+owner exists, and rule 4 stops them removing themselves.
+
+**The first owner cannot come from this route**, since only an owner appoints
+one. On a deployment that has never had one it is
+`pnpm staff:promote <email> owner`, run against the database's own host — which
+is also why no email address for it appears in this repository.
+
+`GET /admin/staff/roles` answers `{ roles: [{ code, name, permissions, rank }],
+grantable, rank }`, ordered by rank, highest first.
 
 Appointment is **by email, and creates the account when given a `password`**
 (10–512 characters) for an address nobody uses yet. Staff are made by staff, so
