@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { OAuthFailureNotice } from "../components/OAuthFailureNotice";
 import { BRAND } from "../data/brand";
@@ -41,6 +41,37 @@ const LEGAL: { label: TKey; href: string }[] = [
   { label: "lp_footer_company", href: "/about" },
   { label: "lp_footer_contact", href: "/contact" },
 ];
+
+/**
+ * The wall of light behind the gate.
+ *
+ * Straight from the reference the design sent, with its own curve: the height
+ * of each bar is the distance of that bar from the middle, raised to 1.2, so
+ * the row dips in the centre and the type has somewhere dark to sit. Fifteen
+ * of them, breathing on a tenth-of-a-second stagger.
+ *
+ * The count is fixed rather than responsive because the curve is what the
+ * shape *is* — recalculating it for a phone would give a different picture on
+ * a phone, and the bars simply get narrower instead.
+ */
+const BARS = 15;
+
+function SoonBars() {
+  return (
+    <div className="vg-bars" aria-hidden>
+      {Array.from({ length: BARS }, (_, index) => {
+        const fromCentre = Math.abs(index / (BARS - 1) - 0.5) * 2;
+        const height = 0.3 + 0.7 * Math.pow(fromCentre, 1.2);
+        return (
+          <span
+            key={index}
+            style={{ "--vg-bar": height, animationDelay: `${index * 0.1}s`, maxWidth: `${100 / BARS}%` } as CSSProperties}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
 export default function EarlyAccess() {
   const { t, lang } = useI18n();
@@ -110,6 +141,8 @@ export default function EarlyAccess() {
 
   return (
     <main className="vg-soon vg-grain relative flex min-h-[100dvh] flex-col items-center justify-center px-5 py-14">
+      <SoonBars />
+
       {/* A social sign-in refused by the invite gate lands back here. */}
       <OAuthFailureNotice />
 

@@ -1533,19 +1533,13 @@
   inset: -25%;
   z-index: -1;
   pointer-events: none;
-  /* Each lobe is two stops, not one: a wide soft field and a tighter, brighter
-     core at the same centre. One gradient falls off evenly and reads as a wash
-     laid over the black; two read as light with a source somewhere behind the
-     frame, which is the difference between a background and a scene.
-
-     Soft stops rather than a blur filter — the gradients are already smooth and
-     a blur across a viewport-sized layer is fill rate spent on nothing. */
+  /* What is left of the two lobes that used to be the whole background. The
+     bars are the light now; this is the haze they stand in, and at this
+     strength it is the difference between a row of gradients and a room with
+     something happening at the back of it. */
   background:
-    radial-gradient(26% 32% at 21% 38%, rgb(var(--vg-primary-rgb) / 0.3), transparent 62%),
-    radial-gradient(46% 56% at 22% 42%, rgb(var(--vg-primary-rgb) / 0.13), transparent 74%),
-    radial-gradient(22% 28% at 79% 35%, rgb(var(--vg-primary-rgb) / 0.26), transparent 62%),
-    radial-gradient(44% 52% at 78% 40%, rgb(var(--vg-primary-rgb) / 0.11), transparent 74%),
-    radial-gradient(80% 40% at 50% 96%, rgb(var(--vg-primary-rgb) / 0.07), transparent 72%);
+    radial-gradient(40% 46% at 22% 44%, rgb(var(--vg-primary-rgb) / 0.08), transparent 72%),
+    radial-gradient(38% 44% at 78% 42%, rgb(var(--vg-primary-rgb) / 0.07), transparent 72%);
   animation: vg-soon-drift 34s var(--vg-ease) infinite alternate;
   will-change: transform;
 }
@@ -1560,7 +1554,7 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(118% 88% at 50% 44%, transparent 30%, rgb(0 0 0 / 0.5) 78%, rgb(0 0 0 / 0.8) 100%);
+  background: radial-gradient(105% 80% at 50% 42%, transparent 22%, rgb(0 0 0 / 0.62) 70%, rgb(0 0 0 / 0.88) 100%);
 }
 
 @keyframes vg-soon-drift {
@@ -1576,5 +1570,55 @@
   /* The light stays; only its drift stops. */
   .vg-soon::before {
     animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   THE BARS
+
+   From the reference the design sent: a row of vertical gradients rising from
+   the floor, tall at the edges and short in the middle, breathing on a
+   stagger. Theirs is one flat orange; the shape is what carries it, so the
+   shape is what came across and the colour is ours.
+
+   `scaleY` from the bottom rather than a changing height: a transform is
+   composited and a height is a layout pass, and there are fifteen of these
+   animating at once.
+   --------------------------------------------------------------------------- */
+.vg-bars {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: flex;
+  overflow: hidden;
+  pointer-events: none;
+  /* Kills the hairline seams between neighbours on fractional widths. */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.vg-bars > span {
+  flex: 1 0 auto;
+  height: 100%;
+  transform-origin: bottom;
+  background: linear-gradient(to top, rgb(var(--vg-primary-rgb) / 0.26), transparent 58%);
+  animation: vg-bar-breathe 2.6s var(--vg-ease) infinite alternate;
+  will-change: transform;
+}
+
+@keyframes vg-bar-breathe {
+  from {
+    transform: scaleY(var(--vg-bar, 1));
+  }
+  to {
+    transform: scaleY(calc(var(--vg-bar, 1) * 0.88));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The wall stays where it is; only the breathing stops. */
+  .vg-bars > span {
+    animation: none;
+    transform: scaleY(var(--vg-bar, 1));
   }
 }
