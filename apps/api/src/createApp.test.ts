@@ -28,6 +28,10 @@ function healthyDependencies(): ApiDependencies {
     storage: { ping: vi.fn(async () => undefined) },
     customerSession: {
       getCurrent: vi.fn(async () => ({ status: "anonymous" as const, host: "web" as const })),
+      currentUserId: vi.fn(async () => null),
+      updateProfile: vi.fn(async () => {
+        throw new Error("not used here");
+      }),
     },
     customerPlans: { list: vi.fn(async () => ({ plans: [], tomanPerUsd: 235_000 })) },
     customerCampaigns: { getActive: vi.fn(async () => null) },
@@ -113,6 +117,7 @@ const authedSession = {
     id: "22222222-2222-4222-8222-222222222222",
     methods: ["email"] as ["email"],
     emailNormalized: "user@example.test",
+    handle: "someone",
     locale: "fa" as const,
     isTeam: false,
   },
@@ -128,6 +133,7 @@ describe("generation job creation", () => {
         id: "22222222-2222-4222-8222-222222222222",
         methods: ["email"] as ["email"],
         emailNormalized: "user@example.test",
+        handle: "someone",
         locale: "fa" as const,
         isTeam: false,
       },
@@ -860,6 +866,7 @@ describe("customer session", () => {
         id: "00000000-0000-4000-8000-000000000001",
         methods: ["email" as const],
         emailNormalized: "person@example.com",
+        handle: "person",
         displayName: "Vgen User",
         locale: "fa" as const,
         isTeam: false,
@@ -925,6 +932,57 @@ describe("customer session", () => {
   });
 });
 
+/* There was no route by which anybody could change anything about themselves:
+   every field on `users` was written once at sign-up and never again. */
+describe("editing your own profile", () => {
+  it("refuses a stranger rather than guessing whose row to write", async () => {
+    const dependencies = healthyDependencies();
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "PATCH", url: "/api/v1/me", payload: { handle: "someone.else" } });
+
+    expect(response.statusCode).toBe(401);
+    expect(dependencies.customerSession.updateProfile).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("writes the session's own row, and no parameter names another", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.currentUserId = vi.fn(async () => "00000000-0000-4000-8000-000000000001");
+    dependencies.customerSession.updateProfile = vi.fn(async () => ({
+      id: "00000000-0000-4000-8000-000000000001",
+      methods: ["email" as const],
+      emailNormalized: "person@example.com",
+      handle: "new.name",
+      locale: "fa" as const,
+      isTeam: false,
+    }));
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "PATCH", url: "/api/v1/me", payload: { handle: "New.Name" } });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().user.handle).toBe("new.name");
+    // Lowercased by the schema before it reaches the repository.
+    expect(dependencies.customerSession.updateProfile).toHaveBeenCalledWith("00000000-0000-4000-8000-000000000001", {
+      handle: "new.name",
+    });
+    await app.close();
+  });
+
+  it("refuses a name that is not one, before the database is asked", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.customerSession.currentUserId = vi.fn(async () => "00000000-0000-4000-8000-000000000001");
+    const app = createApp(dependencies);
+
+    const response = await app.inject({ method: "PATCH", url: "/api/v1/me", payload: { handle: "no spaces" } });
+
+    expect(response.statusCode).toBe(400);
+    expect(dependencies.customerSession.updateProfile).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
 describe("customer catalog", () => {
   it("returns the latest catalog projection", async () => {
     const dependencies = healthyDependencies();
@@ -966,6 +1024,7 @@ describe("customer wallet", () => {
         id: "00000000-0000-4000-8000-000000000001",
         methods: ["email" as const],
         emailNormalized: "person@example.com",
+        handle: "person",
         locale: "fa" as const,
         isTeam: false,
       },

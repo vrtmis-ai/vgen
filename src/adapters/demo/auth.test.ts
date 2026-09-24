@@ -36,7 +36,7 @@ describe("demo auth", () => {
 
   it("signs in through the session the session service reports", async () => {
     const { auth, session } = harness();
-    await auth.register({ email: "new@deev.local", password: "correct-horse-battery", inviteCode: "APPLE-DEEV" });
+    await auth.register({ email: "new@deev.local", password: "correct-horse-battery", handle: "someone", inviteCode: "APPLE-DEEV" });
 
     const current = await session.getCurrent();
     expect(current.status).toBe("authed");
@@ -51,18 +51,22 @@ describe("demo auth", () => {
 
   it("enforces the invite gate, because production does", async () => {
     const { auth } = harness();
-    expect(await codeOf(() => auth.register({ email: "a@b.co", password: "correct-horse-battery" }))).toBe("invite_required");
-    expect(await codeOf(() => auth.register({ email: "a@b.co", password: "correct-horse-battery", inviteCode: "INVALID" }))).toBe(
-      "invite_invalid",
+    expect(await codeOf(() => auth.register({ email: "a@b.co", password: "correct-horse-battery", handle: "someone" }))).toBe(
+      "invite_required",
     );
+    expect(
+      await codeOf(() => auth.register({ email: "a@b.co", password: "correct-horse-battery", handle: "someone", inviteCode: "INVALID" })),
+    ).toBe("invite_invalid");
   });
 
   it("models the failures a sign-in screen has to tell apart", async () => {
     const { auth } = harness();
     expect(await codeOf(() => auth.verifyPhone({ phone: "09123334444", code: "000000", inviteCode: "OK" }))).toBe("otp_invalid");
-    expect(await codeOf(() => auth.register({ email: "taken@deev.local", password: "correct-horse-battery", inviteCode: "OK" }))).toBe(
-      "account_taken",
-    );
+    expect(
+      await codeOf(() =>
+        auth.register({ email: "taken@deev.local", password: "correct-horse-battery", handle: "someone", inviteCode: "OK" }),
+      ),
+    ).toBe("account_taken");
     expect(await codeOf(() => auth.login({ email: "a@b.co", password: "short" }))).toBe("invalid_credentials");
     expect(await codeOf(() => auth.startPhoneVerification({ phone: "nope" }))).toBe("invalid_phone");
   });

@@ -33,7 +33,8 @@ gallery had no route at all.
 | `AppServices` call         | Frontend requests                                  | Server route          | Status   |
 | -------------------------- | -------------------------------------------------- | --------------------- | -------- |
 | `session.getCurrent()`     | `GET /session`                                     | `routes/session.ts`   | **Live** |
-| `auth.*` (5 methods)       | `POST /auth/*`                                     | `routes/auth.ts`      | **Live** |
+| `auth.updateProfile()`     | `PATCH /me`                                        | `routes/session.ts`   | **Live** |
+| `auth.*` (6 methods)       | `POST /auth/*`                                     | `routes/auth.ts`      | **Live** |
 | `catalog.list()`           | `GET /catalog`                                     | `routes/catalog.ts`   | **Live** |
 | `content.list()`           | `GET /content`                                     | `routes/content.ts`   | **Live** |
 | `community.list()`         | `GET /community`                                   | `routes/community.ts` | **Live** |
@@ -99,7 +100,7 @@ anonymous is a normal answer.
 { "status": "anonymous", "host": "web", "authProviders": ["google"], "phoneSignIn": false }
 // or
 { "status": "authed", "host": "web", "authProviders": ["google", "microsoft"], "phoneSignIn": true,
-  "user": { "id": "…", "methods": ["email"], "emailNormalized": "a@b.c",
+  "user": { "id": "…", "methods": ["email"], "emailNormalized": "a@b.c", "handle": "reza.vfx",
             "displayName": "…", "locale": "fa", "isTeam": false } }
 ```
 
@@ -137,6 +138,49 @@ until eNamad clears, because Kavenegar will not send OTP templates for a site
 without it. There is no console fallback any more, so local matches production.
 Phone signup is also the only thing that grants the 12-coin trial; until it is
 back, give invitees coins through the invite code's gift.
+
+### `PATCH /me`
+
+Change your own name. **401** for a visitor; there is no parameter naming
+anybody else's row, which is what keeps this off the admin surface.
+
+```jsonc
+// PATCH { "handle": "reza.vfx" } or { "displayName": "Reza" } or both → 200
+{ "user": { … } } // the same shape GET /session carries
+```
+
+Both fields are optional and only what moved should be sent — an omitted key
+means "leave this alone", and the schema is `.strict()`, so an explicit
+`undefined` is a `validation_failed` rather than a no-op. An empty body is a
+no-op rather than an error: pressing save on an unchanged form is not a mistake.
+
+**409** `handle_taken` when somebody else holds that username, and **400**
+`validation_failed` when it is not a username at all.
+
+Nothing about an account was editable before this. Every field on `users` was
+written once at sign-up and never again, so a name mistyped at the door stayed
+mistyped.
+
+### Usernames
+
+`users.handle` is a unique `citext` column that has existed since migration
+0001, with a trigram index built for searching it, and the community feed has
+always credited posts by `coalesce(handle, display_name)`. **Nothing ever wrote
+to it** — in production only the ten seeded demo authors had one. Migration 0036
+backfills every row from the email's local part and makes the column NOT NULL.
+
+- **3–24 characters, `a–z 0–9 . _`**, starting and ending on a letter or digit.
+  The rule and a reserved-word list live in `packages/core/src/handles.ts`.
+- **Latin only, deliberately.** `ي`/`ی`, `ك`/`ک` and the zero-width joiner
+  render alike, so a Persian handle set is one where two accounts can carry the
+  same name on screen. Display names stay free-form; this is the identifier.
+- **Chosen at sign-up on `POST /auth/register`**, which is the only sign-up path
+  a deployment with no OAuth credentials and no SMS actually runs. OAuth and the
+  phone code have no form to ask on, so they mint one from the identity — as do
+  `pnpm admin:create` and the staff appointment route.
+- **`anonymize_user()` no longer nulls it.** A deleted account gets
+  `deleted<17 hex>`, the same shape its placeholder email already had, because
+  with the column required the old behaviour would make deletion start failing.
 
 ### `GET /catalog`
 
@@ -432,7 +476,7 @@ exist yet. Point them at it when you build it. `signOut` is live.
 | -------------------------------------------------- | --------------------------------------------------------------------------------- |
 | `POST /auth/otp/start`                             | `{ phone }` → `202 { sent: true, expiresAt }`. The route most Iranian users take  |
 | `POST /auth/otp/verify`                            | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie               |
-| `POST /auth/register`                              | `{ email, password, inviteCode?, deviceFingerprint? }` → `201`                    |
+| `POST /auth/register`                              | `{ email, password, handle, inviteCode?, deviceFingerprint? }` → `201`            |
 | `POST /auth/invite/check`                          | `{ code }` → `200 { valid }`, one boolean for every refusal; 20 per 15 min per IP |
 | `POST /auth/login`                                 | `{ email, password }` → `200`                                                     |
 | `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                 |

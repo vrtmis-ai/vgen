@@ -36,7 +36,7 @@ export async function mockApi(page: Page, scenario: ApiScenario = {}): Promise<v
             // A deployment with neither provider configured, which is the
             // common one. The sign-in screen draws no social buttons for it.
             authProviders: [],
-            user: { id: "e2e-user", methods: ["email"], emailNormalized: "e2e@vgen.local", displayName: "E2E User" },
+            user: { id: "e2e-user", methods: ["email"], emailNormalized: "e2e@vgen.local", handle: "e2euser", displayName: "E2E User" },
           },
     ),
   );

@@ -27,7 +27,7 @@ import type { GenerationRefusal } from "../features/generation/validation";
 const catalog = await createDemoCatalogService(() => 0).list();
 
 const ACCOUNT: Session = {
-  user: { id: "u1", methods: [], emailNormalized: "someone@example.com" },
+  user: { id: "u1", methods: [], emailNormalized: "someone@example.com", handle: "someone" },
   wallet: { spendable: 500, grants: [], tier: 3 },
   signIn: vi.fn(),
   signUp: vi.fn(),

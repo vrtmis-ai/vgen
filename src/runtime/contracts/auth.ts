@@ -68,8 +68,16 @@ export interface VerifyPhoneInput {
 export interface RegisterInput {
   email: string;
   password: string;
+  /** Required: the password form is the only sign-up path this deployment runs. */
+  handle: string;
   inviteCode?: string | undefined;
   deviceFingerprint?: string | undefined;
+}
+
+/** What somebody may change about themselves. Only what moved is sent. */
+export interface ProfileEdit {
+  handle?: string | undefined;
+  displayName?: string | undefined;
 }
 
 export interface LoginInput {

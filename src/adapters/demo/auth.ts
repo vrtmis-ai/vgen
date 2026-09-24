@@ -41,6 +41,7 @@ const DEMO_USER: AccountUser = {
   id: "demo-user",
   methods: ["email"],
   emailNormalized: "demo@vgen.local",
+  handle: "demo",
   displayName: "کاربر نمونه",
   locale: "fa",
 };
@@ -72,11 +73,11 @@ export function createDemoAuthState(startAuthed: boolean): DemoAuthState {
   };
 }
 
-function authedAs(email?: string): Session {
+function authedAs(email?: string, handle?: string): Session {
   return {
     status: "authed",
     host: "web",
-    user: email ? { ...DEMO_USER, emailNormalized: email } : DEMO_USER,
+    user: { ...DEMO_USER, ...(email ? { emailNormalized: email } : {}), ...(handle ? { handle } : {}) },
     authProviders: [...DEMO_AUTH_PROVIDERS],
     phoneSignIn: true,
   };
@@ -119,8 +120,11 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
       if (input.password.length < MIN_PASSWORD) {
         fail("invalid_credentials", `A password is at least ${MIN_PASSWORD} characters`, 401);
       }
+      if (input.handle.trim().toLowerCase() === "taken") {
+        fail("handle_taken", "That username is taken", 409);
+      }
       requireInvite(input.inviteCode);
-      const session = authedAs(input.email.trim().toLowerCase());
+      const session = authedAs(input.email.trim().toLowerCase(), input.handle.trim().toLowerCase());
       state.set(session);
       return session;
     },
@@ -156,6 +160,23 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
 
     async logout() {
       state.set(ANONYMOUS);
+    },
+
+    async updateProfile(edit) {
+      const session = state.current();
+      if (session.status !== "authed") {
+        fail("unauthorised", "Sign in first", 401);
+      }
+      if (edit.handle?.trim().toLowerCase() === "taken") {
+        fail("handle_taken", "That username is taken", 409);
+      }
+      const user = {
+        ...session.user,
+        ...(edit.handle ? { handle: edit.handle.trim().toLowerCase() } : {}),
+        ...(edit.displayName ? { displayName: edit.displayName.trim() } : {}),
+      };
+      state.set({ ...session, user });
+      return user;
     },
   };
 }

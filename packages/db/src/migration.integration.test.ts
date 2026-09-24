@@ -47,6 +47,7 @@ const EXPECTED_MIGRATIONS = [
   "0033_packs_and_unlimited_window.sql",
   "0034_content_categories.sql",
   "0035_role_rank.sql",
+  "0036_user_handles.sql",
 ];
 
 describe("database migration chain", () => {

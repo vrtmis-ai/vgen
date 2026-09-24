@@ -31,7 +31,9 @@ describe("adapter parity", () => {
     // `instanceof` is the check a screen makes; a class that merely has .code
     // and .status would pass every other assertion here and still fail it.
     const { auth } = createDemoServices({ startAnonymous: true });
-    const error = await auth.register({ email: "a@b.co", password: "correct-horse-battery" }).catch((caught: unknown) => caught);
+    const error = await auth
+      .register({ email: "a@b.co", password: "correct-horse-battery", handle: "someone" })
+      .catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ code: "invite_required", status: 403 });
@@ -43,7 +45,9 @@ describe("adapter parity", () => {
     );
     vi.stubGlobal("fetch", fetchImpl);
     const { auth } = createHttpServices("https://api.test/api/v1");
-    const error = await auth.register({ email: "a@b.co", password: "correct-horse-battery" }).catch((caught: unknown) => caught);
+    const error = await auth
+      .register({ email: "a@b.co", password: "correct-horse-battery", handle: "someone" })
+      .catch((caught: unknown) => caught);
     vi.unstubAllGlobals();
 
     expect(error).toBeInstanceOf(ApiError);

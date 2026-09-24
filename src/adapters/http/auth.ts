@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AppServices } from "../../runtime/AppServices";
 import { AuthedSessionSchema, InviteCheckResultSchema, PhoneVerificationStartedSchema } from "../../runtime/contracts/auth";
+import { AccountUserSchema } from "../../runtime/contracts/session";
 import type { HttpClient } from "./client";
 
 /** `undefined` is what readJson() yields for the empty 204 body logout returns. */
@@ -51,6 +52,7 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
         body: {
           email: input.email,
           password: input.password,
+          handle: input.handle,
           ...(input.inviteCode ? { inviteCode: input.inviteCode } : {}),
           ...(input.deviceFingerprint ? { deviceFingerprint: input.deviceFingerprint } : {}),
         },
@@ -97,6 +99,22 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
       // one, and Fastify rejects an empty body that declares itself JSON before
       // the route ever runs.
       await client.request("/auth/logout", { method: "POST", schema: VoidSchema, signal: options?.signal });
+    },
+
+    async updateProfile(edit, options) {
+      // Only what moved. The server's schema is .strict() and reads an
+      // explicitly-undefined key as a validation failure rather than as "leave
+      // this alone", which is what an omitted one means.
+      const result = await client.request("/me", {
+        method: "PATCH",
+        body: {
+          ...(edit.handle === undefined ? {} : { handle: edit.handle }),
+          ...(edit.displayName === undefined ? {} : { displayName: edit.displayName }),
+        },
+        schema: z.object({ user: AccountUserSchema }),
+        signal: options?.signal,
+      });
+      return result.user;
     },
   };
 }

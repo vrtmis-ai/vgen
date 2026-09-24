@@ -1,5 +1,19 @@
 import { z } from "zod";
 
+/**
+ * A username: the public name for an account, unique across the site.
+ *
+ * Latin only — `a–z 0–9 . _`, 3–24, starting and ending on a letter or digit.
+ * The rule and the reason both live in `@vgen/core`'s `normalizeHandle`, which
+ * the server calls on everything that reaches it; this schema is the shape
+ * check that lets a form say no without a round trip.
+ */
+export const HandleSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9][a-z0-9._]{1,22}[a-z0-9]$/, "نام کاربری باید ۳ تا ۲۴ نویسهٔ لاتین باشد");
+
 export const IdentityMethodSchema = z.literal("email");
 export const HostSchema = z.literal("web");
 export const OAuthProviderSchema = z.enum(["google", "microsoft"]);
@@ -21,6 +35,8 @@ export const AccountUserSchema = z.object({
   id: z.string().min(1),
   methods: z.array(IdentityMethodSchema),
   emailNormalized: z.string().email(),
+  /** The public name. NOT NULL in the database since migration 0036. */
+  handle: HandleSchema,
   displayName: z.string().min(1).optional(),
   avatarUrl: z.string().url().optional(),
   locale: z.string().min(2).optional(),

@@ -30,7 +30,7 @@ test("signing out through the port returns the app to the landing page", async (
           : {
               status: "authed",
               host: "web",
-              user: { id: "e2e-user", methods: ["email"], emailNormalized: "e2e@vgen.local", displayName: "E2E User" },
+              user: { id: "e2e-user", methods: ["email"], emailNormalized: "e2e@vgen.local", handle: "e2euser", displayName: "E2E User" },
             },
       ),
     }),
