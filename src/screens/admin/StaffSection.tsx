@@ -4,12 +4,31 @@ import { useStaff, useStaffMutations, useStaffRoles } from "../../features/admin
 import { ApiError } from "../../runtime/apiError";
 import { Cell, Muted, Table, when } from "./primitives";
 
+/**
+ * Every refusal this form can get, in its own words.
+ *
+ * This used to name three codes and send the other eight to "maybe you asked
+ * for more access than you hold" — which, for the account that holds `*` and
+ * was simply typing its own address, was a fabricated explanation for a
+ * refusal that had nothing to do with permissions. A message that guesses is
+ * worse than one that admits it does not know, because the guess sends people
+ * to look in the wrong place.
+ */
 function appointFailure(error: unknown): string {
   const code = error instanceof ApiError ? error.code : null;
   if (code === "no_such_user") return "این ایمیل حسابی ندارد. برای ساختن حساب، رمز عبور هم بده.";
   if (code === "account_exists") return "این ایمیل از قبل حساب دارد. رمز را خالی بگذار؛ رمز حساب کسی را از اینجا نمی‌شود عوض کرد.";
   if (code === "validation_failed") return "رمز عبور باید دست‌کم ۱۰ نویسه باشد.";
-  return "انجام نشد. شاید دسترسی خواسته‌شده بیشتر از توست.";
+  if (code === "self") return "این آدرس خودت است. دسترسی خودت را از این‌جا نمی‌شود عوض کرد.";
+  if (code === "beyond_your_own") return "این نقش دسترسی‌ای دارد که خودت نداری، و نمی‌شود چیزی داد که نداری.";
+  if (code === "outranked") return "این نفر دسترسی‌ای دارد که تو نداری، پس تغییرش با تو نیست.";
+  if (code === "no_such_role") return "چنین نقشی وجود ندارد.";
+  if (code === "forbidden") return "دسترسی staff.write را نداری.";
+  if (code === "mfa_required") return "ورود دومرحله‌ای‌ات هنوز تأیید نشده. یک بار بیرون برو و دوباره وارد شو.";
+  if (code === "not_found") return "نشستت منقضی شده. دوباره وارد شو.";
+  if (code === "network_error" || code === "request_timeout") return "به سرور نرسید. اتصال را بررسی کن و دوباره بزن.";
+  // No invented reason. The server refused and did not say something we know.
+  return "سرور این درخواست را نپذیرفت.";
 }
 
 /**
@@ -95,7 +114,7 @@ export function StaffSection({
         )}
       </section>
 
-      {canWrite && <Appoint api={api} grantable={grantable} mutations={mutations} />}
+      {canWrite && <Appoint api={api} grantable={grantable} mutations={mutations} meEmail={meEmail} />}
     </div>
   );
 }
@@ -255,7 +274,17 @@ function StaffRow({
   );
 }
 
-function Appoint({ api, grantable, mutations }: { api: AdminApi; grantable: string[]; mutations: ReturnType<typeof useStaffMutations> }) {
+function Appoint({
+  api,
+  grantable,
+  mutations,
+  meEmail,
+}: {
+  api: AdminApi;
+  grantable: string[];
+  mutations: ReturnType<typeof useStaffMutations>;
+  meEmail: string | null;
+}) {
   const roles = useStaffRoles(api, true);
   const [email, setEmail] = useState("");
   const [roleCode, setRoleCode] = useState("");
@@ -264,9 +293,14 @@ function Appoint({ api, grantable, mutations }: { api: AdminApi; grantable: stri
   // Shown once: the server keeps the key only sealed.
   const [issued, setIssued] = useState<{ email: string; totp: StaffTotp } | null>(null);
 
+  /* Your own address, caught here rather than by the round trip. The server
+     refuses it either way — this only means the form says so while you are
+     still looking at the field you typed it into. */
+  const isSelf = meEmail !== null && email.trim().toLowerCase() === meEmail.toLowerCase();
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!email.trim() || !roleCode) return;
+    if (!email.trim() || !roleCode || isSelf) return;
     const address = email.trim();
     setIssued(null);
     mutations.appoint.mutate(
@@ -335,7 +369,7 @@ function Appoint({ api, grantable, mutations }: { api: AdminApi; grantable: stri
           </select>
           <button
             type="submit"
-            disabled={!email.trim() || !roleCode || mutations.appoint.isPending}
+            disabled={!email.trim() || !roleCode || isSelf || mutations.appoint.isPending}
             className="rounded-lg px-4 py-2 text-[13px] font-semibold disabled:opacity-40"
             style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
           >
@@ -358,6 +392,7 @@ function Appoint({ api, grantable, mutations }: { api: AdminApi; grantable: stri
           ))}
         </div>
         <Muted>هیچ‌کدام را انتخاب نکنی، همان دسترسی‌های خودِ نقش را می‌گیرد.</Muted>
+        {isSelf && <Muted>این آدرس خودت است. دسترسی خودت را از این‌جا نمی‌شود عوض کرد.</Muted>}
         {mutations.appoint.error && <Muted>{appointFailure(mutations.appoint.error)}</Muted>}
       </form>
       {issued && (
