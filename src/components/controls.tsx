@@ -347,8 +347,31 @@ const DURATION_TIMEOUT_MS = 4_000;
  * all. Callers treat undefined as "unknown", which for a per-second model means
  * refusing to quote rather than guessing.
  */
+/**
+ * The schemes this probe will point a media element at.
+ *
+ * `blob:` is a file the customer just picked, made into a URL by this module;
+ * `http(s):` is a stored asset, which is what `mediaSrc` builds for the admin
+ * screens. Nothing else can reach here from our own callers — and CodeQL is
+ * right that assigning an unchecked string to `.src` is how it would, if one
+ * day something else did. Alert #19, `js/xss-through-dom`, high.
+ */
+const PROBE_PROTOCOLS = new Set(["blob:", "http:", "https:"]);
+
 export function readDuration(url: string, media: SlotMedia): Promise<number | undefined> {
   if (media === "image") return Promise.resolve(undefined);
+  /* Parsed before it is used, and it is the *parsed* value that gets assigned.
+     A relative string, a `data:` payload or a `javascript:` URL resolves to a
+     protocol that is not on the list and never reaches the element. Unreadable
+     is `undefined`, which every caller already treats as "length unknown". */
+  let parsed: URL;
+  try {
+    parsed = new URL(url, window.location.href);
+  } catch {
+    return Promise.resolve(undefined);
+  }
+  if (!PROBE_PROTOCOLS.has(parsed.protocol)) return Promise.resolve(undefined);
+
   return new Promise((resolve) => {
     const el = document.createElement(media === "video" ? "video" : "audio");
     let settled = false;
@@ -364,7 +387,7 @@ export function readDuration(url: string, media: SlotMedia): Promise<number | un
     el.preload = "metadata";
     el.onloadedmetadata = () => done(Number.isFinite(el.duration) ? el.duration : undefined);
     el.onerror = () => done(undefined);
-    el.src = url;
+    el.src = parsed.href;
   });
 }
 
