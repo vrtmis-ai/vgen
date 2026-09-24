@@ -50,6 +50,13 @@ export interface AdminAnalyticsDependencies {
 }
 
 const WindowSchema = z.enum(["today", "7d", "30d", "all"]).default("30d");
+/**
+ * Optional, and absent means every modality rather than none.
+ *
+ * `features.modality` has always carried this and the dashboard never grouped
+ * by it, so image and video — forty times apart in cost — were one bar.
+ */
+const ModalitySchema = z.enum(["image", "video", "audio"]).optional();
 
 const UsersQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
@@ -107,6 +114,8 @@ export function registerAdminAnalyticsRoutes(app: FastifyInstance, dependencies:
   };
 
   const windowOf = (request: FastifyRequest) => WindowSchema.parse((request.query as { window?: string } | undefined)?.window);
+  const modalityOf = (request: FastifyRequest) =>
+    ModalitySchema.parse((request.query as { modality?: string } | undefined)?.modality || undefined);
 
   // ------------------------------------------------------------- aggregates
 
@@ -195,7 +204,15 @@ export function registerAdminAnalyticsRoutes(app: FastifyInstance, dependencies:
     const session = await require(request, reply, "analytics.read");
     if (!session) return reply;
     const window = windowOf(request);
-    const [totals, standing, daily] = await Promise.all([analytics.overview(window), analytics.standing(), analytics.daily(window)]);
+    const modality = modalityOf(request);
+    /* The tiles stay whole-business while the chart narrows. Two different
+       questions on one screen — "how are we doing" and "how is video doing" —
+       and filtering the tiles too would leave no answer to the first. */
+    const [totals, standing, daily] = await Promise.all([
+      analytics.overview(window),
+      analytics.standing(),
+      analytics.daily(window, modality),
+    ]);
     return reply.send({ window, totals, standing, daily });
   });
 
@@ -203,7 +220,7 @@ export function registerAdminAnalyticsRoutes(app: FastifyInstance, dependencies:
     const session = await require(request, reply, "analytics.read");
     if (!session) return reply;
     const window = windowOf(request);
-    return reply.send({ window, models: await analytics.models(window) });
+    return reply.send({ window, models: await analytics.models(window, modalityOf(request)) });
   });
 
   app.get("/api/v1/admin/analytics/providers", async (request, reply) => {

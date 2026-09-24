@@ -756,20 +756,50 @@ rollup that nothing has ever written to; with almost no rows yet, scanning the
 real tables is correct to the second and is less machinery. That table is the
 upgrade path, and one of these queries getting slow is the signal to take it.
 
-| route                                 | permission                      | does                                         |
-| ------------------------------------- | ------------------------------- | -------------------------------------------- |
-| `GET /admin/analytics/overview`       | `analytics.read`                | KPIs, standing totals, and a per-day series  |
-| `GET /admin/analytics/models`         | `analytics.read`                | jobs, coins, cost and failure rate per model |
-| `GET /admin/analytics/providers`      | `analytics.read`                | attempts, failures and latency per provider  |
-| `GET /admin/users`                    | `analytics.read` + `users.read` | paginated, searchable customer list          |
-| `GET /admin/users/:id`                | `analytics.read` + `users.read` | one customer, recent jobs, ledger, live bans |
-| `POST /admin/users/:id/credits`       | `credits.grant`                 | `{ coins, note }` — signed; note required    |
-| `POST /admin/users/:id/bans`          | `users.write`                   | `{ scope, reason?, expiresAt? }` → **201**   |
-| `DELETE /admin/users/:id/bans/:banId` | `users.write`                   | lift one ban                                 |
-| `DELETE /admin/users/:id/sessions`    | `users.write`                   | end every customer session → `{ revoked }`   |
+| route                                 | permission                      | does                                           |
+| ------------------------------------- | ------------------------------- | ---------------------------------------------- |
+| `GET /admin/analytics/overview`       | `analytics.read`                | KPIs, standing totals, and a per-day series    |
+| `GET /admin/analytics/models`         | `analytics.read`                | jobs, coins, cost and failure rate per model   |
+|                                       |                                 | both also take `?modality=image\|video\|audio` |
+| `GET /admin/analytics/providers`      | `analytics.read`                | attempts, failures and latency per provider    |
+| `GET /admin/users`                    | `analytics.read` + `users.read` | paginated, searchable customer list            |
+| `GET /admin/users/:id`                | `analytics.read` + `users.read` | one customer, recent jobs, ledger, live bans   |
+| `POST /admin/users/:id/credits`       | `credits.grant`                 | `{ coins, note }` — signed; note required      |
+| `POST /admin/users/:id/bans`          | `users.write`                   | `{ scope, reason?, expiresAt? }` → **201**     |
+| `DELETE /admin/users/:id/bans/:banId` | `users.write`                   | lift one ban                                   |
+| `DELETE /admin/users/:id/sessions`    | `users.write`                   | end every customer session → `{ revoked }`     |
 
 All take `?window=today|7d|30d|all`, defaulting to `30d`. An unknown window is a
 400 rather than a silent fallback.
+
+`overview` and `models` also take **`?modality=image|video|audio`**, and absent
+means every modality rather than none. It groups by `features.modality` — the
+feature the job was priced and routed as, not the model's family, since a family
+can serve more than one. Image and video sit about forty times apart in cost and
+were one number until this existed.
+
+The **tiles and the standing totals stay whole-business while the chart
+narrows**: "how are we doing" and "how is video doing" are two questions on one
+screen, and filtering the tiles too would leave no answer to the first.
+
+The per-day series carries `{ day, jobs, jobsSucceeded, jobsFailed, coinsSpent,
+providerCostUsd, newUsers }`. `newUsers` ignores `modality`, because a signup has
+not made anything yet; the panel drops that metric from its picker while a
+modality is chosen rather than drawing an unfiltered line under a filtered
+heading.
+
+**The daily coin figure comes from `jobs.micro_credits_charged`, not from the
+ledger's `capture` entries.** The two agree — `capture_hold` is called from one
+place, which sets that column to the same number in the same transaction — but
+only the job carries a feature, so only the job can be filtered or split. It
+also dates a day's spend to the day the job was submitted, which is the day
+every other series on the chart already attributes it to. The windowed
+`totals.coinsSpent` still comes from the ledger.
+
+**`window=all` means all.** `daily()` fell back to 29 days for it, so the series
+behind «از ابتدا» was the same month `30d` drew, with nothing in the picture to
+say so. It now starts at the first account, capped at 364 days because a chart
+of three thousand bars is not a chart.
 
 **Two permissions on the customer list, deliberately.** Aggregates need
 `analytics.read`. The list carries every customer's email beside what they

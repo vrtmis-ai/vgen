@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { AdminApi, AnalyticsWindow } from "../../features/admin/adminApi";
+import type { AdminApi, AnalyticsModality, AnalyticsWindow } from "../../features/admin/adminApi";
 import { useModelMargin, useOverview, useProviderHealth } from "../../features/admin/useAdmin";
-import { Bars, Sparkline } from "./Sparkline";
+import { Chart, type SeriesPoint } from "./Sparkline";
 import { Cell, Muted, Row, Stat, Table, num, toman, usd } from "./primitives";
 
 /**
@@ -28,30 +28,146 @@ const WINDOWS: { id: AnalyticsWindow; label: string }[] = [
   { id: "all", label: "از ابتدا" },
 ];
 
+const MODALITIES: { id: AnalyticsModality; label: string }[] = [
+  { id: undefined, label: "همه" },
+  { id: "image", label: "تصویر" },
+  { id: "video", label: "ویدیو" },
+  { id: "audio", label: "صدا" },
+];
+
+/**
+ * What the charts can draw.
+ *
+ * All five come out of one query that has always returned them — `providerCost`
+ * and `newUsers` were fetched and thrown away from the day this page shipped,
+ * and the jobs split is one extra column. So this is four more readings of the
+ * same request rather than four more requests.
+ *
+ * `newUsers` is not split by modality, because a signup has not made anything
+ * yet; the picker drops it while a modality is chosen rather than showing the
+ * same unfiltered line under a filtered heading.
+ */
+type MetricId = "jobs" | "coins" | "cost" | "users";
+
+const METRICS: {
+  id: MetricId;
+  label: string;
+  unit?: string;
+  kind: "bars" | "line";
+  /** False for anything the modality filter cannot narrow. */
+  byModality: boolean;
+  of: (point: DailyPoint) => SeriesPoint;
+}[] = [
+  {
+    id: "jobs",
+    label: "جاب",
+    unit: "جاب",
+    kind: "bars",
+    byModality: true,
+    of: (point) => ({ label: point.day, value: point.jobs, part: point.jobsFailed }),
+  },
+  {
+    id: "coins",
+    label: "سکه",
+    unit: "سکه",
+    kind: "line",
+    byModality: true,
+    of: (point) => ({ label: point.day, value: point.coinsSpent }),
+  },
+  {
+    id: "cost",
+    label: "هزینهٔ ارائه‌دهنده",
+    unit: "$",
+    kind: "line",
+    byModality: true,
+    of: (point) => ({ label: point.day, value: point.providerCostUsd }),
+  },
+  {
+    id: "users",
+    label: "کاربر تازه",
+    unit: "کاربر",
+    kind: "bars",
+    byModality: false,
+    of: (point) => ({ label: point.day, value: point.newUsers }),
+  },
+];
+
+type DailyPoint = {
+  day: string;
+  jobs: number;
+  jobsSucceeded: number;
+  jobsFailed: number;
+  coinsSpent: number;
+  providerCostUsd: number;
+  newUsers: number;
+};
+
+/** A pill group. The window switch was the only one; there are three now. */
+function Pills<T extends string | undefined>({
+  options,
+  value,
+  onChange,
+  label,
+}: {
+  options: { id: T; label: string }[];
+  value: T;
+  onChange: (id: T) => void;
+  label: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={label}>
+      {options.map((option) => (
+        <button
+          key={option.id ?? "all"}
+          onClick={() => onChange(option.id)}
+          aria-pressed={value === option.id}
+          className="h-7 rounded-lg px-2.5 text-[12px] font-semibold"
+          style={{
+            background: value === option.id ? "var(--vg-primary-a18)" : "var(--vg-surface)",
+            color: value === option.id ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
+            border: "1px solid var(--vg-border-subtle)",
+          }}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function DashboardSection({ api }: { api: AdminApi }) {
   const [window, setWindow] = useState<AnalyticsWindow>("30d");
-  const overview = useOverview(api, window, true);
-  const models = useModelMargin(api, window, true);
+  const [modality, setModality] = useState<AnalyticsModality>(undefined);
+  // Two charts, so two metrics, so that one screen can hold a comparison —
+  // jobs against the coins they earned is the pair somebody actually wants.
+  const [left, setLeft] = useState<MetricId>("jobs");
+  const [right, setRight] = useState<MetricId>("coins");
+
+  const overview = useOverview(api, window, modality, true);
+  const models = useModelMargin(api, window, modality, true);
   const providers = useProviderHealth(api, window, true);
+
+  const available = METRICS.filter((metric) => metric.byModality || modality === undefined);
+  const metricOf = (id: MetricId) => available.find((metric) => metric.id === id) ?? available[0]!;
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {WINDOWS.map((entry) => (
-          <button
-            key={entry.id}
-            onClick={() => setWindow(entry.id)}
-            aria-pressed={window === entry.id}
-            className="h-7 rounded-lg px-2.5 text-[12px] font-semibold"
-            style={{
-              background: window === entry.id ? "var(--vg-primary-a18)" : "var(--vg-surface)",
-              color: window === entry.id ? "var(--vg-primary-soft)" : "var(--vg-text-muted)",
-              border: "1px solid var(--vg-border-subtle)",
-            }}
-          >
-            {entry.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <Pills options={WINDOWS} value={window} onChange={setWindow} label="بازه" />
+        <Pills
+          options={MODALITIES}
+          value={modality}
+          onChange={(next) => {
+            setModality(next);
+            // Signups are not video. Fall back rather than draw an unfiltered
+            // line under a filtered heading.
+            if (next !== undefined) {
+              if (!METRICS.find((metric) => metric.id === left)?.byModality) setLeft("jobs");
+              if (!METRICS.find((metric) => metric.id === right)?.byModality) setRight("coins");
+            }
+          }}
+          label="نوع خروجی"
+        />
         <span className="ms-auto text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
           روزها به وقت تهران
         </span>
@@ -94,16 +210,28 @@ export function DashboardSection({ api }: { api: AdminApi }) {
           </div>
 
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Panel title="جاب در هر روز">
-              <Bars
-                values={overview.data.daily.map((point) => point.jobs)}
-                labels={overview.data.daily.map((point) => point.day)}
-                title="جاب در هر روز"
-              />
-            </Panel>
-            <Panel title="سکه‌ی خرج‌شده در هر روز">
-              <Sparkline values={overview.data.daily.map((point) => point.coinsSpent)} title="سکه‌ی خرج‌شده در هر روز" />
-            </Panel>
+            {[
+              { metric: metricOf(left), set: setLeft, label: "سنجهٔ نمودار چپ" },
+              { metric: metricOf(right), set: setRight, label: "سنجهٔ نمودار راست" },
+            ].map(({ metric, set, label }) => (
+              <div key={label}>
+                <div className="mb-1.5">
+                  <Pills
+                    options={available.map((entry) => ({ id: entry.id, label: entry.label }))}
+                    value={metric.id}
+                    onChange={set}
+                    label={label}
+                  />
+                </div>
+                <Chart
+                  title={`${metric.label} در هر روز`}
+                  points={overview.data!.daily.map(metric.of)}
+                  kind={metric.kind}
+                  {...(metric.unit ? { unit: metric.unit } : {})}
+                  {...(metric.id === "jobs" ? { partLabel: "ناموفق" } : {})}
+                />
+              </div>
+            ))}
           </div>
 
           {/* Standing totals, not windowed: what is true right now rather than
@@ -124,6 +252,11 @@ export function DashboardSection({ api }: { api: AdminApi }) {
 
       <h3 className="mt-6 text-[13.5px] font-bold" style={{ color: "var(--vg-text)" }}>
         مدل‌ها و حاشیه‌ی سود
+        {modality ? (
+          <span className="ms-1.5 text-[11.5px] font-normal" style={{ color: "var(--vg-text-faint)" }}>
+            — فقط {MODALITIES.find((entry) => entry.id === modality)?.label}
+          </span>
+        ) : null}
       </h3>
       <p className="mb-2 text-[11.5px]" style={{ color: "var(--vg-text-faint)" }}>
         بر اساس مدلی که مشتری انتخاب کرده، نه مدلی که اجرایش کرده. «هزینه» یعنی آنچه ارائه‌دهنده از ما گرفته است.
@@ -195,17 +328,6 @@ export function DashboardSection({ api }: { api: AdminApi }) {
       ) : (
         <Muted>{providers.isPending ? "در حال خواندن…" : "خوانده نشد."}</Muted>
       )}
-    </div>
-  );
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl p-3" style={{ background: "var(--vg-surface)", border: "1px solid var(--vg-border-subtle)" }}>
-      <div className="mb-1.5 text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
-        {title}
-      </div>
-      {children}
     </div>
   );
 }

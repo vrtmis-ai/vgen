@@ -39,9 +39,19 @@ afterAll(async () => {
 /** A job, placed at a chosen instant so the window logic has something to sort. */
 async function jobAt(
   tx: Sql,
-  options: { accountId: string; userId: string; at: string; status?: string; costUsd?: number; coins?: number },
+  options: {
+    accountId: string;
+    userId: string;
+    at: string;
+    status?: string;
+    costUsd?: number;
+    coins?: number;
+    modality?: "image" | "video" | "audio";
+  },
 ) {
-  const [feature] = await tx<{ id: string }[]>`select id from features limit 1`;
+  const [feature] = options.modality
+    ? await tx<{ id: string }[]>`select id from features where modality = ${options.modality} limit 1`
+    : await tx<{ id: string }[]>`select id from features limit 1`;
   const [model] = await tx<{ id: string }[]>`select id from provider_models where capabilities ? 'variant' limit 1`;
   // `options.at` is a SQL expression, so it is evaluated here and bound as a
   // real instant. Interpolating it as a parameter would send the string "now()"
@@ -175,6 +185,61 @@ describe("the daily series", () => {
       expect(series).toHaveLength(7);
       expect(series.at(-1)!.jobs).toBeGreaterThanOrEqual(1);
       expect(series.map((point) => point.day)).toEqual([...series.map((point) => point.day)].sort());
+    });
+  });
+
+  it("splits a day by outcome, which the totals row could say and the chart could not", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const analytics = new PostgresAnalyticsRepository(tx);
+      const before = (await analytics.daily("today")).at(-1)!;
+
+      await jobAt(tx, { accountId, userId, at: "now()", status: "succeeded" });
+      await jobAt(tx, { accountId, userId, at: "now()", status: "failed" });
+
+      const today = (await analytics.daily("today")).at(-1)!;
+
+      expect(today.jobs - before.jobs).toBe(2);
+      expect(today.jobsSucceeded - before.jobsSucceeded).toBe(1);
+      expect(today.jobsFailed - before.jobsFailed).toBe(1);
+    });
+  });
+
+  /* `features.modality` has carried this since the schema shipped and the
+     dashboard never grouped by it, so image and video — forty times apart in
+     cost — were one bar. */
+  it("narrows to one modality", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId, accountId } = await makeUser(tx);
+      const analytics = new PostgresAnalyticsRepository(tx);
+      const beforeVideo = (await analytics.daily("today", "video")).at(-1)!;
+      const beforeImage = (await analytics.daily("today", "image")).at(-1)!;
+
+      await jobAt(tx, { accountId, userId, at: "now()", modality: "video", costUsd: 4 });
+      await jobAt(tx, { accountId, userId, at: "now()", modality: "image", costUsd: 0.05 });
+
+      const video = (await analytics.daily("today", "video")).at(-1)!;
+      const image = (await analytics.daily("today", "image")).at(-1)!;
+
+      expect(video.jobs - beforeVideo.jobs).toBe(1);
+      expect(video.providerCostUsd - beforeVideo.providerCostUsd).toBeCloseTo(4, 6);
+      expect(image.jobs - beforeImage.jobs).toBe(1);
+      expect(image.providerCostUsd - beforeImage.providerCostUsd).toBeCloseTo(0.05, 6);
+    });
+  });
+
+  it("spans more than a month for «from the beginning», which it used not to", async () => {
+    await inRollback(sql, async (tx) => {
+      // `all` fell back to 29 days here, so the button labelled از ابتدا drew
+      // exactly the month the 30d button drew — silently, with nothing on the
+      // picture to say so.
+      await tx`update users set created_at = now() - interval '120 days' where id = (select id from users order by created_at limit 1)`;
+
+      const series = await new PostgresAnalyticsRepository(tx).daily("all");
+
+      expect(series.length).toBeGreaterThan(31);
+      // Capped, because a chart of three thousand bars is not a chart.
+      expect(series.length).toBeLessThanOrEqual(366);
     });
   });
 });

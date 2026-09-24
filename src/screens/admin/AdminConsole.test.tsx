@@ -211,8 +211,8 @@ function stubApi(): AdminApi {
       },
       standing: { coinsOutstanding: 900, coinsHeld: 20, users: 11, bannedUsers: 1 },
       daily: [
-        { day: "2026-08-20", jobs: 18, coinsSpent: 800, providerCostUsd: 5.5, newUsers: 1 },
-        { day: "2026-08-21", jobs: 22, coinsSpent: 1000, providerCostUsd: 7, newUsers: 2 },
+        { day: "2026-08-20", jobs: 18, jobsSucceeded: 18, jobsFailed: 0, coinsSpent: 800, providerCostUsd: 5.5, newUsers: 1 },
+        { day: "2026-08-21", jobs: 22, jobsSucceeded: 22, jobsFailed: 0, coinsSpent: 1000, providerCostUsd: 7, newUsers: 2 },
       ],
     })),
     listModelMargin: vi.fn(async () => [
@@ -765,7 +765,7 @@ describe("the dashboard", () => {
     await screen.findByRole("heading", { name: "پنل مدیریت" });
     // "How are we doing" is answered before anybody clicks anything.
     expect(await screen.findByText("سکه‌ی فروخته‌شده")).toBeInTheDocument();
-    await waitFor(() => expect(api.getOverview).toHaveBeenCalledWith("30d"));
+    await waitFor(() => expect(api.getOverview).toHaveBeenCalledWith("30d", undefined));
   });
 
   it("keeps coins sold apart from coins given away", async () => {
@@ -790,6 +790,70 @@ describe("the dashboard", () => {
     expect(await screen.findByText("هنوز درگاه پرداخت وصل نیست")).toBeInTheDocument();
   });
 
+  /* Two of the four series the chart can draw were already in the payload and
+     thrown away, and the line chart was passed no labels at all. */
+  it("draws whichever metric is picked, from the one request it already made", async () => {
+    signedIn();
+    const user = userEvent.setup();
+    renderConsole();
+    await screen.findByText("سکه‌ی فروخته‌شده");
+
+    const picker = within(screen.getByRole("group", { name: "سنجهٔ نمودار چپ" }));
+    await user.click(picker.getByRole("button", { name: "هزینهٔ ارائه‌دهنده" }));
+
+    expect(await screen.findByLabelText("هزینهٔ ارائه‌دهنده در هر روز")).toBeInTheDocument();
+    // No second request: every series comes out of the daily rows already held.
+    expect(api.getOverview).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads a day and its number out on hover, which nothing could do before", async () => {
+    signedIn();
+    const user = userEvent.setup();
+    renderConsole();
+    await screen.findByText("سکه‌ی فروخته‌شده");
+
+    // Until it is hovered the readout is the axis maximum, so the scale is
+    // never a mystery either.
+    expect(await screen.findByText("max 22")).toBeInTheDocument();
+
+    /* jsdom gives every element a zero-width box, and the readout is computed
+       from where the pointer is across that box. One width is all it needs. */
+    const box = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockReturnValue({ left: 0, width: 200, top: 0, height: 64, right: 200, bottom: 64, x: 0, y: 0, toJSON: () => ({}) });
+    await user.pointer({ target: screen.getByLabelText("جاب در هر روز"), coords: { clientX: 150, clientY: 10 } });
+    box.mockRestore();
+
+    expect(await screen.findByText(/2026-08-21 · 22 جاب/)).toBeInTheDocument();
+  });
+
+  it("narrows to one modality and says the table narrowed with it", async () => {
+    signedIn();
+    const user = userEvent.setup();
+    renderConsole();
+    await screen.findByText("سکه‌ی فروخته‌شده");
+
+    await user.click(screen.getByRole("button", { name: "ویدیو" }));
+
+    await waitFor(() => expect(api.getOverview).toHaveBeenCalledWith("30d", "video"));
+    await waitFor(() => expect(api.listModelMargin).toHaveBeenCalledWith("30d", "video"));
+    expect(screen.getByText(/فقط ویدیو/)).toBeInTheDocument();
+  });
+
+  it("drops the signups metric while a modality is chosen, because a signup is not a video", async () => {
+    signedIn();
+    const user = userEvent.setup();
+    renderConsole();
+    await screen.findByText("سکه‌ی فروخته‌شده");
+    expect(screen.getAllByRole("button", { name: "کاربر تازه" }).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "تصویر" }));
+
+    // Showing the same unfiltered line under a filtered heading is the one
+    // thing a dashboard must not do.
+    expect(screen.queryByRole("button", { name: "کاربر تازه" })).not.toBeInTheDocument();
+  });
+
   it("does not refetch a window it has already seen", async () => {
     signedIn();
     const user = userEvent.setup();
@@ -797,7 +861,7 @@ describe("the dashboard", () => {
     await screen.findByText("سکه‌ی فروخته‌شده");
 
     await user.click(screen.getByRole("button", { name: "امروز" }));
-    await waitFor(() => expect(api.getOverview).toHaveBeenCalledWith("today"));
+    await waitFor(() => expect(api.getOverview).toHaveBeenCalledWith("today", undefined));
     await user.click(screen.getByRole("button", { name: "۳۰ روز" }));
 
     // The window is part of the query key, so going back is instant and
