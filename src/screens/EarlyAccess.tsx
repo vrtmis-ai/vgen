@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { OAuthFailureNotice } from "../components/OAuthFailureNotice";
 import { BRAND } from "../data/brand";
@@ -54,6 +54,52 @@ const LEGAL: { label: TKey; href: string }[] = [
  * shape *is* — recalculating it for a phone would give a different picture on
  * a phone, and the bars simply get narrower instead.
  */
+/**
+ * How many are already waiting, above the mark.
+ *
+ * Fetched rather than passed in, and silent when it cannot be: the route is
+ * not written yet, so a deployment without it shows nothing here instead of an
+ * error or a zero. Nothing else on the page depends on it.
+ *
+ * **The number shown is the count plus `WAITLIST_FLOOR`.** That is the owner's
+ * decision and it is written here in one place rather than folded into the
+ * copy, so anybody reading this knows the figure on screen is not the figure
+ * in the table.
+ */
+const WAITLIST_FLOOR = 1000;
+
+function WaitingCount() {
+  const { t, n } = useI18n();
+  const services = useAppServices();
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void services.auth
+      .waitlistCount()
+      .then((value) => {
+        if (live) setCount(value);
+      })
+      .catch(() => {
+        // No route, no strip. See above.
+      });
+    return () => {
+      live = false;
+    };
+  }, [services]);
+
+  if (count === null) return null;
+  return (
+    <span
+      className="vg-arrive inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[12px] backdrop-blur-sm"
+      style={{ background: "var(--vg-glass-light)", color: "var(--vg-text-secondary)", boxShadow: "inset 0 0 0 1px var(--vg-border)" }}
+    >
+      <span className="size-1.5 rounded-full" style={{ background: "var(--vg-primary)" }} />
+      {t("ea_waiting").replace("{n}", n(count + WAITLIST_FLOOR))}
+    </span>
+  );
+}
+
 const BARS = 15;
 
 function SoonBars() {
@@ -147,7 +193,9 @@ export default function EarlyAccess() {
       <OAuthFailureNotice />
 
       <div className="relative z-10 flex w-full max-w-[560px] flex-col items-center text-center">
-        <span style={{ color: "var(--vg-text)" }}>
+        <WaitingCount />
+
+        <span className="vg-arrive mt-6" style={{ color: "var(--vg-text)", "--vg-arrive-step": 1 } as CSSProperties}>
           <Wordmark height={52} title={BRAND.name} />
         </span>
 
@@ -155,15 +203,15 @@ export default function EarlyAccess() {
             breaks the joins — «ب ه ز و د ی» is not a styled word, it is a
             broken one. */}
         <h1
-          className={`mt-9 text-[clamp(2.1rem,7.5vw,3.1rem)] font-extrabold leading-[1.15] ${lang === "en" ? "tracking-[0.2em]" : ""}`}
-          style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+          className={`vg-arrive mt-9 text-[clamp(2.1rem,7.5vw,3.1rem)] font-extrabold leading-[1.15] ${lang === "en" ? "tracking-[0.2em]" : ""}`}
+          style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)", "--vg-arrive-step": 2 } as CSSProperties}
         >
           {t(listed ? "ea_queue_done" : queueing ? "ea_queue_title" : "ea_soon")}
         </h1>
 
         <p
-          className={`mt-3 text-[13.5px] font-semibold ${lang === "en" ? "tracking-[0.28em]" : "tracking-normal"}`}
-          style={{ color: "var(--vg-primary-soft)" }}
+          className={`vg-arrive mt-3 text-[13.5px] font-semibold ${lang === "en" ? "tracking-[0.28em]" : "tracking-normal"}`}
+          style={{ color: "var(--vg-primary-soft)", "--vg-arrive-step": 3 } as CSSProperties}
         >
           {t("ea_limited")}
         </p>
@@ -176,7 +224,8 @@ export default function EarlyAccess() {
           </p>
         ) : (
           <form
-            className="mt-8 w-full max-w-[420px]"
+            className="vg-arrive mt-8 w-full max-w-[420px]"
+            style={{ "--vg-arrive-step": 4 } as CSSProperties}
             onSubmit={(event) => {
               event.preventDefault();
               void (queueing ? join() : submit());
@@ -200,7 +249,7 @@ export default function EarlyAccess() {
                 required
                 /* Centred and tracked out, so an eight-character code reads as
                  the shape on the card it was sent on rather than as a word. */
-                className={`vg-ease h-[52px] min-w-0 flex-1 rounded-full bg-transparent text-center outline-none ${
+                className={`vg-ease h-12 min-w-0 flex-1 rounded-full bg-transparent text-center outline-none ${
                   queueing ? "text-[14px] font-medium" : "text-[15px] font-semibold tracking-[0.3em]"
                 }`}
                 style={{
@@ -221,10 +270,16 @@ export default function EarlyAccess() {
                    switched off — the press answers instead. Same rule the
                    create docks follow for an empty wallet. */
                 disabled={checking}
-                className="vg-ease h-[52px] shrink-0 rounded-full px-7 text-[14px] font-bold whitespace-nowrap disabled:opacity-60"
-                style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
+                /* The landing's CTA, not a second design for the same act:
+                   `.vg-gleam` at the same height and padding, with the same
+                   halo behind it. That button is the one place this product
+                   asks somebody to commit, and this page is the other. */
+                className="vg-gleam h-12 shrink-0 px-6 text-base font-bold whitespace-nowrap"
+                style={{ boxShadow: "inset 0 0 0 1px var(--vg-surface), 0 0 48px rgb(var(--vg-primary-rgb) / 0.22)" }}
               >
-                {checking ? t(queueing ? "ea_queue_sending" : "ea_checking") : t(queueing ? "ea_queue_submit" : "ea_submit")}
+                <span className="text-nowrap">
+                  {checking ? t(queueing ? "ea_queue_sending" : "ea_checking") : t(queueing ? "ea_queue_submit" : "ea_submit")}
+                </span>
               </button>
             </div>
 
@@ -256,12 +311,14 @@ export default function EarlyAccess() {
                 setCode("");
                 setFailure(null);
               }}
-              className="vg-ease mt-1 rounded-full px-4 py-2 text-[12.5px] font-semibold"
-              style={{
-                color: "var(--vg-primary-soft)",
-                background: "var(--vg-primary-a10)",
-                boxShadow: "inset 0 0 0 1px var(--vg-primary-a20)",
-              }}
+              /* The landing's secondary: a ghost pill at the CTA's height,
+                 lighting on hover. Same pair, same page, same two weights. */
+              className="vg-ease mt-1 h-12 rounded-full px-5 text-[15px] hover:bg-white/5"
+              /* The landing's ghost, with a ring: there it sits beside one
+                 other button and reads as a control by context, and here it is
+                 the alternative to the whole page — somebody with no code has
+                 nothing else to press. */
+              style={{ color: "var(--vg-text-secondary)", boxShadow: "inset 0 0 0 1px var(--vg-border)" }}
             >
               {t(queueing ? "ea_have_code" : "ea_no_code")}
             </button>
@@ -281,8 +338,8 @@ export default function EarlyAccess() {
           <span style={{ color: "var(--vg-text-muted)" }}>{t("ea_has_account")}</span>
           <button
             type="button"
-            className="vg-ease rounded-full px-4 py-1.5 text-[12.5px] font-semibold"
-            style={{ color: "var(--vg-text)", boxShadow: "inset 0 0 0 1px var(--vg-border-strong)" }}
+            className="vg-ease h-10 rounded-full px-5 text-[13.5px] hover:bg-white/5"
+            style={{ color: "var(--vg-text-secondary)", boxShadow: "inset 0 0 0 1px var(--vg-border)" }}
             onClick={() => router.push(SIGN_IN_PATH)}
           >
             {t("ea_signin_cta")}

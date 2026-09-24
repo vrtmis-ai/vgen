@@ -65,6 +65,16 @@ export interface AppServices {
      */
     joinWaitlist(contact: string, options?: RequestOptions): Promise<void>;
     /**
+     * How many names are on the list.
+     *
+     * For the line the gate prints above the mark. The route does not exist
+     * yet either — and unlike `joinWaitlist`, which has a button behind it and
+     * must not be offered where it cannot work, this one degrades on its own:
+     * the strip renders nothing when the call fails, so a deployment without
+     * the route simply does not show it.
+     */
+    waitlistCount(options?: RequestOptions): Promise<number>;
+    /**
      * Hands the browser to an identity provider.
      *
      * Unlike every other call here this is a *navigation*, not a request, and in

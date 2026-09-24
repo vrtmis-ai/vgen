@@ -149,6 +149,13 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
       }
     },
 
+    /* A number to draw the strip with. Nobody has signed up in demo mode and
+       nothing here is stored, so this is the shape of the answer rather than
+       an answer. */
+    async waitlistCount() {
+      return 0;
+    },
+
     async checkInvite(code) {
       // The same rule `requireInvite` applies, so demo mode refuses the code
       // at the door that it would refuse at signup.

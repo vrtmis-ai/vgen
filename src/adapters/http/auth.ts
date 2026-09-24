@@ -77,6 +77,14 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
        where it was built and not where it ships. The ordering is the
        safeguard instead — `early_access` does not go on in production before
        the route does. */
+    async waitlistCount(options?: { signal?: AbortSignal }) {
+      const { count } = await client.request("/auth/waitlist/count", {
+        schema: z.object({ count: z.number().int().nonnegative() }),
+        signal: options?.signal,
+      });
+      return count;
+    },
+
     async joinWaitlist(contact: string, options?: { signal?: AbortSignal }) {
       await client.request("/auth/waitlist", {
         method: "POST",
