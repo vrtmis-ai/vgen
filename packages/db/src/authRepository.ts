@@ -35,6 +35,7 @@ export class AuthError extends Error {
       | "invalid_credentials"
       | "invite_required"
       | "invite_invalid"
+      | "invite_bound"
       | "otp_invalid"
       | "otp_expired"
       | "otp_exhausted"
@@ -374,6 +375,31 @@ export class PostgresAuthRepository {
     }
 
     return (await atomically(this.sql)(async (tx) => {
+      /* A waitlist code belongs to the address it was mailed to.
+         Checked on the server and not merely locked in the form, because a
+         field the browser will not let you edit is a field curl has never
+         heard of. Inside the transaction, so the binding cannot change between
+         the read and the insert that relies on it.
+         Campaign codes have no binding and are unaffected: they are meant to
+         admit whoever holds them. */
+      if (context.inviteCode) {
+        const [bound] = await tx<{ channel: "email" | "phone"; contact: string }[]>`
+          select entry.channel, entry.contact::text as contact
+          from waitlist_entries entry
+          join invite_codes invite on invite.id = entry.invite_code_id
+          where invite.code = ${context.inviteCode.trim()}
+          limit 1
+        `;
+        if (bound) {
+          const offered = bound.channel === "email" ? (identity.email ?? null) : (identity.phone ?? null);
+          // citext on the column, so the comparison is folded the same way the
+          // queue folded it when the place was taken.
+          if (!offered || offered.trim().toLowerCase() !== bound.contact.trim().toLowerCase()) {
+            throw new AuthError("invite_bound", "That invite code was issued to a different address.");
+          }
+        }
+      }
+
       const [account] = await tx<{ id: string }[]>`
         insert into accounts (kind) values ('personal') returning id
       `;
@@ -467,6 +493,29 @@ export class PostgresAuthRepository {
    * A yes or a no and nothing else: which condition failed is for the
    * console, not for somebody typing codes at the front door.
    */
+  /**
+   * Who a waitlist invite was issued to, or null for a code that is not one.
+   *
+   * A campaign code admits anybody who has it. A waitlist code was created for
+   * one person, mailed to one address, and admits that person — this is what
+   * tells the two apart, and what the sign-up form fills its locked field from.
+   *
+   * Deliberately says nothing about whether the code is still usable. That is
+   * `isInviteUsable`'s question and the redemption's after it; answering both
+   * here would mean two rules about who gets in, which is how they come to
+   * disagree.
+   */
+  async inviteBinding(code: string): Promise<{ kind: "email" | "phone"; value: string } | null> {
+    const [row] = await this.sql<{ channel: "email" | "phone"; contact: string }[]>`
+      select entry.channel, entry.contact::text as contact
+      from waitlist_entries entry
+      join invite_codes invite on invite.id = entry.invite_code_id
+      where invite.code = ${code.trim()}
+      limit 1
+    `;
+    return row ? { kind: row.channel, value: row.contact } : null;
+  }
+
   async isInviteUsable(code: string): Promise<boolean> {
     const [row] = await this.sql<{ usable: boolean }[]>`
       select exists (

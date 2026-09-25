@@ -101,7 +101,7 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
         schema: InviteCheckResultSchema,
         signal: options?.signal,
       });
-      return result.valid;
+      return result;
     },
 
     async startProviderSignIn(provider, inviteCode) {

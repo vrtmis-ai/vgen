@@ -43,7 +43,8 @@ function authDouble() {
       expiresAt: new Date(Date.now() + 86_400_000),
     })),
     revokeSession: vi.fn(async () => undefined),
-    isInviteUsable: vi.fn(async (code: string) => code === "LIVE-CODE"),
+    isInviteUsable: vi.fn(async (code: string) => code === "LIVE-CODE" || code === "BOUND-CODE"),
+    inviteBinding: vi.fn(async (code: string) => (code === "BOUND-CODE" ? { kind: "email" as const, value: "waited@example.com" } : null)),
     recordLoginAttempt: vi.fn(async () => undefined),
   };
 }
@@ -426,6 +427,40 @@ describe("checking an invite code from the invite page", () => {
     expect([live.statusCode, live.json()]).toEqual([200, { valid: true }]);
     expect([dead.statusCode, dead.json()]).toEqual([200, { valid: false }]);
     expect(auth.isInviteUsable).toHaveBeenCalledTimes(2);
+    await app.close();
+  });
+
+  /* A waitlist code belongs to one address, and the sign-up form fills its
+     locked field from this. Returning the address to whoever presents the code
+     is deliberate — it was mailed there, it is single-use, and the route is
+     rate limited — but only ever for a code that still works. */
+  it("names who a waitlist code was issued to", async () => {
+    const { app } = build();
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "BOUND-CODE" } });
+
+    expect([response.statusCode, response.json()]).toEqual([200, { valid: true, contact: { kind: "email", value: "waited@example.com" } }]);
+    await app.close();
+  });
+
+  it("says nothing about a campaign code, which admits whoever holds it", async () => {
+    const { app } = build();
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "LIVE-CODE" } });
+
+    expect(response.json()).toEqual({ valid: true });
+    await app.close();
+  });
+
+  it("does not name anybody for a code that no longer works", async () => {
+    const { app, auth } = build();
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/auth/invite/check", payload: { code: "made-up" } });
+
+    // Otherwise this becomes a way to ask "was this address ever invited?",
+    // which is a different question from the one the route answers.
+    expect(response.json()).toEqual({ valid: false });
+    expect(auth.inviteBinding).not.toHaveBeenCalled();
     await app.close();
   });
 

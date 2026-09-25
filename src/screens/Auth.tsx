@@ -19,6 +19,7 @@ import { AuthProviderMark } from "../components/AuthProviderMark";
 import { Wordmark } from "../components/brandMarks";
 import { BRAND } from "../data/brand";
 import { useAuth } from "../features/session/useAuth";
+import { useAppServices } from "../runtime/AppServices";
 import { useSession } from "../features/session/useSession";
 import { faNum, latinDigits } from "../lib/format";
 import { useI18n, type TKey } from "../lib/i18n";
@@ -82,6 +83,10 @@ function messageFor(error: unknown, step: "phone" | "code" | "email"): Failure {
       return { key: "auth_err_invite_required" };
     case "invite_invalid":
       return { key: "auth_err_invite_invalid" };
+    // Reachable only by going around the locked field, but it should still say
+    // what happened rather than "something went wrong".
+    case "invite_bound":
+      return { key: "auth_err_invite_bound" };
     case "otp_invalid":
       return { key: "auth_err_otp_invalid" };
     case "otp_expired":
@@ -360,6 +365,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const session = useSession();
   const { startPhoneVerification, verifyPhone, login, register, startProviderSignIn } = useAuth();
+  const services = useAppServices();
 
   // Only the providers this server actually registered. While the session is
   // still loading the list is empty, so the block appears once rather than
@@ -383,6 +389,10 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const [sentAt, setSentAt] = useState<number | null>(null);
   const [serverExpiresAt, setServerExpiresAt] = useState<number | null>(null);
   const [inviteNeeded, setInviteNeeded] = useState(false);
+  /* Set when the code in the URL turns out to belong to somebody on the
+     waitlist. Their address is then the one they signed up to wait with, and
+     the field holding it is not theirs to change. */
+  const [boundContact, setBoundContact] = useState<{ kind: "email" | "phone"; value: string } | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [leaving, setLeaving] = useState(false);
 
@@ -396,7 +406,29 @@ export default function Auth({ mode }: { mode: AuthMode }) {
     if (!code) return;
     setInvite(code);
     setInviteNeeded(true);
-  }, []);
+
+    /* A waitlist code was mailed to one address, and the account it opens has
+       to be that person's. Asking here fills the field and locks it, so the
+       usual case needs no explanation and no typing. The lock is a courtesy,
+       not the rule: the server refuses a different address whatever this form
+       does, which is the only version curl cannot argue with.
+
+       A failure is silent on purpose. The code may simply be a campaign code
+       with nobody attached, and either way the form still works — the address
+       is typed rather than given, and the server has the final say. */
+    let cancelled = false;
+    void services.auth
+      .checkInvite(code)
+      .then((result) => {
+        if (cancelled || !result.contact) return;
+        setBoundContact(result.contact);
+        if (result.contact.kind === "email") setEmail(result.contact.value);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [services]);
 
   /** Digits in the reader's own script. A clock is the only number this screen prints. */
   const localDigits = (value: string) => (lang === "fa" ? faNum(value) : value);
@@ -479,6 +511,10 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const failureText = failure ? t(failure.key).replace("{n}", failure.amount ?? "") : undefined;
   // One message per screen, on the field it belongs to. Everything else falls
   // through to the field that owns the step.
+  /* Only for an address. A code bound to a phone number cannot be signed up
+     with on this form at all — there is no phone route while SMS is off — so
+     locking an email field it did not fill would be a lie. */
+  const emailLocked = boundContact?.kind === "email";
   const onInvite = inviteNeeded && (failure?.key === "auth_err_invite_required" || failure?.key === "auth_err_invite_invalid");
   const onCode = codeSent && !onInvite;
   const onPhoneForm = !codeSent && method === "phone";
@@ -698,19 +734,24 @@ export default function Auth({ mode }: { mode: AuthMode }) {
             </form>
           ) : (
             <form className="grid gap-5" onSubmit={submitEmail}>
-              <PillField label={t("auth_email_label")}>
+              <PillField label={t("auth_email_label")} hint={emailLocked ? t("auth_email_from_waitlist") : undefined}>
                 {({ id, describedBy }) => (
                   <input
                     id={id}
                     aria-describedby={describedBy}
                     className={`${PILL} focus:border-accent`}
-                    style={pillStyle}
+                    style={emailLocked ? { ...pillStyle, opacity: 0.75 } : pillStyle}
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     type="email"
                     autoComplete="email"
                     dir="ltr"
                     required
+                    /* readOnly, not disabled: a disabled input is skipped by
+                       form submission and by most screen readers announcing
+                       the value, and the value here is the point. */
+                    readOnly={emailLocked}
+                    aria-readonly={emailLocked || undefined}
                   />
                 )}
               </PillField>

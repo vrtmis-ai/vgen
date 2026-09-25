@@ -472,18 +472,18 @@ Still stubs on purpose: `signIn` and `signUp` in
 and they warn rather than navigate because the screen they should open does not
 exist yet. Point them at it when you build it. `signOut` is live.
 
-| Route                                              |                                                                                   |
-| -------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `POST /auth/otp/start`                             | `{ phone }` → `202 { sent: true, expiresAt }`. The route most Iranian users take  |
-| `POST /auth/otp/verify`                            | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie               |
-| `POST /auth/register`                              | `{ email, password, handle, inviteCode?, deviceFingerprint? }` → `201`            |
-| `POST /auth/invite/check`                          | `{ code }` → `200 { valid }`, one boolean for every refusal; 20 per 15 min per IP |
-| `POST /auth/waitlist`                              | `{ contact }` → `200 { status: "listed" }`; email or `09…`; 10 per 15 min per IP  |
-| `GET /auth/waitlist/count`                         | → `200 { count }`, how many are waiting; public and unlimited                     |
-| `POST /auth/login`                                 | `{ email, password }` → `200`                                                     |
-| `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                 |
-| `GET /auth/google` · `/auth/google/callback`       | Registered only when Google credentials are configured                            |
-| `GET /auth/microsoft` · `/auth/microsoft/callback` | Registered only when Microsoft credentials are configured                         |
+| Route                                              |                                                                                    |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `POST /auth/otp/start`                             | `{ phone }` → `202 { sent: true, expiresAt }`. The route most Iranian users take   |
+| `POST /auth/otp/verify`                            | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie                |
+| `POST /auth/register`                              | `{ email, password, handle, inviteCode?, deviceFingerprint? }` → `201`             |
+| `POST /auth/invite/check`                          | `{ code }` → `200 { valid, contact? }`; one boolean for every refusal; 20/15min/IP |
+| `POST /auth/waitlist`                              | `{ contact }` → `200 { status: "listed" }`; email or `09…`; 10 per 15 min per IP   |
+| `GET /auth/waitlist/count`                         | → `200 { count }`, how many are waiting; public and unlimited                      |
+| `POST /auth/login`                                 | `{ email, password }` → `200`                                                      |
+| `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                  |
+| `GET /auth/google` · `/auth/google/callback`       | Registered only when Google credentials are configured                             |
+| `GET /auth/microsoft` · `/auth/microsoft/callback` | Registered only when Microsoft credentials are configured                          |
 
 Schemas: `packages/contracts/src/auth.ts`. They are `.strict()`, so an extra key
 is a `validation_failed`, not an ignored field.
@@ -555,6 +555,19 @@ Things a UI needs to know about these:
   which is the worst moment to discover it. Port 587 requires STARTTLS rather
   than merely offering it, so a server that fails to upgrade never receives the
   password.
+- **A waitlist invite belongs to the address it was mailed to.** `invite/check`
+  answers `contact: { kind, value }` for a code issued from the queue, and omits
+  it for a campaign code, which admits whoever holds it. The sign-up form fills
+  its address field from that and marks it `readOnly` — but **the rule is
+  enforced in `createAccount`**, inside the transaction that creates the user:
+  a bound code with a different address is refused with `400 invite_bound`, and
+  no account is created. A field the browser will not let you edit is a field
+  curl has never heard of, so the lock is a courtesy and the check is the rule.
+  The comparison folds case, the same way the queue folded it when the place
+  was taken. Returning the address to whoever presents the code is deliberate:
+  it was mailed there, the code is single-use, and the route is rate limited —
+  and it is returned **only for a code that still works**, so this cannot be
+  used to ask whether an address was ever invited.
 - **The free trial is keyed on phone.** An email signup through a 20-coin invite
   has 20 coins, not 32 — the 12-coin trial only comes with the phone route.
   This is deliberate, not a missing grant.

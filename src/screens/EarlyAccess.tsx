@@ -141,7 +141,7 @@ export default function EarlyAccess() {
     }
     setChecking(true);
     try {
-      if (await services.auth.checkInvite(trimmed)) {
+      if ((await services.auth.checkInvite(trimmed)).valid) {
         router.push(`${SIGN_UP_PATH}?invite=${encodeURIComponent(trimmed)}`);
         return;
       }
