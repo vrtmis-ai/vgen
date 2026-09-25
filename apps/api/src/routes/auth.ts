@@ -81,6 +81,7 @@ const STATUS_BY_CODE: Record<AuthError["code"], number> = {
   invalid_credentials: 401,
   invite_required: 403,
   invite_invalid: 400,
+  invite_bound: 400,
   otp_invalid: 400,
   otp_expired: 400,
   otp_exhausted: 429,
@@ -157,7 +158,12 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     const wait = await limiters.inviteCheckPerIp.consume(request.ip);
     if (wait !== null) return tooMany(reply, wait);
     const body = CheckInviteSchema.parse(request.body);
-    return reply.code(200).send({ valid: await auth.isInviteUsable(body.code) });
+    const valid = await auth.isInviteUsable(body.code);
+    /* Only for a code that works. Answering the binding for a dead code would
+       turn this into a way to ask "was this address ever invited?", which is a
+       different question from the one the route exists to answer. */
+    const contact = valid ? await auth.inviteBinding(body.code) : null;
+    return reply.code(200).send({ valid, ...(contact ? { contact } : {}) });
   });
 
   /**

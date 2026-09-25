@@ -439,6 +439,8 @@ const dict = {
     // profile
     p_title: "پروفایل",
     p_guest: "کاربرِ مهمان",
+    auth_email_from_waitlist: "همان ایمیلی که با آن در نوبت ثبت‌نام کردی. قابل تغییر نیست.",
+    auth_err_invite_bound: "این کد دعوت برای نشانی دیگری فرستاده شده.",
     p_made: "ساخته‌شده",
     p_favs: "مدلِ منتخب",
     p_coins: "سکه",
@@ -946,6 +948,8 @@ const dict = {
     pl_checkout_amount_mismatch: "The server quoted a different amount ({n} toman). Please contact support before paying.",
     p_title: "Profile",
     p_guest: "Guest user",
+    auth_email_from_waitlist: "The address you joined the waitlist with. It cannot be changed.",
+    auth_err_invite_bound: "That invite code was sent to a different address.",
     p_made: "Created",
     p_favs: "Favorites",
     p_coins: "Coins",

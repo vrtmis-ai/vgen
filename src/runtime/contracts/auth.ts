@@ -88,7 +88,23 @@ export interface LoginInput {
 export type PhoneVerificationStarted = z.infer<typeof PhoneVerificationStartedSchema>;
 
 /** `POST /auth/invite/check`. One boolean: which rule refused a code is not the visitor's business. */
-export const InviteCheckResultSchema = z.object({ valid: z.boolean() });
+/**
+ * Whether the code works, and — for a waitlist code — who it was issued to.
+ *
+ * `contact` is absent for a campaign code, which admits whoever holds it. It is
+ * present for a code mailed to one person, and the sign-up form fills its
+ * locked address field from it.
+ *
+ * Returning the address to whoever presents the code is deliberate: the code
+ * was mailed to that address, is single-use, and is long enough that the
+ * route's own rate limit makes guessing one pointless. The protection that
+ * matters is not hiding it here — it is that `createAccount` refuses a
+ * different address for a bound code, which curl cannot talk its way past.
+ */
+export const InviteCheckResultSchema = z.object({
+  valid: z.boolean(),
+  contact: z.object({ kind: z.enum(["email", "phone"]), value: z.string() }).optional(),
+});
 
 /**
  * A place in the queue, for somebody who has no code.

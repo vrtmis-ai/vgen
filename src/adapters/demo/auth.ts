@@ -158,8 +158,9 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
 
     async checkInvite(code) {
       // The same rule `requireInvite` applies, so demo mode refuses the code
-      // at the door that it would refuse at signup.
-      return code.trim().length >= 3 && code.trim().toUpperCase() !== "INVALID";
+      // at the door that it would refuse at signup. No binding: demo mode has
+      // no queue anybody could have been invited from.
+      return { valid: code.trim().length >= 3 && code.trim().toUpperCase() !== "INVALID" };
     },
 
     async startProviderSignIn(provider) {

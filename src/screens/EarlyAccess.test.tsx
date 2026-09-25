@@ -28,7 +28,7 @@ describe("the invite page", () => {
   it("keeps a visitor whose code the server refuses, and says why", async () => {
     const user = userEvent.setup();
     const services = createDemoServices({ startAnonymous: true });
-    const check = vi.spyOn(services.auth, "checkInvite").mockResolvedValue(false);
+    const check = vi.spyOn(services.auth, "checkInvite").mockResolvedValue({ valid: false });
     renderPage(services);
 
     await user.type(screen.getByLabelText("Invite code"), "TOTALLY-FAKE-999");
@@ -42,7 +42,7 @@ describe("the invite page", () => {
   it("sends a visitor with a live code on to signup, code attached", async () => {
     const user = userEvent.setup();
     const services = createDemoServices({ startAnonymous: true });
-    vi.spyOn(services.auth, "checkInvite").mockResolvedValue(true);
+    vi.spyOn(services.auth, "checkInvite").mockResolvedValue({ valid: true });
     renderPage(services);
 
     await user.type(screen.getByLabelText("Invite code"), "  DEEV-WYJPK8 ");

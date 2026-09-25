@@ -93,6 +93,53 @@ describe("the sign-in screen", () => {
     }
   });
 
+  /* Somebody who waited their turn signs up as the person who waited. The
+     address is theirs already — filled from the code, and not theirs to
+     change, because the account the code opens has to belong to the queue
+     place it was issued for. */
+  it("fills the address from a waitlist code and will not let it be edited", async () => {
+    window.history.replaceState(null, "", "/signup?invite=WAITED-CODE");
+    const user = userEvent.setup();
+    try {
+      const services = createDemoServices({ startAnonymous: true });
+      vi.spyOn(services.auth, "checkInvite").mockResolvedValue({
+        valid: true,
+        contact: { kind: "email", value: "waited@example.com" },
+      });
+      await renderAuth(services, "signup");
+      await user.click(screen.getByRole("button", { name: /email/i }));
+
+      const address = await screen.findByLabelText("Email");
+      await waitFor(() => expect(address).toHaveValue("waited@example.com"));
+      expect(address).toHaveAttribute("readonly");
+
+      // Typing must not move it. readOnly rather than disabled, so the value
+      // still submits and is still announced.
+      await user.type(address, "somethingelse");
+      expect(address).toHaveValue("waited@example.com");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("leaves the address free for a campaign code, which names nobody", async () => {
+    window.history.replaceState(null, "", "/signup?invite=OPEN-CODE");
+    const user = userEvent.setup();
+    try {
+      const services = createDemoServices({ startAnonymous: true });
+      vi.spyOn(services.auth, "checkInvite").mockResolvedValue({ valid: true });
+      await renderAuth(services, "signup");
+      await user.click(screen.getByRole("button", { name: /email/i }));
+
+      const address = await screen.findByLabelText("Email");
+      expect(address).not.toHaveAttribute("readonly");
+      await user.type(address, "anybody@example.com");
+      expect(address).toHaveValue("anybody@example.com");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   it("sends a code typed in Persian digits as the digits the contract accepts", async () => {
     const user = userEvent.setup();
     const services = createDemoServices({ startAnonymous: true });

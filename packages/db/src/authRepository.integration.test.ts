@@ -635,3 +635,80 @@ describe("usernames", () => {
     });
   });
 });
+
+/**
+ * A waitlist code belongs to the address it was mailed to.
+ *
+ * The sign-up form locks the field it fills from this, but a locked field is
+ * a field curl has never heard of — so the rule lives here, where every way of
+ * creating an account funnels through, and the tests that matter are the ones
+ * that go around the form.
+ */
+describe("an invite issued to one person", () => {
+  /** A waitlist row holding a code, which is what makes the code "bound". */
+  async function boundInvite(tx: Sql, contact: string, channel: "email" | "phone" = "email") {
+    const access = new PostgresAccessRepository(tx);
+    const invite = await access.createInvite({ maxRedemptions: 1 });
+    await access.joinWaitlist(channel, contact);
+    const [entry] = await access.nextWaitlistToInvite(1);
+    await access.markWaitlistInvited(entry!.id, invite.id);
+    return invite;
+  }
+
+  it("says who a waitlist code was issued to, and nothing for a campaign code", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`delete from waitlist_entries`;
+      const bound = await boundInvite(tx, "waited@example.com");
+      const open = await new PostgresAccessRepository(tx).createInvite({ maxRedemptions: 50 });
+
+      expect(await auth(tx).inviteBinding(bound.code)).toEqual({ kind: "email", value: "waited@example.com" });
+      // A campaign code admits whoever holds it, so there is nobody to name.
+      expect(await auth(tx).inviteBinding(open.code)).toBeNull();
+      expect(await auth(tx).inviteBinding("NO-SUCH-CODE")).toBeNull();
+    });
+  });
+
+  it("refuses the account when the address is not the one that waited", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`delete from waitlist_entries`;
+      const invite = await boundInvite(tx, "waited@example.com");
+
+      await expect(
+        auth(tx).registerWithPassword("someone.else@example.com", "a-long-enough-password", "someoneelse", {
+          inviteCode: invite.code,
+        }),
+      ).rejects.toMatchObject({ code: "invite_bound" });
+
+      // Nothing was created on the way to refusing.
+      const [row] = await tx`select count(*)::int as n from users where email = 'someone.else@example.com'`;
+      expect(row!.n).toBe(0);
+    });
+  });
+
+  it("lets the person it was issued to through, whatever case they type", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`delete from waitlist_entries`;
+      const invite = await boundInvite(tx, "waited@example.com");
+
+      // citext on the column, folded the same way the queue folded it.
+      const user = await auth(tx).registerWithPassword("Waited@Example.com", "a-long-enough-password", "waited", {
+        inviteCode: invite.code,
+      });
+
+      expect(user.handle).toBe("waited");
+    });
+  });
+
+  it("leaves a campaign code admitting anybody, which is what it is for", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`delete from waitlist_entries`;
+      const open = await new PostgresAccessRepository(tx).createInvite({ maxRedemptions: 50 });
+
+      const user = await auth(tx).registerWithPassword("anybody@example.com", "a-long-enough-password", "anybody", {
+        inviteCode: open.code,
+      });
+
+      expect(user.handle).toBe("anybody");
+    });
+  });
+});

@@ -24,6 +24,21 @@ export interface RequestOptions {
   signal?: AbortSignal | undefined;
 }
 
+/**
+ * What a code is worth, and whose it is.
+ *
+ * `contact` is present only for a waitlist code — one issued to a single person
+ * and mailed to them. The sign-up form fills its locked address field from it,
+ * so that somebody who waited their turn signs up as the person who waited.
+ */
+export interface InviteCheck {
+  valid: boolean;
+  // `| undefined` spelled out: exactOptionalPropertyTypes distinguishes an
+  // absent property from one set to undefined, and zod's inferred optional is
+  // the second kind.
+  contact?: { kind: "email" | "phone"; value: string } | undefined;
+}
+
 export interface AppServices {
   session: {
     getCurrent(options?: RequestOptions): Promise<Session>;
@@ -44,7 +59,7 @@ export interface AppServices {
      * invite page, not the gate: signup checks the code again as it creates
      * the account.
      */
-    checkInvite(code: string, options?: RequestOptions): Promise<boolean>;
+    checkInvite(code: string, options?: RequestOptions): Promise<InviteCheck>;
     /**
      * Ask to be told when there is room — a name on the early-access list.
      *
