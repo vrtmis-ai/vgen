@@ -384,6 +384,27 @@ const ReportedPostsResponseSchema = z.object({ reported: z.array(ReportedPostSch
 const OutcomeSchema = z.object({ outcome: z.enum(["deleted", "revoked"]) }).loose();
 const InviteResponseSchema = z.object({ invite: InviteSchema });
 
+/**
+ * Somebody waiting for a code.
+ *
+ * `.loose()` like the rest of this file, so a field added on the server — a
+ * source, a note, the code they were finally sent — arrives without a release
+ * of the panel to go with it.
+ */
+const WaitlistEntrySchema = z
+  .object({
+    id: z.string(),
+    channel: z.enum(["email", "phone"]),
+    contact: z.string(),
+    joinedAt: z.number(),
+    invitedAt: z.number().nullable(),
+    joined: z.boolean(),
+  })
+  .loose();
+const WaitlistResponseSchema = z.object({ waitlist: z.array(WaitlistEntrySchema) });
+
+export type AdminWaitlistEntry = z.infer<typeof WaitlistEntrySchema>;
+
 export type AdminInvite = z.infer<typeof InviteSchema>;
 export type AdminPromo = z.infer<typeof PromoSchema>;
 
@@ -531,6 +552,8 @@ export interface AdminApi {
   routeTo(modelId: string, servingModelId: string): Promise<z.infer<typeof AdminRoutesResponseSchema>>;
   clearRoutes(modelId: string): Promise<void>;
 
+  listWaitlist(): Promise<AdminWaitlistEntry[]>;
+
   listInvites(): Promise<AdminInvite[]>;
   createInvite(input: CreateInviteInput): Promise<AdminInvite[]>;
   updateInvite(id: string, input: UpdateInviteInput): Promise<AdminInvite>;
@@ -661,6 +684,8 @@ export function createAdminApi(client: HttpClient, uploads: HttpClient = client)
       // the provider that owns its catalogue row, which is a state, not a void.
       await client.request(`/admin/models/${modelId}/routes`, { method: "DELETE", schema: AdminRoutesResponseSchema });
     },
+
+    listWaitlist: async () => (await client.request("/admin/waitlist", { schema: WaitlistResponseSchema })).waitlist,
 
     listInvites: async () => (await client.request("/admin/invites", { schema: InvitesResponseSchema })).invites,
     createInvite: async (input) =>

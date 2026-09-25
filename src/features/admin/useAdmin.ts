@@ -38,6 +38,7 @@ export const adminKeys = {
   models: ["admin", "models"] as const,
   routes: (modelId: string) => ["admin", "routes", modelId] as const,
   invites: ["admin", "invites"] as const,
+  waitlist: ["admin", "waitlist"] as const,
   promos: ["admin", "promos"] as const,
   earlyAccess: ["admin", "early-access"] as const,
   siteBanner: ["admin", "site-banner"] as const,
@@ -248,6 +249,12 @@ export function useClearRoutes(api: AdminApi) {
       await queryClient.invalidateQueries({ queryKey: adminKeys.models });
     },
   });
+}
+
+/* The queue, for the page that turns it into invite codes. Same permission as
+   the codes themselves, so it loads or fails alongside them. */
+export function useWaitlist(api: AdminApi, enabled: boolean) {
+  return useQuery({ queryKey: adminKeys.waitlist, enabled, queryFn: () => api.listWaitlist(), retry: false });
 }
 
 export function useInvites(api: AdminApi, enabled: boolean) {

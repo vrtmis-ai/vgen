@@ -50,6 +50,9 @@ export async function createAuthRateLimiters(
     loginPerAccount: limiter("login", "user", { window_seconds: 900, max_requests: 10 }),
     loginPerIp: limiter("login", "ip", { window_seconds: 900, max_requests: 50 }),
     inviteCheckPerIp: limiter("invite.check", "ip", { window_seconds: 900, max_requests: 20 }),
+    // Open, unauthenticated, and writes a row. Tighter than the invite check,
+    // which only reads.
+    waitlistJoinPerIp: limiter("waitlist.join", "ip", { window_seconds: 900, max_requests: 10 }),
   };
 
   return {

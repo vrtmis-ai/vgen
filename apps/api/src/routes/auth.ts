@@ -1,14 +1,15 @@
 import {
   CheckInviteSchema,
   InviteCodeSchema,
+  JoinWaitlistSchema,
   LoginWithPasswordSchema,
   RegisterWithPasswordSchema,
   StartPhoneVerificationSchema,
   TERMS_VERSION,
   VerifyPhoneSchema,
 } from "@vgen/contracts";
-import { normalizeIranianPhone } from "@vgen/core";
-import { AuthError, type PostgresAuthRepository } from "@vgen/db";
+import { normalizeIranianPhone, readContact } from "@vgen/core";
+import { AuthError, type PostgresAccessRepository, type PostgresAuthRepository } from "@vgen/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   OAUTH_INVITE_COOKIE,
@@ -43,6 +44,7 @@ export interface AuthRateLimiters {
   loginPerAccount: AuthRateLimiter;
   loginPerIp: AuthRateLimiter;
   inviteCheckPerIp: AuthRateLimiter;
+  waitlistJoinPerIp: AuthRateLimiter;
 }
 
 export interface AuthRouteOptions {
@@ -56,6 +58,12 @@ export interface AuthRouteOptions {
 
 export interface AuthDependencies {
   auth: PostgresAuthRepository;
+  /**
+   * The queue for people with no code. It lives on the access repository
+   * beside the invite codes and the `early_access` flag, because those three
+   * are one subject: who is allowed in, and who is waiting to be.
+   */
+  access: PostgresAccessRepository;
   /**
    * Absent when no SMS gateway is configured, and then phone sign-in does not
    * exist: the session says so, the screen offers email instead, and the OTP
@@ -96,6 +104,7 @@ function tooMany(reply: FastifyReply, retryAfterSeconds: number) {
 export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDependencies, options: AuthRouteOptions): void {
   const { auth, sms } = dependencies;
   const { cookie, limiters } = options;
+  const { access } = dependencies;
 
   const startSession = async (reply: FastifyReply, request: FastifyRequest, userId: string) => {
     const { token, expiresAt } = await auth.createSession(userId, request.ip, request.headers["user-agent"]);
@@ -149,6 +158,41 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     if (wait !== null) return tooMany(reply, wait);
     const body = CheckInviteSchema.parse(request.body);
     return reply.code(200).send({ valid: await auth.isInviteUsable(body.code) });
+  });
+
+  /**
+   * A place in the queue, for the people the gate turns away.
+   *
+   * One field, either kind: `readContact` works out whether an address or an
+   * Iranian mobile arrived and folds the number to the `09…` form, using the
+   * same function the form validated with, so a value the page accepted is
+   * never a value this refuses.
+   *
+   * **The answer does not depend on whether they were already listed.** The
+   * insert is `on conflict do nothing` and this always says `listed`, because
+   * an open route that answered differently for a known address would be a way
+   * to ask whether somebody has an account here.
+   *
+   * Nothing about this logs anybody in or relaxes the gate. Signup still needs
+   * a code; a row here is a claim on a future one.
+   */
+  app.post("/api/v1/auth/waitlist", { bodyLimit: 1024 }, async (request, reply) => {
+    const wait = await limiters.waitlistJoinPerIp.consume(request.ip);
+    if (wait !== null) return tooMany(reply, wait);
+    const body = JoinWaitlistSchema.parse(request.body);
+    const contact = readContact(body.contact);
+    if (!contact) {
+      return reply.code(422).send({ error: { code: "validation_failed", message: "That is not an address or a mobile number." } });
+    }
+    await access.joinWaitlist(contact.kind, contact.value);
+    return reply.code(200).send({ status: "listed" });
+  });
+
+  /* Drawn on the holding page as a queue length. Public and uncounted against
+     any limit: it is one integer, it leaks nothing about who is on the list,
+     and the page asks for it on every load. */
+  app.get("/api/v1/auth/waitlist/count", async (_request, reply) => {
+    return reply.code(200).send({ count: await access.waitlistCount() });
   });
 
   app.post("/api/v1/auth/otp/verify", { bodyLimit: 4 * 1024 }, async (request, reply) => {

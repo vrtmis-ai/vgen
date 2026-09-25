@@ -21,6 +21,7 @@ const openLimiters = (): AuthRateLimiters => ({
   loginPerAccount: allow(),
   loginPerIp: allow(),
   inviteCheckPerIp: allow(),
+  waitlistJoinPerIp: allow(),
 });
 
 function authDouble() {
@@ -47,9 +48,18 @@ function authDouble() {
   };
 }
 
+/** Only the two methods the auth routes reach for. */
+function accessDouble() {
+  return {
+    joinWaitlist: vi.fn(async (_channel: "email" | "phone", _contact: string) => undefined),
+    waitlistCount: vi.fn(async () => 7),
+  };
+}
+
 function build(
   overrides: {
     auth?: ReturnType<typeof authDouble>;
+    access?: ReturnType<typeof accessDouble>;
     limiters?: AuthRateLimiters;
     google?: Parameters<typeof registerAuthRoutes>[2]["google"];
     microsoft?: Parameters<typeof registerAuthRoutes>[2]["microsoft"];
@@ -57,11 +67,16 @@ function build(
   } = {},
 ) {
   const auth = overrides.auth ?? authDouble();
+  const access = overrides.access ?? accessDouble();
   const app: FastifyInstance = Fastify({ logger: false });
   registerErrorHandling(app);
   registerAuthRoutes(
     app,
-    { auth: auth as never, sms: overrides.withoutSms ? undefined : { sendVerificationCode: vi.fn(async () => undefined) } },
+    {
+      auth: auth as never,
+      access: access as never,
+      sms: overrides.withoutSms ? undefined : { sendVerificationCode: vi.fn(async () => undefined) },
+    },
     {
       cookie: { secure: true },
       limiters: overrides.limiters ?? openLimiters(),
@@ -70,7 +85,7 @@ function build(
       ...(overrides.microsoft ? { microsoft: overrides.microsoft } : {}),
     },
   );
-  return { app, auth };
+  return { app, auth, access };
 }
 
 const cookieOf = (response: { headers: Record<string, unknown> }) => {
@@ -148,6 +163,7 @@ describe("requesting a code", () => {
       app,
       {
         auth: auth as never,
+        access: accessDouble() as never,
         sms: {
           sendVerificationCode: vi.fn(async () => {
             throw new Error("gateway down");
@@ -433,6 +449,94 @@ describe("checking an invite code from the invite page", () => {
 
     expect(response.statusCode).toBe(429);
     expect(auth.isInviteUsable).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
+/**
+ * The queue for the people the gate turns away.
+ *
+ * The screen for this shipped in #122 and posted into a 404 for three days,
+ * so the tests that matter most are the ones about what it *says*: the same
+ * answer whether or not the address was already listed, because the route is
+ * open and unauthenticated and a different answer would make it a way to ask
+ * whether somebody has an account here.
+ */
+describe("joining the waitlist", () => {
+  it("takes an address and says it is listed", async () => {
+    const { app, access } = build();
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/auth/waitlist", payload: { contact: "someone@example.com" } });
+
+    expect([response.statusCode, response.json()]).toEqual([200, { status: "listed" }]);
+    expect(access.joinWaitlist).toHaveBeenCalledWith("email", "someone@example.com");
+    await app.close();
+  });
+
+  it("folds a mobile to the shape every other phone column uses", async () => {
+    const { app, access } = build();
+
+    for (const typed of ["09121234567", "+989121234567", "0912 123 4567"]) {
+      await app.inject({ method: "POST", url: "/api/v1/auth/waitlist", payload: { contact: typed } });
+    }
+
+    // Three spellings, one number: the unique index sees the same string each
+    // time, so they are one place in the queue rather than three.
+    expect(access.joinWaitlist.mock.calls).toEqual([
+      ["phone", "09121234567"],
+      ["phone", "09121234567"],
+      ["phone", "09121234567"],
+    ]);
+    await app.close();
+  });
+
+  it("answers a repeat exactly as it answered the first time", async () => {
+    const { app } = build();
+    const payload = { contact: "twice@example.com" };
+
+    const first = await app.inject({ method: "POST", url: "/api/v1/auth/waitlist", payload });
+    const again = await app.inject({ method: "POST", url: "/api/v1/auth/waitlist", payload });
+
+    // Byte for byte. Anything that differed would answer "does this address
+    // already have an account here", which is not a question this route is
+    // allowed to answer.
+    expect([again.statusCode, again.json()]).toEqual([first.statusCode, first.json()]);
+    await app.close();
+  });
+
+  it("refuses what is neither an address nor a number, without writing", async () => {
+    const { app, access } = build();
+
+    const junk = await app.inject({ method: "POST", url: "/api/v1/auth/waitlist", payload: { contact: "hello" } });
+    const extra = await app.inject({ method: "POST", url: "/api/v1/auth/waitlist", payload: { contact: "a@b.co", admin: true } });
+
+    expect(junk.statusCode).toBe(422);
+    expect(junk.json().error.code).toBe("validation_failed");
+    expect(extra.statusCode).toBe(400);
+    expect(access.joinWaitlist).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("stops answering once an IP has asked too often", async () => {
+    const limiters = openLimiters();
+    limiters.waitlistJoinPerIp = { consume: vi.fn(async () => 600) };
+    const { app, access } = build({ limiters });
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/auth/waitlist", payload: { contact: "flood@example.com" } });
+
+    expect(response.statusCode).toBe(429);
+    expect(access.joinWaitlist).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("hands the holding page a raw count to draw", async () => {
+    const { app } = build();
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/auth/waitlist/count" });
+
+    // Raw. The screen adds its own floor before showing a number, so adding
+    // one here would apply it twice.
+    expect([response.statusCode, response.json()]).toEqual([200, { count: 7 }]);
     await app.close();
   });
 });

@@ -53,6 +53,10 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN) {
     recordAudit: vi.fn(async () => undefined),
   };
   const access = {
+    listWaitlist: vi.fn(async () => [
+      { id: "w1", channel: "email" as const, contact: "first@example.com", joinedAt: 1, invitedAt: null, joined: false },
+      { id: "w2", channel: "phone" as const, contact: "09121234567", joinedAt: 2, invitedAt: null, joined: false },
+    ]),
     listInvites: vi.fn(async () => [invite]),
     getInvite: vi.fn(async () => invite),
     listInviteRedeemers: vi.fn(async () => [{ userId: "u2", coinsSpent: 7, redeemedAt: 1 }]),
@@ -133,6 +137,39 @@ describe("GET /admin/session — what the panel asks before it renders", () => {
 
     expect(blocked.statusCode).toBe(403);
     expect(readable.statusCode).toBe(200);
+    await app.close();
+  });
+});
+
+describe("the waitlist behind the panel", () => {
+  it("hands the queue to somebody who may read invite codes", async () => {
+    const { app, access } = build();
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/waitlist", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().waitlist.map((entry: { contact: string }) => entry.contact)).toEqual(["first@example.com", "09121234567"]);
+    expect(access.listWaitlist).toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("answers 404 to a customer, like the rest of the surface", async () => {
+    const { app, access } = build(null);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/waitlist", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(404);
+    expect(access.listWaitlist).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("refuses a staff session without invites.read", async () => {
+    const { app, access } = build({ permissions: ["catalog.read"] });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/admin/waitlist", headers: AS_ADMIN });
+
+    expect(response.statusCode).toBe(403);
+    expect(access.listWaitlist).not.toHaveBeenCalled();
     await app.close();
   });
 });

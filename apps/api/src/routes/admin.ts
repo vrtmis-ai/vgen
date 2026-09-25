@@ -317,6 +317,21 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
     return reply.send({ revoked });
   });
 
+  // --------------------------------------------------------------- waitlist
+
+  /**
+   * Who is waiting for a code, oldest first.
+   *
+   * `invites.read`, not a permission of its own: this list exists to be turned
+   * into invite codes, and anyone who can see the codes can already see who
+   * redeemed them.
+   */
+  app.get("/api/v1/admin/waitlist", async (request, reply) => {
+    const session = await require(request, reply, "invites.read");
+    if (!session) return reply;
+    return reply.send({ waitlist: await access.listWaitlist(500) });
+  });
+
   // ---------------------------------------------------------------- invites
 
   app.get("/api/v1/admin/invites", async (request, reply) => {

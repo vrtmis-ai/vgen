@@ -897,6 +897,7 @@ describe("customer session", () => {
       auth: {
         dependencies: {
           auth: {} as never,
+          access: {} as never,
           sms: { sendVerificationCode: vi.fn(async () => undefined) },
         },
         options: {
@@ -908,6 +909,7 @@ describe("customer session", () => {
             loginPerAccount: allow(),
             loginPerIp: allow(),
             inviteCheckPerIp: allow(),
+            waitlistJoinPerIp: allow(),
           },
           webOrigin: "https://deev.test",
           // Google configured, Microsoft not — which is the asymmetry the

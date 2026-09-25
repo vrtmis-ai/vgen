@@ -89,3 +89,24 @@ export type PhoneVerificationStarted = z.infer<typeof PhoneVerificationStartedSc
 
 /** `POST /auth/invite/check`. One boolean: which rule refused a code is not the visitor's business. */
 export const InviteCheckResultSchema = z.object({ valid: z.boolean() });
+
+/**
+ * A place in the queue, for somebody who has no code.
+ *
+ * One field carries either an address or an Iranian mobile; `readContact` in
+ * `@vgen/core` decides which arrived, on both sides of the wire. The cap is
+ * 254 because that is the longest an address is allowed to be, and a phone is
+ * far shorter.
+ */
+export const JoinWaitlistSchema = z.object({ contact: z.string().trim().min(3).max(254) }).strict();
+
+/**
+ * The same answer whether the address was already listed or not.
+ *
+ * Saying "you were already on it" would turn this open, unauthenticated route
+ * into a way to ask whether a given address has signed up, so it does not say.
+ */
+export const WaitlistJoinedSchema = z.object({ status: z.literal("listed") });
+
+/** How many are waiting. The screen adds its own floor before drawing it. */
+export const WaitlistCountSchema = z.object({ count: z.number().int().nonnegative() });

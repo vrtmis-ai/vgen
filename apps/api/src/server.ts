@@ -311,7 +311,7 @@ const app = createApp(
       options: { cookie: { secure: process.env.NODE_ENV === "production" } },
     },
     auth: {
-      dependencies: { auth: authRepository, sms },
+      dependencies: { auth: authRepository, access: accessRepository, sms },
       options: {
         // Secure everywhere but local http, where the browser would drop it.
         cookie: { secure: process.env.NODE_ENV === "production" },
