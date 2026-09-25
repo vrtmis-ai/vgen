@@ -20,7 +20,7 @@ import { Wordmark } from "../components/brandMarks";
 import { BRAND } from "../data/brand";
 import { useAuth } from "../features/session/useAuth";
 import { useAppServices } from "../runtime/AppServices";
-import { useSession } from "../features/session/useSession";
+import { useContent, useSession } from "../features/session/useSession";
 import { faNum, latinDigits } from "../lib/format";
 import { useI18n, type TKey } from "../lib/i18n";
 import { PasswordInput } from "../components/PasswordInput";
@@ -364,6 +364,11 @@ export default function Auth({ mode }: { mode: AuthMode }) {
   const { t, lang } = useI18n();
   const router = useRouter();
   const session = useSession();
+  /* Undefined until content lands, and false is the safe read of that: the gate
+     is what turns this on, so a visitor who got here with the flag off keeps
+     the ordinary screen rather than being bounced by a query that is still in
+     flight. */
+  const earlyAccess = useContent().data?.flags.earlyAccess ?? false;
   const { startPhoneVerification, verifyPhone, login, register, startProviderSignIn } = useAuth();
   const services = useAppServices();
 
@@ -429,6 +434,18 @@ export default function Auth({ mode }: { mode: AuthMode }) {
       cancelled = true;
     };
   }, [services]);
+
+  /* Signup is shut to anybody the gate has not already checked. Without this,
+     the "no account yet" link under sign-in walked a visitor with no code into
+     a form the server refuses — and on the phone route it refuses only after
+     `otp/start` has sent a real SMS, which nothing on that path checks an
+     invite for. Read from the URL rather than from `invite`, because that
+     state is set by an effect and is still empty on this pass. */
+  useEffect(() => {
+    if (!earlyAccess || mode !== "signup") return;
+    if (new URL(window.location.href).searchParams.get("invite")?.trim()) return;
+    router.replace("/");
+  }, [earlyAccess, mode, router]);
 
   /** Digits in the reader's own script. A clock is the only number this screen prints. */
   const localDigits = (value: string) => (lang === "fa" ? faNum(value) : value);
@@ -562,7 +579,11 @@ export default function Auth({ mode }: { mode: AuthMode }) {
         };
 
   const inviteField = inviteNeeded && (
-    <PillField label={t("auth_invite_label")} hint={t("auth_invite_hint")} error={onInvite ? failureText : undefined}>
+    /* No hint. The label is «کد دعوت», the refusal under it already says a
+        code is needed, and the field is most often reached from the gate with
+        a working code already in it — where a line explaining that the product
+        needs an invite told somebody the one thing they had just done. */
+    <PillField label={t("auth_invite_label")} error={onInvite ? failureText : undefined}>
       {({ id, describedBy }) => (
         <input
           id={id}
@@ -883,9 +904,11 @@ export default function Auth({ mode }: { mode: AuthMode }) {
             type="button"
             className="vg-ease hover:text-[color:var(--vg-text)]"
             style={{ color: "var(--vg-accent)" }}
-            onClick={() => router.push(mode === "signin" ? SIGN_UP_PATH : SIGN_IN_PATH)}
+            /* While the gate is up, "no account yet" sends them to the gate
+               rather than to a signup form that cannot finish without a code. */
+            onClick={() => router.push(mode === "signin" ? (earlyAccess ? "/" : SIGN_UP_PATH) : SIGN_IN_PATH)}
           >
-            {t(mode === "signin" ? "auth_to_signup" : "auth_to_signin")}
+            {t(mode === "signin" ? (earlyAccess ? "auth_to_invite" : "auth_to_signup") : "auth_to_signin")}
           </button>
 
           <a
