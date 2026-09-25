@@ -48,6 +48,7 @@ const EXPECTED_MIGRATIONS = [
   "0034_content_categories.sql",
   "0035_role_rank.sql",
   "0036_user_handles.sql",
+  "0037_waitlist.sql",
 ];
 
 describe("database migration chain", () => {

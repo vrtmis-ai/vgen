@@ -108,6 +108,17 @@ export class InviteLimitError extends Error {
   }
 }
 
+/** Somebody waiting for a code. `channel` is how we would reach them. */
+export interface WaitlistEntry {
+  id: string;
+  channel: "email" | "phone";
+  contact: string;
+  joinedAt: number;
+  invitedAt: number | null;
+  /** True once they redeemed the code and became an account. */
+  joined: boolean;
+}
+
 export interface PromoPerformance {
   id: string;
   code: string;
@@ -303,6 +314,58 @@ export class PostgresAccessRepository {
       userId: row.user_id,
       coinsSpent: microCreditsToCoins(int(row.micro_credits_spent)),
       redeemedAt: row.redeemed_at.getTime(),
+    }));
+  }
+
+  // -------------------------------------------------------------- waitlist
+
+  /**
+   * Take a place in the queue, or keep the one already held.
+   *
+   * `on conflict do nothing` is the whole fairness rule: asking twice does not
+   * move you forward and does not move you back, and the caller cannot tell
+   * which of the two happened. That last part is deliberate — the route is
+   * open and unauthenticated, so an answer that differed for a listed address
+   * would make this a way to ask whether somebody has signed up.
+   *
+   * The contact arrives normalised: an address as typed, a mobile folded to
+   * `09…`. The column is citext, so two capitalisations of one address cannot
+   * take two places.
+   */
+  async joinWaitlist(channel: "email" | "phone", contact: string): Promise<void> {
+    await this.sql`
+      insert into waitlist_entries (channel, contact)
+      values (${channel}, ${contact})
+      on conflict (contact) do nothing
+    `;
+  }
+
+  /** How many are waiting. The screen adds its own floor before drawing it. */
+  async waitlistCount(): Promise<number> {
+    const [row] = await this.sql<{ n: string }[]>`select count(*)::text as n from waitlist_entries`;
+    return int(row?.n ?? "0");
+  }
+
+  /**
+   * The queue, oldest first, which is the order it will be invited in and the
+   * only order it is ever read in.
+   */
+  async listWaitlist(limit = 200): Promise<WaitlistEntry[]> {
+    const rows = await this.sql<
+      { id: string; channel: "email" | "phone"; contact: string; created_at: Date; invited_at: Date | null; user_id: string | null }[]
+    >`
+      select id, channel, contact, created_at, invited_at, user_id
+      from waitlist_entries
+      order by created_at, id
+      limit ${Math.min(Math.max(limit, 1), 1000)}
+    `;
+    return rows.map((row) => ({
+      id: row.id,
+      channel: row.channel,
+      contact: row.contact,
+      joinedAt: row.created_at.getTime(),
+      invitedAt: row.invited_at?.getTime() ?? null,
+      joined: row.user_id !== null,
     }));
   }
 

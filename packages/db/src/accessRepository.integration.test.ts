@@ -264,3 +264,88 @@ describe("the early access gate", () => {
     });
   });
 });
+
+/**
+ * The queue for people the gate turns away.
+ *
+ * Two claims carry the weight, and both are about fairness rather than shape:
+ * one person holds one place, and asking again neither gains nor loses it.
+ */
+describe("the waitlist", () => {
+  it("keeps one place per person however many times they ask", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+
+      await access.joinWaitlist("email", "twice@example.com");
+      await access.joinWaitlist("email", "twice@example.com");
+      // citext: the column cannot be talked into a second place by the shift key.
+      await access.joinWaitlist("email", "TWICE@EXAMPLE.COM");
+
+      expect(await access.waitlistCount()).toBe(1);
+    });
+  });
+
+  it("does not move somebody down the queue for asking again", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+
+      await access.joinWaitlist("email", "first@example.com");
+      await access.joinWaitlist("email", "second@example.com");
+      await access.joinWaitlist("email", "first@example.com");
+
+      // `on conflict do nothing` rather than an upsert, so the second ask is
+      // not a new row and created_at is untouched. An upsert here would let
+      // anybody jump the queue by submitting twice — or lose their place.
+      expect((await access.listWaitlist()).map((entry) => entry.contact)).toEqual(["first@example.com", "second@example.com"]);
+    });
+  });
+
+  /* These run inside one rolled-back transaction, where `now()` is frozen at
+     the transaction's start — so every row would carry the same `created_at`
+     and the order would fall to the random low bits of a uuid v7. That is why
+     the column defaults to `clock_timestamp()`: arrival order is the queue's
+     only rule, and a rule decided by a coin flip is not one. */
+  it("reads oldest first, which is the order it will be invited in", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      for (const contact of ["a@example.com", "b@example.com", "c@example.com"]) await access.joinWaitlist("email", contact);
+
+      const queue = await access.listWaitlist();
+
+      expect(queue.map((entry) => entry.contact)).toEqual(["a@example.com", "b@example.com", "c@example.com"]);
+      expect(queue.every((entry) => entry.invitedAt === null && !entry.joined)).toBe(true);
+    });
+  });
+
+  it("carries the channel, so a number is kept even though only mail can be sent", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+
+      await access.joinWaitlist("email", "reachable@example.com");
+      await access.joinWaitlist("phone", "09121234567");
+
+      expect((await access.listWaitlist()).map((entry) => entry.channel)).toEqual(["email", "phone"]);
+    });
+  });
+
+  it("separates waiting from invited from arrived", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      const invited = await makeUser(tx);
+      await access.joinWaitlist("email", "waiting@example.com");
+      await access.joinWaitlist("email", "asked@example.com");
+      await access.joinWaitlist("email", "arrived@example.com");
+
+      // Written by hand here because nothing sends invites yet; this asserts
+      // the read can already tell the three states apart when it does.
+      await tx`update waitlist_entries set invited_at = now() where contact = 'asked@example.com'`;
+      await tx`update waitlist_entries set invited_at = now(), user_id = ${invited.userId} where contact = 'arrived@example.com'`;
+
+      const byContact = new Map((await access.listWaitlist()).map((entry) => [entry.contact, entry]));
+      expect(byContact.get("waiting@example.com")).toMatchObject({ invitedAt: null, joined: false });
+      expect(byContact.get("asked@example.com")).toMatchObject({ joined: false });
+      expect(byContact.get("asked@example.com")!.invitedAt).not.toBeNull();
+      expect(byContact.get("arrived@example.com")).toMatchObject({ joined: true });
+    });
+  });
+});

@@ -20,4 +20,16 @@ describe("what a waitlist field was given", () => {
       expect(readContact(typed)).toBeNull();
     }
   });
+
+  /* The reason this moved out of the browser. `POST /auth/waitlist` folds the
+     number with this same function before the unique index sees it, so four
+     spellings of one mobile are one place in the queue rather than four. If
+     the two sides ever disagreed, a value the form accepted would be a value
+     the route refused. */
+  it("folds every spelling of one number to the same stored value", () => {
+    const stored = new Set(
+      ["09121234567", "9121234567", "+989121234567", "00989121234567", "0912 123 4567"].map((typed) => readContact(typed)?.value),
+    );
+    expect([...stored]).toEqual(["09121234567"]);
+  });
 });

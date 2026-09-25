@@ -50,4 +50,38 @@ describe("the invite page", () => {
 
     await waitFor(() => expect(nav.push).toHaveBeenCalledWith("/signup?invite=DEEV-WYJPK8"));
   });
+
+  /* The half that shipped without a server. `POST /auth/waitlist` was a 404 for
+     three days, so every visitor who pressed this got «something went wrong»
+     on the one page whose entire job is to let them in. These cover the page's
+     side of the contract the route now answers. */
+  it("puts somebody with no code on the list, and says so", async () => {
+    const user = userEvent.setup();
+    const services = createDemoServices({ startAnonymous: true });
+    const join = vi.spyOn(services.auth, "joinWaitlist").mockResolvedValue(undefined);
+    renderPage(services);
+
+    await user.click(screen.getByRole("button", { name: "No code? Join the queue" }));
+    await user.type(screen.getByLabelText("Email or mobile number"), "09121234567");
+    await user.click(screen.getByRole("button", { name: "Join the queue" }));
+
+    // Normalised before it leaves the page, by the same function the route
+    // normalises with, so the four ways to type this number are one row.
+    await waitFor(() => expect(join).toHaveBeenCalledWith("09121234567"));
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("refuses a stray word without asking the server", async () => {
+    const user = userEvent.setup();
+    const services = createDemoServices({ startAnonymous: true });
+    const join = vi.spyOn(services.auth, "joinWaitlist");
+    renderPage(services);
+
+    await user.click(screen.getByRole("button", { name: "No code? Join the queue" }));
+    await user.type(screen.getByLabelText("Email or mobile number"), "hello");
+    await user.click(screen.getByRole("button", { name: "Join the queue" }));
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(join).not.toHaveBeenCalled();
+  });
 });

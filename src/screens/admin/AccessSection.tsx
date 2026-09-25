@@ -1,7 +1,15 @@
 import { useState, type FormEvent } from "react";
 import type { AdminApi, AdminInvite } from "../../features/admin/adminApi";
 import { ApiError } from "../../runtime/apiError";
-import { useEarlyAccess, useInviteMutations, useInvites, usePromoMutations, usePromos, useSiteBanner } from "../../features/admin/useAdmin";
+import {
+  useEarlyAccess,
+  useInviteMutations,
+  useInvites,
+  usePromoMutations,
+  usePromos,
+  useSiteBanner,
+  useWaitlist,
+} from "../../features/admin/useAdmin";
 import { Cell, Muted, Table } from "./primitives";
 
 /**
@@ -20,6 +28,7 @@ export function AccessSection({ api, canWrite, canFlags }: { api: AdminApi; canW
       <EarlyAccess api={api} canWrite={canFlags} />
       <SiteBanner api={api} canWrite={canFlags} />
       <Invites api={api} canWrite={canWrite} />
+      <Waitlist api={api} />
       <Promos api={api} canWrite={canWrite} />
     </div>
   );
@@ -364,6 +373,56 @@ function Promos({ api, canWrite }: { api: AdminApi; canWrite: boolean }) {
             ))}
           </Table>
           {remove.data ? <Muted>{remove.data === "deleted" ? "حذف شد." : "استفاده شده بود، پس باطل شد."}</Muted> : null}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Who is waiting for a code, oldest first.
+ *
+ * Read-only for now, deliberately. Turning the top of this list into invite
+ * codes is one call to the batch generator that already exists, but an invite
+ * nobody can send is worse than no button: mail from this domain is still
+ * landing in spam while its PTR and SPF are sorted out, so the queue is shown
+ * and the sending waits for a channel that works.
+ *
+ * A mobile number is listed the same as an address even though only the
+ * address can be invited today. It is demand, and dropping it on the floor
+ * because SMS is switched off would lose the one record that it existed.
+ */
+function Waitlist({ api }: { api: AdminApi }) {
+  const waitlist = useWaitlist(api, true);
+
+  return (
+    <section>
+      <Heading>نوبت دعوت</Heading>
+      <p className="mt-1 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
+        کسانی که کد نداشتند و در نوبت ثبت‌نام کردند. قدیمی‌ترین بالا.
+      </p>
+
+      {waitlist.isPending ? (
+        <Muted>…</Muted>
+      ) : waitlist.error ? (
+        <Muted>نوبت خوانده نشد.</Muted>
+      ) : waitlist.data.length === 0 ? (
+        <Muted>هنوز کسی در نوبت نیست.</Muted>
+      ) : (
+        <div className="mt-3">
+          <Table head={["#", "راه ارتباط", "نوع", "تاریخ", "وضعیت"]}>
+            {waitlist.data.map((entry, index) => (
+              <tr key={entry.id} className="border-t" style={{ borderColor: "var(--vg-border-subtle)" }}>
+                <Cell dim>{index + 1}</Cell>
+                <Cell>
+                  <span dir="ltr">{entry.contact}</span>
+                </Cell>
+                <Cell dim>{entry.channel === "email" ? "ایمیل" : "موبایل"}</Cell>
+                <Cell dim>{faDate(entry.joinedAt)}</Cell>
+                <Cell dim>{entry.joined ? "ثبت‌نام کرده" : entry.invitedAt === null ? "در نوبت" : "دعوت‌شده"}</Cell>
+              </tr>
+            ))}
+          </Table>
         </div>
       )}
     </section>

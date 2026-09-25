@@ -478,6 +478,8 @@ exist yet. Point them at it when you build it. `signOut` is live.
 | `POST /auth/otp/verify`                            | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie               |
 | `POST /auth/register`                              | `{ email, password, handle, inviteCode?, deviceFingerprint? }` → `201`            |
 | `POST /auth/invite/check`                          | `{ code }` → `200 { valid }`, one boolean for every refusal; 20 per 15 min per IP |
+| `POST /auth/waitlist`                              | `{ contact }` → `200 { status: "listed" }`; email or `09…`; 10 per 15 min per IP  |
+| `GET /auth/waitlist/count`                         | → `200 { count }`, how many are waiting; public and unlimited                     |
 | `POST /auth/login`                                 | `{ email, password }` → `200`                                                     |
 | `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                 |
 | `GET /auth/google` · `/auth/google/callback`       | Registered only when Google credentials are configured                            |
@@ -502,6 +504,36 @@ Things a UI needs to know about these:
   not spend a seat.
   Signing in to an existing account never needs one. The invite page hands a
   code to `/signup?invite=<code>`, which arrives with the field filled in.
+- **The waitlist is the other half of the gate.** A visitor with no code leaves
+  an email or an Iranian mobile and waits for one. It does not create an
+  account, sign anybody in, or relax the gate — `createAccount` still refuses
+  without a code — and a row is a claim on a future code, nothing more.
+  **`POST /auth/waitlist` answers `200 { status: "listed" }` whether or not the
+  contact was already on the list.** That is the point, not an oversight: the
+  route is open and unauthenticated, so an answer that differed for a known
+  address would be a way to ask whether somebody has an account here. The
+  insert is `on conflict (contact) do nothing`, so asking twice neither gains a
+  place nor loses one.
+  One field takes either kind. `readContact` in `@vgen/core` decides which
+  arrived and folds a mobile to the `09…` form — **the same function the form
+  validates with**, so a value the page accepts is never a value the route
+  refuses. `422 validation_failed` is what neither looks like.
+  `GET /auth/waitlist/count` returns the **raw** count. The holding page adds
+  its own floor before drawing a number, so adding one here would apply it
+  twice.
+  **Only an address can be acted on today.** A number is stored with
+  `channel = 'phone'` and listed in the panel, because it is demand worth
+  keeping, but invites go out by mail and SMS sign-in is switched off.
+- **`created_at` on `waitlist_entries` defaults to `clock_timestamp()`, not
+  `now()`.** It is the only column in the schema that does. `now()` is the
+  transaction's start time and is identical for every row written inside one,
+  so two rows would tie and the order would fall to the random low bits of a
+  uuid v7. Everywhere else that column is a stamp to read later; here it
+  decides who is invited first.
+- **The queue is read at `GET /admin/waitlist`**, oldest first, under
+  `invites.read` rather than a permission of its own — it exists to be turned
+  into invite codes, and anyone who can see the codes can already see who
+  redeemed them.
 - **The free trial is keyed on phone.** An email signup through a 20-coin invite
   has 20 coins, not 32 — the 12-coin trial only comes with the phone route.
   This is deliberate, not a missing grant.

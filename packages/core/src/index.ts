@@ -11,6 +11,7 @@ export { applyParamOverrides, isEmptyOverrides, type ParamOverrides } from "./pa
 export { UnknownContentKindError, fromContentItem, toContentItem, type ContentSeedRow, type ParsedContentItem } from "./contentItems";
 export { firstBrokenRule, foldForMatching, type PromptMatch, type PromptRule } from "./promptPolicy";
 export { HANDLE_MAX, HANDLE_MIN, HANDLE_PATTERN, isReservedHandle, mintHandle, normalizeHandle } from "./handles";
+export { readContact, type ContactKind } from "./contact";
 export {
   WeakPasswordError,
   assertUsablePassword,

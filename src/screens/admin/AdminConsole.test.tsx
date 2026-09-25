@@ -183,6 +183,7 @@ function stubApi(): AdminApi {
     replaceRoutes: vi.fn(async () => ({ routes: [] })),
     routeTo: vi.fn(async () => ({ routes: [] })),
     clearRoutes: vi.fn(async () => undefined),
+    listWaitlist: vi.fn(async () => []),
     listInvites: vi.fn(async () => []),
     createInvite: vi.fn(async () => []),
     updateInvite: vi.fn(async () => {
@@ -411,6 +412,27 @@ describe("the admin console", () => {
     expect(screen.getByRole("button", { name: "دعوت و تخفیف" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "مسیر مدل‌ها" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "ارائه‌دهنده‌ها" })).not.toBeInTheDocument();
+  });
+
+  /* The queue exists to be turned into invite codes, so it sits on the page
+     that holds the codes and answers to the same permission. */
+  it("draws the waitlist oldest first, on the page that hands out the codes", async () => {
+    sessionState = { status: "authed", email: "content@deev.test", roles: ["content"], permissions: ["invites.read"] };
+    api.listWaitlist = vi.fn(async () => [
+      { id: "w1", channel: "email" as const, contact: "first@example.com", joinedAt: 1_700_000_000_000, invitedAt: null, joined: false },
+      { id: "w2", channel: "phone" as const, contact: "09121234567", joinedAt: 1_700_000_100_000, invitedAt: null, joined: false },
+    ]);
+    const user = userEvent.setup();
+    renderConsole();
+    await screen.findByRole("heading", { name: "پنل مدیریت" });
+
+    await user.click(screen.getByRole("button", { name: "دعوت و تخفیف" }));
+
+    expect(await screen.findByRole("heading", { name: "نوبت دعوت" })).toBeInTheDocument();
+    expect(await screen.findByText("first@example.com")).toBeInTheDocument();
+    // A number is listed even though only an address can be invited today.
+    expect(screen.getByText("09121234567")).toBeInTheDocument();
+    expect(screen.getAllByText("در نوبت")).toHaveLength(2);
   });
 
   it("shows a read-only routing section to someone who cannot write", async () => {
