@@ -38,6 +38,15 @@ export function useGenerationJobs(jobIds: readonly string[]) {
          in question, so it is written down. */
       queryFn: ({ signal }: { signal: AbortSignal }) => services.generation.getJob(jobId, { signal }),
       refetchInterval: (query: Query<GenerationJob>) => {
+        /* A failed read is not a pending job. `data` is undefined both before
+           the first answer and after an error, and treating the second as the
+           first polled a job that cannot be read once a second forever: a
+           browser holding sixteen ids the server had never heard of sent
+           sixteen requests a second for as long as the tab stayed open, and
+           kept the error banner up the whole time.
+           `retry` above still covers a blip; when those are spent the banner's
+           own retry is the way back, which is what it is for. */
+        if (query.state.status === "error") return false;
         const status = query.state.data?.status;
         return status === undefined || status === "queued" || status === "running" ? 1_000 : false;
       },

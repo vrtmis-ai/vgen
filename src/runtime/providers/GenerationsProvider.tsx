@@ -15,7 +15,7 @@ import { ApiError } from "../../adapters/http/client";
 import type { GenerationQuote } from "../contracts/generation";
 import { appQueryKeys } from "../../features/session/useSession";
 import { useAppServices } from "../AppServices";
-import { useIsVisitor } from "./SessionProvider";
+import { useSession } from "./SessionProvider";
 import { useNavigation } from "./NavigationProvider";
 
 interface StartedGeneration {
@@ -131,7 +131,8 @@ const GenerationsContext = createContext<Generations | null>(null);
 export function GenerationsProvider({ children }: { children: ReactNode }) {
   const families = useCatalogFamilies();
   const navigation = useNavigation();
-  const visitor = useIsVisitor();
+  const session = useSession();
+  const visitor = session.user === null;
   const services = useAppServices();
   const createGeneration = useCreateGeneration();
   const queryClient = useQueryClient();
@@ -143,15 +144,24 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
   // which on the server produces [] and on the client produces the stored list,
   // and React reports the difference as a hydration mismatch.
   const [gens, setGens] = useState<Generation[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  /* Which account the list in state belongs to, rather than a bare "have we
+     read storage yet". Signing out and into a second account changes the owner
+     without remounting anything, and the old answer to "hydrated?" was yes —
+     so the first account's gallery stayed on screen for the second one. */
+  const owner = session.user?.id ?? "";
+  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
+  const hydrated = hydratedFor !== null;
   useEffect(() => {
-    setGens(loadGenerations());
-    setHydrated(true);
-  }, []);
+    setGens(loadGenerations(owner));
+    setHydratedFor(owner);
+  }, [owner]);
   useEffect(() => {
-    // Guarded: without this the empty pre-hydration list overwrites real storage.
-    if (hydrated) saveGenerations(gens);
-  }, [gens, hydrated]);
+    /* Both guards matter. Without the first, the empty pre-hydration list
+       overwrites real storage; without the second, the account being signed
+       out of has its gallery written into the key of the one being signed
+       into, on the render before the effect above has swapped the list. */
+    if (hydratedFor === owner) saveGenerations(gens, owner);
+  }, [gens, hydratedFor, owner]);
 
   /* The history, from the database rather than from this browser.
      `GET /api/v1/gallery` has worked since Phase H and nothing called it, so a
@@ -200,6 +210,13 @@ export function GenerationsProvider({ children }: { children: ReactNode }) {
      from `refetchInterval` for anything not queued or running, so a finished
      job is fetched once per session and never again, even if the fetch somehow
      fails to satisfy the condition that selected it.
+
+     That last clause was wrong until the error guard went in beside it. A
+     failed read leaves `data` undefined, which is the same shape as a read
+     that has not happened yet, so the interval read it as "still queued" and
+     asked again in a second — forever. This list is kept across reloads and is
+     not scoped to an account, so a browser could hold ids the server answers
+     404 for, and every one of them became its own request per second.
 
      It refreshes when this list changes rather than on a timer, so a tab left
      open for an hour still has to be touched before its pictures come back.

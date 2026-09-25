@@ -69,7 +69,7 @@ describe("versioned browser storage", () => {
 
   it("keeps a persisted generation running and ignores malformed siblings", () => {
     localStorage.setItem(
-      "vgen:gens",
+      "vgen:gens:u-1",
       JSON.stringify([
         {
           id: "client-1",
@@ -91,6 +91,6 @@ describe("versioned browser storage", () => {
       ]),
     );
 
-    expect(loadGenerations()).toMatchObject([{ id: "client-1", status: "running", progress: 37 }]);
+    expect(loadGenerations("u-1")).toMatchObject([{ id: "client-1", status: "running", progress: 37 }]);
   });
 });
