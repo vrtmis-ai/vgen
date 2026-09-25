@@ -41,6 +41,7 @@ import { GenerationLibraryService } from "./generationLibrary";
 import { CustomerSessionService, SessionCookiePrincipalResolver } from "./customerSession";
 import { sealingKeyFrom } from "@vgen/core";
 import { createAuthRateLimiters } from "./auth/rateLimits";
+import { createMailer, smtpSettingsFromEnv } from "./mail/mailer";
 import { GoogleOAuth } from "./auth/googleOAuth";
 import { MicrosoftOAuth } from "./auth/microsoftOAuth";
 import { KavenegarSmsSender, type SmsSender } from "./auth/sms";
@@ -152,6 +153,11 @@ const accessRepository = new PostgresAccessRepository(sql);
 // plan ladder rather than stored: both routes read the one memoised document,
 // so the strip can never advertise a discount checkout does not honour.
 const plansRepository = new PostgresPlansRepository(sql);
+const smtp = smtpSettingsFromEnv();
+/* Optional, like the SMS gateway. Without credentials there is no transport and
+   the invite route says so, rather than reporting a success nobody received. */
+const mailer = smtp ? createMailer(smtp) : undefined;
+
 const authRateLimiters = await createAuthRateLimiters(sql, redisUrl, rateLimitHashSecret);
 const telemetryRateLimiter = createRedisFixedWindowRateLimiter(redisUrl, {
   max: 20,
@@ -308,7 +314,7 @@ const app = createApp(
           return { id: user.id, emailNormalized: user.emailNormalized };
         },
       },
-      options: { cookie: { secure: process.env.NODE_ENV === "production" } },
+      options: { cookie: { secure: process.env.NODE_ENV === "production" }, webOrigin, ...(mailer ? { mailer } : {}) },
     },
     auth: {
       dependencies: { auth: authRepository, access: accessRepository, sms },

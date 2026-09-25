@@ -8,6 +8,8 @@ import {
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { clearAdminCookie, readAdminToken, setAdminCookie, type CookieOptions } from "../auth/cookies";
+import { inviteEmail } from "../mail/inviteEmail";
+import type { Mailer } from "../mail/mailer";
 import { registerAdminAnalyticsRoutes, type AdminAnalyticsDependencies } from "./adminAnalytics";
 import { registerAdminCatalogRoutes, type AdminCatalogDependencies } from "./adminCatalog";
 import { registerAdminCommunityRoutes, type AdminCommunityDependencies } from "./adminCommunity";
@@ -49,7 +51,26 @@ export interface AdminDependencies {
 
 export interface AdminRouteOptions {
   cookie: CookieOptions;
+  /**
+   * Absent when no SMTP credentials are configured, and then the invite button
+   * answers 503 rather than reporting a success nobody received. Optional for
+   * the same reason `sms` is on the auth side: there is no half-configured
+   * mode, and local development does not need a mailbox.
+   */
+  mailer?: Mailer | undefined;
+  /** Where the invite link in the mail points. */
+  webOrigin?: string | undefined;
 }
+
+/**
+ * How many of the queue to invite.
+ *
+ * Capped at 100 in one press. The route sends sequentially and a request that
+ * holds a connection open through a thousand SMTP handshakes will be cut off
+ * by something in the middle, halfway through, with no way to tell how far it
+ * got from the outside.
+ */
+const InviteWaitlistSchema = z.object({ count: z.number().int().min(1).max(100) }).strict();
 
 export interface AuditInput {
   action: string;
@@ -140,7 +161,7 @@ const SiteBannerSchema = z.object({ enabled: z.boolean() }).strict();
  */
 export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDependencies, options: AdminRouteOptions): void {
   const { admin, access } = dependencies;
-  const { cookie } = options;
+  const { cookie, mailer, webOrigin } = options;
 
   /**
    * Resolves the staff session and checks one permission.
@@ -330,6 +351,64 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
     const session = await require(request, reply, "invites.read");
     if (!session) return reply;
     return reply.send({ waitlist: await access.listWaitlist(500) });
+  });
+
+  /**
+   * Send the next `count` people in the queue an invite code each.
+   *
+   * One single-use code per person, not one code shared between them: a shared
+   * code is a link somebody forwards, and the first stranger to receive it
+   * takes a place from the list it was meant for.
+   *
+   * **Sent one at a time, and marked only after the send returns.** A partial
+   * failure therefore leaves a correct record rather than a tidy one — the
+   * people who were reached are marked, the rest keep their places, and
+   * pressing the button again continues from where it stopped instead of
+   * re-inviting anybody. The response says how many of each, because "10
+   * requested, 6 sent" is the one thing an operator needs to know and the one
+   * thing a bare 200 would hide.
+   */
+  app.post("/api/v1/admin/waitlist/invite", { bodyLimit: 1024 }, async (request, reply) => {
+    const session = await require(request, reply, "invites.write");
+    if (!session) return reply;
+    if (!mailer) {
+      return reply.code(503).send({
+        error: { code: "mail_unavailable", message: "No mail account is configured, so invites cannot be sent." },
+      });
+    }
+
+    const { count } = InviteWaitlistSchema.parse(request.body);
+    const waiting = await access.nextWaitlistToInvite(count);
+    if (waiting.length === 0) return reply.send({ requested: count, sent: 0, failed: 0 });
+
+    let sent = 0;
+    let failed = 0;
+    for (const entry of waiting) {
+      // Created per person and inside the loop, so a send that throws leaves
+      // one unused code behind rather than a batch of them.
+      const invite = await access.createInvite({
+        kind: "campaign",
+        label: `waitlist ${entry.contact}`,
+        maxRedemptions: 1,
+        createdBy: session.userId,
+        expiresAt: new Date(Date.now() + 30 * 86_400_000),
+      });
+      const mail = inviteEmail(invite.code, webOrigin ?? "https://deevapp.com");
+      try {
+        await mailer.send({ to: entry.contact, ...mail });
+      } catch (error) {
+        // One address the server will not accept must not end the batch for
+        // everybody behind it.
+        request.log.error({ err: error, waitlistEntryId: entry.id }, "waitlist invite failed to send");
+        failed += 1;
+        continue;
+      }
+      await access.markWaitlistInvited(entry.id, invite.id);
+      sent += 1;
+    }
+
+    await audit(request, session, { action: "waitlist.invited", after: { requested: count, sent, failed } });
+    return reply.send({ requested: count, sent, failed });
   });
 
   // ---------------------------------------------------------------- invites

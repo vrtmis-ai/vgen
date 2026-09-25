@@ -16,7 +16,19 @@ const ADMIN = {
 
 const invite = { id: "i1", code: "apple-deev", grantCoins: 20, usersJoined: 2, coinsSpent: 7 };
 
-function build(session: Partial<typeof ADMIN> | null = ADMIN) {
+/** Records what would have gone out, and can be made to refuse one address. */
+function mailerDouble(refuse?: string) {
+  const sent: { to: string; subject: string }[] = [];
+  return {
+    sent,
+    send: vi.fn(async (message: { to: string; subject: string; text: string; html: string }) => {
+      if (message.to === refuse) throw new Error("550 mailbox unavailable");
+      sent.push({ to: message.to, subject: message.subject });
+    }),
+  };
+}
+
+function build(session: Partial<typeof ADMIN> | null = ADMIN, mailer?: ReturnType<typeof mailerDouble>) {
   const admin = {
     resolveSession: vi.fn(async (_token: string) => (session ? { ...ADMIN, ...session } : null)),
     resolvePrincipal: vi.fn(async (_userId: string) => ({ ...ADMIN })),
@@ -60,7 +72,14 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN) {
     listInvites: vi.fn(async () => [invite]),
     getInvite: vi.fn(async () => invite),
     listInviteRedeemers: vi.fn(async () => [{ userId: "u2", coinsSpent: 7, redeemedAt: 1 }]),
-    createInvite: vi.fn(async () => invite),
+    createInvite: vi.fn(async (_input: { maxRedemptions?: number | null }) => invite),
+    nextWaitlistToInvite: vi.fn(async (limit: number) =>
+      [
+        { id: "w1", contact: "first@example.com" },
+        { id: "w2", contact: "second@example.com" },
+      ].slice(0, limit),
+    ),
+    markWaitlistInvited: vi.fn(async () => undefined),
     createInviteBatch: vi.fn(async (count: number) => Array.from({ length: count }, (_, i) => ({ ...invite, id: `i${i}` }))),
     // Widened, because one test swaps this for the "deleted" outcome.
     deleteInvite: vi.fn(async (): Promise<"deleted" | "has_redemptions" | "not_found"> => "has_redemptions"),
@@ -81,8 +100,12 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN) {
 
   const app: FastifyInstance = Fastify({ logger: false });
   registerErrorHandling(app);
-  registerAdminRoutes(app, { admin: admin as never, access: access as never, verifyPassword }, { cookie: { secure: true } });
-  return { app, admin, access, verifyPassword };
+  registerAdminRoutes(
+    app,
+    { admin: admin as never, access: access as never, verifyPassword },
+    { cookie: { secure: true }, webOrigin: "https://deev.test", ...(mailer ? { mailer } : {}) },
+  );
+  return { app, admin, access, verifyPassword, mailer };
 }
 
 const AS_ADMIN = { cookie: "deev_admin=adm-tok" };
@@ -171,6 +194,76 @@ describe("the waitlist behind the panel", () => {
     expect(response.statusCode).toBe(403);
     expect(access.listWaitlist).not.toHaveBeenCalled();
     await app.close();
+  });
+});
+
+/**
+ * Sending the top of the queue an invite each.
+ *
+ * The behaviour worth pinning is what happens when one send fails: the batch
+ * must not stop, and the person it failed for must keep their place. Marking
+ * somebody invited who never received anything strands them — nothing ever
+ * picks them up again — so the mark only happens after the send returns.
+ */
+describe("inviting from the waitlist", () => {
+  it("sends one single-use code each and marks only those it reached", async () => {
+    const mailer = mailerDouble();
+    const { app, access } = build(ADMIN, mailer);
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/admin/waitlist/invite", headers: AS_ADMIN, payload: { count: 2 } });
+
+    expect([response.statusCode, response.json()]).toEqual([200, { requested: 2, sent: 2, failed: 0 }]);
+    expect(mailer.sent.map((message) => message.to)).toEqual(["first@example.com", "second@example.com"]);
+    // One code per person, each admitting exactly one account — a shared code
+    // is a link somebody forwards.
+    expect(access.createInvite).toHaveBeenCalledTimes(2);
+    expect(access.createInvite.mock.calls.every((call) => call[0]?.maxRedemptions === 1)).toBe(true);
+    expect(access.markWaitlistInvited).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps going past an address the server refuses, and does not mark it", async () => {
+    const mailer = mailerDouble("first@example.com");
+    const { app, access } = build(ADMIN, mailer);
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/admin/waitlist/invite", headers: AS_ADMIN, payload: { count: 2 } });
+
+    expect(response.json()).toEqual({ requested: 2, sent: 1, failed: 1 });
+    expect(mailer.sent.map((message) => message.to)).toEqual(["second@example.com"]);
+    // The one that failed keeps its place, so the next press picks it up.
+    expect(access.markWaitlistInvited).toHaveBeenCalledTimes(1);
+    expect(access.markWaitlistInvited).toHaveBeenCalledWith("w2", invite.id);
+  });
+
+  it("says so plainly when no mail account is configured", async () => {
+    const { app, access } = build();
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/admin/waitlist/invite", headers: AS_ADMIN, payload: { count: 5 } });
+
+    // Not a 200 with sent: 0, which would read as "the queue was empty".
+    expect(response.statusCode).toBe(503);
+    expect(response.json().error.code).toBe("mail_unavailable");
+    expect(access.createInvite).not.toHaveBeenCalled();
+  });
+
+  it("refuses a batch size outside the cap before sending anything", async () => {
+    const mailer = mailerDouble();
+    const { app, access } = build(ADMIN, mailer);
+
+    for (const count of [0, 101, -1]) {
+      const response = await app.inject({ method: "POST", url: "/api/v1/admin/waitlist/invite", headers: AS_ADMIN, payload: { count } });
+      expect(response.statusCode).toBe(400);
+    }
+    expect(access.createInvite).not.toHaveBeenCalled();
+  });
+
+  it("needs invites.write, not merely invites.read", async () => {
+    const mailer = mailerDouble();
+    const { app, access } = build({ permissions: ["invites.read"] }, mailer);
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/admin/waitlist/invite", headers: AS_ADMIN, payload: { count: 1 } });
+
+    expect(response.statusCode).toBe(403);
+    expect(access.createInvite).not.toHaveBeenCalled();
   });
 });
 

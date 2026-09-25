@@ -405,6 +405,14 @@ const WaitlistResponseSchema = z.object({ waitlist: z.array(WaitlistEntrySchema)
 
 export type AdminWaitlistEntry = z.infer<typeof WaitlistEntrySchema>;
 
+/** What a press of the invite button actually achieved. */
+const WaitlistInviteResultSchema = z.object({
+  requested: z.number().int(),
+  sent: z.number().int(),
+  failed: z.number().int(),
+});
+export type WaitlistInviteResult = z.infer<typeof WaitlistInviteResultSchema>;
+
 export type AdminInvite = z.infer<typeof InviteSchema>;
 export type AdminPromo = z.infer<typeof PromoSchema>;
 
@@ -553,6 +561,7 @@ export interface AdminApi {
   clearRoutes(modelId: string): Promise<void>;
 
   listWaitlist(): Promise<AdminWaitlistEntry[]>;
+  inviteFromWaitlist(count: number): Promise<WaitlistInviteResult>;
 
   listInvites(): Promise<AdminInvite[]>;
   createInvite(input: CreateInviteInput): Promise<AdminInvite[]>;
@@ -686,6 +695,9 @@ export function createAdminApi(client: HttpClient, uploads: HttpClient = client)
     },
 
     listWaitlist: async () => (await client.request("/admin/waitlist", { schema: WaitlistResponseSchema })).waitlist,
+
+    inviteFromWaitlist: (count) =>
+      client.request("/admin/waitlist/invite", { method: "POST", body: { count }, schema: WaitlistInviteResultSchema }),
 
     listInvites: async () => (await client.request("/admin/invites", { schema: InvitesResponseSchema })).invites,
     createInvite: async (input) =>

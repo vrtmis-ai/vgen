@@ -257,6 +257,19 @@ export function useWaitlist(api: AdminApi, enabled: boolean) {
   return useQuery({ queryKey: adminKeys.waitlist, enabled, queryFn: () => api.listWaitlist(), retry: false });
 }
 
+/* Invalidates both lists: a sent invite moves somebody out of "waiting" and
+   creates the code that now appears above. */
+export function useWaitlistInvites(api: AdminApi) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (count: number) => api.inviteFromWaitlist(count),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminKeys.waitlist });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.invites });
+    },
+  });
+}
+
 export function useInvites(api: AdminApi, enabled: boolean) {
   return useQuery({ queryKey: adminKeys.invites, enabled, queryFn: () => api.listInvites(), retry: false });
 }
