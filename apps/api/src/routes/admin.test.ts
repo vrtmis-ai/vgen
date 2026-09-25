@@ -17,14 +17,16 @@ const ADMIN = {
 const invite = { id: "i1", code: "apple-deev", grantCoins: 20, usersJoined: 2, coinsSpent: 7 };
 
 /** Records what would have gone out, and can be made to refuse one address. */
-function mailerDouble(refuse?: string) {
+function mailerDouble(refuse?: string, delayMs = 0) {
   const sent: { to: string; subject: string }[] = [];
   return {
     sent,
     send: vi.fn(async (message: { to: string; subject: string; text: string; html: string }) => {
+      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
       if (message.to === refuse) throw new Error("550 mailbox unavailable");
       sent.push({ to: message.to, subject: message.subject });
     }),
+    close: vi.fn(),
   };
 }
 
@@ -74,10 +76,10 @@ function build(session: Partial<typeof ADMIN> | null = ADMIN, mailer?: ReturnTyp
     listInviteRedeemers: vi.fn(async () => [{ userId: "u2", coinsSpent: 7, redeemedAt: 1 }]),
     createInvite: vi.fn(async (_input: { maxRedemptions?: number | null }) => invite),
     nextWaitlistToInvite: vi.fn(async (limit: number) =>
-      [
-        { id: "w1", contact: "first@example.com" },
-        { id: "w2", contact: "second@example.com" },
-      ].slice(0, limit),
+      Array.from({ length: Math.min(limit, 40) }, (_unused, index) => ({
+        id: `w${index + 1}`,
+        contact: index === 0 ? "first@example.com" : index === 1 ? "second@example.com" : `person${index + 1}@example.com`,
+      })),
     ),
     markWaitlistInvited: vi.fn(async () => undefined),
     createInviteBatch: vi.fn(async (count: number) => Array.from({ length: count }, (_, i) => ({ ...invite, id: `i${i}` }))),
@@ -212,7 +214,7 @@ describe("inviting from the waitlist", () => {
 
     const response = await app.inject({ method: "POST", url: "/api/v1/admin/waitlist/invite", headers: AS_ADMIN, payload: { count: 2 } });
 
-    expect([response.statusCode, response.json()]).toEqual([200, { requested: 2, sent: 2, failed: 0 }]);
+    expect([response.statusCode, response.json()]).toEqual([200, { requested: 2, sent: 2, failed: 0, remaining: 0 }]);
     expect(mailer.sent.map((message) => message.to)).toEqual(["first@example.com", "second@example.com"]);
     // One code per person, each admitting exactly one account — a shared code
     // is a link somebody forwards.
@@ -227,7 +229,7 @@ describe("inviting from the waitlist", () => {
 
     const response = await app.inject({ method: "POST", url: "/api/v1/admin/waitlist/invite", headers: AS_ADMIN, payload: { count: 2 } });
 
-    expect(response.json()).toEqual({ requested: 2, sent: 1, failed: 1 });
+    expect(response.json()).toEqual({ requested: 2, sent: 1, failed: 1, remaining: 0 });
     expect(mailer.sent.map((message) => message.to)).toEqual(["second@example.com"]);
     // The one that failed keeps its place, so the next press picks it up.
     expect(access.markWaitlistInvited).toHaveBeenCalledTimes(1);
@@ -255,6 +257,27 @@ describe("inviting from the waitlist", () => {
     }
     expect(access.createInvite).not.toHaveBeenCalled();
   });
+
+  it("stops at its time budget and says how many are left", async () => {
+    // Each send is slow enough that the twenty-second budget runs out partway
+    // through. The response has to arrive regardless: a batch that outlives
+    // the CDN in front of this API gets reported to the operator as a failure,
+    // about messages that were in fact sent.
+    const mailer = mailerDouble(undefined, 1_100);
+    const { app, access } = build(ADMIN, mailer);
+
+    const started = Date.now();
+    const response = await app.inject({ method: "POST", url: "/api/v1/admin/waitlist/invite", headers: AS_ADMIN, payload: { count: 40 } });
+    const elapsed = Date.now() - started;
+
+    const body = response.json();
+    expect(response.statusCode).toBe(200);
+    expect(elapsed).toBeLessThan(30_000);
+    expect(body.sent).toBeLessThan(40);
+    expect(body.remaining).toBeGreaterThan(0);
+    // Everything it did send, it marked — nobody is stranded by the deadline.
+    expect(access.markWaitlistInvited).toHaveBeenCalledTimes(body.sent);
+  }, 60_000);
 
   it("needs invites.write, not merely invites.read", async () => {
     const mailer = mailerDouble();

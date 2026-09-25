@@ -379,11 +379,27 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
 
     const { count } = InviteWaitlistSchema.parse(request.body);
     const waiting = await access.nextWaitlistToInvite(count);
-    if (waiting.length === 0) return reply.send({ requested: count, sent: 0, failed: 0 });
+    if (waiting.length === 0) return reply.send({ requested: count, sent: 0, failed: 0, remaining: 0 });
+
+    /* Stop sending at twenty seconds and answer with what was done.
+       Nothing here is slow on a good day — a message costs about 0.4s on a
+       warm pooled connection — but the mail host is a machine we do not run,
+       and it has been seen restarting mid-submission. A batch that runs long
+       outlives the CDN in front of this API, and then the operator is told
+       "not sent" about messages that were in fact sent, which is the worst
+       thing this screen can say. Returning early is honest and costs nothing:
+       only unmarked rows are ever selected, so pressing the button again
+       carries on from exactly where this stopped. */
+    const deadline = Date.now() + 20_000;
 
     let sent = 0;
     let failed = 0;
+    let stoppedEarly = false;
     for (const entry of waiting) {
+      if (Date.now() > deadline) {
+        stoppedEarly = true;
+        break;
+      }
       // Created per person and inside the loop, so a send that throws leaves
       // one unused code behind rather than a batch of them.
       const invite = await access.createInvite({
@@ -407,8 +423,12 @@ export function registerAdminRoutes(app: FastifyInstance, dependencies: AdminDep
       sent += 1;
     }
 
-    await audit(request, session, { action: "waitlist.invited", after: { requested: count, sent, failed } });
-    return reply.send({ requested: count, sent, failed });
+    const remaining = waiting.length - sent - failed;
+    await audit(request, session, {
+      action: "waitlist.invited",
+      after: { requested: count, sent, failed, ...(stoppedEarly ? { stoppedEarly: true, remaining } : {}) },
+    });
+    return reply.send({ requested: count, sent, failed, remaining });
   });
 
   // ---------------------------------------------------------------- invites

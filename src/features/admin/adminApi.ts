@@ -410,6 +410,8 @@ const WaitlistInviteResultSchema = z.object({
   requested: z.number().int(),
   sent: z.number().int(),
   failed: z.number().int(),
+  /** Still waiting out of what was asked for, when the batch ran out of time. */
+  remaining: z.number().int().default(0),
 });
 export type WaitlistInviteResult = z.infer<typeof WaitlistInviteResultSchema>;
 

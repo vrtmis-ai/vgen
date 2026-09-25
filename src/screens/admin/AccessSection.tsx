@@ -426,16 +426,27 @@ function Waitlist({ api, canWrite }: { api: AdminApi; canWrite: boolean }) {
           </span>
           {invite.error ? (
             <span role="alert" className="text-[12px]" style={{ color: "var(--vg-danger, #ff6c52)" }}>
+              {/* A dropped connection is not proof that nothing was sent. The
+                  server marks somebody invited only after their message is
+                  accepted, so the list below is the truth and this must not
+                  claim otherwise — it did once, about mail that had in fact
+                  gone out, which is the worst thing this screen can say. */}
               {invite.error instanceof ApiError && invite.error.code === "mail_unavailable"
                 ? "حساب ایمیلی تنظیم نشده، پس فعلاً نمی‌شود دعوت فرستاد."
-                : "فرستاده نشد."}
+                : "پاسخ نرسید. شاید بخشی فرستاده شده باشد — فهرست پایین را ببین."}
             </span>
           ) : null}
           {invite.data ? (
             <span role="status" className="text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
-              {invite.data.failed === 0
-                ? `${invite.data.sent} دعوت فرستاده شد.`
-                : `${invite.data.sent} فرستاده شد، ${invite.data.failed} نشد.`}
+              {[
+                `${invite.data.sent} دعوت فرستاده شد`,
+                invite.data.failed > 0 ? `${invite.data.failed} نشد` : null,
+                // Said out loud, because the number asked for was not reached
+                // and the next press is what finishes it.
+                invite.data.remaining > 0 ? `${invite.data.remaining} ماند برای دفعهٔ بعد` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           ) : null}
         </form>

@@ -184,7 +184,7 @@ function stubApi(): AdminApi {
     routeTo: vi.fn(async () => ({ routes: [] })),
     clearRoutes: vi.fn(async () => undefined),
     listWaitlist: vi.fn(async () => []),
-    inviteFromWaitlist: vi.fn(async (count: number) => ({ requested: count, sent: count, failed: 0 })),
+    inviteFromWaitlist: vi.fn(async (count: number) => ({ requested: count, sent: count, failed: 0, remaining: 0 })),
     listInvites: vi.fn(async () => []),
     createInvite: vi.fn(async () => []),
     updateInvite: vi.fn(async () => {
