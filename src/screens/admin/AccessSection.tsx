@@ -9,6 +9,7 @@ import {
   usePromos,
   useSiteBanner,
   useWaitlist,
+  useWaitlistInvites,
 } from "../../features/admin/useAdmin";
 import { Cell, Muted, Table } from "./primitives";
 
@@ -28,7 +29,7 @@ export function AccessSection({ api, canWrite, canFlags }: { api: AdminApi; canW
       <EarlyAccess api={api} canWrite={canFlags} />
       <SiteBanner api={api} canWrite={canFlags} />
       <Invites api={api} canWrite={canWrite} />
-      <Waitlist api={api} />
+      <Waitlist api={api} canWrite={canWrite} />
       <Promos api={api} canWrite={canWrite} />
     </div>
   );
@@ -392,8 +393,17 @@ function Promos({ api, canWrite }: { api: AdminApi; canWrite: boolean }) {
  * address can be invited today. It is demand, and dropping it on the floor
  * because SMS is switched off would lose the one record that it existed.
  */
-function Waitlist({ api }: { api: AdminApi }) {
+function Waitlist({ api, canWrite }: { api: AdminApi; canWrite: boolean }) {
   const waitlist = useWaitlist(api, true);
+  const invite = useWaitlistInvites(api);
+  const [count, setCount] = useState("10");
+
+  const waiting = waitlist.data?.filter((entry) => entry.invitedAt === null && entry.channel === "email").length ?? 0;
+
+  const send = (event: FormEvent) => {
+    event.preventDefault();
+    invite.mutate(Number(count));
+  };
 
   return (
     <section>
@@ -401,6 +411,35 @@ function Waitlist({ api }: { api: AdminApi }) {
       <p className="mt-1 text-[12px]" style={{ color: "var(--vg-text-faint)" }}>
         کسانی که کد نداشتند و در نوبت ثبت‌نام کردند. قدیمی‌ترین بالا.
       </p>
+
+      {canWrite ? (
+        <form onSubmit={send} className="mt-2 flex flex-wrap items-end gap-2">
+          <Labelled label="چند نفر از بالای نوبت">
+            <Field value={count} onChange={setCount} placeholder="۱۰" ltr width="w-24" type="number" min={1} required />
+          </Labelled>
+          <Action busy={invite.isPending}>فرستادن کد دعوت</Action>
+          {/* Said before the press, because the number in the box is a request
+              and this is what can actually be met: only an address can be sent
+              to, and only somebody not already invited is still in line. */}
+          <span className="text-[11.5px]" style={{ color: "var(--vg-text-faint)" }}>
+            {waiting} نفر با ایمیل در نوبت‌اند
+          </span>
+          {invite.error ? (
+            <span role="alert" className="text-[12px]" style={{ color: "var(--vg-danger, #ff6c52)" }}>
+              {invite.error instanceof ApiError && invite.error.code === "mail_unavailable"
+                ? "حساب ایمیلی تنظیم نشده، پس فعلاً نمی‌شود دعوت فرستاد."
+                : "فرستاده نشد."}
+            </span>
+          ) : null}
+          {invite.data ? (
+            <span role="status" className="text-[12px]" style={{ color: "var(--vg-text-muted)" }}>
+              {invite.data.failed === 0
+                ? `${invite.data.sent} دعوت فرستاده شد.`
+                : `${invite.data.sent} فرستاده شد، ${invite.data.failed} نشد.`}
+            </span>
+          ) : null}
+        </form>
+      ) : null}
 
       {waitlist.isPending ? (
         <Muted>…</Muted>

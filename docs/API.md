@@ -534,6 +534,27 @@ Things a UI needs to know about these:
   `invites.read` rather than a permission of its own — it exists to be turned
   into invite codes, and anyone who can see the codes can already see who
   redeemed them.
+- **`POST /admin/waitlist/invite`** takes `{ count }` (1–100) under
+  `invites.write` and answers `{ requested, sent, failed }`. It sends **one
+  single-use code per person**, not one code shared between them — a shared
+  code is a link somebody forwards, and the first stranger to open it takes a
+  place from the list it was meant for.
+  **Sent one at a time, and each person is marked invited only after their send
+  returns.** A partial failure therefore leaves a correct record rather than a
+  tidy one: the people who were reached are marked, the rest keep their places,
+  and pressing the button again continues from where it stopped. The order is
+  the safer of the two wrong answers — marking first would strand somebody who
+  never received anything, since nothing picks up an already-invited row.
+  Only `channel = 'email'` rows are offered. A number stays on the list and in
+  the panel, but it cannot be sent to and must not absorb a place in a batch.
+  **With no SMTP settings configured the route answers `503 mail_unavailable`**
+  rather than `200 { sent: 0 }`, which would read as "the queue was empty".
+- **Mail is sent as an SMTP client, not from a mail server here.** `SMTP_HOST`,
+  `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` and `MAIL_FROM`; all of them or no
+  transport at all, because a half-configured one fails on the first send,
+  which is the worst moment to discover it. Port 587 requires STARTTLS rather
+  than merely offering it, so a server that fails to upgrade never receives the
+  password.
 - **The free trial is keyed on phone.** An email signup through a 20-coin invite
   has 20 coins, not 32 — the 12-coin trial only comes with the phone route.
   This is deliberate, not a missing grant.

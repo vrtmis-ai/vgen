@@ -274,6 +274,10 @@ describe("the early access gate", () => {
 describe("the waitlist", () => {
   it("keeps one place per person however many times they ask", async () => {
     await inRollback(sql, async (tx) => {
+      // Ambient rows would make every count and order below depend on
+      // whatever the last person to touch this database left behind.
+      // Rolled back with the rest of the transaction.
+      await tx`delete from waitlist_entries`;
       const access = new PostgresAccessRepository(tx);
 
       await access.joinWaitlist("email", "twice@example.com");
@@ -287,6 +291,10 @@ describe("the waitlist", () => {
 
   it("does not move somebody down the queue for asking again", async () => {
     await inRollback(sql, async (tx) => {
+      // Ambient rows would make every count and order below depend on
+      // whatever the last person to touch this database left behind.
+      // Rolled back with the rest of the transaction.
+      await tx`delete from waitlist_entries`;
       const access = new PostgresAccessRepository(tx);
 
       await access.joinWaitlist("email", "first@example.com");
@@ -307,6 +315,10 @@ describe("the waitlist", () => {
      only rule, and a rule decided by a coin flip is not one. */
   it("reads oldest first, which is the order it will be invited in", async () => {
     await inRollback(sql, async (tx) => {
+      // Ambient rows would make every count and order below depend on
+      // whatever the last person to touch this database left behind.
+      // Rolled back with the rest of the transaction.
+      await tx`delete from waitlist_entries`;
       const access = new PostgresAccessRepository(tx);
       for (const contact of ["a@example.com", "b@example.com", "c@example.com"]) await access.joinWaitlist("email", contact);
 
@@ -319,6 +331,10 @@ describe("the waitlist", () => {
 
   it("carries the channel, so a number is kept even though only mail can be sent", async () => {
     await inRollback(sql, async (tx) => {
+      // Ambient rows would make every count and order below depend on
+      // whatever the last person to touch this database left behind.
+      // Rolled back with the rest of the transaction.
+      await tx`delete from waitlist_entries`;
       const access = new PostgresAccessRepository(tx);
 
       await access.joinWaitlist("email", "reachable@example.com");
@@ -328,8 +344,73 @@ describe("the waitlist", () => {
     });
   });
 
+  /* The selection the invite button runs on. Everything here is about who is
+     skipped, because a place quietly absorbed by somebody unreachable is a
+     place nobody notices was lost. */
+  it("offers only people who can actually be sent something", async () => {
+    await inRollback(sql, async (tx) => {
+      // Ambient rows would make every count and order below depend on
+      // whatever the last person to touch this database left behind.
+      // Rolled back with the rest of the transaction.
+      await tx`delete from waitlist_entries`;
+      const access = new PostgresAccessRepository(tx);
+      await access.joinWaitlist("email", "reachable@example.com");
+      await access.joinWaitlist("phone", "09121234567");
+
+      // A number is kept on the list and shown in the panel, but invites go by
+      // mail — so it must not take a place in a batch that cannot reach it.
+      expect((await access.nextWaitlistToInvite(10)).map((row) => row.contact)).toEqual(["reachable@example.com"]);
+    });
+  });
+
+  it("walks down the queue instead of re-inviting the top of it", async () => {
+    await inRollback(sql, async (tx) => {
+      // Ambient rows would make every count and order below depend on
+      // whatever the last person to touch this database left behind.
+      // Rolled back with the rest of the transaction.
+      await tx`delete from waitlist_entries`;
+      const access = new PostgresAccessRepository(tx);
+      const invite = await access.createInvite({ maxRedemptions: 1 });
+      for (const contact of ["a@example.com", "b@example.com", "c@example.com"]) await access.joinWaitlist("email", contact);
+
+      const first = await access.nextWaitlistToInvite(1);
+      await access.markWaitlistInvited(first[0]!.id, invite.id);
+      const second = await access.nextWaitlistToInvite(1);
+
+      expect(first.map((row) => row.contact)).toEqual(["a@example.com"]);
+      expect(second.map((row) => row.contact)).toEqual(["b@example.com"]);
+    });
+  });
+
+  it("records which code somebody was sent, and will not overwrite it", async () => {
+    await inRollback(sql, async (tx) => {
+      // Ambient rows would make every count and order below depend on
+      // whatever the last person to touch this database left behind.
+      // Rolled back with the rest of the transaction.
+      await tx`delete from waitlist_entries`;
+      const access = new PostgresAccessRepository(tx);
+      const first = await access.createInvite({ maxRedemptions: 1 });
+      const second = await access.createInvite({ maxRedemptions: 1 });
+      await access.joinWaitlist("email", "once@example.com");
+      const [entry] = await access.nextWaitlistToInvite(1);
+
+      await access.markWaitlistInvited(entry!.id, first.id);
+      // `where invited_at is null` in the update, so a retry that raced a
+      // successful send cannot rewrite history and strand the first code.
+      await access.markWaitlistInvited(entry!.id, second.id);
+
+      const [row] = await tx`select invite_code_id from waitlist_entries where id = ${entry!.id}`;
+      expect(row!.invite_code_id).toBe(first.id);
+      expect(await access.nextWaitlistToInvite(10)).toEqual([]);
+    });
+  });
+
   it("separates waiting from invited from arrived", async () => {
     await inRollback(sql, async (tx) => {
+      // Ambient rows would make every count and order below depend on
+      // whatever the last person to touch this database left behind.
+      // Rolled back with the rest of the transaction.
+      await tx`delete from waitlist_entries`;
       const access = new PostgresAccessRepository(tx);
       const invited = await makeUser(tx);
       await access.joinWaitlist("email", "waiting@example.com");

@@ -350,6 +350,46 @@ export class PostgresAccessRepository {
    * The queue, oldest first, which is the order it will be invited in and the
    * only order it is ever read in.
    */
+
+  /**
+   * The next people in line who can actually be sent something.
+   *
+   * `channel = 'email'` because invites go by mail: a number on the list is
+   * demand worth keeping, but sending to it is not possible yet, and skipping
+   * those rows here is what stops them from silently absorbing places in a
+   * batch that never reaches anybody.
+   *
+   * `invited_at is null` so a second press of the button continues down the
+   * queue instead of re-inviting the top of it.
+   */
+  async nextWaitlistToInvite(limit: number): Promise<{ id: string; contact: string }[]> {
+    return this.sql<{ id: string; contact: string }[]>`
+      select id, contact::text as contact
+      from waitlist_entries
+      where invited_at is null and channel = 'email'
+      order by created_at, id
+      limit ${Math.min(Math.max(Math.trunc(limit), 1), 200)}
+    `;
+  }
+
+  /**
+   * Written only after the mail has actually gone out.
+   *
+   * The order matters and is the safer of the two wrong answers. Marking first
+   * and sending second would leave somebody marked invited who never received
+   * anything, and nothing would ever pick them up again — they would wait
+   * forever holding a place that looks spent. This way a crash between the two
+   * can at worst send a second code later, which is recoverable by the person
+   * receiving it.
+   */
+  async markWaitlistInvited(id: string, inviteCodeId: string): Promise<void> {
+    await this.sql`
+      update waitlist_entries
+      set invited_at = now(), invite_code_id = ${inviteCodeId}
+      where id = ${id} and invited_at is null
+    `;
+  }
+
   async listWaitlist(limit = 200): Promise<WaitlistEntry[]> {
     const rows = await this.sql<
       { id: string; channel: "email" | "phone"; contact: string; created_at: Date; invited_at: Date | null; user_id: string | null }[]
