@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { ModelMark } from "../components/ModelMark";
 import { FolderSimple, BookOpen, SlidersHorizontal, TextAa, Sparkle } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
 import { type Family, type ModelKind, type Variant } from "../data/models";
 import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
-import { VendorMark } from "../components/VendorMark";
 import type { InputMap, RefMap } from "../components/controls";
 import { FormPanel } from "../components/FormPanel";
 import { ViewControls, useViewMode } from "../components/ViewControls";
@@ -394,7 +394,7 @@ export default function Studio({
 
                     <div className="flex w-full shrink-0 flex-col lg:w-[240px] lg:self-stretch">
                       <p className="flex items-center gap-1.5 text-[12.5px] font-bold" style={{ color: "var(--vg-text)" }}>
-                        <VendorMark vendor={g.vendor} size={16} />
+                        <ModelMark familyId={g.familyId} vendor={g.vendor} size={16} />
                         <bdi>{g.name}</bdi>
                       </p>
                       {/* The whole prompt. This column is the reason to leave

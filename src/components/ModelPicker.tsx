@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from "react";
+import { ModelMark } from "./ModelMark";
 import { createPortal } from "react-dom";
 import { Check, MagnifyingGlass } from "@phosphor-icons/react";
 import { type Family, type Variant } from "../data/models";
 import { variantMeta } from "../lib/useCreateState";
 import { priceCoins } from "../data/pricing";
-import { VendorMark } from "./VendorMark";
 import { CoinMark } from "./chrome";
 import { useI18n } from "../lib/i18n";
 import { useFloatingDismiss, useFloatingPosition } from "./FloatingSurface";
@@ -71,7 +71,7 @@ function Row({
       style={selected ? { background: "var(--vg-primary-a14)" } : undefined}
     >
       <span className="relative shrink-0">
-        <VendorMark vendor={family.vendor} size={22} />
+        <ModelMark familyId={family.id} vendor={family.vendor} size={22} />
       </span>
 
       <span className="flex min-w-0 flex-1 flex-col gap-1">
@@ -176,7 +176,7 @@ export function ModelChip({
         className={className}
         style={style}
       >
-        <VendorMark vendor={family.vendor} size={15} />
+        <ModelMark familyId={family.id} vendor={family.vendor} size={15} />
         <bdi>{family.variants.length > 1 ? `${family.name} ${variant.label}` : family.name}</bdi>
       </button>
       {open && (
