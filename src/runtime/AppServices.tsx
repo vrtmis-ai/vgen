@@ -46,6 +46,35 @@ export interface AppServices {
      */
     checkInvite(code: string, options?: RequestOptions): Promise<boolean>;
     /**
+     * Ask to be told when there is room — a name on the early-access list.
+     *
+     * Required on both adapters, not optional. The first version of this was
+     * optional and flag-gated so nothing could post to a route that does not
+     * exist yet, and `adapters/parity.test.ts` refused it — rightly. A method
+     * the demo has and production does not is the exact drift that test is
+     * there to catch: the queue would appear on the screen it was built
+     * against and be missing from the one that ships.
+     *
+     * So the dependency is release order instead, recorded on the PR: the
+     * `early_access` flag must not be turned on in production before the
+     * route lands. `POST /auth/waitlist`, see the issue.
+     *
+     * Takes the contact as typed — an address or an Iranian mobile — and the
+     * server decides which it is and whether it is already on the list.
+     * Resolves either way: being on the list twice is not an error to report.
+     */
+    joinWaitlist(contact: string, options?: RequestOptions): Promise<void>;
+    /**
+     * How many names are on the list.
+     *
+     * For the line the gate prints above the mark. The route does not exist
+     * yet either — and unlike `joinWaitlist`, which has a button behind it and
+     * must not be offered where it cannot work, this one degrades on its own:
+     * the strip renders nothing when the call fails, so a deployment without
+     * the route simply does not show it.
+     */
+    waitlistCount(options?: RequestOptions): Promise<number>;
+    /**
      * Hands the browser to an identity provider.
      *
      * Unlike every other call here this is a *navigation*, not a request, and in

@@ -1533,14 +1533,28 @@
   inset: -25%;
   z-index: -1;
   pointer-events: none;
-  /* Soft stops rather than a blur filter: the gradients are already smooth and
-     a blur across a viewport-sized layer is fill rate spent on nothing. */
+  /* What is left of the two lobes that used to be the whole background. The
+     bars are the light now; this is the haze they stand in, and at this
+     strength it is the difference between a row of gradients and a room with
+     something happening at the back of it. */
   background:
-    radial-gradient(32% 42% at 22% 40%, rgb(var(--vg-primary-rgb) / 0.22), transparent 70%),
-    radial-gradient(30% 40% at 78% 38%, rgb(var(--vg-primary-rgb) / 0.2), transparent 70%),
-    radial-gradient(70% 45% at 50% 90%, rgb(var(--vg-primary-rgb) / 0.05), transparent 76%);
+    radial-gradient(40% 46% at 22% 44%, rgb(var(--vg-primary-rgb) / 0.08), transparent 72%),
+    radial-gradient(38% 44% at 78% 42%, rgb(var(--vg-primary-rgb) / 0.07), transparent 72%);
   animation: vg-soon-drift 34s var(--vg-ease) infinite alternate;
   will-change: transform;
+}
+
+/* The vignette, over the light and under the type. Without it the lobes reach
+   the edges of the frame and the whole thing reads as a flat panel; pulling the
+   corners down to black is what puts the type in the middle of a room. Static
+   on purpose — a vignette that drifts with the light stops being the frame. */
+.vg-soon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(105% 80% at 50% 42%, transparent 22%, rgb(0 0 0 / 0.62) 70%, rgb(0 0 0 / 0.88) 100%);
 }
 
 @keyframes vg-soon-drift {
@@ -1555,6 +1569,89 @@
 @media (prefers-reduced-motion: reduce) {
   /* The light stays; only its drift stops. */
   .vg-soon::before {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   THE BARS
+
+   From the reference the design sent: a row of vertical gradients rising from
+   the floor, tall at the edges and short in the middle, breathing on a
+   stagger. Theirs is one flat orange; the shape is what carries it, so the
+   shape is what came across and the colour is ours.
+
+   `scaleY` from the bottom rather than a changing height: a transform is
+   composited and a height is a layout pass, and there are fifteen of these
+   animating at once.
+   --------------------------------------------------------------------------- */
+.vg-bars {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: flex;
+  overflow: hidden;
+  pointer-events: none;
+  /* Kills the hairline seams between neighbours on fractional widths. */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.vg-bars > span {
+  flex: 1 0 auto;
+  height: 100%;
+  transform-origin: bottom;
+  background: linear-gradient(to top, rgb(var(--vg-primary-rgb) / 0.26), transparent 58%);
+  animation: vg-bar-breathe 2.6s var(--vg-ease) infinite alternate;
+  will-change: transform;
+}
+
+@keyframes vg-bar-breathe {
+  from {
+    transform: scaleY(var(--vg-bar, 1));
+  }
+  to {
+    transform: scaleY(calc(var(--vg-bar, 1) * 0.88));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The wall stays where it is; only the breathing stops. */
+  .vg-bars > span {
+    animation: none;
+    transform: scaleY(var(--vg-bar, 1));
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   ARRIVING
+
+   The holding page assembles itself instead of appearing whole: the mark, then
+   the word, then the field, then what is under it. 420ms each on a 90ms
+   stagger, which is long enough to read as arriving and short enough that
+   somebody who came to type a code is not waiting on it.
+
+   The delay is a variable so a caller sets its place in the order rather than
+   its timing, and `both` so nothing is visible before its turn.
+   --------------------------------------------------------------------------- */
+.vg-arrive {
+  animation: vg-arrive 420ms var(--vg-ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+  animation-delay: calc(var(--vg-arrive-step, 0) * 90ms);
+}
+
+@keyframes vg-arrive {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vg-arrive {
     animation: none;
   }
 }

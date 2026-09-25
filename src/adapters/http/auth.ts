@@ -70,6 +70,30 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
       });
     },
 
+    /* The route this posts to is not merged yet — see the issue. It is written
+       here rather than gated behind a flag because the two adapters have to
+       expose the same surface, which `adapters/parity.test.ts` enforces: a
+       method demo mode has and production does not is a screen that works
+       where it was built and not where it ships. The ordering is the
+       safeguard instead — `early_access` does not go on in production before
+       the route does. */
+    async waitlistCount(options?: { signal?: AbortSignal }) {
+      const { count } = await client.request("/auth/waitlist/count", {
+        schema: z.object({ count: z.number().int().nonnegative() }),
+        signal: options?.signal,
+      });
+      return count;
+    },
+
+    async joinWaitlist(contact: string, options?: { signal?: AbortSignal }) {
+      await client.request("/auth/waitlist", {
+        method: "POST",
+        body: { contact },
+        schema: z.object({ status: z.literal("listed") }),
+        signal: options?.signal,
+      });
+    },
+
     async checkInvite(code, options) {
       const result = await client.request("/auth/invite/check", {
         method: "POST",

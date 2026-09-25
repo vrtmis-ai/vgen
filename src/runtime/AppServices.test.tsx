@@ -11,6 +11,8 @@ const services = {
     register: vi.fn(),
     login: vi.fn(),
     checkInvite: vi.fn(),
+    joinWaitlist: vi.fn(),
+    waitlistCount: vi.fn(),
     startProviderSignIn: vi.fn(),
     logout: vi.fn(),
     updateProfile: vi.fn(),
