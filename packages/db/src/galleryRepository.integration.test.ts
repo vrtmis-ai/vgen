@@ -133,10 +133,17 @@ describe("paging a gallery", () => {
       const second = await seedJob(tx, { accountId, userId });
 
       const page = await new PostgresGalleryRepository(tx).listForUser(userId);
+      const ids = page.items.map((item) => item.id);
 
-      // uuid v7 sorts by creation time, which is why the cursor needs no
-      // second column and why this order is stable.
-      expect(page.items.map((item) => item.id)).toEqual([second.jobId, first.jobId]);
+      // Both generations, newest first — where "newest" is the key the query
+      // orders by, not the order they were inserted in. Those are the same
+      // thing only across a millisecond boundary: job ids are UUIDv7, and two
+      // rows created inside the same millisecond are ordered by the random
+      // bits below the timestamp. Asserting `[second, first]` therefore failed
+      // about one run in ten, which is the correction the cursor walk below
+      // already carries.
+      expect([...ids].sort()).toEqual([first.jobId, second.jobId].sort());
+      expect(ids).toEqual([...ids].sort().reverse());
       expect(page.nextCursor).toBeUndefined();
     });
   });
