@@ -103,7 +103,7 @@ function renderProvider() {
  */
 describe("generations persistence across the hydration gap", () => {
   it("loads what was stored instead of starting empty", async () => {
-    saveGenerations([stored]);
+    saveGenerations([stored], "u-1");
 
     renderProvider();
 
@@ -111,13 +111,42 @@ describe("generations persistence across the hydration gap", () => {
   });
 
   it("never writes the pre-hydration empty list over stored generations", async () => {
-    saveGenerations([stored]);
+    saveGenerations([stored], "u-1");
 
     renderProvider();
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
 
-    expect(loadGenerations()).toHaveLength(1);
-    expect(loadGenerations()[0]?.id).toBe("gen-1");
+    expect(loadGenerations("u-1")).toHaveLength(1);
+    expect(loadGenerations("u-1")[0]?.id).toBe("gen-1");
+  });
+
+  /* The leak. One key served the whole browser, so the second account to sign
+     in on a machine opened on the first one's gallery — cards it had never
+     made, whose job ids the server answers 404 for because they are not its
+     jobs. Reported from a fresh account that arrived showing two finished
+     Seedance generations. */
+  it("does not hand one account the gallery of the account before it", async () => {
+    saveGenerations([stored], "u-1");
+
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AppServicesProvider services={createDemoServices()}>
+          <CatalogProvider families={[]}>
+            <NavigationProvider>
+              <SessionProvider value={{ ...SIGNED_IN, user: { ...SIGNED_IN.user, id: "u-2" } }}>
+                <GenerationsProvider>
+                  <Probe />
+                </GenerationsProvider>
+              </SessionProvider>
+            </NavigationProvider>
+          </CatalogProvider>
+        </AppServicesProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+    // And the first account still has its own work.
+    expect(loadGenerations("u-1")).toHaveLength(1);
   });
 });
 
@@ -318,7 +347,7 @@ describe("submitting from a studio keeps you in the studio", () => {
     await waitFor(() => expect(create).toHaveBeenCalledOnce());
     const job = await create.mock.results[0]!.value;
     // Stored as it lands — the save effect runs off the same list the canvas draws.
-    await waitFor(() => expect(loadGenerations().some((generation) => generation.jobId === job.id)).toBe(true));
+    await waitFor(() => expect(loadGenerations("u-1").some((generation) => generation.jobId === job.id)).toBe(true));
     expect(router.push).not.toHaveBeenCalled();
     expect(router.replace).not.toHaveBeenCalled();
   });
@@ -495,7 +524,7 @@ describe("a settled job stops looking like a running one", () => {
     ...over,
   });
 
-  beforeEach(() => saveGenerations([running]));
+  beforeEach(() => saveGenerations([running], "u-1"));
 
   it("says failed, and says why, when the provider refused it", async () => {
     renderAgainst(job({ status: "failed", error: { code: "provider_failed", message: "no" } }));
@@ -556,6 +585,46 @@ describe("a settled job stops looking like a running one", () => {
 
     await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("done|-|768x1344"));
   });
+
+  /* The runaway. `refetchInterval` decided from `query.state.data?.status`, and
+     an errored read has no data — the same shape as a read that has not landed
+     yet — so it answered "still queued, ask again in a second" and never
+     stopped. This list survives reloads and is not scoped to an account, so a
+     browser holding ids the server answers 404 for sent one request per second
+     per id for as long as the tab stayed open: a real session logged 6,573
+     requests across 16 dead ids, 419 apiece, with the error banner up
+     throughout. */
+  it("stops asking about a job the server will not answer for", async () => {
+    const services = createDemoServices();
+    const getJob = vi.fn(async () => {
+      throw new ApiError({ code: "job_not_found", message: "No such job.", status: 404 });
+    });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AppServicesProvider services={{ ...services, generation: { ...services.generation, getJob } } as AppServices}>
+          <CatalogProvider families={catalog.families}>
+            <NavigationProvider>
+              <Generations>
+                <StatusProbe />
+              </Generations>
+            </NavigationProvider>
+          </CatalogProvider>
+        </AppServicesProvider>
+      </QueryClientProvider>,
+    );
+
+    // The hook's own `retry: 2`, so three attempts in total — one and two
+    // backed-off retries. Those are wanted: they are what rides out a blip.
+    await waitFor(() => expect(getJob).toHaveBeenCalledTimes(3), { timeout: 10_000 });
+
+    // What must not happen is a fourth. Three more turns of the one-second
+    // interval; before the guard each one was another request, forever.
+    await new Promise((resolve) => setTimeout(resolve, 3_200));
+
+    expect(getJob).toHaveBeenCalledTimes(3);
+    // Longer than the default: two backed-off retries are three seconds before
+    // the window this test actually watches even opens.
+  }, 20_000);
 });
 
 /**
@@ -619,7 +688,7 @@ describe("calling off a queued generation", () => {
     urlsExpireAt: null,
   };
 
-  beforeEach(() => saveGenerations([queued]));
+  beforeEach(() => saveGenerations([queued], "u-1"));
 
   it("marks it cancelled once the server says so", async () => {
     renderWith(vi.fn().mockResolvedValue(undefined));

@@ -155,12 +155,34 @@ const GenerationSchema: z.ZodType<Generation> = z.object({
   createdAt: z.number().int().nonnegative(),
 });
 
-export function loadGenerations(): Generation[] {
-  return readStoredCollection(KEY, GenerationSchema);
+/**
+ * One list per account. This was a single key for the whole browser.
+ *
+ * So signing into a second account inherited the first one's gallery: a
+ * brand-new account opened on two generations it had never made, and the
+ * provider then polled their job ids — which the server answers 404 for,
+ * because they belong to somebody else. The cards were never the new account's
+ * and the requests could never succeed.
+ *
+ * A visitor gets nothing and stores nothing. Creating a generation needs an
+ * authed session — `POST /api/v1/jobs` is 401 without one — so a signed-out
+ * browser cannot have made any, and a list found without an owner is somebody
+ * else's leftovers rather than this person's work.
+ */
+function keyFor(owner: string): string {
+  return `${KEY}:${owner}`;
 }
 
-export function saveGenerations(gens: Generation[]): void {
-  writeStoredCollection(KEY, gens);
+export function loadGenerations(owner: string): Generation[] {
+  /* The pre-split key, dropped on the way past. It cannot belong to whoever is
+     signed in now, and every browser that still has one would otherwise keep
+     handing dead job ids to the poller for as long as it existed. */
+  writeStoredCollection(KEY, []);
+  return owner ? readStoredCollection(keyFor(owner), GenerationSchema) : [];
+}
+
+export function saveGenerations(gens: Generation[], owner: string): void {
+  if (owner) writeStoredCollection(keyFor(owner), gens);
 }
 
 /**

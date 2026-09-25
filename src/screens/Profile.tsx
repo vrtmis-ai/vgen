@@ -67,7 +67,13 @@ export default function Profile({
   const { t, n, lang, setLang } = useI18n();
   const familyOf = useFamilyLookup();
   const user = account;
-  const name = user?.displayName || t("p_guest");
+  /* The username, before the guest label. A password sign-up sets no display
+     name, so a customer who had just registered — and had chosen a username
+     two screens earlier — was greeted as «کاربرِ مهمان», a guest, on their own
+     profile. Every account has had a handle since it became NOT NULL, so the
+     guest wording is now reachable only by an actual visitor, which is the
+     only thing it ever meant. */
+  const name = user?.displayName || user?.handle || t("p_guest");
   const { favs } = useFavorites();
   const favFamilies = favs.map(familyOf).filter((f): f is Family => Boolean(f));
   const done = gens.filter((g) => g.status === "done").length;
@@ -204,7 +210,8 @@ function Identity({ user, name }: { user: AccountUser; name: string }) {
         </span>
         <div className="min-w-0">
           <div className="t-h2">{name}</div>
-          <div className="ltr t-caption text-accent">@{user.handle}</div>
+          {/* Only when it says something the line above did not. */}
+          {name === user.handle ? null : <div className="ltr t-caption text-accent">@{user.handle}</div>}
           {user.emailNormalized && <div className="ltr t-caption text-ink3">{user.emailNormalized}</div>}
         </div>
         <button
