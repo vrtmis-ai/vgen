@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ModelMark } from "../components/ModelMark";
 import { useFamily } from "../features/catalog/CatalogProvider";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkle, Copy, Check } from "@phosphor-icons/react";
@@ -7,7 +8,6 @@ import { usePublishedContent } from "../features/content/ContentProvider";
 import { presetArt } from "../features/content/media";
 import type { Preset } from "../runtime/contracts/content";
 
-import { VendorMark } from "../components/VendorMark";
 import { riseItem, riseParent } from "../lib/motion";
 
 /* ---------------------------------------------------------------------------
@@ -84,7 +84,7 @@ function EffectDetail({ preset, onGenerate, onBack }: { preset: Preset; onGenera
               className="flex h-7 items-center gap-1.5 rounded-md px-2 text-[11.5px] font-semibold"
               style={{ background: "var(--vg-surface-overlay)", color: "var(--vg-text-secondary)" }}
             >
-              {family && <VendorMark vendor={family.vendor} size={13} />}
+              {family && <ModelMark familyId={family.id} vendor={family.vendor} size={13} />}
               <bdi>{family?.name}</bdi>
             </span>
             <span
@@ -206,7 +206,7 @@ function EffectCard({ preset, onOpen, onGenerate }: { preset: Preset; onOpen: ()
           {preset.title}
         </p>
         <p className="mt-1 flex items-center gap-1 text-[11px]" style={{ color: "var(--vg-text-secondary)" }}>
-          {family && <VendorMark vendor={family.vendor} size={11} />}
+          {family && <ModelMark familyId={family.id} vendor={family.vendor} size={11} />}
           <bdi>{family?.name}</bdi>
         </p>
 

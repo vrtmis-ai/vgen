@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ModelMark } from "../components/ModelMark";
 import { motion } from "framer-motion";
 import { Heart, MagicWand, FilmSlate, Flag } from "@phosphor-icons/react";
 
@@ -6,7 +7,6 @@ import { useCommunityFeed } from "../features/session/useSession";
 import { useAppServices } from "../runtime/AppServices";
 import { useSession } from "../runtime/providers/SessionProvider";
 import type { CommunityPost } from "../runtime/contracts/community";
-import { VendorMark } from "../components/VendorMark";
 import { faNum } from "../lib/format";
 import { useFamily } from "../features/catalog/CatalogProvider";
 import { useI18n } from "../lib/i18n";
@@ -113,7 +113,7 @@ function PostCard({ p, onOpen }: { p: CommunityPost; onOpen: () => void }) {
         <div className="scrim-media" />
 
         <div className="absolute start-2.5 top-2.5 flex items-center gap-1.5">
-          {f && <VendorMark vendor={f.vendor} size={22} />}
+          {f && <ModelMark familyId={f.id} vendor={f.vendor} size={22} />}
           {p.kind === "reel" && (
             <span
               className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold"
