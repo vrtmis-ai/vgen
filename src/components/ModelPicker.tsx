@@ -5,7 +5,7 @@ import { type Family, type Variant } from "../data/models";
 import { variantMeta } from "../lib/useCreateState";
 import { priceCoins } from "../data/pricing";
 import { VendorMark } from "./VendorMark";
-import { CoinMark } from "./chrome";
+import { CreditStar } from "./chrome";
 import { useI18n } from "../lib/i18n";
 import { useFloatingDismiss, useFloatingPosition } from "./FloatingSurface";
 
@@ -129,7 +129,7 @@ function Row({
       {/* What it costs at its own defaults. */}
       {coins != null && (
         <span className="flex shrink-0 items-center gap-1 text-[11.5px]" style={{ color: "var(--vg-text-muted)" }}>
-          <CoinMark size={11} />
+          <CreditStar size={11} />
           <span className="vg-numeric">{n(coins)}</span>
         </span>
       )}

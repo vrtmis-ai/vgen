@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Terminal, Copy, Check, PuzzlePiece, ArrowLeft, Lightning } from "@phosphor-icons/react";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import type { ContentSkill } from "../runtime/contracts/content";
-import { CoinMark } from "../components/chrome";
+import { CreditStar } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
 import { BRAND } from "../data/brand";
 
@@ -97,7 +97,7 @@ function SkillCard({ skill, onOpen }: { skill: ContentSkill; onOpen: () => void 
         </span>
         {skill.coins != null && (
           <span className="ms-auto flex items-center gap-1 text-[11.5px] font-semibold" style={{ color: "var(--vg-text)" }}>
-            <CoinMark size={11} />
+            <CreditStar size={11} />
             <span className="vg-numeric">{n(skill.coins)}</span>
           </span>
         )}

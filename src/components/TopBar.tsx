@@ -1,4 +1,4 @@
-import { CoinMark } from "./chrome";
+import { CreditStar } from "./chrome";
 import { AccountMenu, type AccountMenuData } from "./AccountMenu";
 import { MegaMenu } from "./MegaMenu";
 import type { NavMenus } from "./navMenu";
@@ -198,7 +198,7 @@ export function TopBar({
               className="vg-tap flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 transition-colors"
               style={{ background: "rgba(255,255,255,0.05)" }}
             >
-              <CoinMark size={13} />
+              <CreditStar size={13} />
               <span className="vg-numeric text-[12.5px]">{c(coins)}</span>
             </button>
 
