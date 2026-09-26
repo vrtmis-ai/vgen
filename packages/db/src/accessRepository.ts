@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { microCreditsToCoins } from "@vgen/core";
+import { microCreditsToCoins, normalizeIranianPhone } from "@vgen/core";
 import type { Sql } from "postgres";
 
 /**
@@ -331,11 +331,27 @@ export class PostgresAccessRepository {
    * The contact arrives normalised: an address as typed, a mobile folded to
    * `09…`. The column is citext, so two capitalisations of one address cannot
    * take two places.
+   *
+   * **Somebody who already has an account is not queued.** The queue exists to
+   * hand out a way in, and they are already in; leaving them on it would spend
+   * an invite on a door they have a key to, and put them in line ahead of
+   * somebody who is actually waiting. The route still answers `listed` either
+   * way — saying "you already have an account" here would turn an open,
+   * unauthenticated form into a way to ask whether an address is registered.
    */
   async joinWaitlist(channel: "email" | "phone", contact: string): Promise<void> {
+    /* `users.phone` is E.164 and the queue holds `09…`, so the two have to be
+       brought to one shape before they can be compared at all. */
+    const email = channel === "email" ? contact : null;
+    const phone = channel === "phone" ? normalizeIranianPhone(contact) : null;
     await this.sql`
       insert into waitlist_entries (channel, contact)
-      values (${channel}, ${contact})
+      select ${channel}, ${contact}
+      where not exists (
+        select 1 from users
+        where email = ${email}::citext
+           or phone = ${phone}::text
+      )
       on conflict (contact) do nothing
     `;
   }
@@ -361,13 +377,23 @@ export class PostgresAccessRepository {
    *
    * `invited_at is null` so a second press of the button continues down the
    * queue instead of re-inviting the top of it.
+   *
+   * **And nobody who already has an account.** `joinWaitlist` turns those away
+   * at the door, but the door is not the only way in: rows joined before that
+   * rule existed are still there, and somebody can join the queue on Monday
+   * and be given an account on Tuesday. This is the one place invites are
+   * picked, so it is the place the rule has to hold — otherwise a press of the
+   * button spends a code on somebody who cannot use it and takes the place
+   * from whoever was behind them.
    */
   async nextWaitlistToInvite(limit: number): Promise<{ id: string; contact: string }[]> {
     return this.sql<{ id: string; contact: string }[]>`
-      select id, contact::text as contact
-      from waitlist_entries
-      where invited_at is null and channel = 'email'
-      order by created_at, id
+      select entry.id, entry.contact::text as contact
+      from waitlist_entries entry
+      where entry.invited_at is null
+        and entry.channel = 'email'
+        and not exists (select 1 from users where users.email = entry.contact)
+      order by entry.created_at, entry.id
       limit ${Math.min(Math.max(Math.trunc(limit), 1), 200)}
     `;
   }
