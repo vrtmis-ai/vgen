@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
-import { COOKIES, type CookieCategory } from "../../src/lib/cookies";
+import { ConsentChoice } from "../../src/components/ConsentChoice";
+import { COOKIES, CONSENT_COOKIE, type CookieCategory } from "../../src/lib/cookies";
 
 export const metadata: Metadata = { title: "کوکی‌ها — DEEV" };
 
@@ -12,15 +14,17 @@ export const metadata: Metadata = { title: "کوکی‌ها — DEEV" };
  * a policy that is wrong the first time somebody adds a cookie and forgets the
  * document — which is most of the cookie policies on the internet.
  *
- * A Server Component: there is nothing interactive here and nothing worth
- * shipping to the browser for a page of static rows.
+ * A Server Component: the rows are static and not worth shipping to the
+ * browser. The one interactive part, changing the analytics choice, is its own
+ * small client component.
  */
 const CATEGORY_LABEL: Record<CookieCategory, string> = {
   essential: "ضروری",
   analytics: "تحلیلی",
 };
 
-export default function CookiesPage() {
+export default async function CookiesPage() {
+  const consent = (await cookies()).get(CONSENT_COOKIE)?.value;
   const categories = [...new Set(COOKIES.map((cookie) => cookie.category))];
 
   return (
@@ -33,9 +37,9 @@ export default function CookiesPage() {
         واقعیت اختلاف پیدا کند.
       </p>
       <p className="mt-2 text-[13px] leading-7" style={{ color: "var(--vg-text-muted)" }}>
-        در این لحظه <strong style={{ color: "var(--vg-text)" }}>همه‌ی کوکی‌های ما ضروری‌اند</strong>: برای واردماندن، زبان، و به‌خاطرسپردن
-        پاسخ خودت به اعلان کوکی. هیچ ردیاب شخص‌ثالث، هیچ پیکسل تبلیغاتی و هیچ کوکی تحلیلی وجود ندارد. اگر روزی اضافه شود، پیش از روشن‌شدن از
-        تو پرسیده می‌شود.
+        کوکی‌های ضروری همیشه هستند. تنها چیز اختیاری <strong style={{ color: "var(--vg-text)" }}>ابزار آمار PostHog</strong> است (سرورهای
+        اروپا؛ صفحه‌ها و کلیک‌ها و شناسه‌ی حساب، نه ایمیل و نه متن پرامپت‌ها) که فقط با اجازه‌ی تو روشن می‌شود. پیکسل تبلیغاتی و ردیاب دیگری
+        وجود ندارد.
       </p>
 
       {categories.map((category) => (
@@ -48,7 +52,11 @@ export default function CookiesPage() {
               بدون این‌ها سایت کار نمی‌کند، و به همین دلیل قابل رد کردن نیستند — کوکی نشستی که رد شده باشد یعنی حسابی که نمی‌شود در آن وارد
               ماند.
             </p>
-          ) : null}
+          ) : (
+            <p className="mt-1 text-[12.5px] leading-6" style={{ color: "var(--vg-text-faint)" }}>
+              فقط اگر اجازه بدهی ساخته می‌شوند، و می‌توانی هر وقت خواستی از پایین همین صفحه پس بگیری.
+            </p>
+          )}
 
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-[12.5px]">
@@ -88,6 +96,13 @@ export default function CookiesPage() {
           </div>
         </section>
       ))}
+
+      <section className="mt-10">
+        <h2 className="mb-2 text-[15px] font-bold" style={{ color: "var(--vg-text)" }}>
+          انتخاب تو درباره‌ی آمار
+        </h2>
+        <ConsentChoice initial={consent} />
+      </section>
 
       <section className="mt-10">
         <h2 className="text-[15px] font-bold" style={{ color: "var(--vg-text)" }}>

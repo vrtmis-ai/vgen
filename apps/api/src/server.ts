@@ -46,6 +46,7 @@ import { GoogleOAuth } from "./auth/googleOAuth";
 import { MicrosoftOAuth } from "./auth/microsoftOAuth";
 import { KavenegarSmsSender, type SmsSender } from "./auth/sms";
 import { createApp } from "./createApp";
+import { shutdownPostHog } from "./posthog";
 import { createPromptGuard } from "./promptGuard";
 
 config({ path: fileURLToPath(new URL("../../../.env.development.local", import.meta.url)), quiet: true });
@@ -336,6 +337,7 @@ const close = async () => {
   readLimiter.close();
   writeLimiter.close();
   authRateLimiters.close();
+  await shutdownPostHog();
   await sql.end();
 };
 process.once("SIGINT", () => void close());

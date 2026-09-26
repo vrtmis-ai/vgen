@@ -2,6 +2,7 @@ import { CreateGenerationJobSchema, GenerationIdempotencyKeySchema } from "@vgen
 import type { CreateQueuedJobInput, CreateQueuedJobResult, GenerationParams } from "@vgen/db";
 import type { FastifyInstance } from "fastify";
 import type { GenerationLibraryApplication } from "../generationLibrary";
+import { track } from "../posthog";
 import type { PromptGuardApplication } from "../promptGuard";
 import type { CustomerSessionApplication } from "./session";
 
@@ -61,6 +62,9 @@ export function registerGenerationJobsRoute(
     // table. Two different refusals, and only one of them is about content.
     const contentRefusal = await promptGuard.check({ prompt, userId: session.user.id, surface: "job" });
     if (contentRefusal) {
+      // The outcome only: which moderation category tripped is the prompt
+      // guard's own record, not something to attach to a person in a third party.
+      track(request, session.user.id, "generation_job_refused", { outcome: "prompt_refused" });
       return reply
         .code(422)
         .send({ error: { code: "prompt_refused", message: contentRefusal.message, category: contentRefusal.category } });
@@ -83,9 +87,16 @@ export function registerGenerationJobsRoute(
       // bug rather than a refusal — and answering with one of the refusal
       // messages would blame the customer for it.
       if (!job) throw new Error(`job ${result.job.id} vanished between being created and being read back`);
+      track(request, session.user.id, "generation_job_created", {
+        family_id: job.familyId,
+        variant_id: job.variantId,
+        coins: job.coins,
+        submission_outcome: result.outcome,
+      });
       return reply.code(202).send(job);
     }
 
+    track(request, session.user.id, "generation_job_refused", { outcome: result.outcome });
     const refusal = REFUSAL_STATUS[result.outcome];
     return reply
       .code(refusal?.status ?? 409)

@@ -27,6 +27,7 @@ import type { GoogleOAuth } from "../auth/googleOAuth";
 import type { MicrosoftOAuth } from "../auth/microsoftOAuth";
 import { OAuthError, statesMatch } from "../auth/oidc";
 import type { SmsSender } from "../auth/sms";
+import { track } from "../posthog";
 
 /** Returns null when allowed, or the seconds to wait when not. */
 export interface AuthRateLimiter {
@@ -225,6 +226,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
       });
       await auth.recordLoginAttempt({ identifier: phone, userId: user.id, method: "otp", succeeded: true, ip: request.ip });
       await startSession(reply, request, user.id);
+      track(request, user.id, "user_authenticated", { method: "otp" });
       return reply.code(200).send({ status: "authed", host: "web", user });
     } catch (error) {
       if (error instanceof AuthError) {
@@ -257,6 +259,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
         termsVersion: TERMS_VERSION,
       });
       await startSession(reply, request, user.id);
+      track(request, user.id, "user_registered", { method: "password" });
       return reply.code(201).send({ status: "authed", host: "web", user });
     } catch (error) {
       if (error instanceof AuthError) return fail(reply, error);
@@ -282,6 +285,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
         ip: request.ip,
       });
       await startSession(reply, request, user.id);
+      track(request, user.id, "user_authenticated", { method: "password" });
       return reply.code(200).send({ status: "authed", host: "web", user });
     } catch (error) {
       if (error instanceof AuthError) {

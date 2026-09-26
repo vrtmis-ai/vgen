@@ -1,6 +1,7 @@
 import { ReportPostRequestSchema, SharePostRequestSchema, SharedPostSchema, type CommunityFeed } from "@vgen/contracts";
 import type { ShareOutcome, SharePostInput } from "@vgen/db";
 import type { FastifyInstance } from "fastify";
+import { track } from "../posthog";
 import type { CustomerSessionApplication } from "./session";
 
 export interface CustomerCommunityApplication {
@@ -90,7 +91,10 @@ export function registerCommunityRoutes(
       promptVisible: body.promptVisible,
     });
 
-    if (result.outcome === "shared") return reply.code(202).send(SharedPostSchema.parse(result.post));
+    if (result.outcome === "shared") {
+      track(request, session.user.id, "community_post_shared", { prompt_visible: body.promptVisible });
+      return reply.code(202).send(SharedPostSchema.parse(result.post));
+    }
 
     // A ban under `explore` or `platform` bars publishing and nothing else:
     // someone who paid for generations keeps the ones they already have, and
