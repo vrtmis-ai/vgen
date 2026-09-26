@@ -472,18 +472,18 @@ Still stubs on purpose: `signIn` and `signUp` in
 and they warn rather than navigate because the screen they should open does not
 exist yet. Point them at it when you build it. `signOut` is live.
 
-| Route                                              |                                                                                    |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `POST /auth/otp/start`                             | `{ phone }` → `202 { sent: true, expiresAt }`. The route most Iranian users take   |
-| `POST /auth/otp/verify`                            | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie                |
-| `POST /auth/register`                              | `{ email, password, handle, inviteCode?, deviceFingerprint? }` → `201`             |
-| `POST /auth/invite/check`                          | `{ code }` → `200 { valid, contact? }`; one boolean for every refusal; 20/15min/IP |
-| `POST /auth/waitlist`                              | `{ contact }` → `200 { status: "listed" }`; email or `09…`; 10 per 15 min per IP   |
-| `GET /auth/waitlist/count`                         | → `200 { count }`, how many are waiting; public and unlimited                      |
-| `POST /auth/login`                                 | `{ email, password }` → `200`                                                      |
-| `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                  |
-| `GET /auth/google` · `/auth/google/callback`       | Registered only when Google credentials are configured                             |
-| `GET /auth/microsoft` · `/auth/microsoft/callback` | Registered only when Microsoft credentials are configured                          |
+| Route                                              |                                                                                                                      |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `POST /auth/otp/start`                             | `{ phone }` → `202 { sent: true, expiresAt }`. The route most Iranian users take                                     |
+| `POST /auth/otp/verify`                            | `{ phone, code, inviteCode?, deviceFingerprint? }` → session cookie                                                  |
+| `POST /auth/register`                              | `{ email, password, handle, inviteCode?, deviceFingerprint? }` → `201`                                               |
+| `POST /auth/invite/check`                          | `{ code }` → `200 { valid, contact? }`; one boolean for every refusal; 20/15min/IP                                   |
+| `POST /auth/waitlist`                              | `{ contact }` → `200 { status: "listed" }`; `409 account_exists` if registered; email or `09…`; 10 per 15 min per IP |
+| `GET /auth/waitlist/count`                         | → `200 { count }`, how many are waiting; public and unlimited                                                        |
+| `POST /auth/login`                                 | `{ email, password }` → `200`                                                                                        |
+| `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                                                    |
+| `GET /auth/google` · `/auth/google/callback`       | Registered only when Google credentials are configured                                                               |
+| `GET /auth/microsoft` · `/auth/microsoft/callback` | Registered only when Microsoft credentials are configured                                                            |
 
 Schemas: `packages/contracts/src/auth.ts`. They are `.strict()`, so an extra key
 is a `validation_failed`, not an ignored field.
@@ -510,10 +510,18 @@ Things a UI needs to know about these:
   without a code — and a row is a claim on a future code, nothing more.
   **`POST /auth/waitlist` answers `200 { status: "listed" }` whether or not the
   contact was already on the list.** That is the point, not an oversight: the
-  route is open and unauthenticated, so an answer that differed for a known
-  address would be a way to ask whether somebody has an account here. The
-  insert is `on conflict (contact) do nothing`, so asking twice neither gains a
-  place nor loses one.
+  route is open and unauthenticated, so an answer that differed for a listed
+  address would be a way to ask who is already waiting. The insert is
+  `on conflict (contact) do nothing`, so asking twice neither gains a place nor
+  loses one.
+  **A contact that already has an account is refused with `409
+account_exists`** and not queued. This one answer does differ, deliberately:
+  the alternative left somebody with an account on a list the invite picker
+  passes over, waiting for a mail that was never coming. It does confirm that
+  an address is registered, and what bounds that is the rate limit above — ten
+  per quarter hour per IP. The check is repeated inside the insert's
+  `where not exists`, which is the authoritative one, because an account can
+  be created between the read and the write.
   One field takes either kind. `readContact` in `@vgen/core` decides which
   arrived and folds a mobile to the `09…` form — **the same function the form
   validates with**, so a value the page accepts is never a value the route

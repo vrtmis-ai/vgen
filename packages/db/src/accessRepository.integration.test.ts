@@ -323,11 +323,11 @@ describe("the waitlist", () => {
       const [account] = await tx<{ id: string }[]>`insert into accounts (kind) values ('personal') returning id`;
       await tx`insert into users (email, handle, personal_account_id) values ('member@example.com', 'member', ${account!.id})`;
 
-      await access.joinWaitlist("email", "member@example.com");
+      expect(await access.joinWaitlist("email", "member@example.com")).toBe("has_account");
       // The same fold the queue uses for its own uniqueness, so a capital
       // letter cannot walk past the check.
-      await access.joinWaitlist("email", "MEMBER@example.com");
-      await access.joinWaitlist("email", "stranger@example.com");
+      expect(await access.joinWaitlist("email", "MEMBER@example.com")).toBe("has_account");
+      expect(await access.joinWaitlist("email", "stranger@example.com")).toBe("listed");
 
       expect((await access.listWaitlist()).map((entry) => entry.contact)).toEqual(["stranger@example.com"]);
     });
@@ -343,8 +343,8 @@ describe("the waitlist", () => {
          if nothing does. */
       await tx`insert into users (phone, handle, personal_account_id) values ('+989121234567', 'mobile', ${account!.id})`;
 
-      await access.joinWaitlist("phone", "09121234567");
-      await access.joinWaitlist("phone", "09129999999");
+      expect(await access.joinWaitlist("phone", "09121234567")).toBe("has_account");
+      expect(await access.joinWaitlist("phone", "09129999999")).toBe("listed");
 
       expect((await access.listWaitlist()).map((entry) => entry.contact)).toEqual(["09129999999"]);
     });

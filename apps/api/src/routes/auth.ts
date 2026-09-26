@@ -176,9 +176,14 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
    * never a value this refuses.
    *
    * **The answer does not depend on whether they were already listed.** The
-   * insert is `on conflict do nothing` and this always says `listed`, because
-   * an open route that answered differently for a known address would be a way
-   * to ask whether somebody has an account here.
+   * insert is `on conflict do nothing` and a repeat says `listed` exactly like
+   * a first join, so this cannot be used to ask who is already waiting.
+   *
+   * **It does depend on whether they already have an account**, which is the
+   * owner's decision, taken knowing the cost: this route will now confirm that
+   * an address is registered. The rate limit above is what bounds that — ten
+   * tries per quarter hour per address. The alternative was leaving somebody
+   * who already has an account waiting for a mail that was never coming.
    *
    * Nothing about this logs anybody in or relaxes the gate. Signup still needs
    * a code; a row here is a claim on a future one.
@@ -191,7 +196,9 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     if (!contact) {
       return reply.code(422).send({ error: { code: "validation_failed", message: "That is not an address or a mobile number." } });
     }
-    await access.joinWaitlist(contact.kind, contact.value);
+    if ((await access.joinWaitlist(contact.kind, contact.value)) === "has_account") {
+      return reply.code(409).send({ error: { code: "account_exists", message: "That contact already has an account. Sign in instead." } });
+    }
     return reply.code(200).send({ status: "listed" });
   });
 

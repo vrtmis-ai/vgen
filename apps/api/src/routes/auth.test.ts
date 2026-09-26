@@ -52,7 +52,7 @@ function authDouble() {
 /** Only the two methods the auth routes reach for. */
 function accessDouble() {
   return {
-    joinWaitlist: vi.fn(async (_channel: "email" | "phone", _contact: string) => undefined),
+    joinWaitlist: vi.fn(async (_channel: "email" | "phone", _contact: string): Promise<"listed" | "has_account"> => "listed"),
     waitlistCount: vi.fn(async () => 7),
   };
 }
@@ -495,7 +495,11 @@ describe("checking an invite code from the invite page", () => {
  * so the tests that matter most are the ones about what it *says*: the same
  * answer whether or not the address was already listed, because the route is
  * open and unauthenticated and a different answer would make it a way to ask
- * whether somebody has an account here.
+ * who is already waiting.
+ *
+ * Whether the address already has an *account* is the one thing it does say
+ * differently, by the owner's decision — the alternative left somebody with an
+ * account waiting for a mail that was never coming.
  */
 describe("joining the waitlist", () => {
   it("takes an address and says it is listed", async () => {
@@ -505,6 +509,18 @@ describe("joining the waitlist", () => {
 
     expect([response.statusCode, response.json()]).toEqual([200, { status: "listed" }]);
     expect(access.joinWaitlist).toHaveBeenCalledWith("email", "someone@example.com");
+    await app.close();
+  });
+
+  it("sends somebody who already has an account to sign in instead of into the queue", async () => {
+    const { app, access } = build();
+    access.joinWaitlist.mockResolvedValue("has_account");
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/auth/waitlist", payload: { contact: "member@example.com" } });
+
+    // A distinct code, not the generic failure: the page turns this into
+    // "you already have an account, sign in" rather than "something broke".
+    expect([response.statusCode, response.json().error.code]).toEqual([409, "account_exists"]);
     await app.close();
   });
 

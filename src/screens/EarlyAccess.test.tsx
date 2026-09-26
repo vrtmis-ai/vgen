@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDemoServices } from "../adapters/demo/demoServices";
 import { LanguageProvider } from "../lib/i18n";
+import { ApiError } from "../runtime/apiError";
 import { AppServicesProvider, type AppServices } from "../runtime/AppServices";
 import EarlyAccess from "./EarlyAccess";
 
@@ -69,6 +70,28 @@ describe("the invite page", () => {
     // normalises with, so the four ways to type this number are one row.
     await waitFor(() => expect(join).toHaveBeenCalledWith("09121234567"));
     expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  /* Somebody with an account who joins the queue is waiting for a mail that
+     will never come — the invite picker passes over them, by design. Telling
+     them costs an enumeration oracle on an open form, which the owner weighed
+     against leaving them waiting. The rate limit is what bounds it. */
+  it("tells somebody who already has an account to sign in", async () => {
+    const user = userEvent.setup();
+    const services = createDemoServices({ startAnonymous: true });
+    vi.spyOn(services.auth, "joinWaitlist").mockRejectedValue(
+      new ApiError({ code: "account_exists", message: "already a member", status: 409 }),
+    );
+    renderPage(services);
+
+    await user.click(screen.getByRole("button", { name: "No code? Join the queue" }));
+    await user.type(screen.getByLabelText("Email or mobile number"), "member@example.com");
+    await user.click(screen.getByRole("button", { name: "Join the queue" }));
+
+    // Not the generic failure, and not the done state either: the page must
+    // not congratulate somebody on joining a queue they were kept out of.
+    expect(await screen.findByRole("alert")).toHaveTextContent("That address already has an account. Sign in instead.");
+    expect(screen.queryByText("YOU ARE ON THE LIST")).not.toBeInTheDocument();
   });
 
   it("refuses a stray word without asking the server", async () => {
