@@ -332,18 +332,39 @@ export class PostgresAccessRepository {
    * `09…`. The column is citext, so two capitalisations of one address cannot
    * take two places.
    *
-   * **Somebody who already has an account is not queued.** The queue exists to
-   * hand out a way in, and they are already in; leaving them on it would spend
-   * an invite on a door they have a key to, and put them in line ahead of
-   * somebody who is actually waiting. The route still answers `listed` either
-   * way — saying "you already have an account" here would turn an open,
-   * unauthenticated form into a way to ask whether an address is registered.
+   * **Somebody who already has an account is not queued**, and is told so.
+   * The queue exists to hand out a way in, and they are already in; leaving
+   * them on it would spend an invite on a door they have a key to, and put
+   * them in line ahead of somebody who is actually waiting.
+   *
+   * Telling them is the owner's call, made knowing the cost: an open form that
+   * answers differently for a registered address is a way to ask whether one
+   * is registered. What bounds it is the rate limit on the route — ten tries
+   * per quarter hour per address — not this answer. Silence was the other
+   * option and it left somebody who already has an account waiting for a mail
+   * that was never going to come.
+   *
+   * The two answers do not distinguish a first join from a repeat: `on
+   * conflict do nothing` means asking twice neither gains nor loses a place,
+   * and both times it says `listed`.
    */
-  async joinWaitlist(channel: "email" | "phone", contact: string): Promise<void> {
+  async joinWaitlist(channel: "email" | "phone", contact: string): Promise<"listed" | "has_account"> {
     /* `users.phone` is E.164 and the queue holds `09…`, so the two have to be
        brought to one shape before they can be compared at all. */
     const email = channel === "email" ? contact : null;
     const phone = channel === "phone" ? normalizeIranianPhone(contact) : null;
+
+    const [member] = await this.sql<{ one: number }[]>`
+      select 1 as one from users
+      where email = ${email}::citext
+         or phone = ${phone}::text
+      limit 1
+    `;
+
+    /* The insert keeps its own copy of the check rather than trusting the one
+       above. Between the two an account can be created, and the row that would
+       leave behind is the one the invite button must never pick up. This is
+       the authoritative guard; the read is only there to choose the words. */
     await this.sql`
       insert into waitlist_entries (channel, contact)
       select ${channel}, ${contact}
@@ -354,6 +375,8 @@ export class PostgresAccessRepository {
       )
       on conflict (contact) do nothing
     `;
+
+    return member ? "has_account" : "listed";
   }
 
   /** How many are waiting. The screen adds its own floor before drawing it. */

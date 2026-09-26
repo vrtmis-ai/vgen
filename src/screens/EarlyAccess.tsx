@@ -178,7 +178,11 @@ export default function EarlyAccess() {
           ? "auth_err_rate_limited"
           : error instanceof ApiError && error.code === "validation_failed"
             ? "ea_queue_invalid"
-            : "auth_err_generic",
+            : /* They have nothing to wait for — they can sign in, and the way
+                 to do that is already at the foot of this page. */
+              error instanceof ApiError && error.code === "account_exists"
+              ? "ea_queue_has_account"
+              : "auth_err_generic",
       );
     } finally {
       setChecking(false);

@@ -238,8 +238,12 @@ const dict = {
     ea_queue_submit: "ثبت‌نام در نوبت",
     ea_queue_sending: "در حال ثبت…",
     ea_queue_invalid: "یک ایمیل یا شمارهٔ موبایل ایران بنویس.",
+    ea_queue_has_account: "این نشانی همین حالا حساب دارد. وارد شو.",
     ea_queue_done: "ثبت شد",
-    ea_queue_done_note: "نوبتت که برسد کد دعوت را برایت می‌فرستیم.",
+    /* Says plainly that nothing has been sent. The old wording was future
+       tense and still read as a receipt at a glance — somebody who had just
+       joined went looking for a mail that was never coming. */
+    ea_queue_done_note: "هنوز چیزی نفرستادیم. نوبتت که برسد، کد دعوت به همین نشانی می‌آید.",
     ea_limited: "دسترسی زودهنگام — ظرفیت محدود",
     ea_code_required: "فقط با کد دعوت",
     ea_title: "DEEV فعلاً فقط با دعوت است",
@@ -755,8 +759,9 @@ const dict = {
     ea_queue_submit: "Join the queue",
     ea_queue_sending: "Adding you…",
     ea_queue_invalid: "Write an email address or an Iranian mobile number.",
+    ea_queue_has_account: "That address already has an account. Sign in instead.",
     ea_queue_done: "YOU ARE ON THE LIST",
-    ea_queue_done_note: "We will send your invite code when your turn comes.",
+    ea_queue_done_note: "Nothing has been sent yet. Your invite code arrives here when your turn comes.",
     ea_limited: "LIMITED EARLY ACCESS",
     ea_code_required: "INVITE CODE REQUIRED",
     ea_title: "DEEV is invite-only for now",
