@@ -16,6 +16,7 @@
    null today, so the screen honestly renders the no-plan case rather than
    inventing one. */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { captureError, track } from "../lib/analytics";
 import {
   ArrowRight,
   CalendarCheck,
@@ -254,9 +255,14 @@ function CheckoutSheet({
    * a sheet that looks like it has is worse than a button that does nothing.
    */
   async function confirm() {
+    const checkoutCycle = annual ? "annual" : "monthly";
+    track("checkout_started", {
+      plan_code: plan.code,
+      cycle: checkoutCycle,
+    });
     setState({ status: "submitting" });
     try {
-      const order = await services.payment.createOrder({ planId: plan.code, cycle: annual ? "annual" : "monthly" });
+      const order = await services.payment.createOrder({ planId: plan.code, cycle: checkoutCycle });
       if (order.gatewayUrl) {
         setState({ status: "redirecting" });
         window.location.assign(order.gatewayUrl);
@@ -264,6 +270,7 @@ function CheckoutSheet({
       }
       setState({ status: "blocked", order });
     } catch (error) {
+      captureError(error);
       setState({ status: "failed", message: error instanceof Error ? error.message : String(error) });
     }
   }

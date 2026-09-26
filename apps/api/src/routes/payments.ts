@@ -1,6 +1,7 @@
 import { CheckoutOrderSchema, CreateCheckoutOrderRequestSchema } from "@vgen/contracts";
 import type { CreateOrderInput, CreateOrderOutcome } from "@vgen/db";
 import type { FastifyInstance } from "fastify";
+import { track } from "../posthog";
 import type { CustomerSessionApplication } from "./session";
 
 export interface CheckoutApplication {
@@ -32,6 +33,11 @@ export function registerPaymentRoutes(app: FastifyInstance, sessions: CustomerSe
     const result = await checkout.createOrder({ userId: session.user.id, planCode: body.planId, cycle: body.cycle });
 
     if (result.outcome === "ordered") {
+      track(request, session.user.id, "checkout_order_created", {
+        plan_code: body.planId,
+        cycle: body.cycle,
+        amount_toman: result.order.amountToman,
+      });
       // 201: unlike a community share, this one really did create the thing the
       // caller asked for, and the caller can go straight to it.
       return reply.code(201).send(CheckoutOrderSchema.parse({ ...result.order, gatewayUrl: null }));

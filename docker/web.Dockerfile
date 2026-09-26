@@ -47,6 +47,11 @@ ARG NEXT_PUBLIC_APP_RELEASE=""
 ENV NEXT_PUBLIC_APP_MODE=production
 ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
 ENV NEXT_PUBLIC_APP_RELEASE=${NEXT_PUBLIC_APP_RELEASE}
+# PostHog's project token is public by design (it can only write events), so a
+# build argument is fine. Unlike the API address it is optional: empty means the
+# image builds and simply records nothing. Baked in, so changing it rebuilds.
+ARG NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=""
+ENV NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=${NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN}
 RUN test -n "$NEXT_PUBLIC_API_BASE_URL" || { \
       echo "NEXT_PUBLIC_API_BASE_URL is baked into the bundle at build time and is empty."; \
       echo "Pass it: docker compose build --build-arg NEXT_PUBLIC_API_BASE_URL=https://your.domain/api/v1"; \

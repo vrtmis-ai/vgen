@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { identifyUser } from "../../lib/analytics";
 import { useAppServices } from "../../runtime/AppServices";
 import type {
   LoginInput,
@@ -69,6 +70,7 @@ export function useAuth() {
     // invalidating here: a refetch of a signed-out wallet would 401, and the
     // gate would paint an error where it should paint the landing page.
     onSuccess: async () => {
+      identifyUser(null);
       queryClient.clear();
       await queryClient.invalidateQueries({ queryKey: appQueryKeys.session });
     },

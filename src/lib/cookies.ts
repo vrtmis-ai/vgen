@@ -13,11 +13,10 @@ import { z } from "zod";
  * and the banner is not — anything reached through a client module arrives on
  * the server as a reference rather than a value.
  *
- * **Today every cookie here is strictly necessary.** There is no analytics
- * tracker, no pixel and no advertising tag, so there is currently nothing a
- * visitor could refuse. The `analytics` category exists and is off by default
- * so that adding one later is a registration rather than a retrofit — and so
- * that the honest version of the banner is the one shown now.
+ * **Everything here is strictly necessary except the analytics entry**, which
+ * belongs to PostHog and is off until the visitor says yes. `analytics.ts`
+ * does not even start the SDK until this says yes, and the API refuses to send
+ * an event unless this same cookie says yes, so a refusal holds on both sides.
  */
 
 export type CookieCategory = "essential" | "analytics";
@@ -70,6 +69,25 @@ export const COOKIES: CookieRecord[] = [
     lifetime: "۱ سال",
     httpOnly: false,
   },
+  {
+    // PostHog names it after the project token, hence the wildcard. It lives in
+    // localStorage, not a cookie, which is why the purpose says "ذخیره‌سازی".
+    name: "ph_*_posthog",
+    category: "analytics",
+    purpose:
+      "ذخیره‌سازی شناسه‌ی ناشناس بازدید برای آمار استفاده (PostHog، سرورهای اروپا): کدام صفحه‌ها دیده می‌شوند و کجا گیج می‌شوی. فقط اگر بپذیری ساخته می‌شود و با پس‌گرفتن اجازه پاک می‌شود.",
+    lifetime: "تا پس‌گرفتن اجازه",
+    httpOnly: false,
+  },
+  {
+    // Written only when somebody refuses after having accepted. Essential for the
+    // same reason vgen_consent is: the record of a "no" cannot itself be refusable.
+    name: "__ph_opt_in_out_*",
+    category: "essential",
+    purpose: "یادداشت خودِ PostHog که اجازه را پس گرفته‌ای، تا در همین صفحه دوباره روشن نشود. فقط بعد از پس‌گرفتن اجازه ساخته می‌شود.",
+    lifetime: "تا پاک‌کردن مرورگر",
+    httpOnly: false,
+  },
 ];
 
 export const CONSENT_COOKIE = "vgen_consent";
@@ -82,7 +100,10 @@ export const CONSENT_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
  * consent nobody gave for it: a stored `v` below the current one is treated as
  * absent and asked again, which is the only reading that stays truthful.
  */
-export const CONSENT_VERSION = 1;
+export const CONSENT_VERSION = 2;
+// v1 was "باشه" on a notice that offered nothing to refuse, so it says nothing
+// about analytics. apps/api/src/posthog.ts mirrors this number; if the two ever
+// differ it fails closed (no server events), never open.
 
 const ConsentSchema = z.object({
   v: z.number().int(),

@@ -14,5 +14,7 @@ declare namespace NodeJS {
     readonly NEXT_PUBLIC_APP_MODE?: "demo" | "production";
     readonly NEXT_PUBLIC_API_BASE_URL?: string;
     readonly NEXT_PUBLIC_APP_RELEASE?: string;
+    /** PostHog project token. Public by design (it can only write events); optional so a checkout without it still boots. */
+    readonly NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN?: string;
   }
 }
