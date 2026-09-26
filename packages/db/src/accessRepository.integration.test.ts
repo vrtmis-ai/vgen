@@ -308,6 +308,48 @@ describe("the waitlist", () => {
     });
   });
 
+  /**
+   * Somebody who already has an account is not waiting for one.
+   *
+   * Left on the list they would be sent an invite for a door they have a key
+   * to, ahead of somebody who is actually waiting. The join still answers the
+   * same way — the route cannot start saying "you already have an account" to
+   * an open form, or it becomes a way to ask who is registered.
+   */
+  it("does not queue an address that already has an account", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`delete from waitlist_entries`;
+      const access = new PostgresAccessRepository(tx);
+      const [account] = await tx<{ id: string }[]>`insert into accounts (kind) values ('personal') returning id`;
+      await tx`insert into users (email, handle, personal_account_id) values ('member@example.com', 'member', ${account!.id})`;
+
+      await access.joinWaitlist("email", "member@example.com");
+      // The same fold the queue uses for its own uniqueness, so a capital
+      // letter cannot walk past the check.
+      await access.joinWaitlist("email", "MEMBER@example.com");
+      await access.joinWaitlist("email", "stranger@example.com");
+
+      expect((await access.listWaitlist()).map((entry) => entry.contact)).toEqual(["stranger@example.com"]);
+    });
+  });
+
+  it("does not queue a mobile that already has an account, in any shape", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`delete from waitlist_entries`;
+      const access = new PostgresAccessRepository(tx);
+      const [account] = await tx<{ id: string }[]>`insert into accounts (kind) values ('personal') returning id`;
+      /* `users.phone` is E.164 and the queue holds `09…`. The two never meet
+         unless something converts between them — this is the test that fails
+         if nothing does. */
+      await tx`insert into users (phone, handle, personal_account_id) values ('+989121234567', 'mobile', ${account!.id})`;
+
+      await access.joinWaitlist("phone", "09121234567");
+      await access.joinWaitlist("phone", "09129999999");
+
+      expect((await access.listWaitlist()).map((entry) => entry.contact)).toEqual(["09129999999"]);
+    });
+  });
+
   /* These run inside one rolled-back transaction, where `now()` is frozen at
      the transaction's start — so every row would carry the same `created_at`
      and the order would fall to the random low bits of a uuid v7. That is why

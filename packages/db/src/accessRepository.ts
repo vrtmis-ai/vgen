@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { microCreditsToCoins } from "@vgen/core";
+import { microCreditsToCoins, normalizeIranianPhone } from "@vgen/core";
 import type { Sql } from "postgres";
 
 /**
@@ -331,11 +331,27 @@ export class PostgresAccessRepository {
    * The contact arrives normalised: an address as typed, a mobile folded to
    * `09…`. The column is citext, so two capitalisations of one address cannot
    * take two places.
+   *
+   * **Somebody who already has an account is not queued.** The queue exists to
+   * hand out a way in, and they are already in; leaving them on it would spend
+   * an invite on a door they have a key to, and put them in line ahead of
+   * somebody who is actually waiting. The route still answers `listed` either
+   * way — saying "you already have an account" here would turn an open,
+   * unauthenticated form into a way to ask whether an address is registered.
    */
   async joinWaitlist(channel: "email" | "phone", contact: string): Promise<void> {
+    /* `users.phone` is E.164 and the queue holds `09…`, so the two have to be
+       brought to one shape before they can be compared at all. */
+    const email = channel === "email" ? contact : null;
+    const phone = channel === "phone" ? normalizeIranianPhone(contact) : null;
     await this.sql`
       insert into waitlist_entries (channel, contact)
-      values (${channel}, ${contact})
+      select ${channel}, ${contact}
+      where not exists (
+        select 1 from users
+        where email = ${email}::citext
+           or phone = ${phone}::text
+      )
       on conflict (contact) do nothing
     `;
   }
