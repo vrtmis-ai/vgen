@@ -377,13 +377,23 @@ export class PostgresAccessRepository {
    *
    * `invited_at is null` so a second press of the button continues down the
    * queue instead of re-inviting the top of it.
+   *
+   * **And nobody who already has an account.** `joinWaitlist` turns those away
+   * at the door, but the door is not the only way in: rows joined before that
+   * rule existed are still there, and somebody can join the queue on Monday
+   * and be given an account on Tuesday. This is the one place invites are
+   * picked, so it is the place the rule has to hold — otherwise a press of the
+   * button spends a code on somebody who cannot use it and takes the place
+   * from whoever was behind them.
    */
   async nextWaitlistToInvite(limit: number): Promise<{ id: string; contact: string }[]> {
     return this.sql<{ id: string; contact: string }[]>`
-      select id, contact::text as contact
-      from waitlist_entries
-      where invited_at is null and channel = 'email'
-      order by created_at, id
+      select entry.id, entry.contact::text as contact
+      from waitlist_entries entry
+      where entry.invited_at is null
+        and entry.channel = 'email'
+        and not exists (select 1 from users where users.email = entry.contact)
+      order by entry.created_at, entry.id
       limit ${Math.min(Math.max(Math.trunc(limit), 1), 200)}
     `;
   }
