@@ -910,6 +910,8 @@ describe("customer session", () => {
             loginPerIp: allow(),
             inviteCheckPerIp: allow(),
             waitlistJoinPerIp: allow(),
+            passwordResetPerIp: allow(),
+            passwordResetPerAccount: allow(),
           },
           webOrigin: "https://deev.test",
           // Google configured, Microsoft not — which is the asymmetry the

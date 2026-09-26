@@ -26,6 +26,10 @@ export const TRIAL_TTL_DAYS = 14;
 const OTP_TTL_MINUTES = 5;
 const OTP_MAX_ATTEMPTS = 5;
 const SESSION_TTL_DAYS = 30;
+/* A reset link sitting in a mailbox is a password until it expires, so it does
+   not sit there long. An hour is enough to find the mail on another device and
+   short enough that a forgotten one stops mattering the same afternoon. */
+const PASSWORD_RESET_TTL_MINUTES = 60;
 
 export type LoginMethod = "password" | "otp" | "oauth";
 
@@ -42,7 +46,10 @@ export class AuthError extends Error {
       | "account_taken"
       | "handle_taken"
       | "handle_invalid"
-      | "account_suspended",
+      | "account_suspended"
+      | "reset_invalid"
+      | "reset_expired"
+      | "reset_used",
     message: string,
   ) {
     super(message);
@@ -619,6 +626,128 @@ export class PostgresAuthRepository {
 
   async revokeAllSessions(userId: string): Promise<void> {
     await this.sql`update sessions set revoked_at = now() where user_id = ${userId} and revoked_at is null`;
+  }
+
+  // ----------------------------------------------------------- password reset
+
+  /**
+   * Mint a link that lets somebody who has forgotten their password set a new
+   * one.
+   *
+   * `auth_tokens` has been waiting for this since 0005: hashed, single-use,
+   * expiring, already swept nightly by `purge_security_logs` and already
+   * deleted with the account. Only the hash is stored, exactly as `sessions`
+   * stores a session token — a database dump is not a set of reset links.
+   *
+   * The plaintext token is returned **once**, to the caller that mails it.
+   * Nothing reads it back afterwards, here or anywhere.
+   *
+   * Three answers, because there are three situations and telling them apart
+   * is the whole point of the screen that calls this:
+   *  - `no_account` — nobody has this address. Said plainly, by the owner's
+   *    decision; the waitlist already reveals as much, and silence here leaves
+   *    somebody who typed their address wrong waiting for a mail forever.
+   *  - `other_method` — the account exists and has no password, because it
+   *    signs in with Google or by phone. No token is minted for a password
+   *    that does not exist; the caller mails an explanation instead.
+   *  - `sent` — here is the token, go and mail it.
+   *
+   * Asking twice leaves exactly one live link: the earlier ones are consumed
+   * in the same transaction that mints the new one, so a forwarded old mail
+   * stops working the moment a new one is asked for.
+   */
+  async startPasswordReset(
+    email: string,
+    context: { ip?: string | undefined; userAgent?: string | undefined } = {},
+  ): Promise<
+    | { kind: "sent"; userId: string; token: string }
+    | { kind: "no_account" }
+    | { kind: "other_method"; userId: string; method: "oauth" | "phone" }
+  > {
+    const normalized = email.trim().toLowerCase();
+    const [row] = await this.sql<{ id: string; password_hash: string | null; provider: string | null }[]>`
+      select u.id, u.password_hash,
+             (select i.provider from auth_identities i where i.user_id = u.id limit 1) as provider
+      from users u where u.email = ${normalized} limit 1
+    `;
+    if (!row) return { kind: "no_account" };
+    if (!row.password_hash) return { kind: "other_method", userId: row.id, method: row.provider ? "oauth" : "phone" };
+
+    const token = generateSessionToken();
+    await atomically(this.sql)(async (tx) => {
+      await tx`
+        update auth_tokens set consumed_at = now()
+        where user_id = ${row.id} and purpose = 'password_reset' and consumed_at is null
+      `;
+      await tx`
+        insert into auth_tokens (user_id, purpose, token_hash, ip, user_agent, expires_at)
+        values (${row.id}, 'password_reset', ${hashToken(token)}, ${context.ip ?? null}, ${context.userAgent ?? null},
+                now() + (${PASSWORD_RESET_TTL_MINUTES} * interval '1 minute'))
+      `;
+    });
+    return { kind: "sent", userId: row.id, token };
+  }
+
+  /**
+   * What a link is worth, before anybody types a new password into the page it
+   * opens. A dead link should say which kind of dead it is — expired, already
+   * used, or never ours — rather than accept a password and then refuse it.
+   */
+  async checkPasswordReset(token: string): Promise<"usable" | "expired" | "used" | "unknown"> {
+    const [row] = await this.sql<{ consumed: boolean; expired: boolean }[]>`
+      select consumed_at is not null as consumed, expires_at <= now() as expired
+      from auth_tokens
+      where purpose = 'password_reset' and token_hash = ${hashToken(token)}
+      limit 1
+    `;
+    if (!row) return "unknown";
+    if (row.consumed) return "used";
+    return row.expired ? "expired" : "usable";
+  }
+
+  /**
+   * Spend the link and set the password.
+   *
+   * Shaped like `consumePhoneCode`: the `consumed_at is null` predicate is the
+   * mutex, so two submissions of one link cannot both win — the loser updates
+   * nothing and is told the link was already used. Expiry is judged from the
+   * row the update returned rather than in the predicate, so the refusal can
+   * name the right reason. Throwing rolls the consume back, which is correct:
+   * an expired link is dead by the clock and does not need spending too.
+   *
+   * Every session is revoked in the same transaction. If the reason for the
+   * reset is that somebody else got in, leaving their session alive would
+   * defeat the whole exercise. Nobody is signed in here either — the new
+   * password is typed on the sign-in screen, so a mail link never becomes a
+   * session by itself.
+   */
+  async completePasswordReset(token: string, password: string): Promise<void> {
+    await atomically(this.sql)(async (tx) => {
+      const [spent] = await tx<{ user_id: string; expired: boolean }[]>`
+        update auth_tokens set consumed_at = now()
+        where id = (
+          select id from auth_tokens
+          where purpose = 'password_reset' and token_hash = ${hashToken(token)} and consumed_at is null
+          limit 1
+        )
+        returning user_id, expires_at <= now() as expired
+      `;
+      if (!spent) {
+        // Never existed, or was spent before this. One message either way: a
+        // link that does not work is not worth telling a stranger why.
+        const seen = await tx<{ id: string }[]>`
+          select id from auth_tokens where purpose = 'password_reset' and token_hash = ${hashToken(token)} limit 1
+        `;
+        throw seen.length > 0
+          ? new AuthError("reset_used", "That link has already been used")
+          : new AuthError("reset_invalid", "That link is not valid");
+      }
+      if (spent.expired) throw new AuthError("reset_expired", "That link has expired");
+
+      // `users` carries the set_updated_at trigger, so the timestamp is not ours to write.
+      await tx`update users set password_hash = ${await hashPassword(password)} where id = ${spent.user_id}`;
+      await tx`update sessions set revoked_at = now() where user_id = ${spent.user_id} and revoked_at is null`;
+    });
   }
 
   // ------------------------------------------------------------- abuse signal

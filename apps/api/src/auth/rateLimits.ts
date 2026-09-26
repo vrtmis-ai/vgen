@@ -53,6 +53,13 @@ export async function createAuthRateLimiters(
     // Open, unauthenticated, and writes a row. Tighter than the invite check,
     // which only reads.
     waitlistJoinPerIp: limiter("waitlist.join", "ip", { window_seconds: 900, max_requests: 10 }),
+    /* A reset route sends mail to an address its caller chose, so an
+       unlimited one is a way to bury somebody's inbox from the outside. The
+       per-IP limit is what stops a spray; the per-account one is consumed
+       only after the address resolves to a real user, so a stranger cannot
+       spend somebody else's quota and lock them out of their own recovery. */
+    passwordResetPerIp: limiter("password.reset", "ip", { window_seconds: 900, max_requests: 10 }),
+    passwordResetPerAccount: limiter("password.reset", "user", { window_seconds: 3600, max_requests: 5 }),
   };
 
   return {
