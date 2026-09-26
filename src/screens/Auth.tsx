@@ -393,6 +393,10 @@ export default function Auth({ mode }: { mode: AuthMode }) {
      waitlist. Their address is then the one they signed up to wait with, and
      the field holding it is not theirs to change. */
   const [boundContact, setBoundContact] = useState<{ kind: "email" | "phone"; value: string } | null>(null);
+  /* Set when the code arrived in the link and the server says it works. A code
+     that came from the mail is not something to retype — the field shows it so
+     the person can see which one is being used, not so they can edit it. */
+  const [inviteLocked, setInviteLocked] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [leaving, setLeaving] = useState(false);
 
@@ -415,12 +419,19 @@ export default function Auth({ mode }: { mode: AuthMode }) {
 
        A failure is silent on purpose. The code may simply be a campaign code
        with nobody attached, and either way the form still works — the address
-       is typed rather than given, and the server has the final say. */
+       is typed rather than given, and the server has the final say.
+
+       The code field locks only once the answer comes back good. A link that
+       arrived mangled, or a code that has already been spent, has to stay
+       editable or the page is a dead end with no way out but retyping the
+       URL. */
     let cancelled = false;
     void services.auth
       .checkInvite(code)
       .then((result) => {
-        if (cancelled || !result.contact) return;
+        if (cancelled || !result.valid) return;
+        setInviteLocked(true);
+        if (!result.contact) return;
         setBoundContact(result.contact);
         if (result.contact.kind === "email") setEmail(result.contact.value);
       })
@@ -562,18 +573,25 @@ export default function Auth({ mode }: { mode: AuthMode }) {
         };
 
   const inviteField = inviteNeeded && (
-    <PillField label={t("auth_invite_label")} hint={t("auth_invite_hint")} error={onInvite ? failureText : undefined}>
+    <PillField
+      label={t("auth_invite_label")}
+      hint={inviteLocked ? t("auth_invite_from_link") : t("auth_invite_hint")}
+      error={onInvite ? failureText : undefined}
+    >
       {({ id, describedBy }) => (
         <input
           id={id}
           aria-describedby={describedBy}
           className={`${PILL} focus:border-accent`}
-          style={pillStyle}
+          style={inviteLocked ? { ...pillStyle, opacity: 0.75 } : pillStyle}
           value={invite}
           onChange={(event) => setInvite(event.target.value)}
           autoComplete="off"
           dir="ltr"
           required
+          // readOnly rather than disabled, for the reason the email field gives.
+          readOnly={inviteLocked}
+          aria-readonly={inviteLocked || undefined}
         />
       )}
     </PillField>

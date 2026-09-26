@@ -117,6 +117,38 @@ describe("the sign-in screen", () => {
       // still submits and is still announced.
       await user.type(address, "somethingelse");
       expect(address).toHaveValue("waited@example.com");
+
+      /* The code came out of the same mail as the address and is no more
+         theirs to edit. Somebody arriving from the button in that mail has
+         nothing left to fill in but a username and a password. */
+      const code = screen.getByLabelText("Invite code");
+      expect(code).toHaveValue("WAITED-CODE");
+      expect(code).toHaveAttribute("readonly");
+      await user.type(code, "XXXX");
+      expect(code).toHaveValue("WAITED-CODE");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  /* A link can arrive mangled, and a code can be spent before it is opened.
+     Locking the field on either would leave somebody looking at a code they
+     cannot use and cannot replace. */
+  it("leaves the code editable when the link's code does not work", async () => {
+    window.history.replaceState(null, "", "/signup?invite=DEAD-CODE");
+    const user = userEvent.setup();
+    try {
+      const services = createDemoServices({ startAnonymous: true });
+      vi.spyOn(services.auth, "checkInvite").mockResolvedValue({ valid: false });
+      await renderAuth(services, "signup");
+      await user.click(screen.getByRole("button", { name: /email/i }));
+
+      const code = await screen.findByLabelText("Invite code");
+      await waitFor(() => expect(code).toHaveValue("DEAD-CODE"));
+      expect(code).not.toHaveAttribute("readonly");
+      await user.clear(code);
+      await user.type(code, "GOOD-CODE");
+      expect(code).toHaveValue("GOOD-CODE");
     } finally {
       window.history.replaceState(null, "", "/");
     }
@@ -135,6 +167,10 @@ describe("the sign-in screen", () => {
       expect(address).not.toHaveAttribute("readonly");
       await user.type(address, "anybody@example.com");
       expect(address).toHaveValue("anybody@example.com");
+
+      // The code itself still came from a link and still works, so it is no
+      // more for retyping here than on a waitlist invite.
+      await waitFor(() => expect(screen.getByLabelText("Invite code")).toHaveAttribute("readonly"));
     } finally {
       window.history.replaceState(null, "", "/");
     }
