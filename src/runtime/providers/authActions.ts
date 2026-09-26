@@ -12,6 +12,9 @@ import type { useAuth } from "../../features/session/useAuth";
 
 export const SIGN_IN_PATH = "/signin";
 export const SIGN_UP_PATH = "/signup";
+/** The two halves of password recovery: ask for a link, then open one. */
+export const FORGOT_PATH = "/forgot";
+export const RESET_PATH = "/reset";
 
 export interface AuthActions {
   signIn: () => void;

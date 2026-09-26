@@ -5,6 +5,7 @@ import type {
   PhoneVerificationStarted,
   ProfileEdit,
   RegisterInput,
+  ResetTokenState,
   StartPhoneVerificationInput,
   VerifyPhoneInput,
 } from "./contracts/auth";
@@ -89,6 +90,28 @@ export interface AppServices {
      * the route simply does not show it.
      */
     waitlistCount(options?: RequestOptions): Promise<number>;
+    /**
+     * Ask for a password-reset link.
+     *
+     * Resolves when a mail has been sent — which includes the case where the
+     * account signs in with Google or by phone and was mailed that instead.
+     * Rejects with `no_account` when nobody uses the address, so the screen
+     * can say so rather than leave somebody waiting for a mail that is never
+     * coming; the route is rate limited, which is what keeps that from being
+     * a directory.
+     */
+    requestPasswordReset(email: string, options?: RequestOptions): Promise<void>;
+    /**
+     * What a link off a mail is worth, asked before the page shows a form.
+     * A dead link should say which kind of dead it is.
+     */
+    checkPasswordReset(token: string, options?: RequestOptions): Promise<ResetTokenState["status"]>;
+    /**
+     * Spend the link and set the password. Signs nobody in, on purpose: the
+     * new password is typed on the sign-in screen like any other, so a mail
+     * link never becomes a session by itself.
+     */
+    resetPassword(token: string, password: string, options?: RequestOptions): Promise<void>;
     /**
      * Hands the browser to an identity provider.
      *

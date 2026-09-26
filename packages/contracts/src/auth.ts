@@ -156,7 +156,37 @@ export const PhoneVerificationStartedSchema = z.object({
   expiresAt: z.number().int().nonnegative(),
 });
 
+/* ---------------------------------------------------------------- password reset */
+
+export const ForgotPasswordSchema = z.object({ email: z.string().trim().toLowerCase().email().max(254) }).strict();
+
+/** Unlike the phone route above, this one does say whether the address is
+    known — the owner's decision, and the same one the waitlist route makes. */
+export const ForgotPasswordSentSchema = z.object({ status: z.literal("sent") });
+
+export const ResetTokenSchema = z.string().trim().min(1).max(200);
+
+export const CheckResetTokenSchema = z.object({ token: ResetTokenSchema }).strict();
+
+export const ResetTokenStateSchema = z.object({
+  status: z.enum(["usable", "expired", "used", "unknown"]),
+});
+
+export const ResetPasswordSchema = z
+  .object({
+    token: ResetTokenSchema,
+    // The same floor as sign-up, not a second opinion about it. The real
+    // check is in the hashing layer, which every entry point shares.
+    password: z.string().min(10).max(512),
+  })
+  .strict();
+
+export const PasswordResetSchema = z.object({ status: z.literal("reset") });
+
 export type StartPhoneVerification = z.infer<typeof StartPhoneVerificationSchema>;
 export type VerifyPhone = z.infer<typeof VerifyPhoneSchema>;
 export type RegisterWithPassword = z.infer<typeof RegisterWithPasswordSchema>;
 export type LoginWithPassword = z.infer<typeof LoginWithPasswordSchema>;
+export type ForgotPassword = z.infer<typeof ForgotPasswordSchema>;
+export type ResetPassword = z.infer<typeof ResetPasswordSchema>;
+export type ResetTokenState = z.infer<typeof ResetTokenStateSchema>;
