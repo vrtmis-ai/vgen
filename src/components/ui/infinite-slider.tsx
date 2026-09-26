@@ -1,7 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
 import { useMotionValue, animate, motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { Children, useState, useEffect } from "react";
 
 type InfiniteSliderProps = {
   children: React.ReactNode;
@@ -66,19 +66,40 @@ export function InfiniteSlider({
       }
     : {};
 
+  /* The gap rides on each item, not on the flex container, and that is what
+     makes the seam invisible.
+
+     `gap` puts space BETWEEN children, so a track of `{children}{children}`
+     holding N items twice measures `2N·item + (2N-1)·gap` — one gap short of
+     two whole copies, because the row ends on an item rather than on a space.
+     Moving it by 50% of that is `N·item + (N-0.5)·gap`, which is half a gap
+     less than one copy. At 112px that is 56px the row never travelled, and it
+     made them up in a single frame every time the loop restarted: one visible
+     jump per pass, always at the same place in the list.
+
+     Trailing margin on every item instead, so each one measures `item + gap`
+     and two copies are exactly twice one copy. 50% is then one copy exactly,
+     whatever the items measure and whenever a late font or logo changes them. */
+  const items = Children.toArray(children);
+  const edge = direction === "horizontal" ? "marginInlineEnd" : "marginBlockEnd";
+
   return (
     <div className={cn("overflow-hidden", className)}>
       <motion.div
         className="flex w-max"
         style={{
           ...(direction === "horizontal" ? { x: translation } : { y: translation }),
-          gap: `${gap}px`,
           flexDirection: direction === "horizontal" ? "row" : "column",
         }}
         {...hoverProps}
       >
-        {children}
-        {children}
+        {[...items, ...items].map((child, index) => (
+          // Index, because the list is rendered twice on purpose and a child's
+          // own key would collide with its echo.
+          <div key={index} style={{ [edge]: gap, flex: "none" }}>
+            {child}
+          </div>
+        ))}
       </motion.div>
     </div>
   );
