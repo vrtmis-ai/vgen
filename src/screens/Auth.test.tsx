@@ -513,3 +513,35 @@ describe("the code's minute", () => {
     expect(await screen.findByRole("alert", undefined, TICK)).toHaveTextContent("That code has run out.");
   });
 });
+
+/* The gate's side door. Sign-in itself is not gated — somebody who already has
+   an account has to be able to get back in — but the link under it used to walk
+   a visitor with no code into a signup form the server refuses, and on the
+   phone route it refuses only after `otp/start` has sent a real SMS. */
+describe("signup while the invite gate is up", () => {
+  async function gated(mode: AuthMode) {
+    const services = createDemoServices({ startAnonymous: true });
+    const list = services.content.list.bind(services.content);
+    vi.spyOn(services.content, "list").mockImplementation(async (options) => {
+      const content = await list(options);
+      return { ...content, flags: { ...content.flags, earlyAccess: true } };
+    });
+    await renderAuth(services, mode);
+  }
+
+  it("points somebody with no account at the gate rather than at signup", async () => {
+    const user = userEvent.setup();
+    await gated("signin");
+
+    await user.click(await screen.findByRole("button", { name: "Sign up with an invite code" }));
+
+    expect(nav.push).toHaveBeenCalledWith("/");
+    expect(nav.push).not.toHaveBeenCalledWith("/signup");
+  });
+
+  it("turns away a signup opened without a code", async () => {
+    await gated("signup");
+
+    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/"), LANDED);
+  });
+});
