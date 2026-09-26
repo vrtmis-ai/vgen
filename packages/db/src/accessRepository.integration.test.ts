@@ -405,6 +405,26 @@ describe("the waitlist", () => {
     });
   });
 
+  /* `joinWaitlist` turns these away at the door, but the door is not the only
+     way in: rows joined before that rule existed are still on the list, and
+     somebody can join the queue on Monday and be given an account on Tuesday.
+     A code spent on them is a code the next person in line did not get. */
+  it("passes over somebody in the queue who has since been given an account", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`delete from waitlist_entries`;
+      const access = new PostgresAccessRepository(tx);
+      await access.joinWaitlist("email", "joined.first@example.com");
+      await access.joinWaitlist("email", "still.waiting@example.com");
+
+      // The account arrives after the place in the queue was taken, which is
+      // the order `joinWaitlist`'s own guard cannot catch.
+      const [account] = await tx<{ id: string }[]>`insert into accounts (kind) values ('personal') returning id`;
+      await tx`insert into users (email, handle, personal_account_id) values ('joined.first@example.com', 'joinedfirst', ${account!.id})`;
+
+      expect((await access.nextWaitlistToInvite(10)).map((row) => row.contact)).toEqual(["still.waiting@example.com"]);
+    });
+  });
+
   it("walks down the queue instead of re-inviting the top of it", async () => {
     await inRollback(sql, async (tx) => {
       // Ambient rows would make every count and order below depend on
