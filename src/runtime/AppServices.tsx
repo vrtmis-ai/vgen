@@ -8,6 +8,7 @@ import type {
   StartPhoneVerificationInput,
   VerifyPhoneInput,
 } from "./contracts/auth";
+import type { AccountSession, PaidOrder, Referral } from "./contracts/account";
 import type { Campaign } from "./contracts/campaign";
 import type { CatalogSnapshot } from "./contracts/catalog";
 import type { ContentSnapshot } from "./contracts/content";
@@ -108,6 +109,30 @@ export interface AppServices {
      * returns is a session user, which every other call here also returns.
      */
     updateProfile(edit: ProfileEdit, options?: RequestOptions): Promise<AccountUser>;
+    /* ---------------------------------------------------------------------
+       Below here: routes that do not exist yet. See #142 and #143.
+
+       They follow `waitlistCount`'s rule rather than `joinWaitlist`'s. Nothing
+       here is a promise made to somebody in a button — each one feeds a card
+       that renders only if the call succeeds, so a server without the route
+       shows an account page with fewer cards and no error.
+       --------------------------------------------------------------------- */
+    /** Everywhere this account is signed in, the current one marked. */
+    sessions(options?: RequestOptions): Promise<AccountSession[]>;
+    /** End one. Ending the current one is a sign-out and the screen treats it as one. */
+    endSession(id: string, options?: RequestOptions): Promise<void>;
+    /** End every other one. The one being read on survives. */
+    endOtherSessions(options?: RequestOptions): Promise<void>;
+    /**
+     * Close the account for good.
+     *
+     * Deliberately takes no options beyond the request: what it does to
+     * generations, published posts and unspent coins is a policy the server
+     * owns, and a screen must not imply it can choose.
+     */
+    deleteAccount(options?: RequestOptions): Promise<void>;
+    /** The invite code this account shares, and what it has earned. */
+    referral(options?: RequestOptions): Promise<Referral>;
   };
   /**
    * Presets, the prompt bank, skills, the featured shelf, courses, examples
@@ -158,6 +183,15 @@ export interface AppServices {
    */
   payment: {
     createOrder(input: CreateCheckoutOrderInput, options?: RequestOptions): Promise<CheckoutOrder>;
+    /**
+     * What has been bought.
+     *
+     * `POST /payments/orders` exists and creates one; there is no `GET`. So a
+     * customer who paid and did not get coins has nothing to point at, and
+     * neither does support. Same degrade-on-failure rule as the auth reads
+     * above: the card hides when the call fails. See #143.
+     */
+    orders(options?: RequestOptions): Promise<PaidOrder[]>;
   };
   generation: {
     quote(request: QuoteGenerationRequest, options?: RequestOptions): Promise<GenerationQuote>;

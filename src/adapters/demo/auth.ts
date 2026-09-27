@@ -181,6 +181,28 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
       state.set(ANONYMOUS);
     },
 
+    /* ---- routes that do not exist on the server yet. See #142, #143. ----
+       Answered here so the account page can be built and seen. The http
+       adapter calls the intended route and fails until it exists, which is
+       what the screens are written to survive. */
+    async sessions() {
+      const hour = 3_600_000;
+      return [
+        { id: "s-current", device: "Chrome · macOS", city: "تهران", lastSeenAt: now(), current: true },
+        { id: "s-phone", device: "Safari · iPhone", city: "تهران", lastSeenAt: now() - 6 * hour, current: false },
+        { id: "s-old", device: "Firefox · Windows", city: "کرج", lastSeenAt: now() - 72 * hour, current: false },
+      ];
+    },
+
+    async endSession() {},
+    async endOtherSessions() {},
+    async deleteAccount() {
+      fail("not_implemented", "Deleting an account is not built yet", 501);
+    },
+    async referral() {
+      return { code: "DEEV-DEMO42", invited: 3, coinsEarned: 90 };
+    },
+
     async updateProfile(edit) {
       const session = state.current();
       if (session.status !== "authed") {

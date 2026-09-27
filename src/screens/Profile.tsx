@@ -8,6 +8,7 @@ import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import type { Generation } from "../lib/gallery";
 import { useFavorites } from "../lib/favorites";
 import { VendorMark } from "../components/VendorMark";
+import { DeleteAccount, Orders, Referral, Sessions } from "../components/AccountSections";
 import { useI18n, type TKey } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
 import type { AccountUser } from "../runtime/contracts/session";
@@ -285,6 +286,16 @@ export default function Profile({
               onClick={() => setLang(lang === "fa" ? "en" : "fa")}
             />
             <Row icon={<SignOut size={18} />} label={t("p_logout")} onClick={onSignOut} />
+          </div>
+
+          {/* Each of these four asks for a route the server has not built. Each
+              renders nothing when its query fails, so this column is shorter
+              rather than broken on a deployment without them. See #142, #143. */}
+          <div className="mt-6">
+            <Sessions />
+            <Orders />
+            <Referral />
+            <DeleteAccount handle={user.handle} />
           </div>
         </div>
       </div>
