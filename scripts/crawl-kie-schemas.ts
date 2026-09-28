@@ -29,7 +29,7 @@ import { parse as parseYaml } from "yaml";
 import { FAMILIES } from "../src/data/models";
 import upstream from "../src/data/upstream.json" with { type: "json" };
 import { kieRequestBody } from "../packages/adapters/src/providers/kie";
-import { upstreamModel } from "./upstream";
+import { upstreamModel, upstreamProvider } from "./upstream";
 
 const INDEX_URL = "https://docs.kie.ai/llms.txt";
 const OUT_DIR = fileURLToPath(new URL("./kie-schemas/", import.meta.url));
@@ -330,6 +330,11 @@ function audit(schemas: ModelSchema[]): string[] {
 
   for (const family of FAMILIES) {
     for (const variant of family.variants) {
+      // A variant KIE does not own has no page here to be documented on, and
+      // reporting it as retired would be this crawler making a claim about a
+      // catalogue it cannot see. `scripts/crawl-higgsfield-schemas.ts` audits
+      // those against their own provider's documentation.
+      if (upstreamProvider(variant.id) !== "kie") continue;
       let model: string;
       try {
         model = upstreamModel(variant.id);
@@ -420,6 +425,7 @@ if (checkOnly) {
       ? []
       : Object.entries(upstream)
           .filter(([key]) => !key.startsWith("$"))
+          .filter(([, entry]) => ((entry as { provider?: string }).provider ?? "kie") === "kie")
           .map(([, entry]) => (entry as { model: string }).model),
   );
 

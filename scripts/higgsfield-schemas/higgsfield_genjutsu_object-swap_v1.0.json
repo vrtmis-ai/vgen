@@ -1,0 +1,124 @@
+{
+  "mode": "higgsfield/genjutsu/object-swap/v1.0",
+  "title": "Genjutsu Object Swap · Object Swap",
+  "endpoint": "https://api.higgsfield.ai/higgsfield/genjutsu/object-swap/v1.0",
+  "outputType": "video",
+  "fetchedAt": "2026-09-28",
+  "docUrl": "https://docs.higgsfield.ai/docs/models/genjutsu/object-swap.md",
+  "usageNotes": [
+    "Use higgsfield/genjutsu/object-swap/v1.0 for new integrations. The legacy endpoint higgsfiled/genjutsu/object-swap/v1.0 remains callable for existing clients but is hidden from model discovery.",
+    "The source video must be at least 4 seconds. Videos longer than 30 seconds are trimmed to 30 seconds; output duration follows the prepared source video.",
+    "Provide 1–8 image references. The prompt is optional and defaults to an empty string.",
+    "The source video must contain at least 409,600 pixels per frame (width × height)."
+  ],
+  "resolutions": ["480p", "720p", "1080p"],
+  "durationsSeconds": [1, 30],
+  "pricing": {
+    "primary": {
+      "amount": "0.159",
+      "original_amount": "0.318",
+      "discount_percentage": 50,
+      "discount_expires_at": "2026-10-01T00:00:00Z",
+      "max_discount_amount": "0.159",
+      "max_discount_percentage": 50,
+      "currency": "USD",
+      "unit": "second",
+      "qualifier": "from"
+    },
+    "max_discount": {
+      "amount": "0.159",
+      "percentage": 50,
+      "currency": "USD",
+      "unit": "second",
+      "qualifier": "from",
+      "already_applied": true
+    },
+    "options": [
+      {
+        "amount": "0.159",
+        "original_amount": "0.318",
+        "discount_percentage": 50,
+        "discount_expires_at": "2026-10-01T00:00:00Z",
+        "max_discount_amount": "0.159",
+        "max_discount_percentage": 50,
+        "currency": "USD",
+        "unit": "second",
+        "configuration": {
+          "resolution": "480p",
+          "duration_seconds": 1,
+          "batch_size": null
+        }
+      },
+      {
+        "amount": "0.3405",
+        "original_amount": "0.681",
+        "discount_percentage": 50,
+        "discount_expires_at": "2026-10-01T00:00:00Z",
+        "max_discount_amount": "0.3405",
+        "max_discount_percentage": 50,
+        "currency": "USD",
+        "unit": "second",
+        "configuration": {
+          "resolution": "720p",
+          "duration_seconds": 1,
+          "batch_size": null
+        }
+      },
+      {
+        "amount": "0.816",
+        "original_amount": "1.632",
+        "discount_percentage": 50,
+        "discount_expires_at": "2026-10-01T00:00:00Z",
+        "max_discount_amount": "0.816",
+        "max_discount_percentage": 50,
+        "currency": "USD",
+        "unit": "second",
+        "configuration": {
+          "resolution": "1080p",
+          "duration_seconds": 1,
+          "batch_size": null
+        }
+      }
+    ]
+  },
+  "schemaSource": "docs",
+  "input": {
+    "type": "object",
+    "title": "ObjectSwapParams",
+    "required": ["video_url", "image_urls"],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "default": "",
+        "maxLength": 10000
+      },
+      "video_url": {
+        "type": "string",
+        "title": "Video Url",
+        "format": "uri",
+        "maxLength": 2083,
+        "minLength": 1
+      },
+      "image_urls": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1
+        },
+        "title": "Image Urls",
+        "maxItems": 8,
+        "minItems": 1
+      },
+      "resolution": {
+        "enum": ["720p", "480p"],
+        "type": "string",
+        "title": "Resolution",
+        "default": "720p"
+      }
+    },
+    "additionalProperties": false
+  }
+}

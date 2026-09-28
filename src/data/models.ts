@@ -1,4 +1,11 @@
 // Real KIE model catalog, grouped into families.
+//
+// The import attribute is not decoration: `e2e/fixtures.ts` imports FAMILIES
+// from this file, and Playwright loads it through Node's own ESM rather than a
+// bundler, which refuses a JSON module without one. The other JSON imports
+// under src/ omit it only because nothing outside a bundler reaches them.
+import higgsfieldPresets from "./higgsfield.presets.json" with { type: "json" };
+
 // A family (e.g. "Seedance") groups several real KIE models ("variants", e.g. v2 / fast / mini).
 // Every `model` id and every control is grounded in docs.kie.ai + the live pricing table.
 // See web/KIE_MODELS.md.
@@ -616,6 +623,56 @@ const motionControlControls: Control[] = [
       { value: "image", label: "از عکس (تا ۱۰ ثانیه)" },
     ],
   },
+];
+
+// ---- Higgsfield creative controls -------------------------------------------
+
+/**
+ * A setting the model may choose for itself.
+ *
+ * `""` is the sentinel for "let it decide", and the adapter deletes the field
+ * rather than sending anything. That is not a style choice: checked against the
+ * live API on 2026-09-27, Cinema Studio answers 400 for both `era: "auto"` and
+ * `era: ""` — `'…' is not one of ['1960s', …]` — and 200 when the key is simply
+ * absent. Their own documentation says the same thing: "Omit creative-control
+ * fields to let the director choose them automatically; the literal value
+ * 'auto' is not accepted for these enum fields."
+ *
+ * None of these appear in `check-combos.ts`'s PRICE_KEYS, and none of them
+ * changes what a generation costs — Cinema Studio is metered on resolution and
+ * duration alone — so a control added here needs no new price row.
+ */
+const autoChoice = (key: string, label: string, values: string[], advanced = false): Control => ({
+  kind: "segment",
+  key,
+  label,
+  def: "",
+  options: [{ value: "", label: "خودکار" }, ...values.map((value) => ({ value, label: prettySlug(value) }))],
+  ...(advanced ? { advanced: true } : {}),
+});
+
+/** `rack-focus` → `Rack focus`. The values are Higgsfield's own slugs, kept verbatim. */
+function prettySlug(value: string): string {
+  const spaced = value.replace(/-/g, " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/**
+ * Marketing Studio's 75 presets, scraped from `GET /marketing-studio/image/presets`
+ * by `pnpm higgsfield:schemas` and refreshed with it.
+ *
+ * Offered on its own, never together with `enhance_prompt`. Turning enhancement
+ * on requires a preset AND one or two images AND `quality: high` — three
+ * cross-field rules, each its own 400, none of them expressible as independent
+ * controls. A preset by itself answers 200 and costs exactly what no preset
+ * costs, which is why it is here and enhancement is not.
+ */
+const PRESET_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "بدون پریست" },
+  ...higgsfieldPresets.presets.map((preset) => ({
+    value: preset.id,
+    label: preset.group ? `${preset.name} · ${preset.group}` : preset.name,
+  })),
 ];
 
 // ---- families ---------------------------------------------------------------
@@ -1897,6 +1954,273 @@ export const FAMILIES: Family[] = [
     variants: [
       { id: "recraft-crisp-upscale", featureCode: "image_edit", label: "بزرگ‌نمایی", badge: "ارزان" },
       { id: "recraft-remove-bg", featureCode: "image_edit", label: "حذف پس‌زمینه" },
+    ],
+  },
+
+  // --------------------------- HIGGSFIELD ------------------------------------
+  //
+  // Four families no other supplier we buy from sells at all. Everything else
+  // in this file is served by KIE; `src/data/upstream.json` marks these as
+  // Higgsfield's, and `upstreamProvider()` is what the seeder reads.
+  //
+  // APPENDED, not inserted, and it matters: `publish-catalog.ts` makes the
+  // FIRST variant of a feature that feature's default route. Putting these
+  // higher would silently change which model a visitor lands on.
+  //
+  // Only the settings that move the price are offered, because every
+  // combination of those needs its own row in upstream.pricing.json and
+  // `check-combos.ts` fails the build if one is missing. Notably absent:
+  // `batch_size` on Soul, which multiplies the bill by four and is not in
+  // check-combos' PRICE_KEYS, so exposing it would undercharge silently.
+  {
+    id: "soul",
+    name: "Soul",
+    vendor: "Higgsfield",
+    kind: "image",
+    minTier: 2,
+    blurb: "پرترهٔ فوتورئال؛ ارزان‌ترین تصویر کاتالوگ",
+    badge: "ارزان",
+    grad: "linear-gradient(135deg,#b06ab3,#4568dc)",
+    controls: [
+      {
+        kind: "aspect",
+        key: "aspect_ratio",
+        label: "نسبت تصویر",
+        def: "1:1",
+        options: [ratios.sq, ratios.l169, ratios.p916, ratios.l43, ratios.p34, ratios.l32, ratios.p23],
+      },
+      {
+        kind: "segment",
+        key: "resolution",
+        label: "کیفیت",
+        def: "720p",
+        options: [
+          { value: "720p", label: "720p" },
+          { value: "1080p", label: "1080p" },
+        ],
+      },
+      { kind: "toggle", key: "enhance_prompt", label: "بهبود خودکار پرامپت", def: true, advanced: true },
+    ],
+    variants: [
+      { id: "soul-2", featureCode: "image_generate", label: "۲", badge: "جدید" },
+      { id: "soul-standard", featureCode: "image_generate", label: "استاندارد" },
+    ],
+  },
+  {
+    id: "marketing-studio",
+    name: "Marketing Studio",
+    vendor: "Higgsfield",
+    kind: "image",
+    minTier: 2,
+    blurb: "تصویر تبلیغاتی و محصول، تا ۴K",
+    grad: "linear-gradient(135deg,#f7971e,#ffd200)",
+    refs: [{ key: "image_urls", role: "reference", label: "تصاویر مرجع (اختیاری)", max: 16 }],
+    controls: [
+      {
+        kind: "aspect",
+        key: "aspect_ratio",
+        label: "نسبت تصویر",
+        def: "auto",
+        options: [ratios.auto, ratios.sq, ratios.l32, ratios.p23, ratios.l43, ratios.p34, ratios.l169, ratios.p916, ratios.l219],
+      },
+      // Quality and resolution together span 42x — $0.013 at low/1k against
+      // $0.542 at high/4k, both measured. The default sits in the middle on
+      // purpose: their own default is high/2k, which is 25 times the cheapest
+      // combination and not what a first click should cost.
+      {
+        kind: "segment",
+        key: "quality",
+        label: "کیفیت رندر",
+        def: "medium",
+        options: [
+          { value: "low", label: "سبک" },
+          { value: "medium", label: "متوسط" },
+          { value: "high", label: "بالا" },
+        ],
+      },
+      {
+        kind: "segment",
+        key: "resolution",
+        label: "اندازهٔ خروجی",
+        def: "2k",
+        options: [
+          { value: "1k", label: "1K" },
+          { value: "2k", label: "2K" },
+          { value: "4k", label: "4K" },
+        ],
+      },
+      { kind: "segment", key: "preset_id", label: "پریست", def: "", options: PRESET_OPTIONS },
+    ],
+    variants: [{ id: "marketing-studio", featureCode: "image_generate", label: "تصویر" }],
+  },
+  {
+    id: "cinema-studio",
+    name: "Cinema Studio",
+    vendor: "Higgsfield",
+    kind: "video",
+    minTier: 3,
+    blurb: "ویدیوی سینمایی با کارگردانی خودکار صحنه",
+    badge: "پرچم‌دار",
+    grad: "linear-gradient(135deg,#0f2027,#2c5364)",
+    // Image references only, and that is a pricing decision rather than a
+    // product one. Cinema Studio is token-metered on (input + output) seconds,
+    // so an attached VIDEO reference would add its own duration to the bill —
+    // and nothing measures an uploaded video's length at quote time. Their docs
+    // are explicit that image and audio references do not count as video input,
+    // so with images alone the price is exactly the published formula.
+    refs: [{ key: "image_urls", role: "reference", label: "تصاویر مرجع (اختیاری)", max: 30 }],
+    controls: [
+      {
+        kind: "aspect",
+        key: "aspect_ratio",
+        label: "نسبت تصویر",
+        def: "16:9",
+        options: [ratios.l169, ratios.l43, ratios.sq, ratios.p34, ratios.p916, ratios.l219],
+      },
+      {
+        kind: "segment",
+        key: "resolution",
+        label: "کیفیت",
+        def: "480p",
+        options: [
+          { value: "480p", label: "480p" },
+          { value: "720p", label: "720p" },
+        ],
+      },
+      // Their schema takes any integer from 4 to 30. Five steps rather than a
+      // slider because each one needs its own price row, and 27 of them would
+      // be 54 rows for a granularity nobody asked for.
+      {
+        kind: "segment",
+        key: "duration",
+        label: "مدت (ثانیه)",
+        def: "5",
+        options: [
+          { value: "5", label: "۵" },
+          { value: "10", label: "۱۰" },
+          { value: "15", label: "۱۵" },
+          { value: "20", label: "۲۰" },
+          { value: "30", label: "۳۰" },
+        ],
+      },
+      // The director's controls. The first four are the ones Higgsfield's own
+      // composer puts on screen; the rest are real parameters of the same
+      // endpoint and sit behind "advanced" so the bar stays readable.
+      autoChoice("genre", "فضای فیلم", ["epic", "drama", "noir", "comedy", "horror", "action"]),
+      autoChoice("camera_model", "دوربین", ["modern", "35mm-film", "8mm-film", "dv-camcorder"]),
+      autoChoice("light", "نورپردازی", ["silhouette", "practicals", "window", "overhead-fall", "contre-jour", "soft-cross"]),
+      autoChoice(
+        "color_palette",
+        "پالت رنگ",
+        [
+          "static-noon",
+          "twilight-fable",
+          "back-row-kissing-seats",
+          "on-the-other-side-of-the-porthole",
+          "the-emerald-ambush",
+          "highway-standoff",
+          "the-faded-fresco",
+          "oil-ochre",
+        ],
+        true,
+      ),
+      autoChoice("era", "دهه", ["1960s", "1980s", "1990s", "2000s", "2020s"], true),
+      autoChoice("pacing", "ریتم", ["chaotic", "dynamic", "calm", "single-shot"], true),
+      autoChoice("camera_lens", "لنز", ["clean-sharp", "anamorphic", "vintage-anamorphic", "warm-vintage", "halation-vintage"], true),
+      autoChoice("camera_aperture", "دیافراگم", ["f14-wide-open", "f4-moderate", "f11-deep-focus"], true),
+      autoChoice(
+        "camera_movement",
+        "حرکت دوربین",
+        ["snorricam", "robot-arm", "tilt-up", "rack-focus", "tilt-down", "pov", "pan-left", "crane-up"],
+        true,
+      ),
+    ],
+    variants: [{ id: "cinema-studio-4", featureCode: "video_generate", label: "۴٫۰" }],
+  },
+  {
+    id: "kling-omni",
+    name: "Kling Omni",
+    vendor: "Kling",
+    kind: "video",
+    minTier: 2,
+    blurb: "از فریم اول و آخر، ویدیو بساز",
+    grad: "linear-gradient(135deg,#1f4037,#99f2c8)",
+    refs: [
+      { group: "frame", key: "first_frame_url", role: "first_frame", label: "فریم اول (الزامی)", max: 1, required: true },
+      { group: "frame", key: "last_frame_url", role: "last_frame", label: "فریم آخر (اختیاری)", max: 1 },
+    ],
+    controls: [
+      {
+        kind: "aspect",
+        key: "aspect_ratio",
+        label: "نسبت تصویر",
+        def: "16:9",
+        options: [ratios.l169, ratios.p916, ratios.sq],
+      },
+      // O3 also offers a `4k` mode. Left out until it can be priced: on
+      // 2026-09-27 estimating it answered 409 "This model is temporarily
+      // unavailable", and a setting we cannot price is a setting we cannot sell.
+      {
+        kind: "segment",
+        key: "mode",
+        label: "کیفیت",
+        def: "pro",
+        options: [
+          { value: "std", label: "استاندارد" },
+          { value: "pro", label: "حرفه‌ای" },
+        ],
+      },
+      {
+        kind: "segment",
+        key: "duration",
+        label: "مدت (ثانیه)",
+        def: "5",
+        options: [
+          { value: "5", label: "۵" },
+          { value: "10", label: "۱۰" },
+        ],
+      },
+    ],
+    variants: [
+      { id: "kling-o1-omni", featureCode: "image_to_video", label: "O1" },
+      { id: "kling-o3", featureCode: "image_to_video", label: "O3", badge: "جدید" },
+    ],
+  },
+  {
+    id: "genjutsu",
+    name: "Genjutsu",
+    vendor: "Higgsfield",
+    kind: "video",
+    minTier: 3,
+    blurb: "حرکتِ یک ویدیو را روی تصویرهای تو بیاور",
+    badge: "جدید",
+    grad: "linear-gradient(135deg,#42275a,#734b6d)",
+    // Billed per second of the video you attach, not of the output — so it has
+    // no duration control at all and the price follows the clip, exactly as the
+    // video editors already do. `maxBillableUnits: 30` on its price rows is the
+    // other half: their docs say a source longer than 30 seconds is trimmed to
+    // 30, and charging for seconds that are uploaded and discarded would bill
+    // for output that does not exist.
+    refs: [
+      { key: "video_url", role: "source_video", label: "ویدیوی مرجع (الزامی)", max: 1, media: "video", required: true, maxMb: 100 },
+      { key: "image_urls", role: "reference", label: "تصاویر (۱ تا ۸)", max: 8, required: true },
+    ],
+    controls: [
+      {
+        kind: "segment",
+        key: "resolution",
+        label: "کیفیت",
+        def: "480p",
+        options: [
+          { value: "480p", label: "480p" },
+          { value: "720p", label: "720p" },
+          { value: "1080p", label: "1080p" },
+        ],
+      },
+    ],
+    variants: [
+      { id: "genjutsu-motion", featureCode: "video_edit", label: "انتقال حرکت" },
+      { id: "genjutsu-swap", featureCode: "video_edit", label: "جایگزینی شیء" },
     ],
   },
 ];

@@ -116,17 +116,34 @@ try {
 
   // The margin floor. Every offered price must clear what the provider charges,
   // or the catalogue is selling generations below cost.
-  const belowCost = await sql<{ variant: string; coins: string; cost: string }[]>`
+  // `unit_cost_usd` is joined rather than assumed. This used to multiply every
+  // row by KIE_CREDIT_USD, which was true while KIE owned every priced row and
+  // silently false the moment one did not: Higgsfield bills in dollars, so its
+  // unit is 200x a KIE credit, and a row costing $0.54 would have been judged
+  // against $0.0027 and passed a 2x floor it misses by a factor of two hundred.
+  // A margin check that cannot fail is worse than no margin check.
+  const belowCost = await sql<{ variant: string; coins: string; cost: string; unit_cost_usd: string | null }[]>`
     select model.external_model_id as variant,
            (price.micro_credits_base + price.micro_credits_per_second + price.micro_credits_per_1k_input_tokens)::text as coins,
-           (price.provider_units_base + price.provider_units_per_second + price.provider_units_per_1k_input_tokens)::text as cost
+           (price.provider_units_base + price.provider_units_per_second + price.provider_units_per_1k_input_tokens)::text as cost,
+           rate.provider_unit_cost_usd::text as unit_cost_usd
     from model_prices price
     join provider_models model on model.id = price.provider_model_id
+    left join lateral (
+      select provider_unit_cost_usd from provider_credit_rates
+      where provider_id = model.provider_id and valid_to is null
+      limit 1
+    ) rate on true
     where price.valid_to is null and price.is_offered
   `;
   const thin = belowCost.filter((row) => {
     const chargedUsd = (Number(row.coins) / 1_000_000) * COIN_USD;
-    const costUsd = Number(row.cost) * KIE_CREDIT_USD;
+    // No open rate row means nobody has said what this provider's unit costs,
+    // and the honest reading of that is "unknown", not "free". Falling back to
+    // the KIE price keeps every row that existed before this change judged
+    // exactly as it was.
+    const unitCostUsd = row.unit_cost_usd === null ? KIE_CREDIT_USD : Number(row.unit_cost_usd);
+    const costUsd = Number(row.cost) * unitCostUsd;
     return costUsd > 0 && chargedUsd < costUsd * MARGIN - 1e-9;
   });
 

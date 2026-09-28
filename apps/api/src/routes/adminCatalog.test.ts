@@ -232,7 +232,12 @@ describe("listing providers", () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/admin/providers", headers: AS_ADMIN });
     // Asked of the real factory, so a provider row cannot claim an adapter that
     // was deleted. wavespeed has one; a made-up code would not.
-    expect(response.json().providers[0].hasAdapter).toBe(true);
+    //
+    // Found by code rather than read at [0]: the list is ordered by code, so a
+    // third provider sorting before wavespeed — `higgsfield` does — would have
+    // quietly moved this assertion onto a different row.
+    const providers = response.json().providers as { code: string; hasAdapter: boolean }[];
+    expect(providers.find((provider) => provider.code === "wavespeed")?.hasAdapter).toBe(true);
     await app.close();
   });
 });

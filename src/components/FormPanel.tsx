@@ -7,6 +7,7 @@ import { RefBox } from "./RefBox";
 import { useIgnition } from "./Ignition";
 import { allTags, insertTag, refTags, tagUsed } from "../lib/refTags";
 import { useCreateState, valueLabel, rangeOf } from "../lib/useCreateState";
+import { priceCoins } from "../data/pricing";
 import { ModelPicker } from "./ModelPicker";
 import { PresetPicker } from "./PresetPicker";
 import type { Preset } from "../runtime/contracts/content";
@@ -154,6 +155,18 @@ export function FormPanel({
      itself the moment the balance is no longer the problem. */
   const [pressed, setPressed] = useState<GenerationRefusal | null>(null);
   const shortfall = s.short && price !== null ? shortfallRefusal(price, s.spendable ?? 0, n) : null;
+
+  /* Two different silences, and they must not read the same.
+     "No price" is usually the catalogue declining to sell a combination. But a
+     model billed per second of the clip you attach has no price until you
+     attach one, and Genjutsu is priced entirely that way — so it would greet
+     every visitor with "not sold" and stay there. Probed the way Generate.tsx
+     already probes it: if one second would price and zero does not, the clip is
+     the missing number rather than a gap in our price list. */
+  const pricedByClip =
+    price === null &&
+    priceCoins(variant, input, { chars: prompt.trim().length, clipSeconds: 0 }) === null &&
+    priceCoins(variant, input, { chars: prompt.trim().length, clipSeconds: 1 }) !== null;
   const refusal = submitError ?? (shortfall ? pressed : null);
   const set = s.set;
   const setPrompt = s.setPrompt;
@@ -509,7 +522,7 @@ export function FormPanel({
         </button>
         {price === null && (
           <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--vg-text-faint)" }}>
-            این ترکیب قیمت‌گذاری نمی‌شود، پس فروخته نمی‌شود.
+            {pricedByClip ? t("g_price_after_clip") : "این ترکیب قیمت‌گذاری نمی‌شود، پس فروخته نمی‌شود."}
           </p>
         )}
         {!submitError && price !== null && validation.issues[0] && (

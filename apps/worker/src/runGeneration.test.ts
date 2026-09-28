@@ -523,7 +523,7 @@ describe("reference uploads reaching the provider", () => {
 
     const message = rec.failures[0]?.errorMessage ?? "";
     expect(message).toBe("A file attached to this generation is no longer available.");
-    expect(message).not.toMatch(/kie|wavespeed|useapi|s3|bucket|uploads\//i);
+    expect(message).not.toMatch(/kie|wavespeed|useapi|higgsfield|s3|bucket|uploads\//i);
   });
 
   /* The report was "recraft doesn't work", twice. The first time it was our
