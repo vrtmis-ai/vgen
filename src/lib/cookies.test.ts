@@ -16,7 +16,7 @@ describe("the cookie registry", () => {
     // this list is a policy that has quietly become untrue, so the names are
     // pinned rather than merely counted.
     expect(COOKIES.map((cookie) => cookie.name).sort()).toEqual(
-      ["deev_admin", "deev_oauth_state", "deev_session", "vgen-lang", "vgen_consent"].sort(),
+      ["__ph_opt_in_out_*", "deev_admin", "deev_oauth_state", "deev_session", "ph_*_posthog", "vgen-lang", "vgen_consent"].sort(),
     );
   });
 
@@ -32,10 +32,18 @@ describe("the cookie registry", () => {
     expect(byName.vgen_consent!.httpOnly).toBe(false);
   });
 
-  it("has nothing to refuse today, and says so by having no non-essential entry", () => {
-    // There is no tracker, pixel or ad tag in this product. If that stops being
-    // true, this test fails and the banner's copy has to change with it.
-    expect(COOKIES.every((cookie) => cookie.category === "essential")).toBe(true);
+  it("offers exactly one thing to refuse: PostHog", () => {
+    // The banner and the policy page both say "only PostHog is optional". If
+    // another tracker is added, this fails and their copy has to change with it.
+    const optional = COOKIES.filter((cookie) => cookie.category !== "essential");
+    expect(optional.map((cookie) => cookie.name)).toEqual(["ph_*_posthog"]);
+    expect(optional.every((cookie) => cookie.category === "analytics")).toBe(true);
+  });
+
+  it("re-asks everyone who only pressed OK on the old notice", () => {
+    // v1 was an acknowledgement of a notice that offered nothing to refuse.
+    const acknowledged = encodeURIComponent(JSON.stringify({ v: 1, analytics: false, at: Date.now() }));
+    expect(parseConsent(acknowledged)).toBeNull();
   });
 });
 

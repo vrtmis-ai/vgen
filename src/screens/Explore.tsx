@@ -1,4 +1,5 @@
 import { ArrowUpRight, Image as ImageIcon, VideoCamera, MusicNote, GraduationCap, Terminal, FilmSlate } from "@phosphor-icons/react";
+import { ModelMark } from "../components/ModelMark";
 import { motion } from "framer-motion";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import { courseMinutes, LEVEL_LABEL } from "../features/content/labels";
@@ -7,7 +8,6 @@ import type { Course, FeaturedItem, Preset } from "../runtime/contracts/content"
 import { useCommunityFeed } from "../features/session/useSession";
 import type { CommunityPost } from "../runtime/contracts/community";
 
-import { VendorMark } from "../components/VendorMark";
 import { faNum } from "../lib/format";
 import type { NavKey } from "../components/TopBar";
 import { brandPhrase } from "../data/brand";
@@ -266,7 +266,7 @@ export default function Explore({
           <img src={art(p.seed)} alt="" loading="lazy" className="aspect-video w-full object-cover" />
         </div>
         <div className="mt-2 flex items-center gap-2">
-          {f && <VendorMark vendor={f.vendor} size={18} />}
+          {f && <ModelMark familyId={f.id} vendor={f.vendor} size={18} />}
           {/* bdi on both Latin runs: without isolation the bidi algorithm
               detaches the "@" from the handle and parks it on the model name. */}
           <span className="min-w-0 flex-1 truncate text-[12.5px]" style={{ color: "var(--vg-text)" }}>

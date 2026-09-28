@@ -1,9 +1,12 @@
 import {
   CheckInviteSchema,
+  CheckResetTokenSchema,
+  ForgotPasswordSchema,
   InviteCodeSchema,
   JoinWaitlistSchema,
   LoginWithPasswordSchema,
   RegisterWithPasswordSchema,
+  ResetPasswordSchema,
   StartPhoneVerificationSchema,
   TERMS_VERSION,
   VerifyPhoneSchema,
@@ -26,7 +29,10 @@ import {
 import type { GoogleOAuth } from "../auth/googleOAuth";
 import type { MicrosoftOAuth } from "../auth/microsoftOAuth";
 import { OAuthError, statesMatch } from "../auth/oidc";
+import type { Mailer } from "../mail/mailer";
+import { otherMethodEmail, resetEmail } from "../mail/resetEmail";
 import type { SmsSender } from "../auth/sms";
+import { track } from "../posthog";
 
 /** Returns null when allowed, or the seconds to wait when not. */
 export interface AuthRateLimiter {
@@ -45,6 +51,8 @@ export interface AuthRateLimiters {
   loginPerIp: AuthRateLimiter;
   inviteCheckPerIp: AuthRateLimiter;
   waitlistJoinPerIp: AuthRateLimiter;
+  passwordResetPerIp: AuthRateLimiter;
+  passwordResetPerAccount: AuthRateLimiter;
 }
 
 export interface AuthRouteOptions {
@@ -71,6 +79,13 @@ export interface AuthDependencies {
    * Iranian gateway will not send OTP templates for a site without it.
    */
   sms?: SmsSender | undefined;
+  /**
+   * Absent when no SMTP account is configured, and then password reset does
+   * not exist either: the route answers 503 rather than reporting a mail
+   * nobody will receive. The same rule the invite sender states — there is no
+   * half-configured mode.
+   */
+  mailer?: Mailer | undefined;
 }
 
 function phoneUnavailable(reply: FastifyReply) {
@@ -89,6 +104,9 @@ const STATUS_BY_CODE: Record<AuthError["code"], number> = {
   handle_taken: 409,
   handle_invalid: 422,
   account_suspended: 403,
+  reset_invalid: 400,
+  reset_expired: 400,
+  reset_used: 400,
 };
 
 function fail(reply: FastifyReply, error: AuthError) {
@@ -103,8 +121,8 @@ function tooMany(reply: FastifyReply, retryAfterSeconds: number) {
 }
 
 export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDependencies, options: AuthRouteOptions): void {
-  const { auth, sms } = dependencies;
-  const { cookie, limiters } = options;
+  const { auth, sms, mailer } = dependencies;
+  const { cookie, limiters, webOrigin } = options;
   const { access } = dependencies;
 
   const startSession = async (reply: FastifyReply, request: FastifyRequest, userId: string) => {
@@ -175,9 +193,14 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
    * never a value this refuses.
    *
    * **The answer does not depend on whether they were already listed.** The
-   * insert is `on conflict do nothing` and this always says `listed`, because
-   * an open route that answered differently for a known address would be a way
-   * to ask whether somebody has an account here.
+   * insert is `on conflict do nothing` and a repeat says `listed` exactly like
+   * a first join, so this cannot be used to ask who is already waiting.
+   *
+   * **It does depend on whether they already have an account**, which is the
+   * owner's decision, taken knowing the cost: this route will now confirm that
+   * an address is registered. The rate limit above is what bounds that — ten
+   * tries per quarter hour per address. The alternative was leaving somebody
+   * who already has an account waiting for a mail that was never coming.
    *
    * Nothing about this logs anybody in or relaxes the gate. Signup still needs
    * a code; a row here is a claim on a future one.
@@ -190,7 +213,9 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     if (!contact) {
       return reply.code(422).send({ error: { code: "validation_failed", message: "That is not an address or a mobile number." } });
     }
-    await access.joinWaitlist(contact.kind, contact.value);
+    if ((await access.joinWaitlist(contact.kind, contact.value)) === "has_account") {
+      return reply.code(409).send({ error: { code: "account_exists", message: "That contact already has an account. Sign in instead." } });
+    }
     return reply.code(200).send({ status: "listed" });
   });
 
@@ -199,6 +224,81 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
      and the page asks for it on every load. */
   app.get("/api/v1/auth/waitlist/count", async (_request, reply) => {
     return reply.code(200).send({ count: await access.waitlistCount() });
+  });
+
+  /* ------------------------------------------------------------ password reset
+
+     The way back in for somebody who has forgotten their password. Three
+     routes, because the screen has three questions: send me a link, is this
+     link any good, and here is my new password.
+
+     None of them signs anybody in. A reset that returned a session would turn
+     a mail link into a way into the account, so the new password is typed on
+     the sign-in screen like any other. */
+
+  function mailUnavailable(reply: FastifyReply) {
+    return reply
+      .code(503)
+      .send({ error: { code: "mail_unavailable", message: "No mail account is configured, so a reset link cannot be sent." } });
+  }
+
+  /**
+   * Ask for a link.
+   *
+   * **This route says whether an address is registered**, by the owner's
+   * decision: the waitlist already does, and staying quiet here leaves
+   * somebody who mistyped their own address waiting for a mail that is never
+   * coming. Both limiters above are what keeps that from being a free
+   * directory — and the per-account one is only spent once the address turns
+   * out to be real, so a stranger cannot exhaust somebody else's quota.
+   */
+  app.post("/api/v1/auth/password/forgot", { bodyLimit: 1024 }, async (request, reply) => {
+    const wait = await limiters.passwordResetPerIp.consume(request.ip);
+    if (wait !== null) return tooMany(reply, wait);
+    if (!mailer) return mailUnavailable(reply);
+
+    const body = ForgotPasswordSchema.parse(request.body);
+    const started = await auth.startPasswordReset(body.email, { ip: request.ip, userAgent: request.headers["user-agent"] });
+    if (started.kind === "no_account") {
+      return reply.code(404).send({ error: { code: "no_account", message: "No account uses that address." } });
+    }
+
+    const perAccount = await limiters.passwordResetPerAccount.consume(started.userId);
+    if (perAccount !== null) return tooMany(reply, perAccount);
+
+    /* An account with no password is mailed how it actually signs in, and no
+       token was minted for it. Answering `sent` either way is honest: both
+       branches really did send something. */
+    const mail = started.kind === "sent" ? resetEmail(started.token, webOrigin) : otherMethodEmail(started.method, webOrigin);
+    await mailer.send({ to: body.email, ...mail });
+
+    // The token is mailed and never returned. A response carrying it would
+    // hand the link to anybody who can make this request.
+    return reply.code(200).send({ status: "sent" });
+  });
+
+  /** What a link is worth, so the page can explain a dead one instead of
+      taking a new password and then refusing it. */
+  app.post("/api/v1/auth/password/reset/check", { bodyLimit: 1024 }, async (request, reply) => {
+    const wait = await limiters.passwordResetPerIp.consume(request.ip);
+    if (wait !== null) return tooMany(reply, wait);
+    const body = CheckResetTokenSchema.parse(request.body);
+    return reply.code(200).send({ status: await auth.checkPasswordReset(body.token) });
+  });
+
+  app.post("/api/v1/auth/password/reset", { bodyLimit: 4 * 1024 }, async (request, reply) => {
+    const wait = await limiters.passwordResetPerIp.consume(request.ip);
+    if (wait !== null) return tooMany(reply, wait);
+    const body = ResetPasswordSchema.parse(request.body);
+    try {
+      await auth.completePasswordReset(body.token, body.password);
+    } catch (error) {
+      if (error instanceof AuthError) return fail(reply, error);
+      throw error;
+    }
+    // Every other device was signed out by the line above. This one is not
+    // signed in either — deliberately; see the section comment.
+    return reply.code(200).send({ status: "reset" });
   });
 
   app.post("/api/v1/auth/otp/verify", { bodyLimit: 4 * 1024 }, async (request, reply) => {
@@ -225,6 +325,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
       });
       await auth.recordLoginAttempt({ identifier: phone, userId: user.id, method: "otp", succeeded: true, ip: request.ip });
       await startSession(reply, request, user.id);
+      track(request, user.id, "user_authenticated", { method: "otp" });
       return reply.code(200).send({ status: "authed", host: "web", user });
     } catch (error) {
       if (error instanceof AuthError) {
@@ -257,6 +358,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
         termsVersion: TERMS_VERSION,
       });
       await startSession(reply, request, user.id);
+      track(request, user.id, "user_registered", { method: "password" });
       return reply.code(201).send({ status: "authed", host: "web", user });
     } catch (error) {
       if (error instanceof AuthError) return fail(reply, error);
@@ -282,6 +384,7 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
         ip: request.ip,
       });
       await startSession(reply, request, user.id);
+      track(request, user.id, "user_authenticated", { method: "password" });
       return reply.code(200).send({ status: "authed", host: "web", user });
     } catch (error) {
       if (error instanceof AuthError) {

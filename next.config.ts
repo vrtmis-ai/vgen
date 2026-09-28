@@ -41,6 +41,25 @@ const nextConfig: NextConfig = {
    * loading state forever with no error in the server log.
    */
   allowedDevOrigins: ["127.0.0.1"],
+  /**
+   * PostHog (EU cloud) through our own origin, so the browser only ever talks to
+   * us: posthog.com is slow and often filtered from Iran, and ad blockers drop
+   * it. `src/lib/analytics.ts` sends to `/ingest`. Caddy already routes
+   * everything but `/api/*` here, so production needs nothing more.
+   *
+   * `skipTrailingSlashRedirect` is required, not tidy: PostHog's capture
+   * endpoints end in a slash (`/i/v0/e/`), and Next's default 308 strips it,
+   * which the endpoint answers with a 404. It also stops `/plans/` redirecting to
+   * `/plans` site-wide, which nothing here depends on.
+   */
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    return [
+      { source: "/ingest/static/:path*", destination: "https://eu-assets.i.posthog.com/static/:path*" },
+      { source: "/ingest/array/:path*", destination: "https://eu-assets.i.posthog.com/array/:path*" },
+      { source: "/ingest/:path*", destination: "https://eu.i.posthog.com/:path*" },
+    ];
+  },
 };
 
 export default nextConfig;

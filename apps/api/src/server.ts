@@ -46,6 +46,7 @@ import { GoogleOAuth } from "./auth/googleOAuth";
 import { MicrosoftOAuth } from "./auth/microsoftOAuth";
 import { KavenegarSmsSender, type SmsSender } from "./auth/sms";
 import { createApp } from "./createApp";
+import { shutdownPostHog } from "./posthog";
 import { createPromptGuard } from "./promptGuard";
 
 config({ path: fileURLToPath(new URL("../../../.env.development.local", import.meta.url)), quiet: true });
@@ -317,7 +318,9 @@ const app = createApp(
       options: { cookie: { secure: process.env.NODE_ENV === "production" }, webOrigin, ...(mailer ? { mailer } : {}) },
     },
     auth: {
-      dependencies: { auth: authRepository, access: accessRepository, sms },
+      // The mailer reaches auth as well as admin now: a reset link goes to the
+      // person asking for it, not to a queue an operator is working through.
+      dependencies: { auth: authRepository, access: accessRepository, sms, ...(mailer ? { mailer } : {}) },
       options: {
         // Secure everywhere but local http, where the browser would drop it.
         cookie: { secure: process.env.NODE_ENV === "production" },
@@ -336,6 +339,7 @@ const close = async () => {
   readLimiter.close();
   writeLimiter.close();
   authRateLimiters.close();
+  await shutdownPostHog();
   await sql.end();
 };
 process.once("SIGINT", () => void close());
