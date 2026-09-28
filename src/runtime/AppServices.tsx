@@ -9,7 +9,7 @@ import type {
   StartPhoneVerificationInput,
   VerifyPhoneInput,
 } from "./contracts/auth";
-import type { AccountSession, PaidOrder, Referral } from "./contracts/account";
+import type { AccountSession, PaidOrder } from "./contracts/account";
 import type { Campaign } from "./contracts/campaign";
 import type { CatalogSnapshot } from "./contracts/catalog";
 import type { ContentSnapshot } from "./contracts/content";
@@ -154,8 +154,6 @@ export interface AppServices {
      * owns, and a screen must not imply it can choose.
      */
     deleteAccount(options?: RequestOptions): Promise<void>;
-    /** The invite code this account shares, and what it has earned. */
-    referral(options?: RequestOptions): Promise<Referral>;
   };
   /**
    * Presets, the prompt bank, skills, the featured shelf, courses, examples
