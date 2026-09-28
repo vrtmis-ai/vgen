@@ -906,6 +906,7 @@ describe("customer session", () => {
             otpSendPerPhone: allow(),
             otpSendPerIp: allow(),
             otpVerifyPerPhone: allow(),
+            otpVerifyPerIp: allow(),
             loginPerAccount: allow(),
             loginPerIp: allow(),
             inviteCheckPerIp: allow(),

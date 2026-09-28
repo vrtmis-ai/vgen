@@ -47,6 +47,11 @@ export async function createAuthRateLimiters(
     otpSendPerPhone: limiter("otp.send", "phone", { window_seconds: 3600, max_requests: 5 }),
     otpSendPerIp: limiter("otp.send", "ip", { window_seconds: 3600, max_requests: 15 }),
     otpVerifyPerPhone: limiter("otp.verify", "phone", { window_seconds: 900, max_requests: 10 }),
+    /* The source as well as the target: ten guesses per number is ten guesses
+       each to somebody working through a list, and `otpSendPerIp` above bounds
+       codes sent from an address, not guesses made from one. Three times the
+       per-number allowance, so one person typing one code never meets it. */
+    otpVerifyPerIp: limiter("otp.verify", "ip", { window_seconds: 900, max_requests: 30 }),
     loginPerAccount: limiter("login", "user", { window_seconds: 900, max_requests: 10 }),
     loginPerIp: limiter("login", "ip", { window_seconds: 900, max_requests: 50 }),
     inviteCheckPerIp: limiter("invite.check", "ip", { window_seconds: 900, max_requests: 20 }),
