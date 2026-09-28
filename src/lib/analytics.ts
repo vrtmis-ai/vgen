@@ -1,4 +1,4 @@
-import posthog from "posthog-js";
+import posthog, { type CaptureResult } from "posthog-js";
 import { CONSENT_COOKIE, CONSENT_MAX_AGE_SECONDS, allows, parseConsent, serializeConsent, type Consent } from "./cookies";
 
 /**
@@ -29,6 +29,57 @@ function readConsent(): Consent | null {
   return parseConsent(entry?.slice(CONSENT_COOKIE.length + 1));
 }
 
+/**
+ * Errors reported by the browser that no change in this codebase can fix.
+ *
+ * `capture_exceptions` reports whatever reaches `window.onerror`, and on a page
+ * open to the public that includes code we did not write and a DOM we do not
+ * control. Two kinds arrive often enough to bury the errors that are ours:
+ *
+ * - **An in-app WebView's own bridge.** Android apps (Instagram, Telegram and
+ *   the rest) inject a Java bridge into the WebView and call it while the page
+ *   is unloading. The app drops the Java object before its own unload handler
+ *   runs, so the call throws "Java object is gone" out of `sendDataToNative`.
+ *   The throwing script is theirs, on their teardown path, in a frame with no
+ *   file behind it.
+ *
+ * - **Hydration mismatches React already recovered from** (#418, #423, #425).
+ *   React discards the server HTML for that subtree, renders it again on the
+ *   client and the page is correct; the report is a warning, not a failure.
+ *   Every occurrence investigated pointed at the DOM being rewritten before
+ *   hydration — browser auto-translate of a Persian page, an extension, an
+ *   in-app browser — and no route rendered a mismatch from a browser we drove.
+ *
+ * Matched on the message because on these two the message is the only part that
+ * identifies them: the first has `Unknown Source` for every frame, the second
+ * only minified react-dom, and PostHog marks a frame `in_app` on nothing more
+ * than an https URL, so neither stack separates them from our own code.
+ *
+ * The cost is real and worth stating: a hydration bug we *did* cause would now
+ * also be dropped, and this project has no console-error assertion in its e2e
+ * runs to catch one instead. `next dev` still fails loudly on them, so the
+ * remaining exposure is a mismatch that only appears in a production build.
+ */
+const UNACTIONABLE = [
+  // An in-app WebView calling a Java bridge the host app has already torn down.
+  /Java object is gone/,
+  // React's recoverable hydration errors: 418 and 425 text, 423 whole-root fallback.
+  /Minified React error #(418|423|425)\b/,
+];
+
+/**
+ * Drop those, keep everything else — including a deliberate `captureError`,
+ * which carries its own message and matches none of the patterns above.
+ */
+function dropUnactionable(event: CaptureResult | null): CaptureResult | null {
+  if (!event || event.event !== "$exception") return event;
+  const properties = event.properties ?? {};
+  // `$exception_message` is derived from the first exception's `value`; read both,
+  // so the filter does not depend on which code path assembled the event.
+  const message = String(properties.$exception_message ?? properties.$exception_list?.[0]?.value ?? "");
+  return UNACTIONABLE.some((pattern) => pattern.test(message)) ? null : event;
+}
+
 function init(projectToken: string): void {
   posthog.init(projectToken, {
     api_host: "/ingest",
@@ -38,6 +89,8 @@ function init(projectToken: string): void {
     // a cookie set on a parent domain is one we could not reliably delete again.
     persistence: "localStorage",
     capture_exceptions: true,
+    // …but not the reports nothing here can act on. See `UNACTIONABLE`.
+    before_send: dropUnactionable,
     // Nothing here uses feature flags or surveys, and each is a request (flags
     // carries an anonymous id and device details) that is not worth making.
     advanced_disable_flags: true,
