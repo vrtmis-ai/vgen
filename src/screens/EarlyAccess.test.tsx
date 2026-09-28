@@ -33,9 +33,9 @@ describe("the invite page", () => {
     renderPage(services);
 
     await user.type(screen.getByLabelText("Invite code"), "TOTALLY-FAKE-999");
-    await user.click(screen.getByRole("button", { name: "Confirm" }));
+    await user.click(screen.getByRole("button", { name: "Continue with this code" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("That code is not valid.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("That invite code is not valid, has expired, or has been used up.");
     expect(check).toHaveBeenCalledWith("TOTALLY-FAKE-999");
     expect(nav.push).not.toHaveBeenCalled();
   });
@@ -47,7 +47,7 @@ describe("the invite page", () => {
     renderPage(services);
 
     await user.type(screen.getByLabelText("Invite code"), "  DEEV-WYJPK8 ");
-    await user.click(screen.getByRole("button", { name: "Confirm" }));
+    await user.click(screen.getByRole("button", { name: "Continue with this code" }));
 
     /* The welcome beat sits between the press and the push, so this waits
        past it rather than asserting on the tick the click returned. */
@@ -68,9 +68,11 @@ describe("the invite page", () => {
     await user.click(screen.getByRole("button", { name: "I don't have a code" }));
     const field = screen.getByLabelText("Email or mobile number");
     await user.type(field, "someone@example.com");
-    await user.click(screen.getByRole("button", { name: "Sign up" }));
+    await user.click(screen.getByRole("button", { name: "Join the queue" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Added to the waiting list.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Nothing has been sent yet. Your invite code arrives here when your turn comes.",
+    );
     expect(join).toHaveBeenCalledWith("someone@example.com");
     expect(field).toHaveValue("");
   });
@@ -87,7 +89,7 @@ describe("the invite page", () => {
 
     await user.click(screen.getByRole("button", { name: "I don't have a code" }));
     await user.type(screen.getByLabelText("Email or mobile number"), "09121234567");
-    await user.click(screen.getByRole("button", { name: "Sign up" }));
+    await user.click(screen.getByRole("button", { name: "Join the queue" }));
 
     // Normalised before it leaves the page, by the same function the route
     // normalises with, so the four ways to type this number are one row.
@@ -107,7 +109,7 @@ describe("the invite page", () => {
     );
     renderPage(services);
 
-    await user.click(screen.getByRole("button", { name: "No code? Join the queue" }));
+    await user.click(screen.getByRole("button", { name: "I don't have a code" }));
     await user.type(screen.getByLabelText("Email or mobile number"), "member@example.com");
     await user.click(screen.getByRole("button", { name: "Join the queue" }));
 
@@ -125,7 +127,7 @@ describe("the invite page", () => {
 
     await user.click(screen.getByRole("button", { name: "I don't have a code" }));
     await user.type(screen.getByLabelText("Email or mobile number"), "hello");
-    await user.click(screen.getByRole("button", { name: "Sign up" }));
+    await user.click(screen.getByRole("button", { name: "Join the queue" }));
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(join).not.toHaveBeenCalled();
