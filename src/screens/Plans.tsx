@@ -43,7 +43,7 @@ import {
 } from "../data/plans";
 import { usePlanLadder, useTomanPerUsd } from "../features/plans/PlansProvider";
 import { PlanCard, EntryCard, type Cycle } from "../components/PlanCards";
-import { CoinMark } from "../components/chrome";
+import { CreditStar } from "../components/chrome";
 import { useActiveCampaign } from "../features/session/useSession";
 import { useAppServices } from "../runtime/AppServices";
 import type { CheckoutOrder } from "../runtime/contracts/payment";
@@ -744,7 +744,7 @@ export default function Plans({
           <div className="flex items-center justify-between">
             <span className="text-[12px] text-ink3">{current ? t("pl_this_month") : t("w_balance")}</span>
             <span className="flex items-center gap-2">
-              <CoinMark size={17} className="text-ink2" />
+              <CreditStar size={17} className="text-ink2" />
               <span className="text-[24px] font-semibold tabular-nums">{c(wallet?.spendable ?? 0)}</span>
               <span className="text-[13px] text-ink2">{t("w_coins")}</span>
             </span>

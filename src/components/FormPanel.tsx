@@ -15,7 +15,7 @@ import { promptCap, useAutoGrow } from "../lib/useAutoGrow";
 import { PromptExpandButton } from "./PromptExpand";
 import { Panel, PanelHead, PanelShell, Section } from "./Panel";
 import { useI18n } from "../lib/i18n";
-import { CoinMark } from "./chrome";
+import { CreditStar } from "./chrome";
 import { useImageFallback } from "../lib/useImageFallback";
 import { SubmitRefusalNote } from "./GenerationVeils";
 import { shortfallRefusal, type GenerationRefusal } from "../features/generation/validation";
@@ -502,7 +502,7 @@ export function FormPanel({
             <Sparkle size={15} weight="fill" />
             {visitor ? t("visitor_cta") : isSubmitting ? "در حال ثبت…" : "بساز"}
             <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
-              <CoinMark size={12} />
+              <CreditStar size={12} />
               <span className="vg-numeric">{price === null ? "—" : n(price)}</span>
             </span>
           </span>

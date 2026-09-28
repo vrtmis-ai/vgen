@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { CaretLeft, Globe, ImagesSquare, SignOut, Sparkle, User } from "@phosphor-icons/react";
-import { CoinMark } from "./chrome";
+import { CreditStar } from "./chrome";
 import { useI18n } from "../lib/i18n";
 import { EASE_OUT } from "../lib/motion";
 
@@ -197,7 +197,7 @@ export function AccountMenu({
                 {t("w_balance")}
               </div>
               <div className="mt-1 flex items-baseline gap-1.5">
-                <CoinMark size={15} />
+                <CreditStar size={15} />
                 {/* c(), not n(): coins bill in hundredths, and the plain number
                     formatter would print a third decimal that is float noise. */}
                 <span className="vg-numeric text-[19px] font-semibold tabular-nums" style={{ color: "var(--vg-text)" }}>
