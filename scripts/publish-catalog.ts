@@ -23,7 +23,7 @@ import { config } from "dotenv";
 import postgres from "postgres";
 import { CatalogSnapshotSchema } from "../src/runtime/contracts/catalog";
 import { FAMILIES, type Family, type Variant } from "../src/data/models";
-import { upstreamModel } from "./upstream";
+import { upstreamModel, upstreamProvider } from "./upstream";
 
 config({ path: ".env.development.local", quiet: true });
 config({ path: ".env.local", quiet: true });
@@ -35,12 +35,37 @@ if (!databaseUrl) throw new Error("DATABASE_URL is required to publish the catal
 // not worth writing, and finding that out after a partial write is worse.
 CatalogSnapshotSchema.parse({ version: "candidate", publishedAt: Date.now(), families: FAMILIES });
 
-const PROVIDER = {
-  code: "kie",
-  name: "KIE",
-  baseUrl: "https://api.kie.ai",
-  creditUnitName: "credit",
-} as const;
+/**
+ * Who owns a catalogue row, keyed by the code `upstream.json` names.
+ *
+ * KIE was the only one for so long that it was a single constant here. It is a
+ * table now because some models have no KIE equivalent: Cinema Studio, Soul,
+ * Marketing Studio and the Kling Omni pair are Higgsfield's and nowhere else's.
+ * `upstreamProvider()` decides per variant and defaults to `kie`, so every row
+ * that existed before this change is seeded exactly as it was.
+ *
+ * `creditUnitName` is what THEY bill in. KIE sells credits; Higgsfield bills
+ * dollars, so its unit is a dollar and its `provider_credit_rates` row is 1.0.
+ */
+const PROVIDERS: Record<
+  string,
+  { code: string; name: string; baseUrl: string; creditUnitName: string; secretRef: string; unitCostUsd?: number }
+> = {
+  kie: { code: "kie", name: "KIE", baseUrl: "https://api.kie.ai", creditUnitName: "credit", secretRef: "KIE_API_KEY" },
+  higgsfield: {
+    code: "higgsfield",
+    name: "Higgsfield",
+    baseUrl: "https://api.higgsfield.ai",
+    creditUnitName: "usd",
+    secretRef: "HIGGSFIELD_API_KEY",
+    // What one of their units costs us. They bill in dollars, so a unit is a
+    // dollar. Stated here and not in routes.wavespeed.json — which is where
+    // KIE's and WaveSpeed's rates live — because Higgsfield owns catalogue rows
+    // rather than serving somebody else's, so it has no entry in that file and
+    // two writers for one row would be worse than one in an unexpected place.
+    unitCostUsd: 1.0,
+  },
+};
 
 /**
  * Everything a screen needs that the columns do not carry.
@@ -87,35 +112,59 @@ const sql = postgres(databaseUrl, { max: 1 });
 
 try {
   const summary = await sql.begin(async (tx) => {
-    const [provider] = await tx<{ id: string }[]>`
-      insert into providers (code, name, base_url, credit_unit_name, is_active)
-      values (${PROVIDER.code}, ${PROVIDER.name}, ${PROVIDER.baseUrl}, ${PROVIDER.creditUnitName}, true)
-      on conflict (code) do update set
-        name = excluded.name,
-        base_url = excluded.base_url,
-        is_active = true
-      returning id
-    `;
-    if (!provider) throw new Error("provider upsert returned no row");
+    const providerIdByCode = new Map<string, string>();
+    for (const spec of Object.values(PROVIDERS)) {
+      const [row] = await tx<{ id: string }[]>`
+        insert into providers (code, name, base_url, credit_unit_name, is_active)
+        values (${spec.code}, ${spec.name}, ${spec.baseUrl}, ${spec.creditUnitName}, true)
+        on conflict (code) do update set
+          name = excluded.name,
+          base_url = excluded.base_url,
+          is_active = true
+        returning id
+      `;
+      const id = row?.id ?? (await tx<{ id: string }[]>`select id from providers where code = ${spec.code}`)[0]?.id;
+      if (!id) throw new Error(`provider upsert returned no row for ${spec.code}`);
+      providerIdByCode.set(spec.code, id);
 
-    // The key the worker calls with. One row rather than none because the pool
-    // picker is the only way a job gets a credential, and a provider with no
-    // credential row is a provider the worker refuses to call — which would
-    // make KIE the special case instead of the ordinary one.
-    //
-    // secret_ref is the name of an environment variable, never the key. The
-    // table's own comment asks for this: a leaked database dump must not be a
-    // leaked KIE account.
-    await tx`
-      insert into provider_credentials (provider_id, label, secret_ref, is_active)
-      values (${provider.id}, 'kie-primary', 'KIE_API_KEY', true)
-      on conflict (provider_id, label) do update set
-        secret_ref = excluded.secret_ref,
-        is_active = true
-      where
-        provider_credentials.secret_ref is distinct from excluded.secret_ref
-        or provider_credentials.is_active is distinct from true
-    `;
+      // The key the worker calls with. One row rather than none because the pool
+      // picker is the only way a job gets a credential, and a provider with no
+      // credential row is a provider the worker refuses to call — which would
+      // make KIE the special case instead of the ordinary one.
+      //
+      // secret_ref is the name of an environment variable, never the key. The
+      // table's own comment asks for this: a leaked database dump must not be a
+      // leaked provider account.
+      await tx`
+        insert into provider_credentials (provider_id, label, secret_ref, is_active)
+        values (${id}, ${`${spec.code}-primary`}, ${spec.secretRef}, true)
+        on conflict (provider_id, label) do update set
+          secret_ref = excluded.secret_ref,
+          is_active = true
+        where
+          provider_credentials.secret_ref is distinct from excluded.secret_ref
+          or provider_credentials.is_active is distinct from true
+      `;
+
+      // What their unit costs us, effective-dated rather than overwritten: a
+      // job settled last month must still be able to say what it cost at the
+      // time, which is the difference between a ledger and a guess. Only
+      // written for a provider that states one here; KIE's continues to come
+      // from the rates block in routes.wavespeed.json.
+      if (spec.unitCostUsd !== undefined) {
+        const [open] = await tx<{ provider_unit_cost_usd: string }[]>`
+          select provider_unit_cost_usd from provider_credit_rates
+          where provider_id = ${id} and valid_to is null
+        `;
+        if (!open || Number(open.provider_unit_cost_usd) !== spec.unitCostUsd) {
+          await tx`update provider_credit_rates set valid_to = now() where provider_id = ${id} and valid_to is null`;
+          await tx`
+            insert into provider_credit_rates (provider_id, provider_unit_cost_usd, micro_credits_per_unit, valid_from)
+            values (${id}, ${spec.unitCostUsd}, 0, now())
+          `;
+        }
+      }
+    }
 
     const featureRows = await tx<{ id: string; code: string }[]>`select id, code from features`;
     const featureIdByCode = new Map(featureRows.map((row) => [row.code, row.id]));
@@ -155,11 +204,14 @@ try {
       for (const [variantOrder, variant] of family.variants.entries()) {
         const featureId = featureIdByCode.get(variant.featureCode) as string;
         const capabilities = capabilitiesFor(family, familyOrder, variant, variantOrder);
+        const ownerCode = upstreamProvider(variant.id);
+        const ownerId = providerIdByCode.get(ownerCode);
+        if (!ownerId) throw new Error(`${variant.id} names provider "${ownerCode}", which is not in PROVIDERS`);
 
         const [model] = await tx<{ id: string; changed: boolean }[]>`
           insert into provider_models (provider_id, external_model_id, name, modality, family, capabilities, is_active)
           values (
-            ${provider.id},
+            ${ownerId},
             ${upstreamModel(variant.id)},
             ${`${family.name} ${variant.label}`},
             ${MODALITY_BY_FEATURE[variant.featureCode] as string},
@@ -191,7 +243,7 @@ try {
           (
             await tx<{ id: string }[]>`
               select id from provider_models
-              where provider_id = ${provider.id} and external_model_id = ${upstreamModel(variant.id)}
+              where provider_id = ${ownerId} and external_model_id = ${upstreamModel(variant.id)}
             `
           )[0]?.id;
         if (!modelId) throw new Error(`provider_models upsert lost ${variant.id}`);
@@ -232,10 +284,19 @@ try {
     // A variant deleted from models.ts has to stop being sold. Deactivated
     // rather than deleted: jobs, quotes and prices reference these rows, and a
     // model that is no longer on sale is still a model somebody bought.
+    // `capabilities ? 'variant'` is load-bearing, not decoration. It is what
+    // separates a catalogue row from a serving row, and `publish-providers.ts`
+    // writes serving rows under these same provider ids. Without it, seeding the
+    // catalogue would retire every destination the routing seeder had just
+    // created, because none of them is in `liveModelIds`.
+    const catalogueProviderIds = [...providerIdByCode.values()];
     const retired = await tx<{ id: string }[]>`
       update provider_models
       set is_active = false, deprecated_at = coalesce(deprecated_at, now())
-      where provider_id = ${provider.id} and is_active and not (id = any(${liveModelIds}::uuid[]))
+      where provider_id = any(${catalogueProviderIds}::uuid[])
+        and capabilities ? 'variant'
+        and is_active
+        and not (id = any(${liveModelIds}::uuid[]))
       returning id
     `;
     if (retired.length) {

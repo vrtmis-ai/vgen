@@ -1,0 +1,151 @@
+{
+  "mode": "kling-video/o3/first-last-frame",
+  "title": "Kling O3 · First/Last Frame",
+  "endpoint": "https://api.higgsfield.ai/kling-video/o3/first-last-frame",
+  "outputType": "video",
+  "fetchedAt": "2026-09-28",
+  "docUrl": "https://docs.higgsfield.ai/docs/models/kling-o3/first-last-frame.md",
+  "usageNotes": [
+    "first\\_frame\\_url supplies the starting frame; last\\_frame\\_url is optional. These names differ from the image\\_url and last\\_image\\_url fields on Kling 3.0 image-to-video.",
+    "For a single shot, set multi\\_shots to false and provide prompt. For multiple shots, set multi\\_shots to true and provide 1–6 multi\\_prompt objects, each containing prompt and a positive integer duration.",
+    "Always include a non-empty top-level prompt, including when using multi\\_prompt.",
+    "Each shot prompt is limited to 512 characters. Custom-shot durations are summed for generation and billing; the top-level duration does not override that sum.",
+    "Native audio uses sound: on or off and defaults to off.",
+    "Keep the top-level prompt within 2,500 characters; longer prompts are truncated.",
+    "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
+  ],
+  "resolutions": [],
+  "durationsSeconds": [3, 15],
+  "pricing": {
+    "primary": {
+      "amount": "0.0462",
+      "original_amount": "0.084",
+      "discount_percentage": 45,
+      "discount_expires_at": "2026-10-01T00:00:00Z",
+      "max_discount_amount": "0.0462",
+      "max_discount_percentage": 45,
+      "currency": "USD",
+      "unit": "second",
+      "qualifier": "from"
+    },
+    "max_discount": {
+      "amount": "0.0462",
+      "percentage": 45,
+      "currency": "USD",
+      "unit": "second",
+      "qualifier": "from",
+      "already_applied": true
+    },
+    "options": [
+      {
+        "amount": "0.0462",
+        "original_amount": "0.084",
+        "discount_percentage": 45,
+        "discount_expires_at": "2026-10-01T00:00:00Z",
+        "max_discount_amount": "0.0462",
+        "max_discount_percentage": 45,
+        "currency": "USD",
+        "unit": "second",
+        "configuration": {
+          "resolution": null,
+          "duration_seconds": 1,
+          "batch_size": null
+        }
+      },
+      {
+        "amount": "0.0616",
+        "original_amount": "0.112",
+        "discount_percentage": 45,
+        "discount_expires_at": "2026-10-01T00:00:00Z",
+        "max_discount_amount": "0.0616",
+        "max_discount_percentage": 45,
+        "currency": "USD",
+        "unit": "second",
+        "configuration": {
+          "resolution": null,
+          "duration_seconds": 15,
+          "batch_size": null
+        }
+      }
+    ]
+  },
+  "schemaSource": "docs",
+  "input": {
+    "if": {
+      "properties": {
+        "multi_shots": {
+          "const": true
+        }
+      }
+    },
+    "else": {
+      "required": ["prompt", "first_frame_url"]
+    },
+    "then": {
+      "required": ["multi_prompt", "first_frame_url"]
+    },
+    "type": "object",
+    "title": "Kling O3 Playground",
+    "properties": {
+      "mode": {
+        "enum": ["std", "pro", "4k"],
+        "type": "string",
+        "default": "pro"
+      },
+      "sound": {
+        "enum": ["on", "off"],
+        "type": "string",
+        "default": "off"
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "description": "Write your prompt here"
+      },
+      "duration": {
+        "type": "integer",
+        "title": "Duration",
+        "default": 5,
+        "maximum": 15,
+        "minimum": 3
+      },
+      "multi_shots": {
+        "type": "boolean",
+        "default": false
+      },
+      "aspect_ratio": {
+        "enum": ["16:9", "9:16", "1:1"],
+        "type": "string"
+      },
+      "multi_prompt": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "duration": {
+              "type": "integer",
+              "maximum": 15,
+              "minimum": 1
+            }
+          }
+        },
+        "maxItems": 6,
+        "minItems": 1
+      },
+      "last_frame_url": {
+        "type": "string",
+        "title": "Last frame URL",
+        "format": "uri"
+      },
+      "first_frame_url": {
+        "type": "string",
+        "title": "First frame URL",
+        "format": "uri"
+      }
+    }
+  }
+}

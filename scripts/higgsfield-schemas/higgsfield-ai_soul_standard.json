@@ -1,0 +1,161 @@
+{
+  "mode": "higgsfield-ai/soul/standard",
+  "title": "Soul Standard",
+  "endpoint": "https://api.higgsfield.ai/higgsfield-ai/soul/standard",
+  "outputType": "image",
+  "fetchedAt": "2026-09-28",
+  "docUrl": "https://docs.higgsfield.ai/docs/models/soul-standard/generate.md",
+  "usageNotes": [
+    "batch\\_size is 1 or 4 only. A custom\\_reference\\_id must belong to the calling account and have completed training.",
+    "aspect\\_ratio defaults to 4:3; enhance\\_prompt defaults to false; style\\_id defaults to 464ea177-8d40-4940-8d9d-b438bab269c7.",
+    "Optional image\\_reference\\_url guides prompt enhancement; it is distinct from custom\\_reference\\_id for a trained character.",
+    "seed may be omitted or null; generation selects a random seed when it is absent.",
+    "Short prompts using the general style can be enhanced automatically even when enhance\\_prompt=false.",
+    "custom\\_reference\\_strength=0 uses the selected style's default character strength; it does not disable the character reference."
+  ],
+  "resolutions": ["720p", "1080p"],
+  "durationsSeconds": [],
+  "pricing": {
+    "primary": {
+      "amount": "0.0938",
+      "original_amount": null,
+      "discount_percentage": null,
+      "discount_expires_at": null,
+      "max_discount_amount": null,
+      "max_discount_percentage": null,
+      "currency": "USD",
+      "unit": "image",
+      "qualifier": "from"
+    },
+    "max_discount": null,
+    "options": [
+      {
+        "amount": "0.0938",
+        "original_amount": null,
+        "discount_percentage": null,
+        "discount_expires_at": null,
+        "max_discount_amount": null,
+        "max_discount_percentage": null,
+        "currency": "USD",
+        "unit": "image",
+        "configuration": {
+          "resolution": "720p",
+          "duration_seconds": null,
+          "batch_size": 1
+        }
+      },
+      {
+        "amount": "0.1875",
+        "original_amount": null,
+        "discount_percentage": null,
+        "discount_expires_at": null,
+        "max_discount_amount": null,
+        "max_discount_percentage": null,
+        "currency": "USD",
+        "unit": "image",
+        "configuration": {
+          "resolution": "1080p",
+          "duration_seconds": null,
+          "batch_size": 1
+        }
+      }
+    ]
+  },
+  "schemaSource": "docs",
+  "input": {
+    "properties": {
+      "prompt": {
+        "title": "Prompt",
+        "type": "string"
+      },
+      "aspect_ratio": {
+        "default": "4:3",
+        "enum": ["9:16", "16:9", "4:3", "3:4", "1:1", "2:3", "3:2"],
+        "title": "Aspect Ratio",
+        "type": "string"
+      },
+      "enhance_prompt": {
+        "default": false,
+        "title": "Enhance Prompt",
+        "type": "boolean"
+      },
+      "style_id": {
+        "default": "464ea177-8d40-4940-8d9d-b438bab269c7",
+        "format": "uuid",
+        "title": "Style Id",
+        "type": "string"
+      },
+      "style_strength": {
+        "default": 1,
+        "maximum": 1,
+        "minimum": 0,
+        "title": "Style Strength",
+        "type": "number"
+      },
+      "resolution": {
+        "default": "720p",
+        "enum": ["720p", "1080p"],
+        "title": "Resolution",
+        "type": "string"
+      },
+      "seed": {
+        "anyOf": [
+          {
+            "maximum": 1000000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Seed"
+      },
+      "custom_reference_id": {
+        "anyOf": [
+          {
+            "format": "uuid",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Custom Reference Id"
+      },
+      "custom_reference_strength": {
+        "default": 1,
+        "maximum": 1,
+        "minimum": 0,
+        "title": "Custom Reference Strength",
+        "type": "number"
+      },
+      "image_reference_url": {
+        "anyOf": [
+          {
+            "format": "uri",
+            "maxLength": 2083,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Image Reference Url"
+      },
+      "batch_size": {
+        "default": 1,
+        "enum": [1, 4],
+        "title": "Batch Size",
+        "type": "integer"
+      }
+    },
+    "required": ["prompt"],
+    "title": "SoulParamsSchema",
+    "type": "object"
+  }
+}

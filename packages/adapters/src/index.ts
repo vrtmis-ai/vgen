@@ -13,6 +13,7 @@ export type { FetchedRate } from "./fxRate";
 export type { FixedWindowRateLimitOptions } from "./rateLimit";
 
 export {
+  HiggsfieldGenerationProvider,
   KieGenerationProvider,
   ProviderTransportError,
   WaveSpeedGenerationProvider,

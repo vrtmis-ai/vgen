@@ -1,3 +1,4 @@
+import { HiggsfieldGenerationProvider } from "./higgsfield";
 import { KieGenerationProvider } from "./kie";
 import { WaveSpeedGenerationProvider } from "./wavespeed";
 import type { GenerationProvider, Modality } from "./types";
@@ -38,13 +39,24 @@ export interface ProviderOptions {
  * off a page. Documentation specific enough to implement is still not evidence
  * that a particular model id is real, and the cheapest thing that tells you is
  * `GET /api/v3/models`, which their quickstart never mentions.
+ *
+ * `higgsfield` was added on 2026-09-27 under that same rule, and it needed a
+ * stronger version of it: their published OpenAPI document describes eight paths
+ * and not one of the modes we sell, so there was nothing to transcribe even
+ * incorrectly. Its request shapes come from `scripts/higgsfield-schemas/`, which
+ * `pnpm higgsfield:schemas` crawls out of each mode's documentation page and
+ * cross-checks against the schema its playground renders. Two sources agreeing
+ * is better evidence than one page, and it is still not a 200: every Higgsfield
+ * route ships inactive until `scripts/spike-higgsfield.ts` has spent $0.0032.
  */
 export function createGenerationProvider(code: string, options: ProviderOptions = {}): GenerationProvider | null {
   if (code === "kie") return new KieGenerationProvider(options);
   if (code === "wavespeed") return new WaveSpeedGenerationProvider(options);
+  if (code === "higgsfield") return new HiggsfieldGenerationProvider(options);
   return null;
 }
 
+export { HiggsfieldGenerationProvider } from "./higgsfield";
 export { KieGenerationProvider } from "./kie";
 export { WaveSpeedGenerationProvider } from "./wavespeed";
 export { describeOutput } from "./output";

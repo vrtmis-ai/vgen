@@ -1,0 +1,456 @@
+{
+  "fetchedAt": "2026-09-28",
+  "source": "https://api.higgsfield.ai/marketing-studio/image/presets",
+  "presets": [
+    {
+      "id": "3b4ade24-de4b-5d8a-a108-899bc4f6a106",
+      "name": "Clay Cloud Trade-Up",
+      "group": "Compare & Switch",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "c92e46a0-dd73-42a0-bf6a-29b4614c40ca",
+      "name": "Comparison",
+      "group": "Compare & Switch",
+      "aspectRatio": "1:1"
+    },
+    {
+      "id": "22f6661f-17a6-5d82-9e0f-f423084a78d0",
+      "name": "Dueling Timers",
+      "group": "Compare & Switch",
+      "aspectRatio": "1:1"
+    },
+    {
+      "id": "c1b9ccb9-4c35-5ae2-88e7-3f77454cbb21",
+      "name": "Fuel Gauge",
+      "group": "Compare & Switch",
+      "aspectRatio": "2:3"
+    },
+    {
+      "id": "52275a33-248a-5481-9e9d-942afb80deef",
+      "name": "Old Way New Way",
+      "group": "Compare & Switch",
+      "aspectRatio": "1:1"
+    },
+    {
+      "id": "09167bcd-de41-5584-b3cb-c53ffdb0a80e",
+      "name": "Open Palm Ring",
+      "group": "Compare & Switch",
+      "aspectRatio": "2:3"
+    },
+    {
+      "id": "5f7e5c32-068e-533b-b10e-fca42ca993af",
+      "name": "Orange Tape Diptych",
+      "group": "Compare & Switch",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "a6cdbc1d-25dc-5c3c-aff5-97541bb63d4f",
+      "name": "Balloon Headline Trio",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "370117b9-097f-50e8-9757-db54bf638a13",
+      "name": "Blue Scatter",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "c589fb4c-b0a4-5c6c-84e5-a90f4fc392ec",
+      "name": "Blue Wedge",
+      "group": "Hero Spotlight",
+      "aspectRatio": "2:3"
+    },
+    {
+      "id": "b7d57707-a4d6-5fca-a90e-59b6ef927046",
+      "name": "Carton Cascade",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "f188a40a-098a-5fb3-bffc-eedfeaf9ecd7",
+      "name": "Circle Punch",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "d4704f0d-5b0f-5636-abe1-0bf823a4d7ff",
+      "name": "Clay Dreamscape",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "a8503395-7ac8-5d3b-8ddc-103eda05a298",
+      "name": "Concentric Rings",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "45535b56-6821-574c-bdbe-0dee87cae1ec",
+      "name": "Crimson Curve",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "4be10b54-588f-5b3e-9011-d463a85771fb",
+      "name": "Doodle Rocket",
+      "group": "Hero Spotlight",
+      "aspectRatio": "2:3"
+    },
+    {
+      "id": "8886e77e-ec91-5386-a950-e52d4d51db78",
+      "name": "Emerald Cascade",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "05d695d1-ea1f-5d1a-92ef-1ed8642558b5",
+      "name": "Fruit Orbit",
+      "group": "Hero Spotlight",
+      "aspectRatio": "2:3"
+    },
+    {
+      "id": "7c1224f9-e02f-503f-931b-dea59cacb186",
+      "name": "Ghost Word",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "5209b434-ba89-5063-a75b-e47a23f7f975",
+      "name": "Giant Pack Stage",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "fda410a7-d73e-567e-b9ea-0928a085e1a8",
+      "name": "Green Grid Menu",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "4d31ef3d-1682-5ec7-b744-844105427f7c",
+      "name": "Green Sash",
+      "group": "Hero Spotlight",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "0a19bb6f-840a-5d28-b222-765b5004945c",
+      "name": "Headline Wedge",
+      "group": "Hero Spotlight",
+      "aspectRatio": "2:3"
+    },
+    {
+      "id": "8d4eea8b-ba24-57fd-8ba6-7c357f0edff9",
+      "name": "Ingredient Halo",
+      "group": "Hero Spotlight",
+      "aspectRatio": "2:3"
+    },
+    {
+      "id": "c35ba22e-039b-566e-8e22-331f7f669397",
+      "name": "Mascot Lean",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "6405a1ae-3bbd-5435-9066-0b9a8cee4e57",
+      "name": "Masthead Float",
+      "group": "Hero Spotlight",
+      "aspectRatio": "2:3"
+    },
+    {
+      "id": "a2629953-dca5-5e05-af03-0ba0369b1b78",
+      "name": "Pink Flat Lay",
+      "group": "Hero Spotlight",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "a7959412-402f-50a6-8388-675b190e4f71",
+      "name": "Plush Paw",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "eb416559-4b92-5985-bb7d-f60fa0bfd05b",
+      "name": "Prism Streaks",
+      "group": "Hero Spotlight",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "a8acfe3a-8bb8-58a0-8fbd-0746d00a994a",
+      "name": "Purple Pedestal",
+      "group": "Hero Spotlight",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "fb49cf78-7924-5b74-bbb4-13882d12a330",
+      "name": "Push-Up Pedestal",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "3522467a-502d-5851-9894-917c377f8732",
+      "name": "Sand Dune Plinth",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "ba96dc1c-e066-5e84-9b4c-3b20d243f59b",
+      "name": "Scribble Sunburst",
+      "group": "Hero Spotlight",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "c9e4cfd6-a9cf-585e-b6f4-9a8c983be51a",
+      "name": "Skybound",
+      "group": "Hero Spotlight",
+      "aspectRatio": "1:1"
+    },
+    {
+      "id": "0fe66496-7c6f-5de9-a59b-e8e9ffb2de09",
+      "name": "Stacked Shout",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "ef84af61-57cd-5f2e-b3ca-209d8038563c",
+      "name": "Ticket Stack",
+      "group": "Hero Spotlight",
+      "aspectRatio": "2:3"
+    },
+    {
+      "id": "8bd1619b-9d27-5082-a439-6b621b66be58",
+      "name": "Torn Kraft Window",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "79cb3b7d-0aa0-5817-9d71-4663c58d7f32",
+      "name": "White Archway",
+      "group": "Hero Spotlight",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "d405f258-cd77-5582-84af-a6ccf6231895",
+      "name": "Word Wallpaper",
+      "group": "Hero Spotlight",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "bf37fb11-f6b1-5817-8f0c-12bd57ee5aa8",
+      "name": "Accept or Decline",
+      "group": "Problem Solved",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "0c26db13-6fb4-5cf4-adae-c816878a918b",
+      "name": "Frosted Toggles",
+      "group": "Problem Solved",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "6d8151ce-1c23-55c8-b464-e4906a96840f",
+      "name": "In-Hand Detail",
+      "group": "Problem Solved",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "c4b5d2a2-fc98-5543-b9ea-3ed897c5455c",
+      "name": "Lilac Question",
+      "group": "Problem Solved",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "5d683f40-177e-535f-9be1-ee32b85adf2a",
+      "name": "Orange Lasso",
+      "group": "Problem Solved",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "76936d74-b24f-58ce-9e37-decf9ef0acab",
+      "name": "Pickup Screen",
+      "group": "Problem Solved",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "383ca3c1-cac8-5cea-aa9a-15d969adfcfb",
+      "name": "Post Breakout",
+      "group": "Problem Solved",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "bea538c0-cb41-4cc3-a435-71d65990a938",
+      "name": "Problem → Solution",
+      "group": "Problem Solved",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "b59aab9c-3082-558e-bd85-2b2373283e8c",
+      "name": "Search Bar Answer",
+      "group": "Problem Solved",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "168dd695-eb07-5d58-b003-68ff745c9556",
+      "name": "Slide to Answer",
+      "group": "Problem Solved",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "6db32df2-cc32-5d11-9c3e-7df3207281a8",
+      "name": "Toggle On",
+      "group": "Problem Solved",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "c3a4b019-6088-5dc8-8035-620528c5c825",
+      "name": "Annotated Tilt",
+      "group": "Proof & Specs",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "f981a25a-f5af-54c7-97d6-c4c086e4024a",
+      "name": "Beauty Markup",
+      "group": "Proof & Specs",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "23cd146c-6805-5458-95a9-3fd9fd3d509f",
+      "name": "Benefit Ladder",
+      "group": "Proof & Specs",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "ac0d9078-a0bc-5b20-b5c3-4653c7716acf",
+      "name": "Brush Notes",
+      "group": "Proof & Specs",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "00f991c0-2b75-5f44-ac8c-821b51f64193",
+      "name": "Callout Fan",
+      "group": "Proof & Specs",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "f53dec43-8292-53fc-b944-f70e8086b6f0",
+      "name": "Capsule Ring",
+      "group": "Proof & Specs",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "2cd3a5d8-44ea-52e6-92a9-dcba7568b5ce",
+      "name": "Exploded Slices",
+      "group": "Proof & Specs",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "2c1e55be-1033-5a9d-8a81-e03f91ead02c",
+      "name": "Gel Drift",
+      "group": "Proof & Specs",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "b11c1246-4c76-5826-a0b5-2bbc76422bb1",
+      "name": "Ingredient Compass",
+      "group": "Proof & Specs",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "10b9f246-1f52-585c-bf69-03a99861add4",
+      "name": "Lime Percent",
+      "group": "Proof & Specs",
+      "aspectRatio": "1:1"
+    },
+    {
+      "id": "f03dbdcc-e7e9-5d54-8741-f05c163938a8",
+      "name": "Mid-Air Pour",
+      "group": "Proof & Specs",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "e7bd1709-6766-5829-a783-14474ccb6d17",
+      "name": "Pictogram Spill",
+      "group": "Proof & Specs",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "8f02c83f-1c68-5486-9f45-5fa086af4926",
+      "name": "Pill Callouts",
+      "group": "Proof & Specs",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "7e2815cb-f24c-50de-9b3c-a635ba4ec53e",
+      "name": "Proof Portrait",
+      "group": "Proof & Specs",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "85c23714-fc20-5ed8-ad2e-e249e9e41eb8",
+      "name": "Quiet Numbers",
+      "group": "Proof & Specs",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "7c981542-ce40-5d50-9f80-3f0cd7748593",
+      "name": "Sunlit Pill Orbit",
+      "group": "Proof & Specs",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "6df282c9-4c03-58d4-b68e-ea798be5b21c",
+      "name": "Tonal Spill",
+      "group": "Proof & Specs",
+      "aspectRatio": "1:1"
+    },
+    {
+      "id": "adba7f71-12f0-5186-b7d9-0e860c84a44c",
+      "name": "Weightless Spec Grid",
+      "group": "Proof & Specs",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "e9153516-a1a2-50da-80f2-ee2c74020298",
+      "name": "Zigzag Split",
+      "group": "Proof & Specs",
+      "aspectRatio": "2:3"
+    },
+    {
+      "id": "0fec078b-0e42-5baa-a0e2-ef240405be97",
+      "name": "Bracketed Review",
+      "group": "Social Proof",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "314fe8f2-d08b-53a9-a6ea-1abfab2cc3dd",
+      "name": "Cyan Chat Halo",
+      "group": "Social Proof",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "4efc894a-7254-5850-b061-bb690793cb92",
+      "name": "Five-Star Handoff",
+      "group": "Social Proof",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "da80f461-a27a-57e1-b105-99d8f488fb0f",
+      "name": "Reminder Toggles",
+      "group": "Social Proof",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": "1a280b60-8fed-4d26-bc30-0bb6ca5fe3be",
+      "name": "Social proof",
+      "group": "Social Proof",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": "6913fcd3-4847-54f1-b002-e0e9f9622d0a",
+      "name": "Trust Stack",
+      "group": "Social Proof",
+      "aspectRatio": "9:16"
+    }
+  ]
+}

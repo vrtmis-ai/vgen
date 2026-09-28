@@ -1,0 +1,529 @@
+{
+  "fetchedAt": "2026-09-28",
+  "sources": [
+    "https://dash.higgsfield.ai/api/v2/pricing/models/?page=1&page_size=50",
+    "https://dash.higgsfield.ai/api/v2/catalog-models/?page=1&page_size=50",
+    "https://docs.higgsfield.ai/docs/llms.txt"
+  ],
+  "modes": [
+    {
+      "mode": "higgsfield-ai/soul/standard",
+      "title": "Soul Standard",
+      "endpoint": "https://api.higgsfield.ai/higgsfield-ai/soul/standard",
+      "outputType": "image",
+      "docUrl": "https://docs.higgsfield.ai/docs/models/soul-standard/generate.md",
+      "schemaSource": "docs",
+      "params": 11,
+      "pricing": {
+        "primary": {
+          "amount": "0.0938",
+          "original_amount": null,
+          "discount_percentage": null,
+          "discount_expires_at": null,
+          "max_discount_amount": null,
+          "max_discount_percentage": null,
+          "currency": "USD",
+          "unit": "image",
+          "qualifier": "from"
+        },
+        "max_discount": null,
+        "options": [
+          {
+            "amount": "0.0938",
+            "original_amount": null,
+            "discount_percentage": null,
+            "discount_expires_at": null,
+            "max_discount_amount": null,
+            "max_discount_percentage": null,
+            "currency": "USD",
+            "unit": "image",
+            "configuration": {
+              "resolution": "720p",
+              "duration_seconds": null,
+              "batch_size": 1
+            }
+          },
+          {
+            "amount": "0.1875",
+            "original_amount": null,
+            "discount_percentage": null,
+            "discount_expires_at": null,
+            "max_discount_amount": null,
+            "max_discount_percentage": null,
+            "currency": "USD",
+            "unit": "image",
+            "configuration": {
+              "resolution": "1080p",
+              "duration_seconds": null,
+              "batch_size": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "mode": "higgsfield-ai/soul/v2/standard",
+      "title": "Soul 2",
+      "endpoint": "https://api.higgsfield.ai/higgsfield-ai/soul/v2/standard",
+      "outputType": "image",
+      "docUrl": "https://docs.higgsfield.ai/docs/models/soul-2/generate.md",
+      "schemaSource": "docs",
+      "params": 10,
+      "pricing": {
+        "primary": {
+          "amount": "0.0032",
+          "original_amount": null,
+          "discount_percentage": null,
+          "discount_expires_at": null,
+          "max_discount_amount": null,
+          "max_discount_percentage": null,
+          "currency": "USD",
+          "unit": "image",
+          "qualifier": "from"
+        },
+        "max_discount": null,
+        "options": [
+          {
+            "amount": "0.0032",
+            "original_amount": null,
+            "discount_percentage": null,
+            "discount_expires_at": null,
+            "max_discount_amount": null,
+            "max_discount_percentage": null,
+            "currency": "USD",
+            "unit": "image",
+            "configuration": {
+              "resolution": "720p",
+              "duration_seconds": null,
+              "batch_size": 1,
+              "aspect_ratio": "4:3"
+            }
+          },
+          {
+            "amount": "0.0057",
+            "original_amount": null,
+            "discount_percentage": null,
+            "discount_expires_at": null,
+            "max_discount_amount": null,
+            "max_discount_percentage": null,
+            "currency": "USD",
+            "unit": "image",
+            "configuration": {
+              "resolution": "1080p",
+              "duration_seconds": null,
+              "batch_size": 1,
+              "aspect_ratio": "4:3"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "mode": "higgsfield/cinema-studio/4.0",
+      "title": "Cinema Studio 4.0",
+      "endpoint": "https://api.higgsfield.ai/higgsfield/cinema-studio/4.0",
+      "outputType": "video",
+      "docUrl": "https://docs.higgsfield.ai/docs/models/cinema-studio-4/generate.md",
+      "schemaSource": "docs",
+      "params": 17,
+      "pricing": {
+        "primary": {
+          "amount": "0.2057",
+          "original_amount": null,
+          "discount_percentage": null,
+          "discount_expires_at": null,
+          "max_discount_amount": null,
+          "max_discount_percentage": null,
+          "currency": "USD",
+          "unit": "second",
+          "qualifier": "from"
+        },
+        "max_discount": null,
+        "options": [
+          {
+            "amount": "0.2057",
+            "original_amount": null,
+            "discount_percentage": null,
+            "discount_expires_at": null,
+            "max_discount_amount": null,
+            "max_discount_percentage": null,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": "480p",
+              "duration_seconds": 4,
+              "batch_size": null
+            }
+          },
+          {
+            "amount": "0.4623",
+            "original_amount": null,
+            "discount_percentage": null,
+            "discount_expires_at": null,
+            "max_discount_amount": null,
+            "max_discount_percentage": null,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": "720p",
+              "duration_seconds": 30,
+              "batch_size": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "mode": "higgsfield/genjutsu/motion-transfer/v1.0",
+      "title": "Genjutsu Motion Transfer · Motion Transfer",
+      "endpoint": "https://api.higgsfield.ai/higgsfield/genjutsu/motion-transfer/v1.0",
+      "outputType": "video",
+      "docUrl": "https://docs.higgsfield.ai/docs/models/genjutsu/motion-transfer.md",
+      "schemaSource": "docs",
+      "params": 4,
+      "pricing": {
+        "primary": {
+          "amount": "0.159",
+          "original_amount": "0.318",
+          "discount_percentage": 50,
+          "discount_expires_at": "2026-10-01T00:00:00Z",
+          "max_discount_amount": "0.159",
+          "max_discount_percentage": 50,
+          "currency": "USD",
+          "unit": "second",
+          "qualifier": "from"
+        },
+        "max_discount": {
+          "amount": "0.159",
+          "percentage": 50,
+          "currency": "USD",
+          "unit": "second",
+          "qualifier": "from",
+          "already_applied": true
+        },
+        "options": [
+          {
+            "amount": "0.159",
+            "original_amount": "0.318",
+            "discount_percentage": 50,
+            "discount_expires_at": "2026-10-01T00:00:00Z",
+            "max_discount_amount": "0.159",
+            "max_discount_percentage": 50,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": "480p",
+              "duration_seconds": 1,
+              "batch_size": null
+            }
+          },
+          {
+            "amount": "0.3405",
+            "original_amount": "0.681",
+            "discount_percentage": 50,
+            "discount_expires_at": "2026-10-01T00:00:00Z",
+            "max_discount_amount": "0.3405",
+            "max_discount_percentage": 50,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": "720p",
+              "duration_seconds": 1,
+              "batch_size": null
+            }
+          },
+          {
+            "amount": "0.816",
+            "original_amount": "1.632",
+            "discount_percentage": 50,
+            "discount_expires_at": "2026-10-01T00:00:00Z",
+            "max_discount_amount": "0.816",
+            "max_discount_percentage": 50,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": "1080p",
+              "duration_seconds": 1,
+              "batch_size": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "mode": "higgsfield/genjutsu/object-swap/v1.0",
+      "title": "Genjutsu Object Swap · Object Swap",
+      "endpoint": "https://api.higgsfield.ai/higgsfield/genjutsu/object-swap/v1.0",
+      "outputType": "video",
+      "docUrl": "https://docs.higgsfield.ai/docs/models/genjutsu/object-swap.md",
+      "schemaSource": "docs",
+      "params": 4,
+      "pricing": {
+        "primary": {
+          "amount": "0.159",
+          "original_amount": "0.318",
+          "discount_percentage": 50,
+          "discount_expires_at": "2026-10-01T00:00:00Z",
+          "max_discount_amount": "0.159",
+          "max_discount_percentage": 50,
+          "currency": "USD",
+          "unit": "second",
+          "qualifier": "from"
+        },
+        "max_discount": {
+          "amount": "0.159",
+          "percentage": 50,
+          "currency": "USD",
+          "unit": "second",
+          "qualifier": "from",
+          "already_applied": true
+        },
+        "options": [
+          {
+            "amount": "0.159",
+            "original_amount": "0.318",
+            "discount_percentage": 50,
+            "discount_expires_at": "2026-10-01T00:00:00Z",
+            "max_discount_amount": "0.159",
+            "max_discount_percentage": 50,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": "480p",
+              "duration_seconds": 1,
+              "batch_size": null
+            }
+          },
+          {
+            "amount": "0.3405",
+            "original_amount": "0.681",
+            "discount_percentage": 50,
+            "discount_expires_at": "2026-10-01T00:00:00Z",
+            "max_discount_amount": "0.3405",
+            "max_discount_percentage": 50,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": "720p",
+              "duration_seconds": 1,
+              "batch_size": null
+            }
+          },
+          {
+            "amount": "0.816",
+            "original_amount": "1.632",
+            "discount_percentage": 50,
+            "discount_expires_at": "2026-10-01T00:00:00Z",
+            "max_discount_amount": "0.816",
+            "max_discount_percentage": 50,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": "1080p",
+              "duration_seconds": 1,
+              "batch_size": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "mode": "kling-video/o3/first-last-frame",
+      "title": "Kling O3 · First/Last Frame",
+      "endpoint": "https://api.higgsfield.ai/kling-video/o3/first-last-frame",
+      "outputType": "video",
+      "docUrl": "https://docs.higgsfield.ai/docs/models/kling-o3/first-last-frame.md",
+      "schemaSource": "docs",
+      "params": 9,
+      "pricing": {
+        "primary": {
+          "amount": "0.0462",
+          "original_amount": "0.084",
+          "discount_percentage": 45,
+          "discount_expires_at": "2026-10-01T00:00:00Z",
+          "max_discount_amount": "0.0462",
+          "max_discount_percentage": 45,
+          "currency": "USD",
+          "unit": "second",
+          "qualifier": "from"
+        },
+        "max_discount": {
+          "amount": "0.0462",
+          "percentage": 45,
+          "currency": "USD",
+          "unit": "second",
+          "qualifier": "from",
+          "already_applied": true
+        },
+        "options": [
+          {
+            "amount": "0.0462",
+            "original_amount": "0.084",
+            "discount_percentage": 45,
+            "discount_expires_at": "2026-10-01T00:00:00Z",
+            "max_discount_amount": "0.0462",
+            "max_discount_percentage": 45,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": null,
+              "duration_seconds": 1,
+              "batch_size": null
+            }
+          },
+          {
+            "amount": "0.0616",
+            "original_amount": "0.112",
+            "discount_percentage": 45,
+            "discount_expires_at": "2026-10-01T00:00:00Z",
+            "max_discount_amount": "0.0616",
+            "max_discount_percentage": 45,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": null,
+              "duration_seconds": 15,
+              "batch_size": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "mode": "kling-video/omni/first-last-frame",
+      "title": "Kling Omni · First/Last Frame",
+      "endpoint": "https://api.higgsfield.ai/kling-video/omni/first-last-frame",
+      "outputType": "video",
+      "docUrl": "https://docs.higgsfield.ai/docs/models/kling-omni/first-last-frame.md",
+      "schemaSource": "docs",
+      "params": 6,
+      "pricing": {
+        "primary": {
+          "amount": "0.0462",
+          "original_amount": "0.084",
+          "discount_percentage": 45,
+          "discount_expires_at": "2026-10-01T00:00:00Z",
+          "max_discount_amount": "0.0462",
+          "max_discount_percentage": 45,
+          "currency": "USD",
+          "unit": "second",
+          "qualifier": "from"
+        },
+        "max_discount": {
+          "amount": "0.0462",
+          "percentage": 45,
+          "currency": "USD",
+          "unit": "second",
+          "qualifier": "from",
+          "already_applied": true
+        },
+        "options": [
+          {
+            "amount": "0.0462",
+            "original_amount": "0.084",
+            "discount_percentage": 45,
+            "discount_expires_at": "2026-10-01T00:00:00Z",
+            "max_discount_amount": "0.0462",
+            "max_discount_percentage": 45,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": null,
+              "duration_seconds": 1,
+              "batch_size": null
+            }
+          },
+          {
+            "amount": "0.0616",
+            "original_amount": "0.112",
+            "discount_percentage": 45,
+            "discount_expires_at": "2026-10-01T00:00:00Z",
+            "max_discount_amount": "0.0616",
+            "max_discount_percentage": 45,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": null,
+              "duration_seconds": 5,
+              "batch_size": null
+            }
+          },
+          {
+            "amount": "0.0616",
+            "original_amount": "0.112",
+            "discount_percentage": 45,
+            "discount_expires_at": "2026-10-01T00:00:00Z",
+            "max_discount_amount": "0.0616",
+            "max_discount_percentage": 45,
+            "currency": "USD",
+            "unit": "second",
+            "configuration": {
+              "resolution": null,
+              "duration_seconds": 10,
+              "batch_size": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "mode": "marketing-studio/image",
+      "title": "Marketing Studio Image · 2.0 Alpha",
+      "endpoint": "https://api.higgsfield.ai/marketing-studio/image",
+      "outputType": "image",
+      "docUrl": "https://docs.higgsfield.ai/docs/models/marketing-studio-image/generate-and-edit.md",
+      "schemaSource": "docs",
+      "params": 8,
+      "pricing": {
+        "primary": {
+          "amount": "0.0162",
+          "original_amount": null,
+          "discount_percentage": null,
+          "discount_expires_at": null,
+          "max_discount_amount": null,
+          "max_discount_percentage": null,
+          "currency": "USD",
+          "unit": "image",
+          "qualifier": "from"
+        },
+        "max_discount": null,
+        "options": [
+          {
+            "amount": "0.0162",
+            "original_amount": null,
+            "discount_percentage": null,
+            "discount_expires_at": null,
+            "max_discount_amount": null,
+            "max_discount_percentage": null,
+            "currency": "USD",
+            "unit": "image",
+            "configuration": {
+              "resolution": "1k",
+              "duration_seconds": null,
+              "batch_size": null,
+              "quality": "low",
+              "aspect_ratio": "auto"
+            }
+          },
+          {
+            "amount": "0.7219",
+            "original_amount": null,
+            "discount_percentage": null,
+            "discount_expires_at": null,
+            "max_discount_amount": null,
+            "max_discount_percentage": null,
+            "currency": "USD",
+            "unit": "image",
+            "configuration": {
+              "resolution": "4k",
+              "duration_seconds": null,
+              "batch_size": null,
+              "quality": "high",
+              "aspect_ratio": "auto"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

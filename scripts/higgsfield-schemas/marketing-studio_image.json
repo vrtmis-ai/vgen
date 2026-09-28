@@ -1,0 +1,150 @@
+{
+  "mode": "marketing-studio/image",
+  "title": "Marketing Studio Image · 2.0 Alpha",
+  "endpoint": "https://api.higgsfield.ai/marketing-studio/image",
+  "outputType": "image",
+  "fetchedAt": "2026-09-28",
+  "docUrl": "https://docs.higgsfield.ai/docs/models/marketing-studio-image/generate-and-edit.md",
+  "usageNotes": [
+    "Omit image\\_urls for text-to-image; provide up to 16 URLs for editing when enhance\\_prompt=false.",
+    "enhance\\_prompt=true requires an existing preset\\_id and 1–2 image URLs: product first, optional person/model reference second. Discover presets with GET /marketing-studio/image/presets.",
+    "Reference images must be valid JPEG, PNG, or WebP. Oversized supported images are normalized before rendering.",
+    "With enhancement enabled, aspect\\_ratio=auto uses the preset ratio. With enhancement disabled, current production mappings use square output for auto.",
+    "The 1k/2k/4k values are resolution tiers; exact pixel dimensions depend on the aspect ratio.",
+    "With enhance\\_prompt=true, quality must be high. This endpoint accepts low, medium, or high for unenhanced requests."
+  ],
+  "resolutions": ["1k", "2k", "4k"],
+  "durationsSeconds": [],
+  "pricing": {
+    "primary": {
+      "amount": "0.0162",
+      "original_amount": null,
+      "discount_percentage": null,
+      "discount_expires_at": null,
+      "max_discount_amount": null,
+      "max_discount_percentage": null,
+      "currency": "USD",
+      "unit": "image",
+      "qualifier": "from"
+    },
+    "max_discount": null,
+    "options": [
+      {
+        "amount": "0.0162",
+        "original_amount": null,
+        "discount_percentage": null,
+        "discount_expires_at": null,
+        "max_discount_amount": null,
+        "max_discount_percentage": null,
+        "currency": "USD",
+        "unit": "image",
+        "configuration": {
+          "resolution": "1k",
+          "duration_seconds": null,
+          "batch_size": null,
+          "quality": "low",
+          "aspect_ratio": "auto"
+        }
+      },
+      {
+        "amount": "0.7219",
+        "original_amount": null,
+        "discount_percentage": null,
+        "discount_expires_at": null,
+        "max_discount_amount": null,
+        "max_discount_percentage": null,
+        "currency": "USD",
+        "unit": "image",
+        "configuration": {
+          "resolution": "4k",
+          "duration_seconds": null,
+          "batch_size": null,
+          "quality": "high",
+          "aspect_ratio": "auto"
+        }
+      }
+    ]
+  },
+  "schemaSource": "docs",
+  "input": {
+    "type": "object",
+    "allOf": [
+      {
+        "if": {
+          "required": ["enhance_prompt"],
+          "properties": {
+            "enhance_prompt": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "required": ["preset_id", "image_urls"],
+          "properties": {
+            "quality": {
+              "const": "high"
+            },
+            "image_urls": {
+              "maxItems": 2,
+              "minItems": 1
+            }
+          }
+        }
+      }
+    ],
+    "title": "Marketing Studio Image 2.0 Alpha",
+    "required": ["prompt"],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "maxLength": 5000,
+        "minLength": 1,
+        "description": "Write your prompt here"
+      },
+      "quality": {
+        "enum": ["low", "medium", "high"],
+        "type": "string",
+        "default": "high"
+      },
+      "preset_id": {
+        "type": "string",
+        "title": "Preset ID",
+        "format": "uuid"
+      },
+      "image_urls": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": "Image URLs",
+        "maxItems": 16,
+        "minItems": 0
+      },
+      "moderation": {
+        "enum": ["auto", "low"],
+        "type": "string",
+        "default": "auto"
+      },
+      "resolution": {
+        "enum": ["1k", "2k", "4k"],
+        "type": "string",
+        "title": "Resolution",
+        "default": "2k"
+      },
+      "aspect_ratio": {
+        "enum": ["auto", "1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "21:9"],
+        "type": "string",
+        "title": "Aspect Ratio",
+        "default": "auto"
+      },
+      "enhance_prompt": {
+        "type": "boolean",
+        "title": "Enhance prompt",
+        "default": false
+      }
+    },
+    "additionalProperties": false
+  }
+}

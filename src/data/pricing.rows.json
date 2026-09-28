@@ -1,6 +1,136 @@
 {
   "rows": [
     {
+      "variantId": "cinema-studio-4",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p",
+        "duration": "10"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 82250000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "cinema-studio-4",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p",
+        "duration": "10"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 184900000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "cinema-studio-4",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p",
+        "duration": "15"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 123370000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "cinema-studio-4",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p",
+        "duration": "15"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 277350000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "cinema-studio-4",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p",
+        "duration": "20"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 164490000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "cinema-studio-4",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p",
+        "duration": "20"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 369800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "cinema-studio-4",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p",
+        "duration": "30"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 246730000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "cinema-studio-4",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p",
+        "duration": "30"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 554690000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "cinema-studio-4",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p",
+        "duration": "5"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 41130000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "cinema-studio-4",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p",
+        "duration": "5"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 92450000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "eleven-multilingual",
       "featureCode": "speech_generate",
       "selector": {},
@@ -293,6 +423,78 @@
       "isOffered": true
     },
     {
+      "variantId": "genjutsu-motion",
+      "featureCode": "video_edit",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 65280000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
+      "variantId": "genjutsu-motion",
+      "featureCode": "video_edit",
+      "selector": {
+        "resolution": "480p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 12720000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
+      "variantId": "genjutsu-motion",
+      "featureCode": "video_edit",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 27240000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
+      "variantId": "genjutsu-swap",
+      "featureCode": "video_edit",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 65280000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
+      "variantId": "genjutsu-swap",
+      "featureCode": "video_edit",
+      "selector": {
+        "resolution": "480p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 12720000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
+      "variantId": "genjutsu-swap",
+      "featureCode": "video_edit",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 27240000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
       "variantId": "gpt-image-1-5",
       "featureCode": "image_generate",
       "selector": {
@@ -320,18 +522,6 @@
       "variantId": "gpt-image-1-5-edit",
       "featureCode": "image_edit",
       "selector": {
-        "quality": "medium"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 800000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "gpt-image-1-5-edit",
-      "featureCode": "image_edit",
-      "selector": {
         "quality": "high"
       },
       "pricingMode": "fixed",
@@ -341,6 +531,18 @@
       "isOffered": true
     },
     {
+      "variantId": "gpt-image-1-5-edit",
+      "featureCode": "image_edit",
+      "selector": {
+        "quality": "medium"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "gpt-image-2",
       "featureCode": "image_generate",
       "selector": {
@@ -377,42 +579,6 @@
       "isOffered": true
     },
     {
-      "variantId": "gpt-image-2-edit",
-      "featureCode": "image_edit",
-      "selector": {
-        "resolution": "1K"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 1200000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "gpt-image-2-edit",
-      "featureCode": "image_edit",
-      "selector": {
-        "resolution": "2K"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 2000000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "gpt-image-2-edit",
-      "featureCode": "image_edit",
-      "selector": {
-        "resolution": "4K"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 3200000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
       "variantId": "gpt-image-2-5-flare",
       "featureCode": "image_generate",
       "selector": {
@@ -438,42 +604,6 @@
     },
     {
       "variantId": "gpt-image-2-5-flare",
-      "featureCode": "image_generate",
-      "selector": {
-        "resolution": "4K"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 3200000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "gpt-image-2-5-sunburst",
-      "featureCode": "image_generate",
-      "selector": {
-        "resolution": "1K"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 1200000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "gpt-image-2-5-sunburst",
-      "featureCode": "image_generate",
-      "selector": {
-        "resolution": "2K"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 2000000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "gpt-image-2-5-sunburst",
       "featureCode": "image_generate",
       "selector": {
         "resolution": "4K"
@@ -521,6 +651,42 @@
       "isOffered": true
     },
     {
+      "variantId": "gpt-image-2-5-sunburst",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-5-sunburst",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "gpt-image-2-5-sunburst-edit",
       "featureCode": "image_edit",
       "selector": {
@@ -546,6 +712,42 @@
     },
     {
       "variantId": "gpt-image-2-5-sunburst-edit",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "4K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-edit",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "1K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 1200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-edit",
+      "featureCode": "image_edit",
+      "selector": {
+        "resolution": "2K"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 2000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "gpt-image-2-edit",
       "featureCode": "image_edit",
       "selector": {
         "resolution": "4K"
@@ -577,58 +779,6 @@
       "pricingMode": "fixed",
       "quantity": "none",
       "microCredits": 1000000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "hailuo-2-3-standard",
-      "featureCode": "image_to_video",
-      "selector": {
-        "duration": "10",
-        "resolution": "1080P"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 0,
-      "maxBillableUnits": null,
-      "isOffered": false
-    },
-    {
-      "variantId": "hailuo-2-3-standard",
-      "featureCode": "image_to_video",
-      "selector": {
-        "duration": "10",
-        "resolution": "768P"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 10000000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "hailuo-2-3-standard",
-      "featureCode": "image_to_video",
-      "selector": {
-        "duration": "6",
-        "resolution": "1080P"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 10000000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "hailuo-2-3-standard",
-      "featureCode": "image_to_video",
-      "selector": {
-        "duration": "6",
-        "resolution": "768P"
-      },
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 6000000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -685,6 +835,58 @@
       "isOffered": true
     },
     {
+      "variantId": "hailuo-2-3-standard",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "10",
+        "resolution": "1080P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 0,
+      "maxBillableUnits": null,
+      "isOffered": false
+    },
+    {
+      "variantId": "hailuo-2-3-standard",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "10",
+        "resolution": "768P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 10000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "hailuo-2-3-standard",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "6",
+        "resolution": "1080P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 10000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "hailuo-2-3-standard",
+      "featureCode": "image_to_video",
+      "selector": {
+        "duration": "6",
+        "resolution": "768P"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 6000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "ideogram-v3",
       "featureCode": "image_generate",
       "selector": {
@@ -721,6 +923,16 @@
       "isOffered": true
     },
     {
+      "variantId": "imagen-4",
+      "featureCode": "image_generate",
+      "selector": {},
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 1600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "imagen-4-fast",
       "featureCode": "image_generate",
       "selector": {},
@@ -737,16 +949,6 @@
       "pricingMode": "fixed",
       "quantity": "none",
       "microCredits": 2400000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "imagen-4",
-      "featureCode": "image_generate",
-      "selector": {},
-      "pricingMode": "fixed",
-      "quantity": "none",
-      "microCredits": 1600000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -771,58 +973,6 @@
       "isOffered": true
     },
     {
-      "variantId": "kling-2-6-motion",
-      "featureCode": "image_to_video",
-      "selector": {
-        "character_orientation": "image",
-        "mode": "1080p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 3600000,
-      "maxBillableUnits": 10,
-      "isOffered": true
-    },
-    {
-      "variantId": "kling-2-6-motion",
-      "featureCode": "image_to_video",
-      "selector": {
-        "character_orientation": "image",
-        "mode": "720p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 2200000,
-      "maxBillableUnits": 10,
-      "isOffered": true
-    },
-    {
-      "variantId": "kling-2-6-motion",
-      "featureCode": "image_to_video",
-      "selector": {
-        "character_orientation": "video",
-        "mode": "1080p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 3600000,
-      "maxBillableUnits": 30,
-      "isOffered": true
-    },
-    {
-      "variantId": "kling-2-6-motion",
-      "featureCode": "image_to_video",
-      "selector": {
-        "character_orientation": "video",
-        "mode": "720p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 2200000,
-      "maxBillableUnits": 30,
-      "isOffered": true
-    },
-    {
       "variantId": "kling-2-6",
       "featureCode": "video_generate",
       "selector": {
@@ -871,7 +1021,7 @@
       "isOffered": true
     },
     {
-      "variantId": "kling-3-motion",
+      "variantId": "kling-2-6-motion",
       "featureCode": "image_to_video",
       "selector": {
         "character_orientation": "image",
@@ -879,12 +1029,12 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 5400000,
+      "microCredits": 3600000,
       "maxBillableUnits": 10,
       "isOffered": true
     },
     {
-      "variantId": "kling-3-motion",
+      "variantId": "kling-2-6-motion",
       "featureCode": "image_to_video",
       "selector": {
         "character_orientation": "image",
@@ -892,12 +1042,12 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4000000,
+      "microCredits": 2200000,
       "maxBillableUnits": 10,
       "isOffered": true
     },
     {
-      "variantId": "kling-3-motion",
+      "variantId": "kling-2-6-motion",
       "featureCode": "image_to_video",
       "selector": {
         "character_orientation": "video",
@@ -905,12 +1055,12 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 5400000,
+      "microCredits": 3600000,
       "maxBillableUnits": 30,
       "isOffered": true
     },
     {
-      "variantId": "kling-3-motion",
+      "variantId": "kling-2-6-motion",
       "featureCode": "image_to_video",
       "selector": {
         "character_orientation": "video",
@@ -918,56 +1068,8 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4000000,
+      "microCredits": 2200000,
       "maxBillableUnits": 30,
-      "isOffered": true
-    },
-    {
-      "variantId": "kling-3-turbo",
-      "featureCode": "video_generate",
-      "selector": {
-        "resolution": "1080p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 4500000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "kling-3-turbo",
-      "featureCode": "video_generate",
-      "selector": {
-        "resolution": "720p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 3600000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "kling-3-turbo-i2v",
-      "featureCode": "image_to_video",
-      "selector": {
-        "resolution": "1080p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 4500000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "kling-3-turbo-i2v",
-      "featureCode": "image_to_video",
-      "selector": {
-        "resolution": "720p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 3600000,
-      "maxBillableUnits": null,
       "isOffered": true
     },
     {
@@ -1045,6 +1147,327 @@
       "pricingMode": "derived",
       "quantity": "seconds",
       "microCredits": 4000000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-motion",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "image",
+        "mode": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 5400000,
+      "maxBillableUnits": 10,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-motion",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "image",
+        "mode": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 4000000,
+      "maxBillableUnits": 10,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-motion",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "video",
+        "mode": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 5400000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-motion",
+      "featureCode": "image_to_video",
+      "selector": {
+        "character_orientation": "video",
+        "mode": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 4000000,
+      "maxBillableUnits": 30,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-turbo",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 4500000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-turbo",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 3600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-turbo-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 4500000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-3-turbo-i2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 3600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-o1-omni",
+      "featureCode": "image_to_video",
+      "selector": {
+        "mode": "pro",
+        "duration": "10"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 24640000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-o1-omni",
+      "featureCode": "image_to_video",
+      "selector": {
+        "mode": "std",
+        "duration": "10"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 18480000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-o1-omni",
+      "featureCode": "image_to_video",
+      "selector": {
+        "mode": "pro",
+        "duration": "5"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 12320000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-o1-omni",
+      "featureCode": "image_to_video",
+      "selector": {
+        "mode": "std",
+        "duration": "5"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 9240000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-o3",
+      "featureCode": "image_to_video",
+      "selector": {
+        "mode": "pro",
+        "duration": "10"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 24640000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-o3",
+      "featureCode": "image_to_video",
+      "selector": {
+        "mode": "std",
+        "duration": "10"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 18480000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-o3",
+      "featureCode": "image_to_video",
+      "selector": {
+        "mode": "pro",
+        "duration": "5"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 12320000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "kling-o3",
+      "featureCode": "image_to_video",
+      "selector": {
+        "mode": "std",
+        "duration": "5"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 9240000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "marketing-studio",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "high",
+        "resolution": "1k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 6640000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "marketing-studio",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "high",
+        "resolution": "2k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 13160000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "marketing-studio",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "high",
+        "resolution": "4k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 21680000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "marketing-studio",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "low",
+        "resolution": "1k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 520000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "marketing-studio",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "low",
+        "resolution": "2k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 680000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "marketing-studio",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "low",
+        "resolution": "4k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 920000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "marketing-studio",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "medium",
+        "resolution": "1k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 1920000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "marketing-studio",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "medium",
+        "resolution": "2k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 3560000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "marketing-studio",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "medium",
+        "resolution": "4k"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 5680000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1301,78 +1724,6 @@
       "isOffered": true
     },
     {
-      "variantId": "seedance-2-5",
-      "featureCode": "video_generate",
-      "selector": {
-        "resolution": "480p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 5600000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "seedance-2-5",
-      "featureCode": "video_generate",
-      "selector": {
-        "resolution": "720p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 12600000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "seedance-2-fast",
-      "featureCode": "video_generate",
-      "selector": {
-        "resolution": "480p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 3100000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "seedance-2-fast",
-      "featureCode": "video_generate",
-      "selector": {
-        "resolution": "720p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 6600000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "seedance-2-mini",
-      "featureCode": "video_generate",
-      "selector": {
-        "resolution": "480p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 760000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "seedance-2-mini",
-      "featureCode": "video_generate",
-      "selector": {
-        "resolution": "720p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 1640000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
       "variantId": "seedance-2",
       "featureCode": "video_generate",
       "selector": {
@@ -1421,6 +1772,78 @@
       "isOffered": true
     },
     {
+      "variantId": "seedance-2-5",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 5600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2-5",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 12600000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2-fast",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 2340000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2-fast",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 4960000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2-mini",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "480p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 760000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "seedance-2-mini",
+      "featureCode": "video_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 1640000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "seedream-4-5",
       "featureCode": "image_generate",
       "selector": {},
@@ -1457,6 +1880,54 @@
       "pricingMode": "fixed",
       "quantity": "none",
       "microCredits": 1100000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "soul-2",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 240000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "soul-2",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 160000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "soul-standard",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 7520000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "soul-standard",
+      "featureCode": "image_generate",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "microCredits": 3760000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1853,54 +2324,6 @@
       "isOffered": true
     },
     {
-      "variantId": "wan-2-7-r2v",
-      "featureCode": "image_to_video",
-      "selector": {
-        "resolution": "1080p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 4800000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "wan-2-7-r2v",
-      "featureCode": "image_to_video",
-      "selector": {
-        "resolution": "720p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 3200000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "wan-2-7-videoedit",
-      "featureCode": "video_edit",
-      "selector": {
-        "resolution": "1080p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 4800000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
-      "variantId": "wan-2-7-videoedit",
-      "featureCode": "video_edit",
-      "selector": {
-        "resolution": "720p"
-      },
-      "pricingMode": "derived",
-      "quantity": "seconds",
-      "microCredits": 3200000,
-      "maxBillableUnits": null,
-      "isOffered": true
-    },
-    {
       "variantId": "wan-2-7",
       "featureCode": "video_generate",
       "selector": {
@@ -1939,6 +2362,54 @@
     {
       "variantId": "wan-2-7-i2v",
       "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-r2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-r2v",
+      "featureCode": "image_to_video",
+      "selector": {
+        "resolution": "720p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 3200000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-videoedit",
+      "featureCode": "video_edit",
+      "selector": {
+        "resolution": "1080p"
+      },
+      "pricingMode": "derived",
+      "quantity": "seconds",
+      "microCredits": 4800000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "wan-2-7-videoedit",
+      "featureCode": "video_edit",
       "selector": {
         "resolution": "720p"
       },

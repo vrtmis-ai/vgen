@@ -231,6 +231,22 @@ function priceListDrift(): string | null {
   if (JSON.stringify(shipped.rows) !== expected) {
     return "src/data/pricing.rows.json is stale. Run: pnpm exec tsx scripts/build-price-list.ts";
   }
+
+  // `fixed` means "the price is micro_credits_base"; every other quantity puts
+  // its number in a per-unit column and leaves base at zero. So a row that is
+  // metered AND fixed resolves through the first branch of `resolvePrice`,
+  // reads that zero, and sells the generation for nothing.
+  //
+  // This is not hypothetical. Six Genjutsu rows shipped that way on 2026-09-28
+  // — correct columns in the database, correct margin, `check-combos` and the
+  // margin floor both green — and priced at 0 coins. Only reading the frozen
+  // fixture caught it, and a re-freeze would have recorded the zero as correct.
+  const mismatched = full.rows
+    .filter((row) => (row.quantity === "none") !== (row.pricingMode === "fixed"))
+    .map((row) => `${row.variantId} ${JSON.stringify(row.selector)} is ${row.quantity}/${row.pricingMode}`);
+  if (mismatched.length > 0) {
+    return ["price rows whose quantity and pricingMode disagree — these bill nothing:", ...mismatched].join("\n  ");
+  }
   return null;
 }
 

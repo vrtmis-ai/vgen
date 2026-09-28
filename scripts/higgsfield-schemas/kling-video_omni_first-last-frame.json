@@ -1,0 +1,122 @@
+{
+  "mode": "kling-video/omni/first-last-frame",
+  "title": "Kling Omni · First/Last Frame",
+  "endpoint": "https://api.higgsfield.ai/kling-video/omni/first-last-frame",
+  "outputType": "video",
+  "fetchedAt": "2026-09-28",
+  "docUrl": "https://docs.higgsfield.ai/docs/models/kling-omni/first-last-frame.md",
+  "usageNotes": [
+    "first\\_frame\\_url supplies the starting frame; last\\_frame\\_url is optional. These names differ from the image\\_url and last\\_image\\_url fields on Kling 3.0 image-to-video.",
+    "Keep the top-level prompt within 2,500 characters; longer prompts are truncated.",
+    "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
+  ],
+  "resolutions": [],
+  "durationsSeconds": [5, 10],
+  "pricing": {
+    "primary": {
+      "amount": "0.0462",
+      "original_amount": "0.084",
+      "discount_percentage": 45,
+      "discount_expires_at": "2026-10-01T00:00:00Z",
+      "max_discount_amount": "0.0462",
+      "max_discount_percentage": 45,
+      "currency": "USD",
+      "unit": "second",
+      "qualifier": "from"
+    },
+    "max_discount": {
+      "amount": "0.0462",
+      "percentage": 45,
+      "currency": "USD",
+      "unit": "second",
+      "qualifier": "from",
+      "already_applied": true
+    },
+    "options": [
+      {
+        "amount": "0.0462",
+        "original_amount": "0.084",
+        "discount_percentage": 45,
+        "discount_expires_at": "2026-10-01T00:00:00Z",
+        "max_discount_amount": "0.0462",
+        "max_discount_percentage": 45,
+        "currency": "USD",
+        "unit": "second",
+        "configuration": {
+          "resolution": null,
+          "duration_seconds": 1,
+          "batch_size": null
+        }
+      },
+      {
+        "amount": "0.0616",
+        "original_amount": "0.112",
+        "discount_percentage": 45,
+        "discount_expires_at": "2026-10-01T00:00:00Z",
+        "max_discount_amount": "0.0616",
+        "max_discount_percentage": 45,
+        "currency": "USD",
+        "unit": "second",
+        "configuration": {
+          "resolution": null,
+          "duration_seconds": 5,
+          "batch_size": null
+        }
+      },
+      {
+        "amount": "0.0616",
+        "original_amount": "0.112",
+        "discount_percentage": 45,
+        "discount_expires_at": "2026-10-01T00:00:00Z",
+        "max_discount_amount": "0.0616",
+        "max_discount_percentage": 45,
+        "currency": "USD",
+        "unit": "second",
+        "configuration": {
+          "resolution": null,
+          "duration_seconds": 10,
+          "batch_size": null
+        }
+      }
+    ]
+  },
+  "schemaSource": "docs",
+  "input": {
+    "type": "object",
+    "title": "Kling Omni Playground",
+    "required": ["prompt", "first_frame_url"],
+    "properties": {
+      "mode": {
+        "enum": ["std", "pro"],
+        "type": "string",
+        "default": "pro"
+      },
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "description": "Write your prompt here"
+      },
+      "duration": {
+        "enum": [5, 10],
+        "type": "integer",
+        "title": "Duration",
+        "default": 5
+      },
+      "aspect_ratio": {
+        "enum": ["16:9", "9:16", "1:1"],
+        "type": "string",
+        "default": "16:9"
+      },
+      "last_frame_url": {
+        "type": "string",
+        "title": "Last frame URL",
+        "format": "uri"
+      },
+      "first_frame_url": {
+        "type": "string",
+        "title": "First frame URL",
+        "format": "uri"
+      }
+    }
+  }
+}

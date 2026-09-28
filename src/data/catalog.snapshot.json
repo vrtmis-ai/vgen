@@ -4421,6 +4421,1130 @@
           "label": "حذف پس‌زمینه"
         }
       ]
+    },
+    {
+      "id": "soul",
+      "name": "Soul",
+      "vendor": "Higgsfield",
+      "kind": "image",
+      "minTier": 2,
+      "blurb": "پرترهٔ فوتورئال؛ ارزان‌ترین تصویر کاتالوگ",
+      "badge": "ارزان",
+      "grad": "linear-gradient(135deg,#b06ab3,#4568dc)",
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "4:3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "3:4",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            },
+            {
+              "value": "3:2",
+              "label": "3:2",
+              "w": 3,
+              "h": 2
+            },
+            {
+              "value": "2:3",
+              "label": "2:3",
+              "w": 2,
+              "h": 3
+            }
+          ],
+          "def": "1:1"
+        },
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "720p",
+              "label": "720p"
+            },
+            {
+              "value": "1080p",
+              "label": "1080p"
+            }
+          ],
+          "def": "720p"
+        },
+        {
+          "advanced": true,
+          "kind": "toggle",
+          "key": "enhance_prompt",
+          "label": "بهبود خودکار پرامپت",
+          "def": true
+        }
+      ],
+      "variants": [
+        {
+          "id": "soul-2",
+          "featureCode": "image_generate",
+          "label": "۲",
+          "badge": "جدید"
+        },
+        {
+          "id": "soul-standard",
+          "featureCode": "image_generate",
+          "label": "استاندارد"
+        }
+      ]
+    },
+    {
+      "id": "marketing-studio",
+      "name": "Marketing Studio",
+      "vendor": "Higgsfield",
+      "kind": "image",
+      "minTier": 2,
+      "blurb": "تصویر تبلیغاتی و محصول، تا ۴K",
+      "grad": "linear-gradient(135deg,#f7971e,#ffd200)",
+      "refs": [
+        {
+          "key": "image_urls",
+          "role": "reference",
+          "label": "تصاویر مرجع (اختیاری)",
+          "max": 16
+        }
+      ],
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "auto",
+              "label": "خودکار",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "3:2",
+              "label": "3:2",
+              "w": 3,
+              "h": 2
+            },
+            {
+              "value": "2:3",
+              "label": "2:3",
+              "w": 2,
+              "h": 3
+            },
+            {
+              "value": "4:3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "3:4",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            },
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "21:9",
+              "label": "21:9",
+              "w": 21,
+              "h": 9
+            }
+          ],
+          "def": "auto"
+        },
+        {
+          "kind": "segment",
+          "key": "quality",
+          "label": "کیفیت رندر",
+          "options": [
+            {
+              "value": "low",
+              "label": "سبک"
+            },
+            {
+              "value": "medium",
+              "label": "متوسط"
+            },
+            {
+              "value": "high",
+              "label": "بالا"
+            }
+          ],
+          "def": "medium"
+        },
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "اندازهٔ خروجی",
+          "options": [
+            {
+              "value": "1k",
+              "label": "1K"
+            },
+            {
+              "value": "2k",
+              "label": "2K"
+            },
+            {
+              "value": "4k",
+              "label": "4K"
+            }
+          ],
+          "def": "2k"
+        },
+        {
+          "kind": "segment",
+          "key": "preset_id",
+          "label": "پریست",
+          "options": [
+            {
+              "value": "",
+              "label": "بدون پریست"
+            },
+            {
+              "value": "3b4ade24-de4b-5d8a-a108-899bc4f6a106",
+              "label": "Clay Cloud Trade-Up · Compare & Switch"
+            },
+            {
+              "value": "c92e46a0-dd73-42a0-bf6a-29b4614c40ca",
+              "label": "Comparison · Compare & Switch"
+            },
+            {
+              "value": "22f6661f-17a6-5d82-9e0f-f423084a78d0",
+              "label": "Dueling Timers · Compare & Switch"
+            },
+            {
+              "value": "c1b9ccb9-4c35-5ae2-88e7-3f77454cbb21",
+              "label": "Fuel Gauge · Compare & Switch"
+            },
+            {
+              "value": "52275a33-248a-5481-9e9d-942afb80deef",
+              "label": "Old Way New Way · Compare & Switch"
+            },
+            {
+              "value": "09167bcd-de41-5584-b3cb-c53ffdb0a80e",
+              "label": "Open Palm Ring · Compare & Switch"
+            },
+            {
+              "value": "5f7e5c32-068e-533b-b10e-fca42ca993af",
+              "label": "Orange Tape Diptych · Compare & Switch"
+            },
+            {
+              "value": "a6cdbc1d-25dc-5c3c-aff5-97541bb63d4f",
+              "label": "Balloon Headline Trio · Hero Spotlight"
+            },
+            {
+              "value": "370117b9-097f-50e8-9757-db54bf638a13",
+              "label": "Blue Scatter · Hero Spotlight"
+            },
+            {
+              "value": "c589fb4c-b0a4-5c6c-84e5-a90f4fc392ec",
+              "label": "Blue Wedge · Hero Spotlight"
+            },
+            {
+              "value": "b7d57707-a4d6-5fca-a90e-59b6ef927046",
+              "label": "Carton Cascade · Hero Spotlight"
+            },
+            {
+              "value": "f188a40a-098a-5fb3-bffc-eedfeaf9ecd7",
+              "label": "Circle Punch · Hero Spotlight"
+            },
+            {
+              "value": "d4704f0d-5b0f-5636-abe1-0bf823a4d7ff",
+              "label": "Clay Dreamscape · Hero Spotlight"
+            },
+            {
+              "value": "a8503395-7ac8-5d3b-8ddc-103eda05a298",
+              "label": "Concentric Rings · Hero Spotlight"
+            },
+            {
+              "value": "45535b56-6821-574c-bdbe-0dee87cae1ec",
+              "label": "Crimson Curve · Hero Spotlight"
+            },
+            {
+              "value": "4be10b54-588f-5b3e-9011-d463a85771fb",
+              "label": "Doodle Rocket · Hero Spotlight"
+            },
+            {
+              "value": "8886e77e-ec91-5386-a950-e52d4d51db78",
+              "label": "Emerald Cascade · Hero Spotlight"
+            },
+            {
+              "value": "05d695d1-ea1f-5d1a-92ef-1ed8642558b5",
+              "label": "Fruit Orbit · Hero Spotlight"
+            },
+            {
+              "value": "7c1224f9-e02f-503f-931b-dea59cacb186",
+              "label": "Ghost Word · Hero Spotlight"
+            },
+            {
+              "value": "5209b434-ba89-5063-a75b-e47a23f7f975",
+              "label": "Giant Pack Stage · Hero Spotlight"
+            },
+            {
+              "value": "fda410a7-d73e-567e-b9ea-0928a085e1a8",
+              "label": "Green Grid Menu · Hero Spotlight"
+            },
+            {
+              "value": "4d31ef3d-1682-5ec7-b744-844105427f7c",
+              "label": "Green Sash · Hero Spotlight"
+            },
+            {
+              "value": "0a19bb6f-840a-5d28-b222-765b5004945c",
+              "label": "Headline Wedge · Hero Spotlight"
+            },
+            {
+              "value": "8d4eea8b-ba24-57fd-8ba6-7c357f0edff9",
+              "label": "Ingredient Halo · Hero Spotlight"
+            },
+            {
+              "value": "c35ba22e-039b-566e-8e22-331f7f669397",
+              "label": "Mascot Lean · Hero Spotlight"
+            },
+            {
+              "value": "6405a1ae-3bbd-5435-9066-0b9a8cee4e57",
+              "label": "Masthead Float · Hero Spotlight"
+            },
+            {
+              "value": "a2629953-dca5-5e05-af03-0ba0369b1b78",
+              "label": "Pink Flat Lay · Hero Spotlight"
+            },
+            {
+              "value": "a7959412-402f-50a6-8388-675b190e4f71",
+              "label": "Plush Paw · Hero Spotlight"
+            },
+            {
+              "value": "eb416559-4b92-5985-bb7d-f60fa0bfd05b",
+              "label": "Prism Streaks · Hero Spotlight"
+            },
+            {
+              "value": "a8acfe3a-8bb8-58a0-8fbd-0746d00a994a",
+              "label": "Purple Pedestal · Hero Spotlight"
+            },
+            {
+              "value": "fb49cf78-7924-5b74-bbb4-13882d12a330",
+              "label": "Push-Up Pedestal · Hero Spotlight"
+            },
+            {
+              "value": "3522467a-502d-5851-9894-917c377f8732",
+              "label": "Sand Dune Plinth · Hero Spotlight"
+            },
+            {
+              "value": "ba96dc1c-e066-5e84-9b4c-3b20d243f59b",
+              "label": "Scribble Sunburst · Hero Spotlight"
+            },
+            {
+              "value": "c9e4cfd6-a9cf-585e-b6f4-9a8c983be51a",
+              "label": "Skybound · Hero Spotlight"
+            },
+            {
+              "value": "0fe66496-7c6f-5de9-a59b-e8e9ffb2de09",
+              "label": "Stacked Shout · Hero Spotlight"
+            },
+            {
+              "value": "ef84af61-57cd-5f2e-b3ca-209d8038563c",
+              "label": "Ticket Stack · Hero Spotlight"
+            },
+            {
+              "value": "8bd1619b-9d27-5082-a439-6b621b66be58",
+              "label": "Torn Kraft Window · Hero Spotlight"
+            },
+            {
+              "value": "79cb3b7d-0aa0-5817-9d71-4663c58d7f32",
+              "label": "White Archway · Hero Spotlight"
+            },
+            {
+              "value": "d405f258-cd77-5582-84af-a6ccf6231895",
+              "label": "Word Wallpaper · Hero Spotlight"
+            },
+            {
+              "value": "bf37fb11-f6b1-5817-8f0c-12bd57ee5aa8",
+              "label": "Accept or Decline · Problem Solved"
+            },
+            {
+              "value": "0c26db13-6fb4-5cf4-adae-c816878a918b",
+              "label": "Frosted Toggles · Problem Solved"
+            },
+            {
+              "value": "6d8151ce-1c23-55c8-b464-e4906a96840f",
+              "label": "In-Hand Detail · Problem Solved"
+            },
+            {
+              "value": "c4b5d2a2-fc98-5543-b9ea-3ed897c5455c",
+              "label": "Lilac Question · Problem Solved"
+            },
+            {
+              "value": "5d683f40-177e-535f-9be1-ee32b85adf2a",
+              "label": "Orange Lasso · Problem Solved"
+            },
+            {
+              "value": "76936d74-b24f-58ce-9e37-decf9ef0acab",
+              "label": "Pickup Screen · Problem Solved"
+            },
+            {
+              "value": "383ca3c1-cac8-5cea-aa9a-15d969adfcfb",
+              "label": "Post Breakout · Problem Solved"
+            },
+            {
+              "value": "bea538c0-cb41-4cc3-a435-71d65990a938",
+              "label": "Problem → Solution · Problem Solved"
+            },
+            {
+              "value": "b59aab9c-3082-558e-bd85-2b2373283e8c",
+              "label": "Search Bar Answer · Problem Solved"
+            },
+            {
+              "value": "168dd695-eb07-5d58-b003-68ff745c9556",
+              "label": "Slide to Answer · Problem Solved"
+            },
+            {
+              "value": "6db32df2-cc32-5d11-9c3e-7df3207281a8",
+              "label": "Toggle On · Problem Solved"
+            },
+            {
+              "value": "c3a4b019-6088-5dc8-8035-620528c5c825",
+              "label": "Annotated Tilt · Proof & Specs"
+            },
+            {
+              "value": "f981a25a-f5af-54c7-97d6-c4c086e4024a",
+              "label": "Beauty Markup · Proof & Specs"
+            },
+            {
+              "value": "23cd146c-6805-5458-95a9-3fd9fd3d509f",
+              "label": "Benefit Ladder · Proof & Specs"
+            },
+            {
+              "value": "ac0d9078-a0bc-5b20-b5c3-4653c7716acf",
+              "label": "Brush Notes · Proof & Specs"
+            },
+            {
+              "value": "00f991c0-2b75-5f44-ac8c-821b51f64193",
+              "label": "Callout Fan · Proof & Specs"
+            },
+            {
+              "value": "f53dec43-8292-53fc-b944-f70e8086b6f0",
+              "label": "Capsule Ring · Proof & Specs"
+            },
+            {
+              "value": "2cd3a5d8-44ea-52e6-92a9-dcba7568b5ce",
+              "label": "Exploded Slices · Proof & Specs"
+            },
+            {
+              "value": "2c1e55be-1033-5a9d-8a81-e03f91ead02c",
+              "label": "Gel Drift · Proof & Specs"
+            },
+            {
+              "value": "b11c1246-4c76-5826-a0b5-2bbc76422bb1",
+              "label": "Ingredient Compass · Proof & Specs"
+            },
+            {
+              "value": "10b9f246-1f52-585c-bf69-03a99861add4",
+              "label": "Lime Percent · Proof & Specs"
+            },
+            {
+              "value": "f03dbdcc-e7e9-5d54-8741-f05c163938a8",
+              "label": "Mid-Air Pour · Proof & Specs"
+            },
+            {
+              "value": "e7bd1709-6766-5829-a783-14474ccb6d17",
+              "label": "Pictogram Spill · Proof & Specs"
+            },
+            {
+              "value": "8f02c83f-1c68-5486-9f45-5fa086af4926",
+              "label": "Pill Callouts · Proof & Specs"
+            },
+            {
+              "value": "7e2815cb-f24c-50de-9b3c-a635ba4ec53e",
+              "label": "Proof Portrait · Proof & Specs"
+            },
+            {
+              "value": "85c23714-fc20-5ed8-ad2e-e249e9e41eb8",
+              "label": "Quiet Numbers · Proof & Specs"
+            },
+            {
+              "value": "7c981542-ce40-5d50-9f80-3f0cd7748593",
+              "label": "Sunlit Pill Orbit · Proof & Specs"
+            },
+            {
+              "value": "6df282c9-4c03-58d4-b68e-ea798be5b21c",
+              "label": "Tonal Spill · Proof & Specs"
+            },
+            {
+              "value": "adba7f71-12f0-5186-b7d9-0e860c84a44c",
+              "label": "Weightless Spec Grid · Proof & Specs"
+            },
+            {
+              "value": "e9153516-a1a2-50da-80f2-ee2c74020298",
+              "label": "Zigzag Split · Proof & Specs"
+            },
+            {
+              "value": "0fec078b-0e42-5baa-a0e2-ef240405be97",
+              "label": "Bracketed Review · Social Proof"
+            },
+            {
+              "value": "314fe8f2-d08b-53a9-a6ea-1abfab2cc3dd",
+              "label": "Cyan Chat Halo · Social Proof"
+            },
+            {
+              "value": "4efc894a-7254-5850-b061-bb690793cb92",
+              "label": "Five-Star Handoff · Social Proof"
+            },
+            {
+              "value": "da80f461-a27a-57e1-b105-99d8f488fb0f",
+              "label": "Reminder Toggles · Social Proof"
+            },
+            {
+              "value": "1a280b60-8fed-4d26-bc30-0bb6ca5fe3be",
+              "label": "Social proof · Social Proof"
+            },
+            {
+              "value": "6913fcd3-4847-54f1-b002-e0e9f9622d0a",
+              "label": "Trust Stack · Social Proof"
+            }
+          ],
+          "def": ""
+        }
+      ],
+      "variants": [
+        {
+          "id": "marketing-studio",
+          "featureCode": "image_generate",
+          "label": "تصویر"
+        }
+      ]
+    },
+    {
+      "id": "cinema-studio",
+      "name": "Cinema Studio",
+      "vendor": "Higgsfield",
+      "kind": "video",
+      "minTier": 3,
+      "blurb": "ویدیوی سینمایی با کارگردانی خودکار صحنه",
+      "badge": "پرچم‌دار",
+      "grad": "linear-gradient(135deg,#0f2027,#2c5364)",
+      "refs": [
+        {
+          "key": "image_urls",
+          "role": "reference",
+          "label": "تصاویر مرجع (اختیاری)",
+          "max": 30
+        }
+      ],
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "4:3",
+              "label": "4:3",
+              "w": 4,
+              "h": 3
+            },
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            },
+            {
+              "value": "3:4",
+              "label": "3:4",
+              "w": 3,
+              "h": 4
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "21:9",
+              "label": "21:9",
+              "w": 21,
+              "h": 9
+            }
+          ],
+          "def": "16:9"
+        },
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "480p",
+              "label": "480p"
+            },
+            {
+              "value": "720p",
+              "label": "720p"
+            }
+          ],
+          "def": "480p"
+        },
+        {
+          "kind": "segment",
+          "key": "duration",
+          "label": "مدت (ثانیه)",
+          "options": [
+            {
+              "value": "5",
+              "label": "۵"
+            },
+            {
+              "value": "10",
+              "label": "۱۰"
+            },
+            {
+              "value": "15",
+              "label": "۱۵"
+            },
+            {
+              "value": "20",
+              "label": "۲۰"
+            },
+            {
+              "value": "30",
+              "label": "۳۰"
+            }
+          ],
+          "def": "5"
+        },
+        {
+          "kind": "segment",
+          "key": "genre",
+          "label": "فضای فیلم",
+          "options": [
+            {
+              "value": "",
+              "label": "خودکار"
+            },
+            {
+              "value": "epic",
+              "label": "Epic"
+            },
+            {
+              "value": "drama",
+              "label": "Drama"
+            },
+            {
+              "value": "noir",
+              "label": "Noir"
+            },
+            {
+              "value": "comedy",
+              "label": "Comedy"
+            },
+            {
+              "value": "horror",
+              "label": "Horror"
+            },
+            {
+              "value": "action",
+              "label": "Action"
+            }
+          ],
+          "def": ""
+        },
+        {
+          "kind": "segment",
+          "key": "camera_model",
+          "label": "دوربین",
+          "options": [
+            {
+              "value": "",
+              "label": "خودکار"
+            },
+            {
+              "value": "modern",
+              "label": "Modern"
+            },
+            {
+              "value": "35mm-film",
+              "label": "35mm film"
+            },
+            {
+              "value": "8mm-film",
+              "label": "8mm film"
+            },
+            {
+              "value": "dv-camcorder",
+              "label": "Dv camcorder"
+            }
+          ],
+          "def": ""
+        },
+        {
+          "kind": "segment",
+          "key": "light",
+          "label": "نورپردازی",
+          "options": [
+            {
+              "value": "",
+              "label": "خودکار"
+            },
+            {
+              "value": "silhouette",
+              "label": "Silhouette"
+            },
+            {
+              "value": "practicals",
+              "label": "Practicals"
+            },
+            {
+              "value": "window",
+              "label": "Window"
+            },
+            {
+              "value": "overhead-fall",
+              "label": "Overhead fall"
+            },
+            {
+              "value": "contre-jour",
+              "label": "Contre jour"
+            },
+            {
+              "value": "soft-cross",
+              "label": "Soft cross"
+            }
+          ],
+          "def": ""
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "color_palette",
+          "label": "پالت رنگ",
+          "options": [
+            {
+              "value": "",
+              "label": "خودکار"
+            },
+            {
+              "value": "static-noon",
+              "label": "Static noon"
+            },
+            {
+              "value": "twilight-fable",
+              "label": "Twilight fable"
+            },
+            {
+              "value": "back-row-kissing-seats",
+              "label": "Back row kissing seats"
+            },
+            {
+              "value": "on-the-other-side-of-the-porthole",
+              "label": "On the other side of the porthole"
+            },
+            {
+              "value": "the-emerald-ambush",
+              "label": "The emerald ambush"
+            },
+            {
+              "value": "highway-standoff",
+              "label": "Highway standoff"
+            },
+            {
+              "value": "the-faded-fresco",
+              "label": "The faded fresco"
+            },
+            {
+              "value": "oil-ochre",
+              "label": "Oil ochre"
+            }
+          ],
+          "def": ""
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "era",
+          "label": "دهه",
+          "options": [
+            {
+              "value": "",
+              "label": "خودکار"
+            },
+            {
+              "value": "1960s",
+              "label": "1960s"
+            },
+            {
+              "value": "1980s",
+              "label": "1980s"
+            },
+            {
+              "value": "1990s",
+              "label": "1990s"
+            },
+            {
+              "value": "2000s",
+              "label": "2000s"
+            },
+            {
+              "value": "2020s",
+              "label": "2020s"
+            }
+          ],
+          "def": ""
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "pacing",
+          "label": "ریتم",
+          "options": [
+            {
+              "value": "",
+              "label": "خودکار"
+            },
+            {
+              "value": "chaotic",
+              "label": "Chaotic"
+            },
+            {
+              "value": "dynamic",
+              "label": "Dynamic"
+            },
+            {
+              "value": "calm",
+              "label": "Calm"
+            },
+            {
+              "value": "single-shot",
+              "label": "Single shot"
+            }
+          ],
+          "def": ""
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "camera_lens",
+          "label": "لنز",
+          "options": [
+            {
+              "value": "",
+              "label": "خودکار"
+            },
+            {
+              "value": "clean-sharp",
+              "label": "Clean sharp"
+            },
+            {
+              "value": "anamorphic",
+              "label": "Anamorphic"
+            },
+            {
+              "value": "vintage-anamorphic",
+              "label": "Vintage anamorphic"
+            },
+            {
+              "value": "warm-vintage",
+              "label": "Warm vintage"
+            },
+            {
+              "value": "halation-vintage",
+              "label": "Halation vintage"
+            }
+          ],
+          "def": ""
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "camera_aperture",
+          "label": "دیافراگم",
+          "options": [
+            {
+              "value": "",
+              "label": "خودکار"
+            },
+            {
+              "value": "f14-wide-open",
+              "label": "F14 wide open"
+            },
+            {
+              "value": "f4-moderate",
+              "label": "F4 moderate"
+            },
+            {
+              "value": "f11-deep-focus",
+              "label": "F11 deep focus"
+            }
+          ],
+          "def": ""
+        },
+        {
+          "advanced": true,
+          "kind": "segment",
+          "key": "camera_movement",
+          "label": "حرکت دوربین",
+          "options": [
+            {
+              "value": "",
+              "label": "خودکار"
+            },
+            {
+              "value": "snorricam",
+              "label": "Snorricam"
+            },
+            {
+              "value": "robot-arm",
+              "label": "Robot arm"
+            },
+            {
+              "value": "tilt-up",
+              "label": "Tilt up"
+            },
+            {
+              "value": "rack-focus",
+              "label": "Rack focus"
+            },
+            {
+              "value": "tilt-down",
+              "label": "Tilt down"
+            },
+            {
+              "value": "pov",
+              "label": "Pov"
+            },
+            {
+              "value": "pan-left",
+              "label": "Pan left"
+            },
+            {
+              "value": "crane-up",
+              "label": "Crane up"
+            }
+          ],
+          "def": ""
+        }
+      ],
+      "variants": [
+        {
+          "id": "cinema-studio-4",
+          "featureCode": "video_generate",
+          "label": "۴٫۰"
+        }
+      ]
+    },
+    {
+      "id": "kling-omni",
+      "name": "Kling Omni",
+      "vendor": "Kling",
+      "kind": "video",
+      "minTier": 2,
+      "blurb": "از فریم اول و آخر، ویدیو بساز",
+      "grad": "linear-gradient(135deg,#1f4037,#99f2c8)",
+      "refs": [
+        {
+          "group": "frame",
+          "key": "first_frame_url",
+          "role": "first_frame",
+          "label": "فریم اول (الزامی)",
+          "max": 1,
+          "required": true
+        },
+        {
+          "group": "frame",
+          "key": "last_frame_url",
+          "role": "last_frame",
+          "label": "فریم آخر (اختیاری)",
+          "max": 1
+        }
+      ],
+      "controls": [
+        {
+          "kind": "aspect",
+          "key": "aspect_ratio",
+          "label": "نسبت تصویر",
+          "options": [
+            {
+              "value": "16:9",
+              "label": "16:9",
+              "w": 16,
+              "h": 9
+            },
+            {
+              "value": "9:16",
+              "label": "9:16",
+              "w": 9,
+              "h": 16
+            },
+            {
+              "value": "1:1",
+              "label": "1:1",
+              "w": 1,
+              "h": 1
+            }
+          ],
+          "def": "16:9"
+        },
+        {
+          "kind": "segment",
+          "key": "mode",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "std",
+              "label": "استاندارد"
+            },
+            {
+              "value": "pro",
+              "label": "حرفه‌ای"
+            }
+          ],
+          "def": "pro"
+        },
+        {
+          "kind": "segment",
+          "key": "duration",
+          "label": "مدت (ثانیه)",
+          "options": [
+            {
+              "value": "5",
+              "label": "۵"
+            },
+            {
+              "value": "10",
+              "label": "۱۰"
+            }
+          ],
+          "def": "5"
+        }
+      ],
+      "variants": [
+        {
+          "id": "kling-o1-omni",
+          "featureCode": "image_to_video",
+          "label": "O1"
+        },
+        {
+          "id": "kling-o3",
+          "featureCode": "image_to_video",
+          "label": "O3",
+          "badge": "جدید"
+        }
+      ]
+    },
+    {
+      "id": "genjutsu",
+      "name": "Genjutsu",
+      "vendor": "Higgsfield",
+      "kind": "video",
+      "minTier": 3,
+      "blurb": "حرکتِ یک ویدیو را روی تصویرهای تو بیاور",
+      "badge": "جدید",
+      "grad": "linear-gradient(135deg,#42275a,#734b6d)",
+      "refs": [
+        {
+          "key": "video_url",
+          "role": "source_video",
+          "label": "ویدیوی مرجع (الزامی)",
+          "max": 1,
+          "media": "video",
+          "maxMb": 100,
+          "required": true
+        },
+        {
+          "key": "image_urls",
+          "role": "reference",
+          "label": "تصاویر (۱ تا ۸)",
+          "max": 8,
+          "required": true
+        }
+      ],
+      "controls": [
+        {
+          "kind": "segment",
+          "key": "resolution",
+          "label": "کیفیت",
+          "options": [
+            {
+              "value": "480p",
+              "label": "480p"
+            },
+            {
+              "value": "720p",
+              "label": "720p"
+            },
+            {
+              "value": "1080p",
+              "label": "1080p"
+            }
+          ],
+          "def": "480p"
+        }
+      ],
+      "variants": [
+        {
+          "id": "genjutsu-motion",
+          "featureCode": "video_edit",
+          "label": "انتقال حرکت"
+        },
+        {
+          "id": "genjutsu-swap",
+          "featureCode": "video_edit",
+          "label": "جایگزینی شیء"
+        }
+      ]
     }
   ]
 }

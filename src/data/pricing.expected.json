@@ -1,6 +1,141 @@
 {
   "entries": [
     {
+      "variant": "cinema-studio-4",
+      "input": {
+        "resolution": "480p",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 82.25
+    },
+    {
+      "variant": "cinema-studio-4",
+      "input": {
+        "resolution": "480p",
+        "duration": "15"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 123.37
+    },
+    {
+      "variant": "cinema-studio-4",
+      "input": {
+        "resolution": "480p",
+        "duration": "20"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 164.49
+    },
+    {
+      "variant": "cinema-studio-4",
+      "input": {
+        "resolution": "480p",
+        "duration": "30"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 246.73
+    },
+    {
+      "variant": "cinema-studio-4",
+      "input": {
+        "resolution": "480p",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 41.13
+    },
+    {
+      "variant": "cinema-studio-4",
+      "input": {
+        "resolution": "720p",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 184.9
+    },
+    {
+      "variant": "cinema-studio-4",
+      "input": {
+        "resolution": "720p",
+        "duration": "15"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 277.35
+    },
+    {
+      "variant": "cinema-studio-4",
+      "input": {
+        "resolution": "720p",
+        "duration": "20"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 369.8
+    },
+    {
+      "variant": "cinema-studio-4",
+      "input": {
+        "resolution": "720p",
+        "duration": "30"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 554.69
+    },
+    {
+      "variant": "cinema-studio-4",
+      "input": {
+        "resolution": "720p",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 92.45
+    },
+    {
+      "variant": "eleven-multilingual",
+      "input": {},
+      "chars": 1,
+      "clipSeconds": 1,
+      "coins": 2.4
+    },
+    {
+      "variant": "eleven-multilingual",
+      "input": {},
+      "chars": 1,
+      "clipSeconds": 10,
+      "coins": 2.4
+    },
+    {
+      "variant": "eleven-multilingual",
+      "input": {},
+      "chars": 1,
+      "clipSeconds": 30,
+      "coins": 2.4
+    },
+    {
+      "variant": "eleven-multilingual",
+      "input": {},
+      "chars": 1,
+      "clipSeconds": 45,
+      "coins": 2.4
+    },
+    {
+      "variant": "eleven-multilingual",
+      "input": {},
+      "chars": 1,
+      "clipSeconds": 5,
+      "coins": 2.4
+    },
+    {
       "variant": "eleven-multilingual",
       "input": {},
       "chars": 1000,
@@ -38,41 +173,6 @@
     {
       "variant": "eleven-multilingual",
       "input": {},
-      "chars": 1,
-      "clipSeconds": 1,
-      "coins": 2.4
-    },
-    {
-      "variant": "eleven-multilingual",
-      "input": {},
-      "chars": 1,
-      "clipSeconds": 10,
-      "coins": 2.4
-    },
-    {
-      "variant": "eleven-multilingual",
-      "input": {},
-      "chars": 1,
-      "clipSeconds": 30,
-      "coins": 2.4
-    },
-    {
-      "variant": "eleven-multilingual",
-      "input": {},
-      "chars": 1,
-      "clipSeconds": 45,
-      "coins": 2.4
-    },
-    {
-      "variant": "eleven-multilingual",
-      "input": {},
-      "chars": 1,
-      "clipSeconds": 5,
-      "coins": 2.4
-    },
-    {
-      "variant": "eleven-multilingual",
-      "input": {},
       "chars": 2500,
       "clipSeconds": 1,
       "coins": 7.2
@@ -108,70 +208,70 @@
     {
       "variant": "eleven-turbo",
       "input": {},
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 1,
       "coins": 1.2
     },
     {
       "variant": "eleven-turbo",
       "input": {},
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 10,
       "coins": 1.2
     },
     {
       "variant": "eleven-turbo",
       "input": {},
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 30,
       "coins": 1.2
     },
     {
       "variant": "eleven-turbo",
       "input": {},
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 45,
       "coins": 1.2
     },
     {
       "variant": "eleven-turbo",
       "input": {},
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 5,
       "coins": 1.2
     },
     {
       "variant": "eleven-turbo",
       "input": {},
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 1,
       "coins": 1.2
     },
     {
       "variant": "eleven-turbo",
       "input": {},
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 10,
       "coins": 1.2
     },
     {
       "variant": "eleven-turbo",
       "input": {},
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 30,
       "coins": 1.2
     },
     {
       "variant": "eleven-turbo",
       "input": {},
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 45,
       "coins": 1.2
     },
     {
       "variant": "eleven-turbo",
       "input": {},
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 5,
       "coins": 1.2
     },
@@ -367,6 +467,60 @@
       "coins": 21
     },
     {
+      "variant": "genjutsu-motion",
+      "input": {
+        "resolution": "1080p"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 652.8
+    },
+    {
+      "variant": "genjutsu-motion",
+      "input": {
+        "resolution": "480p"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 127.2
+    },
+    {
+      "variant": "genjutsu-motion",
+      "input": {
+        "resolution": "720p"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 272.4
+    },
+    {
+      "variant": "genjutsu-swap",
+      "input": {
+        "resolution": "1080p"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 652.8
+    },
+    {
+      "variant": "genjutsu-swap",
+      "input": {
+        "resolution": "480p"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 127.2
+    },
+    {
+      "variant": "genjutsu-swap",
+      "input": {
+        "resolution": "720p"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 272.4
+    },
+    {
       "variant": "gpt-image-1-5",
       "input": {
         "quality": "high"
@@ -430,46 +584,6 @@
       "coins": 1
     },
     {
-      "variant": "hailuo-2-3-standard",
-      "input": {
-        "resolution": "1080P",
-        "duration": "10"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": null
-    },
-    {
-      "variant": "hailuo-2-3-standard",
-      "input": {
-        "resolution": "1080P",
-        "duration": "6"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 10
-    },
-    {
-      "variant": "hailuo-2-3-standard",
-      "input": {
-        "resolution": "768P",
-        "duration": "10"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 10
-    },
-    {
-      "variant": "hailuo-2-3-standard",
-      "input": {
-        "resolution": "768P",
-        "duration": "6"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 6
-    },
-    {
       "variant": "hailuo-2-3",
       "input": {
         "resolution": "1080P",
@@ -510,6 +624,46 @@
       "coins": 9
     },
     {
+      "variant": "hailuo-2-3-standard",
+      "input": {
+        "resolution": "1080P",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": null
+    },
+    {
+      "variant": "hailuo-2-3-standard",
+      "input": {
+        "resolution": "1080P",
+        "duration": "6"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 10
+    },
+    {
+      "variant": "hailuo-2-3-standard",
+      "input": {
+        "resolution": "768P",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 10
+    },
+    {
+      "variant": "hailuo-2-3-standard",
+      "input": {
+        "resolution": "768P",
+        "duration": "6"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 6
+    },
+    {
       "variant": "ideogram-v3",
       "input": {
         "rendering_speed": "BALANCED"
@@ -537,6 +691,13 @@
       "coins": 0.7
     },
     {
+      "variant": "imagen-4",
+      "input": {},
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 1.6
+    },
+    {
       "variant": "imagen-4-fast",
       "input": {},
       "chars": 1000,
@@ -549,13 +710,6 @@
       "chars": 1000,
       "clipSeconds": 10,
       "coins": 2.4
-    },
-    {
-      "variant": "imagen-4",
-      "input": {},
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 1.6
     },
     {
       "variant": "kling-2-5-turbo",
@@ -574,606 +728,6 @@
       "chars": 1000,
       "clipSeconds": 10,
       "coins": 8.4
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 1,
-      "coins": 3.6
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 30,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 45,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 5,
-      "coins": 18
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 1,
-      "coins": 3.6
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 10,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 30,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 45,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 5,
-      "coins": 18
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 1,
-      "coins": 3.6
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 10,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 30,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 45,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 5,
-      "coins": 18
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 1,
-      "coins": 3.6
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 30,
-      "coins": 108
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 45,
-      "coins": 108
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 5,
-      "coins": 18
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 1,
-      "coins": 3.6
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 10,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 30,
-      "coins": 108
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 45,
-      "coins": 108
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 5,
-      "coins": 18
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 1,
-      "coins": 3.6
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 10,
-      "coins": 36
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 30,
-      "coins": 108
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 45,
-      "coins": 108
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 5,
-      "coins": 18
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 1,
-      "coins": 2.2
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 30,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 45,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 5,
-      "coins": 11
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 1,
-      "coins": 2.2
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 10,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 30,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 45,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 5,
-      "coins": 11
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 1,
-      "coins": 2.2
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 10,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 30,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 45,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 5,
-      "coins": 11
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 1,
-      "coins": 2.2
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 30,
-      "coins": 66
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 45,
-      "coins": 66
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 5,
-      "coins": 11
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 1,
-      "coins": 2.2
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 10,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 30,
-      "coins": 66
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 45,
-      "coins": 66
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 5,
-      "coins": 11
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 1,
-      "coins": 2.2
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 10,
-      "coins": 22
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 30,
-      "coins": 66
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 45,
-      "coins": 66
-    },
-    {
-      "variant": "kling-2-6-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 5,
-      "coins": 11
     },
     {
       "variant": "kling-2-6",
@@ -1216,864 +770,604 @@
       "coins": 22
     },
     {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 1,
-      "coins": 5.4
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 54
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 30,
-      "coins": 54
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 45,
-      "coins": 54
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 5,
-      "coins": 27
-    },
-    {
-      "variant": "kling-3-motion",
+      "variant": "kling-2-6-motion",
       "input": {
         "mode": "1080p",
         "character_orientation": "image"
       },
       "chars": 1,
       "clipSeconds": 1,
-      "coins": 5.4
+      "coins": 3.6
     },
     {
-      "variant": "kling-3-motion",
+      "variant": "kling-2-6-motion",
       "input": {
         "mode": "1080p",
         "character_orientation": "image"
       },
       "chars": 1,
       "clipSeconds": 10,
-      "coins": 54
+      "coins": 36
     },
     {
-      "variant": "kling-3-motion",
+      "variant": "kling-2-6-motion",
       "input": {
         "mode": "1080p",
         "character_orientation": "image"
       },
       "chars": 1,
       "clipSeconds": 30,
-      "coins": 54
+      "coins": 36
     },
     {
-      "variant": "kling-3-motion",
+      "variant": "kling-2-6-motion",
       "input": {
         "mode": "1080p",
         "character_orientation": "image"
       },
       "chars": 1,
       "clipSeconds": 45,
-      "coins": 54
+      "coins": 36
     },
     {
-      "variant": "kling-3-motion",
+      "variant": "kling-2-6-motion",
       "input": {
         "mode": "1080p",
         "character_orientation": "image"
       },
       "chars": 1,
       "clipSeconds": 5,
-      "coins": 27
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 1,
-      "coins": 5.4
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 10,
-      "coins": 54
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 30,
-      "coins": 54
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 45,
-      "coins": 54
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 5,
-      "coins": 27
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 1,
-      "coins": 5.4
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 54
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 30,
-      "coins": 162
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 45,
-      "coins": 162
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 5,
-      "coins": 27
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 1,
-      "coins": 5.4
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 10,
-      "coins": 54
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 30,
-      "coins": 162
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 45,
-      "coins": 162
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 5,
-      "coins": 27
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 1,
-      "coins": 5.4
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 10,
-      "coins": 54
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 30,
-      "coins": 162
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 45,
-      "coins": 162
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "1080p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 5,
-      "coins": 27
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 1,
-      "coins": 4
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 30,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 45,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1000,
-      "clipSeconds": 5,
-      "coins": 20
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 1,
-      "coins": 4
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 10,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 30,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 45,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 1,
-      "clipSeconds": 5,
-      "coins": 20
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 1,
-      "coins": 4
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 10,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 30,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 45,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "image"
-      },
-      "chars": 2500,
-      "clipSeconds": 5,
-      "coins": 20
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 1,
-      "coins": 4
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 30,
-      "coins": 120
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 45,
-      "coins": 120
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1000,
-      "clipSeconds": 5,
-      "coins": 20
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 1,
-      "coins": 4
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 10,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 30,
-      "coins": 120
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 45,
-      "coins": 120
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 1,
-      "clipSeconds": 5,
-      "coins": 20
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 1,
-      "coins": 4
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 10,
-      "coins": 40
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 30,
-      "coins": 120
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 45,
-      "coins": 120
-    },
-    {
-      "variant": "kling-3-motion",
-      "input": {
-        "mode": "720p",
-        "character_orientation": "video"
-      },
-      "chars": 2500,
-      "clipSeconds": 5,
-      "coins": 20
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "1080p",
-        "duration": "10"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 45
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "1080p",
-        "duration": "11"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 49.5
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "1080p",
-        "duration": "12"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 54
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "1080p",
-        "duration": "13"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 58.5
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "1080p",
-        "duration": "14"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 63
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "1080p",
-        "duration": "15"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 67.5
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "1080p",
-        "duration": "3"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 13.5
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "1080p",
-        "duration": "4"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
       "coins": 18
     },
     {
-      "variant": "kling-3-turbo",
+      "variant": "kling-2-6-motion",
       "input": {
-        "resolution": "1080p",
-        "duration": "5"
+        "mode": "1080p",
+        "character_orientation": "image"
       },
       "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 22.5
+      "clipSeconds": 1,
+      "coins": 3.6
     },
     {
-      "variant": "kling-3-turbo",
+      "variant": "kling-2-6-motion",
       "input": {
-        "resolution": "1080p",
-        "duration": "6"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 27
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "1080p",
-        "duration": "7"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 31.5
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "1080p",
-        "duration": "8"
+        "mode": "1080p",
+        "character_orientation": "image"
       },
       "chars": 1000,
       "clipSeconds": 10,
       "coins": 36
     },
     {
-      "variant": "kling-3-turbo",
+      "variant": "kling-2-6-motion",
       "input": {
-        "resolution": "1080p",
-        "duration": "9"
+        "mode": "1080p",
+        "character_orientation": "image"
       },
       "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 40.5
+      "clipSeconds": 30,
+      "coins": 36
     },
     {
-      "variant": "kling-3-turbo",
+      "variant": "kling-2-6-motion",
       "input": {
-        "resolution": "720p",
-        "duration": "10"
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 45,
+      "coins": 36
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 5,
+      "coins": 18
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 1,
+      "coins": 3.6
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 10,
+      "coins": 36
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 30,
+      "coins": 36
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 45,
+      "coins": 36
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 5,
+      "coins": 18
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 1,
+      "coins": 3.6
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 10,
+      "coins": 36
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 30,
+      "coins": 108
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 45,
+      "coins": 108
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 5,
+      "coins": 18
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 1,
+      "coins": 3.6
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
       },
       "chars": 1000,
       "clipSeconds": 10,
       "coins": 36
     },
     {
-      "variant": "kling-3-turbo",
+      "variant": "kling-2-6-motion",
       "input": {
-        "resolution": "720p",
-        "duration": "11"
+        "mode": "1080p",
+        "character_orientation": "video"
       },
       "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 39.6
+      "clipSeconds": 30,
+      "coins": 108
     },
     {
-      "variant": "kling-3-turbo",
+      "variant": "kling-2-6-motion",
       "input": {
-        "resolution": "720p",
-        "duration": "12"
+        "mode": "1080p",
+        "character_orientation": "video"
       },
       "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 43.2
+      "clipSeconds": 45,
+      "coins": 108
     },
     {
-      "variant": "kling-3-turbo",
+      "variant": "kling-2-6-motion",
       "input": {
-        "resolution": "720p",
-        "duration": "13"
+        "mode": "1080p",
+        "character_orientation": "video"
       },
       "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 46.8
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "720p",
-        "duration": "14"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 50.4
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "720p",
-        "duration": "15"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 54
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "720p",
-        "duration": "3"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 10.8
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "720p",
-        "duration": "4"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 14.4
-    },
-    {
-      "variant": "kling-3-turbo",
-      "input": {
-        "resolution": "720p",
-        "duration": "5"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
+      "clipSeconds": 5,
       "coins": 18
     },
     {
-      "variant": "kling-3-turbo",
+      "variant": "kling-2-6-motion",
       "input": {
-        "resolution": "720p",
-        "duration": "6"
+        "mode": "1080p",
+        "character_orientation": "video"
       },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 21.6
+      "chars": 2500,
+      "clipSeconds": 1,
+      "coins": 3.6
     },
     {
-      "variant": "kling-3-turbo",
+      "variant": "kling-2-6-motion",
       "input": {
-        "resolution": "720p",
-        "duration": "7"
+        "mode": "1080p",
+        "character_orientation": "video"
       },
-      "chars": 1000,
+      "chars": 2500,
       "clipSeconds": 10,
-      "coins": 25.2
+      "coins": 36
     },
     {
-      "variant": "kling-3-turbo",
+      "variant": "kling-2-6-motion",
       "input": {
-        "resolution": "720p",
-        "duration": "8"
+        "mode": "1080p",
+        "character_orientation": "video"
       },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 28.8
+      "chars": 2500,
+      "clipSeconds": 30,
+      "coins": 108
     },
     {
-      "variant": "kling-3-turbo",
+      "variant": "kling-2-6-motion",
       "input": {
-        "resolution": "720p",
-        "duration": "9"
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 45,
+      "coins": 108
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 5,
+      "coins": 18
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 1,
+      "coins": 2.2
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 10,
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 30,
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 45,
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 5,
+      "coins": 11
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 1,
+      "coins": 2.2
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 32.4
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 30,
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 45,
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 5,
+      "coins": 11
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 1,
+      "coins": 2.2
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 10,
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 30,
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 45,
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 5,
+      "coins": 11
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 1,
+      "coins": 2.2
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 10,
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 30,
+      "coins": 66
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 45,
+      "coins": 66
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 5,
+      "coins": 11
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 1,
+      "coins": 2.2
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 30,
+      "coins": 66
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 45,
+      "coins": 66
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 5,
+      "coins": 11
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 1,
+      "coins": 2.2
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 10,
+      "coins": 22
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 30,
+      "coins": 66
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 45,
+      "coins": 66
+    },
+    {
+      "variant": "kling-2-6-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 5,
+      "coins": 11
     },
     {
       "variant": "kling-3",
@@ -2934,6 +2228,1036 @@
       "coins": 36
     },
     {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 1,
+      "coins": 5.4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 10,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 30,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 45,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 5,
+      "coins": 27
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 1,
+      "coins": 5.4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 30,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 45,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 5,
+      "coins": 27
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 1,
+      "coins": 5.4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 10,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 30,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 45,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 5,
+      "coins": 27
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 1,
+      "coins": 5.4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 10,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 30,
+      "coins": 162
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 45,
+      "coins": 162
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 5,
+      "coins": 27
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 1,
+      "coins": 5.4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 30,
+      "coins": 162
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 45,
+      "coins": 162
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 5,
+      "coins": 27
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 1,
+      "coins": 5.4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 10,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 30,
+      "coins": 162
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 45,
+      "coins": 162
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "1080p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 5,
+      "coins": 27
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 1,
+      "coins": 4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 10,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 30,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 45,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1,
+      "clipSeconds": 5,
+      "coins": 20
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 1,
+      "coins": 4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 30,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 45,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 1000,
+      "clipSeconds": 5,
+      "coins": 20
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 1,
+      "coins": 4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 10,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 30,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 45,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "image"
+      },
+      "chars": 2500,
+      "clipSeconds": 5,
+      "coins": 20
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 1,
+      "coins": 4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 10,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 30,
+      "coins": 120
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 45,
+      "coins": 120
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1,
+      "clipSeconds": 5,
+      "coins": 20
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 1,
+      "coins": 4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 30,
+      "coins": 120
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 45,
+      "coins": 120
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 1000,
+      "clipSeconds": 5,
+      "coins": 20
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 1,
+      "coins": 4
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 10,
+      "coins": 40
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 30,
+      "coins": 120
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 45,
+      "coins": 120
+    },
+    {
+      "variant": "kling-3-motion",
+      "input": {
+        "mode": "720p",
+        "character_orientation": "video"
+      },
+      "chars": 2500,
+      "clipSeconds": 5,
+      "coins": 20
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 45
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "11"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 49.5
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "12"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "13"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 58.5
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "14"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 63
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "15"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 67.5
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "3"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 13.5
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "4"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 18
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 22.5
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "6"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 27
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "7"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 31.5
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "8"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 36
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "1080p",
+        "duration": "9"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 40.5
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 36
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "11"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 39.6
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "12"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 43.2
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "13"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 46.8
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "14"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 50.4
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "15"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 54
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "3"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 10.8
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "4"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 14.4
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 18
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "6"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 21.6
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "7"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 25.2
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "8"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 28.8
+    },
+    {
+      "variant": "kling-3-turbo",
+      "input": {
+        "resolution": "720p",
+        "duration": "9"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 32.4
+    },
+    {
+      "variant": "kling-o1-omni",
+      "input": {
+        "mode": "pro",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 24.64
+    },
+    {
+      "variant": "kling-o1-omni",
+      "input": {
+        "mode": "pro",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 12.32
+    },
+    {
+      "variant": "kling-o1-omni",
+      "input": {
+        "mode": "std",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 18.48
+    },
+    {
+      "variant": "kling-o1-omni",
+      "input": {
+        "mode": "std",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.24
+    },
+    {
+      "variant": "kling-o3",
+      "input": {
+        "mode": "pro",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 24.64
+    },
+    {
+      "variant": "kling-o3",
+      "input": {
+        "mode": "pro",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 12.32
+    },
+    {
+      "variant": "kling-o3",
+      "input": {
+        "mode": "std",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 18.48
+    },
+    {
+      "variant": "kling-o3",
+      "input": {
+        "mode": "std",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.24
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "high",
+        "resolution": "1k"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 6.64
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "high",
+        "resolution": "2k"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 13.16
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "high",
+        "resolution": "4k"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 21.68
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "low",
+        "resolution": "1k"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 0.52
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "low",
+        "resolution": "2k"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 0.68
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "low",
+        "resolution": "4k"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 0.92
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "medium",
+        "resolution": "1k"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 1.92
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "medium",
+        "resolution": "2k"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 3.56
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "medium",
+        "resolution": "4k"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 5.68
+    },
+    {
       "variant": "minimax-h3",
       "input": {
         "resolution": "2K",
@@ -2941,7 +3265,7 @@
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 26.0
+      "coins": 26
     },
     {
       "variant": "minimax-h3",
@@ -2991,7 +3315,7 @@
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 39.0
+      "coins": 39
     },
     {
       "variant": "minimax-h3",
@@ -3001,7 +3325,7 @@
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 13.0
+      "coins": 13
     },
     {
       "variant": "minimax-h3",
@@ -3051,7 +3375,7 @@
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 16.0
+      "coins": 16
     },
     {
       "variant": "minimax-h3",
@@ -3101,7 +3425,7 @@
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 24.0
+      "coins": 24
     },
     {
       "variant": "minimax-h3",
@@ -3111,7 +3435,7 @@
       },
       "chars": 1000,
       "clipSeconds": 10,
-      "coins": 8.0
+      "coins": 8
     },
     {
       "variant": "minimax-h3",
@@ -3559,1194 +3883,6 @@
       "coins": 11.2
     },
     {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "480p",
-        "duration": "30",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 168
-    },
-    {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "480p",
-        "duration": "30",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 168
-    },
-    {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "480p",
-        "duration": "4",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 22.4
-    },
-    {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "480p",
-        "duration": "4",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 22.4
-    },
-    {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "480p",
-        "duration": "5",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 28
-    },
-    {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "480p",
-        "duration": "5",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 28
-    },
-    {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "720p",
-        "duration": "30",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 378
-    },
-    {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "720p",
-        "duration": "30",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 378
-    },
-    {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "720p",
-        "duration": "4",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 50.4
-    },
-    {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "720p",
-        "duration": "4",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 50.4
-    },
-    {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "720p",
-        "duration": "5",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 63
-    },
-    {
-      "variant": "seedance-2-5",
-      "input": {
-        "resolution": "720p",
-        "duration": "5",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 63
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "10",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 31
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "10",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 31
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "11",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 34.1
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "11",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 34.1
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "12",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 37.2
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "12",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 37.2
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "13",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 40.3
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "13",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 40.3
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "14",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 43.4
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "14",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 43.4
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "15",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 46.5
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "15",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 46.5
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "4",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 12.4
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "4",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 12.4
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "5",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 15.5
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "5",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 15.5
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "6",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 18.6
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "6",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 18.6
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "7",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 21.7
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "7",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 21.7
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "8",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 24.8
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "8",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 24.8
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "9",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 27.9
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "480p",
-        "duration": "9",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 27.9
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "10",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 66
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "10",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 66
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "11",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 72.6
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "11",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 72.6
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "12",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 79.2
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "12",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 79.2
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "13",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 85.8
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "13",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 85.8
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "14",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 92.4
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "14",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 92.4
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "15",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 99
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "15",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 99
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "4",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 26.4
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "4",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 26.4
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "5",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 33
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "5",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 33
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "6",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 39.6
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "6",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 39.6
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "7",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 46.2
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "7",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 46.2
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "8",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 52.8
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "8",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 52.8
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "9",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 59.4
-    },
-    {
-      "variant": "seedance-2-fast",
-      "input": {
-        "resolution": "720p",
-        "duration": "9",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 59.4
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "10",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 7.6
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "10",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 7.6
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "11",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 8.36
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "11",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 8.36
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "12",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 9.12
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "12",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 9.12
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "13",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 9.88
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "13",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 9.88
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "14",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 10.64
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "14",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 10.64
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "15",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 11.4
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "15",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 11.4
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "4",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 3.04
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "4",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 3.04
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "5",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 3.8
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "5",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 3.8
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "6",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 4.56
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "6",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 4.56
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "7",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 5.32
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "7",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 5.32
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "8",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 6.08
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "8",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 6.08
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "9",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 6.84
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "480p",
-        "duration": "9",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 6.84
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "10",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 16.4
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "10",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 16.4
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "11",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 18.04
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "11",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 18.04
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "12",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 19.68
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "12",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 19.68
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "13",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 21.32
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "13",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 21.32
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "14",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 22.96
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "14",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 22.96
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "15",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 24.6
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "15",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 24.6
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "4",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 6.56
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "4",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 6.56
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "5",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 8.2
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "5",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 8.2
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "6",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 9.84
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "6",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 9.84
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "7",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 11.48
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "7",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 11.48
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "8",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 13.12
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "8",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 13.12
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "9",
-        "generate_audio": "false"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 14.76
-    },
-    {
-      "variant": "seedance-2-mini",
-      "input": {
-        "resolution": "720p",
-        "duration": "9",
-        "generate_audio": "true"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 14.76
-    },
-    {
       "variant": "seedance-2",
       "input": {
         "resolution": "1080p",
@@ -5803,6 +4939,1194 @@
       "coins": 73.8
     },
     {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "480p",
+        "duration": "30",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 168
+    },
+    {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "480p",
+        "duration": "30",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 168
+    },
+    {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "480p",
+        "duration": "4",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 22.4
+    },
+    {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "480p",
+        "duration": "4",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 22.4
+    },
+    {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "480p",
+        "duration": "5",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 28
+    },
+    {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "480p",
+        "duration": "5",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 28
+    },
+    {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "720p",
+        "duration": "30",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 378
+    },
+    {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "720p",
+        "duration": "30",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 378
+    },
+    {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "720p",
+        "duration": "4",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 50.4
+    },
+    {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "720p",
+        "duration": "4",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 50.4
+    },
+    {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "720p",
+        "duration": "5",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 63
+    },
+    {
+      "variant": "seedance-2-5",
+      "input": {
+        "resolution": "720p",
+        "duration": "5",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 63
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "10",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 23.4
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "10",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 23.4
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "11",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 25.74
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "11",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 25.74
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "12",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 28.08
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "12",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 28.08
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "13",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 30.42
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "13",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 30.42
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "14",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 32.76
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "14",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 32.76
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "15",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 35.1
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "15",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 35.1
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "4",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.36
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "4",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.36
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "5",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 11.7
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "5",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 11.7
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "6",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 14.04
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "6",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 14.04
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "7",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 16.38
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "7",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 16.38
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "8",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 18.72
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "8",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 18.72
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "9",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 21.06
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "480p",
+        "duration": "9",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 21.06
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "10",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 49.6
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "10",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 49.6
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "11",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 54.56
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "11",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 54.56
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "12",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 59.52
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "12",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 59.52
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "13",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 64.48
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "13",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 64.48
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "14",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 69.44
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "14",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 69.44
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "15",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 74.4
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "15",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 74.4
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "4",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 19.84
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "4",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 19.84
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "5",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 24.8
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "5",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 24.8
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "6",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 29.76
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "6",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 29.76
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "7",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 34.72
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "7",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 34.72
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "8",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 39.68
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "8",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 39.68
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "9",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 44.64
+    },
+    {
+      "variant": "seedance-2-fast",
+      "input": {
+        "resolution": "720p",
+        "duration": "9",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 44.64
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "10",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 7.6
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "10",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 7.6
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "11",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 8.36
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "11",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 8.36
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "12",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.12
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "12",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.12
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "13",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.88
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "13",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.88
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "14",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 10.64
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "14",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 10.64
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "15",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 11.4
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "15",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 11.4
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "4",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 3.04
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "4",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 3.04
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "5",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 3.8
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "5",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 3.8
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "6",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 4.56
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "6",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 4.56
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "7",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 5.32
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "7",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 5.32
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "8",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 6.08
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "8",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 6.08
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "9",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 6.84
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "480p",
+        "duration": "9",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 6.84
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "10",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 16.4
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "10",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 16.4
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "11",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 18.04
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "11",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 18.04
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "12",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 19.68
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "12",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 19.68
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "13",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 21.32
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "13",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 21.32
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "14",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 22.96
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "14",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 22.96
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "15",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 24.6
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "15",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 24.6
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "4",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 6.56
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "4",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 6.56
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "5",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 8.2
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "5",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 8.2
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "6",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.84
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "6",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.84
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "7",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 11.48
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "7",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 11.48
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "8",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 13.12
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "8",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 13.12
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "9",
+        "generate_audio": "false"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 14.76
+    },
+    {
+      "variant": "seedance-2-mini",
+      "input": {
+        "resolution": "720p",
+        "duration": "9",
+        "generate_audio": "true"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 14.76
+    },
+    {
       "variant": "seedream-4-5",
       "input": {
         "quality": "basic"
@@ -5837,6 +6161,42 @@
       "chars": 1000,
       "clipSeconds": 10,
       "coins": 1.1
+    },
+    {
+      "variant": "soul-2",
+      "input": {
+        "resolution": "1080p"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 0.24
+    },
+    {
+      "variant": "soul-2",
+      "input": {
+        "resolution": "720p"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 0.16
+    },
+    {
+      "variant": "soul-standard",
+      "input": {
+        "resolution": "1080p"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 7.52
+    },
+    {
+      "variant": "soul-standard",
+      "input": {
+        "resolution": "720p"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 3.76
     },
     {
       "variant": "topaz-image-upscale",
@@ -5861,51 +6221,6 @@
       "input": {
         "upscale_factor": "1"
       },
-      "chars": 1000,
-      "clipSeconds": 1,
-      "coins": 1.6
-    },
-    {
-      "variant": "topaz-video-upscale",
-      "input": {
-        "upscale_factor": "1"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 16
-    },
-    {
-      "variant": "topaz-video-upscale",
-      "input": {
-        "upscale_factor": "1"
-      },
-      "chars": 1000,
-      "clipSeconds": 30,
-      "coins": 48
-    },
-    {
-      "variant": "topaz-video-upscale",
-      "input": {
-        "upscale_factor": "1"
-      },
-      "chars": 1000,
-      "clipSeconds": 45,
-      "coins": 72
-    },
-    {
-      "variant": "topaz-video-upscale",
-      "input": {
-        "upscale_factor": "1"
-      },
-      "chars": 1000,
-      "clipSeconds": 5,
-      "coins": 8
-    },
-    {
-      "variant": "topaz-video-upscale",
-      "input": {
-        "upscale_factor": "1"
-      },
       "chars": 1,
       "clipSeconds": 1,
       "coins": 1.6
@@ -5951,6 +6266,51 @@
       "input": {
         "upscale_factor": "1"
       },
+      "chars": 1000,
+      "clipSeconds": 1,
+      "coins": 1.6
+    },
+    {
+      "variant": "topaz-video-upscale",
+      "input": {
+        "upscale_factor": "1"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 16
+    },
+    {
+      "variant": "topaz-video-upscale",
+      "input": {
+        "upscale_factor": "1"
+      },
+      "chars": 1000,
+      "clipSeconds": 30,
+      "coins": 48
+    },
+    {
+      "variant": "topaz-video-upscale",
+      "input": {
+        "upscale_factor": "1"
+      },
+      "chars": 1000,
+      "clipSeconds": 45,
+      "coins": 72
+    },
+    {
+      "variant": "topaz-video-upscale",
+      "input": {
+        "upscale_factor": "1"
+      },
+      "chars": 1000,
+      "clipSeconds": 5,
+      "coins": 8
+    },
+    {
+      "variant": "topaz-video-upscale",
+      "input": {
+        "upscale_factor": "1"
+      },
       "chars": 2500,
       "clipSeconds": 1,
       "coins": 1.6
@@ -5996,7 +6356,7 @@
       "input": {
         "upscale_factor": "2"
       },
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 1,
       "coins": 1.6
     },
@@ -6005,7 +6365,7 @@
       "input": {
         "upscale_factor": "2"
       },
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 10,
       "coins": 16
     },
@@ -6014,7 +6374,7 @@
       "input": {
         "upscale_factor": "2"
       },
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 30,
       "coins": 48
     },
@@ -6023,7 +6383,7 @@
       "input": {
         "upscale_factor": "2"
       },
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 45,
       "coins": 72
     },
@@ -6032,7 +6392,7 @@
       "input": {
         "upscale_factor": "2"
       },
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 5,
       "coins": 8
     },
@@ -6041,7 +6401,7 @@
       "input": {
         "upscale_factor": "2"
       },
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 1,
       "coins": 1.6
     },
@@ -6050,7 +6410,7 @@
       "input": {
         "upscale_factor": "2"
       },
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 10,
       "coins": 16
     },
@@ -6059,7 +6419,7 @@
       "input": {
         "upscale_factor": "2"
       },
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 30,
       "coins": 48
     },
@@ -6068,7 +6428,7 @@
       "input": {
         "upscale_factor": "2"
       },
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 45,
       "coins": 72
     },
@@ -6077,7 +6437,7 @@
       "input": {
         "upscale_factor": "2"
       },
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 5,
       "coins": 8
     },
@@ -6131,7 +6491,7 @@
       "input": {
         "upscale_factor": "4"
       },
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 1,
       "coins": 2.8
     },
@@ -6140,7 +6500,7 @@
       "input": {
         "upscale_factor": "4"
       },
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 10,
       "coins": 28
     },
@@ -6149,7 +6509,7 @@
       "input": {
         "upscale_factor": "4"
       },
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 30,
       "coins": 84
     },
@@ -6158,7 +6518,7 @@
       "input": {
         "upscale_factor": "4"
       },
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 45,
       "coins": 126
     },
@@ -6167,7 +6527,7 @@
       "input": {
         "upscale_factor": "4"
       },
-      "chars": 1000,
+      "chars": 1,
       "clipSeconds": 5,
       "coins": 14
     },
@@ -6176,7 +6536,7 @@
       "input": {
         "upscale_factor": "4"
       },
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 1,
       "coins": 2.8
     },
@@ -6185,7 +6545,7 @@
       "input": {
         "upscale_factor": "4"
       },
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 10,
       "coins": 28
     },
@@ -6194,7 +6554,7 @@
       "input": {
         "upscale_factor": "4"
       },
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 30,
       "coins": 84
     },
@@ -6203,7 +6563,7 @@
       "input": {
         "upscale_factor": "4"
       },
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 45,
       "coins": 126
     },
@@ -6212,7 +6572,7 @@
       "input": {
         "upscale_factor": "4"
       },
-      "chars": 1,
+      "chars": 1000,
       "clipSeconds": 5,
       "coins": 14
     },
@@ -6632,586 +6992,6 @@
       "coins": 14
     },
     {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "1080p",
-        "duration": "10"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 48
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "1080p",
-        "duration": "2"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 9.6
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "1080p",
-        "duration": "3"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 14.4
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "1080p",
-        "duration": "4"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 19.2
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "1080p",
-        "duration": "5"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 24
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "1080p",
-        "duration": "6"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 28.8
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "1080p",
-        "duration": "7"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 33.6
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "1080p",
-        "duration": "8"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 38.4
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "1080p",
-        "duration": "9"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 43.2
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "720p",
-        "duration": "10"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 32
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "720p",
-        "duration": "2"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 6.4
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "720p",
-        "duration": "3"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 9.6
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "720p",
-        "duration": "4"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 12.8
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "720p",
-        "duration": "5"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 16
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "720p",
-        "duration": "6"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 19.2
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "720p",
-        "duration": "7"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 22.4
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "720p",
-        "duration": "8"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 25.6
-    },
-    {
-      "variant": "wan-2-7-r2v",
-      "input": {
-        "resolution": "720p",
-        "duration": "9"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 28.8
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 1000,
-      "clipSeconds": 1,
-      "coins": 4.8
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 48
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 1000,
-      "clipSeconds": 30,
-      "coins": 144
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 1000,
-      "clipSeconds": 45,
-      "coins": 216
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 1000,
-      "clipSeconds": 5,
-      "coins": 24
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 1,
-      "clipSeconds": 1,
-      "coins": 4.8
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 1,
-      "clipSeconds": 10,
-      "coins": 48
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 1,
-      "clipSeconds": 30,
-      "coins": 144
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 1,
-      "clipSeconds": 45,
-      "coins": 216
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 1,
-      "clipSeconds": 5,
-      "coins": 24
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 2500,
-      "clipSeconds": 1,
-      "coins": 4.8
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 2500,
-      "clipSeconds": 10,
-      "coins": 48
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 2500,
-      "clipSeconds": 30,
-      "coins": 144
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 2500,
-      "clipSeconds": 45,
-      "coins": 216
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "0"
-      },
-      "chars": 2500,
-      "clipSeconds": 5,
-      "coins": 24
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "10"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 48
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "2"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 9.6
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "4"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 19.2
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "6"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 28.8
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "1080p",
-        "duration": "8"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 38.4
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 1000,
-      "clipSeconds": 1,
-      "coins": 3.2
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 32
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 1000,
-      "clipSeconds": 30,
-      "coins": 96
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 1000,
-      "clipSeconds": 45,
-      "coins": 144
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 1000,
-      "clipSeconds": 5,
-      "coins": 16
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 1,
-      "clipSeconds": 1,
-      "coins": 3.2
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 1,
-      "clipSeconds": 10,
-      "coins": 32
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 1,
-      "clipSeconds": 30,
-      "coins": 96
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 1,
-      "clipSeconds": 45,
-      "coins": 144
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 1,
-      "clipSeconds": 5,
-      "coins": 16
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 2500,
-      "clipSeconds": 1,
-      "coins": 3.2
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 2500,
-      "clipSeconds": 10,
-      "coins": 32
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 2500,
-      "clipSeconds": 30,
-      "coins": 96
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 2500,
-      "clipSeconds": 45,
-      "coins": 144
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "0"
-      },
-      "chars": 2500,
-      "clipSeconds": 5,
-      "coins": 16
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "10"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 32
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "2"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 6.4
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "4"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 12.8
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "6"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 19.2
-    },
-    {
-      "variant": "wan-2-7-videoedit",
-      "input": {
-        "resolution": "720p",
-        "duration": "8"
-      },
-      "chars": 1000,
-      "clipSeconds": 10,
-      "coins": 25.6
-    },
-    {
       "variant": "wan-2-7",
       "input": {
         "resolution": "1080p",
@@ -7490,6 +7270,586 @@
       "chars": 1000,
       "clipSeconds": 10,
       "coins": 28.8
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "1080p",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 48
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "1080p",
+        "duration": "2"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.6
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "1080p",
+        "duration": "3"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 14.4
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "1080p",
+        "duration": "4"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 19.2
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "1080p",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 24
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "1080p",
+        "duration": "6"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 28.8
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "1080p",
+        "duration": "7"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 33.6
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "1080p",
+        "duration": "8"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 38.4
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "1080p",
+        "duration": "9"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 43.2
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "720p",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 32
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "720p",
+        "duration": "2"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 6.4
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "720p",
+        "duration": "3"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.6
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "720p",
+        "duration": "4"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 12.8
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "720p",
+        "duration": "5"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 16
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "720p",
+        "duration": "6"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 19.2
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "720p",
+        "duration": "7"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 22.4
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "720p",
+        "duration": "8"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 25.6
+    },
+    {
+      "variant": "wan-2-7-r2v",
+      "input": {
+        "resolution": "720p",
+        "duration": "9"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 28.8
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 1,
+      "clipSeconds": 1,
+      "coins": 4.8
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 1,
+      "clipSeconds": 10,
+      "coins": 48
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 1,
+      "clipSeconds": 30,
+      "coins": 144
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 1,
+      "clipSeconds": 45,
+      "coins": 216
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 1,
+      "clipSeconds": 5,
+      "coins": 24
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 1000,
+      "clipSeconds": 1,
+      "coins": 4.8
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 48
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 1000,
+      "clipSeconds": 30,
+      "coins": 144
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 1000,
+      "clipSeconds": 45,
+      "coins": 216
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 1000,
+      "clipSeconds": 5,
+      "coins": 24
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 2500,
+      "clipSeconds": 1,
+      "coins": 4.8
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 2500,
+      "clipSeconds": 10,
+      "coins": 48
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 2500,
+      "clipSeconds": 30,
+      "coins": 144
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 2500,
+      "clipSeconds": 45,
+      "coins": 216
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "0"
+      },
+      "chars": 2500,
+      "clipSeconds": 5,
+      "coins": 24
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 48
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "2"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 9.6
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "4"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 19.2
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "6"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 28.8
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "1080p",
+        "duration": "8"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 38.4
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 1,
+      "clipSeconds": 1,
+      "coins": 3.2
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 1,
+      "clipSeconds": 10,
+      "coins": 32
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 1,
+      "clipSeconds": 30,
+      "coins": 96
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 1,
+      "clipSeconds": 45,
+      "coins": 144
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 1,
+      "clipSeconds": 5,
+      "coins": 16
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 1000,
+      "clipSeconds": 1,
+      "coins": 3.2
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 32
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 1000,
+      "clipSeconds": 30,
+      "coins": 96
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 1000,
+      "clipSeconds": 45,
+      "coins": 144
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 1000,
+      "clipSeconds": 5,
+      "coins": 16
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 2500,
+      "clipSeconds": 1,
+      "coins": 3.2
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 2500,
+      "clipSeconds": 10,
+      "coins": 32
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 2500,
+      "clipSeconds": 30,
+      "coins": 96
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 2500,
+      "clipSeconds": 45,
+      "coins": 144
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "0"
+      },
+      "chars": 2500,
+      "clipSeconds": 5,
+      "coins": 16
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "10"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 32
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "2"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 6.4
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "4"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 12.8
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "6"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 19.2
+    },
+    {
+      "variant": "wan-2-7-videoedit",
+      "input": {
+        "resolution": "720p",
+        "duration": "8"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 25.6
     },
     {
       "variant": "z-image",
