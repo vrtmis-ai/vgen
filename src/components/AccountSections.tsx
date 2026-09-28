@@ -192,10 +192,16 @@ export function Referral() {
 /**
  * Closing the account.
  *
- * Typing the username to confirm, because this is the one button on the page
- * that cannot be undone and a misclick must not be enough. The server decides
- * what actually happens to generations, posts and unspent coins — the warning
- * says what we know and does not invent a policy. See #142.
+ * Typing the username to confirm, because a misclick must not be enough.
+ *
+ * **Not mounted yet**, on purpose — `Profile.tsx` says why. `DELETE /me` does
+ * not exist, and unlike the reads above this one has no query to fail quietly:
+ * it would walk somebody through confirming their own handle and then answer
+ * with a generic error. It goes back on the page the day the route answers.
+ *
+ * The policy behind the warning was settled with the owner on 2026-09-28 and
+ * the copy now says it: the account closes, 30 days to bring it back, then
+ * generations, posts and unspent coins go. See #142.
  */
 export function DeleteAccount({ handle }: { handle: string }) {
   const { t } = useI18n();

@@ -8,7 +8,7 @@ import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import type { Generation } from "../lib/gallery";
 import { useFavorites } from "../lib/favorites";
 import { VendorMark } from "../components/VendorMark";
-import { DeleteAccount, Orders, Referral, Sessions } from "../components/AccountSections";
+import { Orders, Referral, Sessions } from "../components/AccountSections";
 import { useI18n, type TKey } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
 import type { AccountUser } from "../runtime/contracts/session";
@@ -288,14 +288,22 @@ export default function Profile({
             <Row icon={<SignOut size={18} />} label={t("p_logout")} onClick={onSignOut} />
           </div>
 
-          {/* Each of these four asks for a route the server has not built. Each
-              renders nothing when its query fails, so this column is shorter
-              rather than broken on a deployment without them. See #142, #143. */}
+          {/* Each of these asks for a route the server has not built, and each
+              renders nothing when its query fails — so this column is shorter
+              rather than broken on a deployment without them. See #142, #143.
+
+              `DeleteAccount` is deliberately not among them. It has no query to
+              fail: it is a button that is always visible, and pressing it would
+              take somebody through typing their own handle to confirm and then
+              answer «چیزی درست پیش نرفت». A read that quietly renders nothing is
+              honest; an action that cannot work is not. One line restores it the
+              day `DELETE /me` answers:
+
+                  <DeleteAccount handle={user.handle} /> */}
           <div className="mt-6">
             <Sessions />
             <Orders />
             <Referral />
-            <DeleteAccount handle={user.handle} />
           </div>
         </div>
       </div>

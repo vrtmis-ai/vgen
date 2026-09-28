@@ -486,7 +486,7 @@ const dict = {
     p_referral_earned: "{n} سکه گرفته‌اید",
     p_danger: "بستن حساب",
     p_delete: "حذف حساب",
-    p_delete_warn: "حساب، ساخته‌ها و سکه‌های خرج‌نشده از بین می‌روند. برگشتی ندارد.",
+    p_delete_warn: "حساب بسته می‌شود و تا ۳۰ روز می‌توانی برش گردانی. بعد از آن ساخته‌ها و سکه‌های خرج‌نشده از بین می‌روند.",
     p_delete_confirm: "برای تأیید، نام کاربری‌تان را بنویسید",
     p_delete_do: "حساب را برای همیشه حذف کن",
     p_cancel: "انصراف",
@@ -1044,7 +1044,8 @@ const dict = {
     p_referral_earned: "{n} coins earned",
     p_danger: "Closing the account",
     p_delete: "Delete account",
-    p_delete_warn: "The account, everything made with it, and any unspent coins go. This cannot be undone.",
+    p_delete_warn:
+      "The account closes and you have 30 days to bring it back. After that, everything made with it and any unspent coins are gone.",
     p_delete_confirm: "Type your username to confirm",
     p_delete_do: "Delete the account for good",
     p_cancel: "Cancel",
