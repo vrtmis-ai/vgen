@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { ModelMark } from "../components/ModelMark";
 import {
   Star,
   ImagesSquare,
@@ -17,7 +18,6 @@ import type { Family } from "../data/models";
 import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import type { Generation } from "../lib/gallery";
 import { useFavorites } from "../lib/favorites";
-import { VendorMark } from "../components/VendorMark";
 import { useI18n } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
 import type { AccountUser } from "../runtime/contracts/session";
@@ -126,7 +126,7 @@ export default function Profile({
                   >
                     <span className="relative h-9 w-9 overflow-hidden rounded-xl" style={{ background: f.grad }}>
                       <span className="absolute bottom-0.5 end-0.5">
-                        <VendorMark vendor={f.vendor} size={15} />
+                        <ModelMark familyId={f.id} vendor={f.vendor} size={15} />
                       </span>
                     </span>
                     <span className="text-[12.5px] font-medium">{f.name}</span>

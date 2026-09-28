@@ -1,6 +1,13 @@
 import { z } from "zod";
 import type { AppServices } from "../../runtime/AppServices";
-import { AuthedSessionSchema, InviteCheckResultSchema, PhoneVerificationStartedSchema } from "../../runtime/contracts/auth";
+import {
+  AuthedSessionSchema,
+  ForgotPasswordSentSchema,
+  InviteCheckResultSchema,
+  PasswordResetSchema,
+  PhoneVerificationStartedSchema,
+  ResetTokenStateSchema,
+} from "../../runtime/contracts/auth";
 import { AccountUserSchema } from "../../runtime/contracts/session";
 import type { HttpClient } from "./client";
 
@@ -90,6 +97,36 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
         method: "POST",
         body: { contact },
         schema: z.object({ status: z.literal("listed") }),
+        signal: options?.signal,
+      });
+    },
+
+    async requestPasswordReset(email: string, options?: { signal?: AbortSignal }) {
+      // The token is mailed, never returned — there is nothing here to read
+      // but the fact that a mail went out.
+      await client.request("/auth/password/forgot", {
+        method: "POST",
+        body: { email },
+        schema: ForgotPasswordSentSchema,
+        signal: options?.signal,
+      });
+    },
+
+    async checkPasswordReset(token: string, options?: { signal?: AbortSignal }) {
+      const { status } = await client.request("/auth/password/reset/check", {
+        method: "POST",
+        body: { token },
+        schema: ResetTokenStateSchema,
+        signal: options?.signal,
+      });
+      return status;
+    },
+
+    async resetPassword(token: string, password: string, options?: { signal?: AbortSignal }) {
+      await client.request("/auth/password/reset", {
+        method: "POST",
+        body: { token, password },
+        schema: PasswordResetSchema,
         signal: options?.signal,
       });
     },

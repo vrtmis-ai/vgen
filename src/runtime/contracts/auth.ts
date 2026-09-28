@@ -126,3 +126,37 @@ export const WaitlistJoinedSchema = z.object({ status: z.literal("listed") });
 
 /** How many are waiting. The screen adds its own floor before drawing it. */
 export const WaitlistCountSchema = z.object({ count: z.number().int().nonnegative() });
+
+/* ---------------------------------------------------------------- password reset */
+
+/**
+ * A reset link was mailed — or the account signs in another way and was mailed
+ * that instead. Both are `sent`, because both really did send something. The
+ * page must never claim a mail went out when none did, which is why an address
+ * with no account answers `404` rather than this.
+ */
+export const ForgotPasswordSentSchema = z.object({ status: z.literal("sent") });
+
+/**
+ * Why a link does not work, asked before anybody types a password into the
+ * page it opened. A dead link should say which kind of dead it is rather than
+ * accept a new password and then refuse it.
+ */
+export const ResetTokenStateSchema = z.object({
+  status: z.enum(["usable", "expired", "used", "unknown"]),
+});
+
+export const PasswordResetSchema = z.object({ status: z.literal("reset") });
+
+/** What the two halves of the reset screen send. Looser than the server's
+    copies, as this file's header explains: the server is the trust boundary. */
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  password: string;
+}
+
+export type ResetTokenState = z.infer<typeof ResetTokenStateSchema>;

@@ -481,6 +481,9 @@ exist yet. Point them at it when you build it. `signOut` is live.
 | `POST /auth/waitlist`                              | `{ contact }` → `200 { status: "listed" }`; `409 account_exists` if registered; email or `09…`; 10 per 15 min per IP |
 | `GET /auth/waitlist/count`                         | → `200 { count }`, how many are waiting; public and unlimited                                                        |
 | `POST /auth/login`                                 | `{ email, password }` → `200`                                                                                        |
+| `POST /auth/password/forgot`                       | `{ email }` → `200 { status: "sent" }`; `404 no_account`; `503 mail_unavailable`; 10/15min/IP, 5/hour/account        |
+| `POST /auth/password/reset/check`                  | `{ token }` → `200 { status: usable \| expired \| used \| unknown }`                                                 |
+| `POST /auth/password/reset`                        | `{ token, password }` → `200 { status: "reset" }`; `400` reset_invalid / reset_expired / reset_used                  |
 | `POST /auth/logout`                                | → `204`, always, and says nothing about whether a session existed                                                    |
 | `GET /auth/google` · `/auth/google/callback`       | Registered only when Google credentials are configured                                                               |
 | `GET /auth/microsoft` · `/auth/microsoft/callback` | Registered only when Microsoft credentials are configured                                                            |
@@ -504,6 +507,25 @@ Things a UI needs to know about these:
   not spend a seat.
   Signing in to an existing account never needs one. The invite page hands a
   code to `/signup?invite=<code>`, which arrives with the field filled in.
+- **Password reset spends a hashed, single-use token.** `auth_tokens` has
+  carried `purpose = 'password_reset'` since 0005 and this is what finally
+  uses it: only `hashToken(token)` is stored, so a database dump is not a set
+  of reset links, and the plaintext is returned exactly once — to the route
+  that mails it. Links last **one hour**, asking again consumes the earlier
+  ones so only the newest works, and completing a reset **revokes every
+  session** for that user.
+  **It signs nobody in.** The new password is typed on the sign-in screen like
+  any other; a reset that returned a session would turn a mail link into a way
+  into the account for anybody who can read the mailbox.
+  `404 no_account` is deliberate rather than an oversight: this route does say
+  whether an address is registered, the same choice `POST /auth/waitlist`
+  makes, because the alternative leaves somebody who mistyped their address
+  waiting for a mail that is never coming. The rate limits are what bound it,
+  and the per-account one is only spent once the address resolves to a user,
+  so a stranger cannot exhaust somebody else's recovery quota.
+  An account with **no password** — Google or phone-only — is mailed how it
+  actually signs in and no token is minted; the route still answers `sent`,
+  because a mail really was sent.
 - **The waitlist is the other half of the gate.** A visitor with no code leaves
   an email or an Iranian mobile and waits for one. It does not create an
   account, sign anybody in, or relax the gate — `createAccount` still refuses
