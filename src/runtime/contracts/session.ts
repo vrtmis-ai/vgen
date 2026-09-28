@@ -14,7 +14,19 @@ export const HandleSchema = z
   .toLowerCase()
   .regex(/^[a-z0-9][a-z0-9._]{1,22}[a-z0-9]$/, "نام کاربری باید ۳ تا ۲۴ نویسهٔ لاتین باشد");
 
-export const IdentityMethodSchema = z.literal("email");
+/**
+ * How an account can be signed into.
+ *
+ * Was `z.literal("email")` — one value, which every producer wrote as the same
+ * constant, so `methods` said "email" to somebody who had only ever used
+ * Google. Widened to the kinds `auth_identities` actually holds. Old payloads
+ * still parse: `["email"]` is a member of this enum.
+ *
+ * **The server does not populate this yet** beyond the constant. The account
+ * page renders the section only when more than one arrives, so widening the
+ * type on its own changes nothing on screen. See #142.
+ */
+export const IdentityMethodSchema = z.enum(["email", "phone", "google", "microsoft"]);
 export const HostSchema = z.literal("web");
 export const OAuthProviderSchema = z.enum(["google", "microsoft"]);
 
@@ -39,6 +51,15 @@ export const AccountUserSchema = z.object({
   handle: HandleSchema,
   displayName: z.string().min(1).optional(),
   avatarUrl: z.string().url().optional(),
+  /**
+   * The verified number, where there is one.
+   *
+   * Optional because the session payload does not carry it yet: an account made
+   * through the OTP route has a number the product verified and paid an SMS
+   * for, and then could not show its owner. The account page prints it when it
+   * arrives and omits the row when it does not. See #142.
+   */
+  phone: z.string().min(3).optional(),
   locale: z.string().min(2).optional(),
   isTeam: z.boolean().optional(),
 });

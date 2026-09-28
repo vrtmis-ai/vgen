@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AccountSessionSchema, ReferralSchema } from "../../runtime/contracts/account";
 import type { AppServices } from "../../runtime/AppServices";
 import {
   AuthedSessionSchema,
@@ -160,6 +161,26 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
       // one, and Fastify rejects an empty body that declares itself JSON before
       // the route ever runs.
       await client.request("/auth/logout", { method: "POST", schema: VoidSchema, signal: options?.signal });
+    },
+
+    /* ---- routes that do not exist yet. See #142, #143. ----
+       Written against the shape the account page wants, so the day the server
+       answers, nothing else changes. Until then each rejects and the card that
+       asked for it renders nothing — the rule `waitlistCount` set above. */
+    sessions(options) {
+      return client.request("/me/sessions", { schema: z.array(AccountSessionSchema), signal: options?.signal });
+    },
+    async endSession(id, options) {
+      await client.request(`/me/sessions/${encodeURIComponent(id)}`, { schema: z.unknown(), method: "DELETE", signal: options?.signal });
+    },
+    async endOtherSessions(options) {
+      await client.request("/me/sessions", { schema: z.unknown(), method: "DELETE", signal: options?.signal });
+    },
+    async deleteAccount(options) {
+      await client.request("/me", { schema: z.unknown(), method: "DELETE", signal: options?.signal });
+    },
+    referral(options) {
+      return client.request("/me/referral", { schema: ReferralSchema, signal: options?.signal });
     },
 
     async updateProfile(edit, options) {
