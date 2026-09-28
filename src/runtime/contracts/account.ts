@@ -47,14 +47,6 @@ export const PaidOrderSchema = z.object({
   planCode: z.string().min(1).optional(),
 });
 
-/** What an account has earned by inviting people. */
-export const ReferralSchema = z.object({
-  code: z.string().min(1),
-  invited: z.number().int().nonnegative(),
-  coinsEarned: z.number().nonnegative(),
-});
-
 export type AccountSession = z.infer<typeof AccountSessionSchema>;
 export type OrderStatus = z.infer<typeof OrderStatusSchema>;
 export type PaidOrder = z.infer<typeof PaidOrderSchema>;
-export type Referral = z.infer<typeof ReferralSchema>;

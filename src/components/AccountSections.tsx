@@ -152,44 +152,6 @@ export function Orders() {
   );
 }
 
-export function Referral() {
-  const { t, n } = useI18n();
-  const services = useAppServices();
-  const [copied, setCopied] = useState(false);
-  const referral = useQuery({ queryKey: ["me", "referral"], queryFn: () => services.auth.referral(), retry: false });
-  if (!referral.data) return null;
-
-  const copy = () => {
-    // Clipboard is permissioned and absent over plain http; a refusal must not
-    // look like a broken button, so the label only changes on success.
-    void navigator.clipboard
-      ?.writeText(referral.data.code)
-      .then(() => setCopied(true))
-      .catch(() => undefined);
-  };
-
-  return (
-    <Card title={t("p_referral")}>
-      <div className="py-3">
-        <div className="flex items-center gap-2">
-          <code className="ltr flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold" style={{ background: "var(--vg-surface-overlay)" }}>
-            {referral.data.code}
-          </code>
-          <button onClick={copy} className="shrink-0 rounded-lg border border-line px-3 py-2 t-caption">
-            {copied ? t("p_referral_copied") : t("p_referral_copy")}
-          </button>
-        </div>
-        <p className="mt-2 t-caption text-ink3">{t("p_referral_hint")}</p>
-        <p className="mt-1 t-caption">
-          {t("p_referral_invited").replace("{n}", n(referral.data.invited))}
-          {" · "}
-          <span style={{ color: "var(--vg-primary)" }}>{t("p_referral_earned").replace("{n}", n(referral.data.coinsEarned))}</span>
-        </p>
-      </div>
-    </Card>
-  );
-}
-
 /**
  * Closing the account.
  *

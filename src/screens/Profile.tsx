@@ -8,7 +8,7 @@ import type { Family } from "../data/models";
 import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import type { Generation } from "../lib/gallery";
 import { useFavorites } from "../lib/favorites";
-import { Orders, Referral, Sessions } from "../components/AccountSections";
+import { Orders, Sessions } from "../components/AccountSections";
 import { useI18n, type TKey } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
 import type { AccountUser } from "../runtime/contracts/session";
@@ -303,7 +303,6 @@ export default function Profile({
           <div className="mt-6">
             <Sessions />
             <Orders />
-            <Referral />
           </div>
         </div>
       </div>

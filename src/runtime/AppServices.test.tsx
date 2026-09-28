@@ -23,7 +23,6 @@ const services = {
     endSession: vi.fn(),
     endOtherSessions: vi.fn(),
     deleteAccount: vi.fn(),
-    referral: vi.fn(),
   },
   catalog: { list: vi.fn() },
   content: { list: vi.fn() },

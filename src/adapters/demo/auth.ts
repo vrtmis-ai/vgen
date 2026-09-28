@@ -228,10 +228,6 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
     async deleteAccount() {
       fail("not_implemented", "Deleting an account is not built yet", 501);
     },
-    async referral() {
-      return { code: "DEEV-DEMO42", invited: 3, coinsEarned: 90 };
-    },
-
     async updateProfile(edit) {
       const session = state.current();
       if (session.status !== "authed") {

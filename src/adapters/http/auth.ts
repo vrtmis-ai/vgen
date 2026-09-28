@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AccountSessionSchema, ReferralSchema } from "../../runtime/contracts/account";
+import { AccountSessionSchema } from "../../runtime/contracts/account";
 import type { AppServices } from "../../runtime/AppServices";
 import {
   AuthedSessionSchema,
@@ -178,9 +178,6 @@ export function createHttpAuthService(client: HttpClient, baseUrl: string): AppS
     },
     async deleteAccount(options) {
       await client.request("/me", { schema: z.unknown(), method: "DELETE", signal: options?.signal });
-    },
-    referral(options) {
-      return client.request("/me/referral", { schema: ReferralSchema, signal: options?.signal });
     },
 
     async updateProfile(edit, options) {
