@@ -99,6 +99,19 @@ function init(projectToken: string): void {
     // and generations. Off until that has been decided on purpose, and the
     // cookie notice does not claim it.
     disable_session_recording: true,
+    // Same reason one step down: autocapture sends the visible text of whatever
+    // was clicked, and here that is prompt chips, gallery titles and model
+    // names. It was also the loudest stream by far — 172 events against 66
+    // pageviews in the project's first two days — for clicks nothing reads.
+    // `$pageview` and `$pageleave` are separate config and keep working, which
+    // is what web analytics is actually built on.
+    autocapture: false,
+    // Core Web Vitals. The project has had `autocapture_web_vitals_opt_in` set
+    // since setup and had still received zero `$web_vitals` events, because
+    // that switch arrives in the remote config that `advanced_disable_flags`
+    // above suppresses. Asking for it here does not depend on that request.
+    // `network_timing` stays off: it belongs to replay, which is off.
+    capture_performance: { web_vitals: true },
     debug: process.env.NODE_ENV === "development",
   });
   started = true;
