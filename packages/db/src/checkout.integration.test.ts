@@ -206,6 +206,57 @@ describe("registering an order", () => {
     });
   });
 
+  /* The read half, added in #143. Deliberately rate-independent: it asserts the
+     figure comes back as the figure `createOrder` quoted, whatever the day's
+     exchange rate was, which is the round trip that matters — the column holds
+     Rial and the customer was quoted Toman. */
+  it("reads an order back as the amount the customer was quoted", async () => {
+    await inRollback(sql, async (tx) => {
+      const { userId } = await makeUser(tx);
+      await makePlan(tx, { code: "test-history", monthlyUsd: 49, coins: 500 });
+      const checkout = new PostgresCheckoutRepository(tx);
+
+      const created = await checkout.createOrder({ userId, planCode: "test-history", cycle: "monthly" });
+      expect(created.outcome).toBe("ordered");
+      if (created.outcome !== "ordered") return;
+
+      const [order, ...rest] = await checkout.listOrders(userId);
+
+      expect(rest).toHaveLength(0);
+      expect(order).toMatchObject({
+        id: created.order.orderId,
+        status: "pending",
+        // Toman, not the Rial in the column: ten times out and ten times back.
+        amountToman: created.order.amountToman,
+        coins: 500,
+        planCode: "test-history",
+      });
+      expect(order?.createdAt).toBeGreaterThan(0);
+    });
+  });
+
+  it("shows one person their own orders and nobody else's, newest first", async () => {
+    await inRollback(sql, async (tx) => {
+      const mine = await makeUser(tx);
+      const theirs = await makeUser(tx);
+      await makePlan(tx, { code: "test-first", monthlyUsd: 19, coins: 100 });
+      await makePlan(tx, { code: "test-second", monthlyUsd: 49, coins: 500 });
+      const checkout = new PostgresCheckoutRepository(tx);
+
+      const first = await checkout.createOrder({ userId: mine.userId, planCode: "test-first", cycle: "monthly" });
+      const second = await checkout.createOrder({ userId: mine.userId, planCode: "test-second", cycle: "monthly" });
+      await checkout.createOrder({ userId: theirs.userId, planCode: "test-first", cycle: "monthly" });
+      expect([first.outcome, second.outcome]).toEqual(["ordered", "ordered"]);
+      if (first.outcome !== "ordered" || second.outcome !== "ordered") return;
+
+      const orders = await checkout.listOrders(mine.userId);
+
+      // Two, not three: the third belongs to somebody else.
+      expect(orders.map((order) => order.planCode)).toEqual(["test-second", "test-first"]);
+      expect(await checkout.listOrders(theirs.userId)).toHaveLength(1);
+    });
+  });
+
   it("charges twelve months at the annual rate when a year is paid at once", async () => {
     await inRollback(sql, async (tx) => {
       const { userId } = await makeUser(tx);

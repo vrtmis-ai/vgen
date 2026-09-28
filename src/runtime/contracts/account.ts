@@ -30,7 +30,11 @@ export const AccountSessionSchema = z.object({
   current: z.boolean(),
 });
 
-export const OrderStatusSchema = z.enum(["paid", "pending", "failed", "refunded"]);
+/* Every status the orders table can hold, matching ORDER_STATUSES in
+   @vgen/contracts. `cancelled` is included although nothing writes it yet: this
+   schema parses the response, so a status it did not know would fail the parse
+   and take the whole purchase history off the page rather than mislabel one row. */
+export const OrderStatusSchema = z.enum(["pending", "paid", "failed", "cancelled", "refunded"]);
 
 /** One purchase. */
 export const PaidOrderSchema = z.object({

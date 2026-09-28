@@ -107,6 +107,7 @@ const ORDER_LABEL: Record<OrderStatus, TKey> = {
   paid: "p_order_paid",
   pending: "p_order_pending",
   failed: "p_order_failed",
+  cancelled: "p_order_cancelled",
   refunded: "p_order_refunded",
 };
 

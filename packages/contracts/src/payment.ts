@@ -34,6 +34,39 @@ export const CheckoutOrderSchema = z.object({
   gatewayUrl: z.string().url().nullable(),
 });
 
+/**
+ * Every status an order row can hold, straight from the table's own CHECK.
+ *
+ * `cancelled` is in here although nothing writes it today. The browser parses
+ * this list, so a status the schema does not know would not degrade to an odd
+ * label — it would fail the parse and take the whole purchase history off the
+ * page. A gateway that learns to cancel an order should not be able to do that.
+ */
+export const ORDER_STATUSES = ["pending", "paid", "failed", "cancelled", "refunded"] as const;
+
+/**
+ * One purchase, as the account page lists it.
+ *
+ * `amountToman` again rather than the Rial the column stores, for the same
+ * reason `CheckoutOrderSchema` does it: Toman is what the customer was quoted,
+ * and a history that disagrees with the receipt by a factor of ten is worse
+ * than no history. `coins` is the credit the order bought, in coins.
+ *
+ * `planCode` is absent on an order that bought a coin pack rather than a plan.
+ */
+export const PaidOrderSchema = z.object({
+  id: z.string().min(1),
+  createdAt: z.number().int().nonnegative(),
+  status: z.enum(ORDER_STATUSES),
+  amountToman: z.number().nonnegative(),
+  coins: z.number().nonnegative(),
+  planCode: z.string().min(1).optional(),
+});
+
+export const PaidOrderListSchema = z.array(PaidOrderSchema);
+
 export type CheckoutCycle = (typeof CHECKOUT_CYCLES)[number];
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export type PaidOrder = z.infer<typeof PaidOrderSchema>;
 export type CheckoutOrder = z.infer<typeof CheckoutOrderSchema>;
 export type CreateCheckoutOrderRequest = z.infer<typeof CreateCheckoutOrderRequestSchema>;
