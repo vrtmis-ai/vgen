@@ -89,7 +89,7 @@ export interface AppServices {
      * the strip renders nothing when the call fails, so a deployment without
      * the route simply does not show it.
      */
-    waitlistCount(options?: RequestOptions): Promise<number>;
+    memberCount(options?: RequestOptions): Promise<number>;
     /**
      * Ask for a password-reset link.
      *

@@ -155,7 +155,7 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
     /* A number to draw the strip with. Nobody has signed up in demo mode and
        nothing here is stored, so this is the shape of the answer rather than
        an answer. */
-    async waitlistCount() {
+    async memberCount() {
       return 0;
     },
 

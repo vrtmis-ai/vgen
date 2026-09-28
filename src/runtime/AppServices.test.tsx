@@ -12,7 +12,7 @@ const services = {
     login: vi.fn(),
     checkInvite: vi.fn(),
     joinWaitlist: vi.fn(),
-    waitlistCount: vi.fn(),
+    memberCount: vi.fn(),
     requestPasswordReset: vi.fn(),
     checkPasswordReset: vi.fn(),
     resetPassword: vi.fn(),

@@ -219,11 +219,16 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     return reply.code(200).send({ status: "listed" });
   });
 
-  /* Drawn on the holding page as a queue length. Public and uncounted against
-     any limit: it is one integer, it leaks nothing about who is on the list,
-     and the page asks for it on every load. */
-  app.get("/api/v1/auth/waitlist/count", async (_request, reply) => {
-    return reply.code(200).send({ count: await access.waitlistCount() });
+  /* Drawn on the holding page above the mark, as social proof: how many people
+     are in. Public and uncounted against any limit — it is one integer, it
+     names nobody, and the page asks for it on every load.
+
+     It used to answer with the length of the waiting list, which is the
+     opposite group: everybody who could not get in, under a line that reads
+     "n people have signed up". The queue length is the panel's number and
+     stays `waitlistCount`. See #138. */
+  app.get("/api/v1/auth/members/count", async (_request, reply) => {
+    return reply.code(200).send({ count: await access.memberCount() });
   });
 
   /* ------------------------------------------------------------ password reset
