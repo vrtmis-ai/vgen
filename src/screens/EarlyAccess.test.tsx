@@ -35,7 +35,7 @@ describe("the invite page", () => {
     await user.type(screen.getByLabelText("Invite code"), "TOTALLY-FAKE-999");
     await user.click(screen.getByRole("button", { name: "Continue with this code" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("That invite code is not valid");
+    expect(await screen.findByRole("alert")).toHaveTextContent("That invite code is not valid, has expired, or has been used up.");
     expect(check).toHaveBeenCalledWith("TOTALLY-FAKE-999");
     expect(nav.push).not.toHaveBeenCalled();
   });
@@ -49,7 +49,32 @@ describe("the invite page", () => {
     await user.type(screen.getByLabelText("Invite code"), "  DEEV-WYJPK8 ");
     await user.click(screen.getByRole("button", { name: "Continue with this code" }));
 
-    await waitFor(() => expect(nav.push).toHaveBeenCalledWith("/signup?invite=DEEV-WYJPK8"));
+    /* The welcome beat sits between the press and the push, so this waits
+       past it rather than asserting on the tick the click returned. */
+    expect(await screen.findByText("Welcome")).toBeInTheDocument();
+    expect(screen.getByText("Code confirmed")).toBeInTheDocument();
+    await waitFor(() => expect(nav.push).toHaveBeenCalledWith("/signup?invite=DEEV-WYJPK8"), { timeout: 4000 });
+  });
+
+  /* The done state used to replace the page. Joining the list is one line of
+     confirmation under a field that is still there, so somebody who mistyped
+     the address can put the right one in without hunting for a way back. */
+  it("confirms a waitlist signup in place, leaving the field usable", async () => {
+    const user = userEvent.setup();
+    const services = createDemoServices({ startAnonymous: true });
+    const join = vi.spyOn(services.auth, "joinWaitlist").mockResolvedValue(undefined);
+    renderPage(services);
+
+    await user.click(screen.getByRole("button", { name: "I don't have a code" }));
+    const field = screen.getByLabelText("Email or mobile number");
+    await user.type(field, "someone@example.com");
+    await user.click(screen.getByRole("button", { name: "Join the queue" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Nothing has been sent yet. Your invite code arrives here when your turn comes.",
+    );
+    expect(join).toHaveBeenCalledWith("someone@example.com");
+    expect(field).toHaveValue("");
   });
 
   /* The half that shipped without a server. `POST /auth/waitlist` was a 404 for
@@ -62,7 +87,7 @@ describe("the invite page", () => {
     const join = vi.spyOn(services.auth, "joinWaitlist").mockResolvedValue(undefined);
     renderPage(services);
 
-    await user.click(screen.getByRole("button", { name: "No code? Join the queue" }));
+    await user.click(screen.getByRole("button", { name: "I don't have a code" }));
     await user.type(screen.getByLabelText("Email or mobile number"), "09121234567");
     await user.click(screen.getByRole("button", { name: "Join the queue" }));
 
@@ -84,7 +109,7 @@ describe("the invite page", () => {
     );
     renderPage(services);
 
-    await user.click(screen.getByRole("button", { name: "No code? Join the queue" }));
+    await user.click(screen.getByRole("button", { name: "I don't have a code" }));
     await user.type(screen.getByLabelText("Email or mobile number"), "member@example.com");
     await user.click(screen.getByRole("button", { name: "Join the queue" }));
 
@@ -100,7 +125,7 @@ describe("the invite page", () => {
     const join = vi.spyOn(services.auth, "joinWaitlist");
     renderPage(services);
 
-    await user.click(screen.getByRole("button", { name: "No code? Join the queue" }));
+    await user.click(screen.getByRole("button", { name: "I don't have a code" }));
     await user.type(screen.getByLabelText("Email or mobile number"), "hello");
     await user.click(screen.getByRole("button", { name: "Join the queue" }));
 

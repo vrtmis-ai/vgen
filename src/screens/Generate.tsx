@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ModelMark } from "../components/ModelMark";
 import { useSession, useSpendable } from "../runtime/providers/SessionProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, CaretDown, Sparkle, X } from "@phosphor-icons/react";
@@ -14,10 +15,9 @@ import {
 } from "../data/models";
 import { dockSlots, entrancesOf, resolveEntrance, roleKey, toEntranceKeys } from "../lib/refSlots";
 import { priceCoins, priceRefusal } from "../data/pricing";
-import { CoinMark } from "../components/chrome";
+import { CreditStar } from "../components/chrome";
 import { useI18n } from "../lib/i18n";
 import { ControlField, type InputMap, type InputValue, type RefFile, type RefMap } from "../components/controls";
-import { VendorMark } from "../components/VendorMark";
 import { Panel, PanelHead, PanelShell, Section } from "../components/Panel";
 import { RefBox } from "../components/RefBox";
 import { useIgnition } from "../components/Ignition";
@@ -297,7 +297,7 @@ export default function Generate({
   // A slot that depends on another: an end frame with no start frame is rejected.
   const orphan = refs.find((s) => s.requires && filled(s.key) && !filled(s.requires));
   const orphanNeeds = orphan && refs.find((s) => s.key === orphan.requires);
-  const { t, n } = useI18n();
+  const { t, n, lang } = useI18n();
   const { user, signIn } = useSession();
   const visitor = user === null;
   const [coverFailed, onCoverError] = useImageFallback();
@@ -453,7 +453,7 @@ export default function Generate({
               icon={<Sparkle size={14} weight="fill" />}
               title={family.name}
               sub={<bdi>{family.vendor}</bdi>}
-              action={<VendorMark vendor={family.vendor} size={20} />}
+              action={<ModelMark familyId={family.id} vendor={family.vendor} size={20} />}
             />
 
             {/* What it makes, before anything is typed. A model page that opens
@@ -569,9 +569,15 @@ export default function Generate({
                     {n(prompt.length)} / {n(maxPrompt)}
                   </span>
                 ) : (
-                  <span className="text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
-                    {t("g_prompt_hint")}
-                  </span>
+                  /* Persian only. The advice is that English prompts come out
+                     better, which is worth saying to somebody typing Persian
+                     and is noise on a screen the reader is already reading in
+                     English. */
+                  lang === "fa" && (
+                    <span className="text-[10.5px]" style={{ color: "var(--vg-text-faint)" }}>
+                      {t("g_prompt_hint")}
+                    </span>
+                  )
                 )}
                 {(promptOverflows || promptOpen) && (
                   <PromptExpandButton open={promptOpen} onToggle={() => setPromptOpen((open) => !open)} controls="model-prompt" />
@@ -679,7 +685,7 @@ export default function Generate({
             onClick={(event) => (visitor ? signIn() : ignition.ignite(event, () => void submit()))}
             disabled={!visitor && (!canGenerate || submitting)}
             aria-busy={ignition.igniting || submitting || undefined}
-            className="relative flex h-11 w-full items-center justify-center overflow-hidden rounded-[10px] text-[14px] font-bold transition-opacity disabled:opacity-35"
+            className="relative flex h-[60px] w-full items-center justify-center overflow-hidden rounded-[10px] text-[15px] font-bold transition-opacity disabled:opacity-35"
             style={{
               background: "var(--vg-primary)",
               // Light ink over the dark field, with a halo for the moment the
@@ -690,14 +696,22 @@ export default function Generate({
             }}
           >
             {ignition.layer}
-            {/* Positioned so it paints above the field. */}
-            <span className="relative flex items-center gap-2">
-              <Sparkle size={15} weight="fill" />
-              {visitor ? t("visitor_cta") : submitting ? "در حال ثبت…" : t("g_create")}
+            {/* Two lines, and positioned so both paint above the field.
+                The price used to trail the label on one line, in the same ink
+                at nine tenths opacity — so it read as the last word of «ساخت»
+                rather than as what it costs. Stacked, the button says what it
+                does and then what it charges, which is the order somebody
+                deciding to press it reads in.
+
+                No leading spark any more: the credit mark below carries that
+                motif, and two sparks on one button is one too many. */}
+            <span className="relative flex flex-col items-center gap-[2px] leading-[1.28]">
+              <span>{visitor ? t("visitor_cta") : submitting ? t("g_submitting") : t("g_create")}</span>
               {price != null && !clipUnreadable && (
-                <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
-                  <CoinMark size={12} />
+                <span className="flex items-center gap-1.5 text-[13.5px] font-bold opacity-85">
+                  <CreditStar size={16} />
                   <span className="vg-numeric">{n(price)}</span>
+                  <span>{t("w_coins")}</span>
                 </span>
               )}
             </span>

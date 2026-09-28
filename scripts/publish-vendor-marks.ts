@@ -53,6 +53,11 @@ const FAMILY_SLUGS: Record<string, string> = {
   topaz: "topazlabs",
   elevenlabs: "elevenlabs",
   "minimax-h3": "minimax",
+  // Both audio families are Suno's, and the strip only carries what it can
+  // dress — so without these the music and sound-effect models were the one
+  // part of the catalogue the band never mentioned.
+  suno: "suno",
+  "suno-sounds": "suno",
 };
 
 /**

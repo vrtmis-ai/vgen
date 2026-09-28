@@ -7,7 +7,7 @@ import { useCatalogFamilies } from "../features/catalog/CatalogProvider";
 import { addRefFiles, moveRefFile, slotAccept, type InputMap, type RefMap } from "../components/controls";
 import { useCreateState, valueLabel, sliderSteps, rangeOf, type ChipControl } from "../lib/useCreateState";
 import { isPending, isUnfinished, type Generation } from "../lib/gallery";
-import { CoinMark } from "../components/chrome";
+import { CreditStar } from "../components/chrome";
 import { AssetViewer, downloadAsset, viewerAsset, type ViewerAsset } from "../components/AssetViewer";
 import { PopoverChip } from "../components/Popover";
 import { ViewControls, useViewMode } from "../components/ViewControls";
@@ -855,7 +855,7 @@ export default function StudioImage({
                   <Sparkle size={14} weight="fill" className="relative" />
                   <span className="relative">{visitor ? t("visitor_cta") : "بساز"}</span>
                   <span className="relative flex items-center gap-1 opacity-90">
-                    <CoinMark size={11} />
+                    <CreditStar size={11} />
                     {/* The local table prices the metered pipe. When the other
                         one is chosen and reachable, the figure is not a smaller
                         price — there is no price. The quote still decides. */}

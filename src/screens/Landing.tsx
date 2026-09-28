@@ -257,7 +257,10 @@ function Plans({ plans, onSignIn }: { plans: readonly Plan[]; onSignIn: () => vo
         className="mt-5 flex flex-col items-center justify-center gap-1 text-center text-[12px] sm:flex-row sm:gap-2"
         style={{ color: "var(--vg-text-faint)" }}
       >
-        <span>{t("pl_expiry_note")}</span>
+        {/* No blanket expiry line. Four of the seven plans never expire, and
+            each card already states its own rule — so this sat under a card
+            saying the opposite of it. Removed rather than reworded: a note that
+            has to say "except for these, and those" is the cards' job. */}
         <span className="hidden sm:inline" aria-hidden="true">
           ·
         </span>

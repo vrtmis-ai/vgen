@@ -1,3 +1,4 @@
+import type { PaidOrder } from "@vgen/contracts";
 import type { CreateOrderOutcome } from "@vgen/db";
 import Fastify from "fastify";
 import { describe, expect, it, vi } from "vitest";
@@ -8,14 +9,15 @@ import { registerPaymentRoutes } from "./payments";
 const SIGNED_IN = { status: "authed" as const, user: { id: "11111111-1111-4111-8111-111111111111" } };
 const ORDER_ID = "22222222-2222-4222-8222-222222222222";
 
-function paymentsApp(outcome: CreateOrderOutcome, identity: unknown = SIGNED_IN) {
+function paymentsApp(outcome: CreateOrderOutcome, identity: unknown = SIGNED_IN, orders: PaidOrder[] = []) {
   const createOrder = vi.fn(async () => outcome);
+  const listOrders = vi.fn(async () => orders);
   const app = Fastify({ logger: false });
   // The handler createApp installs, so a rejected body is the 400 the route
   // really answers rather than the 500 a bare Fastify would give.
   registerErrorHandling(app);
-  registerPaymentRoutes(app, { getCurrent: vi.fn(async () => identity) } as never, { createOrder });
-  return { app, createOrder };
+  registerPaymentRoutes(app, { getCurrent: vi.fn(async () => identity) } as never, { createOrder, listOrders });
+  return { app, createOrder, listOrders };
 }
 
 const ordered = (): CreateOrderOutcome => ({ outcome: "ordered", order: { orderId: ORDER_ID, amountToman: 8_330_000 } });
@@ -133,5 +135,53 @@ describe("reporting the running campaign", () => {
 
     expect(response.statusCode).not.toBe(200);
     expect(response.json()).not.toHaveProperty("endsAt");
+  });
+});
+
+/**
+ * The read half of checkout, which did not exist until #143.
+ *
+ * The write path has been creating orders since the sheet shipped, so a
+ * customer whose payment failed had nothing to point at and neither did
+ * whoever was helping them.
+ */
+describe("a customer's own purchase history", () => {
+  const ORDERS: PaidOrder[] = [
+    { id: ORDER_ID, createdAt: 1_700_000_000_000, status: "paid", amountToman: 1_290_000, coins: 500, planCode: "studio" },
+    { id: "33333333-3333-4333-8333-333333333333", createdAt: 1_699_000_000_000, status: "failed", amountToman: 590_000, coins: 200 },
+  ];
+
+  it("lists what this person bought, newest first", async () => {
+    const { app, listOrders } = paymentsApp({ outcome: "unknown_plan" }, SIGNED_IN, ORDERS);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/payments/orders" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(ORDERS);
+    // Whose history it is comes from the session, never from the request, so
+    // there is no parameter to point at somebody else's purchases.
+    expect(listOrders).toHaveBeenCalledWith(SIGNED_IN.user.id);
+    await app.close();
+  });
+
+  it("refuses an anonymous reader", async () => {
+    const { app, listOrders } = paymentsApp({ outcome: "unknown_plan" }, { status: "anonymous" });
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/payments/orders" });
+
+    expect(response.statusCode).toBe(401);
+    expect(listOrders).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  /* An empty list is the answer for somebody who has bought nothing — not a
+     404, which would read as "no such thing" on a page that is theirs. */
+  it("answers with an empty list rather than a 404", async () => {
+    const { app } = paymentsApp({ outcome: "unknown_plan" }, SIGNED_IN, []);
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/payments/orders" });
+
+    expect([response.statusCode, response.json()]).toEqual([200, []]);
+    await app.close();
   });
 });

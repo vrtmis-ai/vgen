@@ -289,6 +289,42 @@ describe("the waitlist", () => {
     });
   });
 
+  /* The two numbers are opposite groups, and the page above the mark wants the
+     other one — it says "n people have signed up" and used to be handed the
+     length of the queue of people who had not. Deltas rather than absolutes,
+     because a seeded database has accounts in it already. */
+  it("counts members apart from the people waiting to become one", async () => {
+    await inRollback(sql, async (tx) => {
+      await tx`delete from waitlist_entries`;
+      const access = new PostgresAccessRepository(tx);
+      const before = await access.memberCount();
+
+      await makeUser(tx);
+      await makeUser(tx);
+      await access.joinWaitlist("email", "still-waiting@example.com");
+
+      expect(await access.memberCount()).toBe(before + 2);
+      expect(await access.waitlistCount()).toBe(1);
+    });
+  });
+
+  /* The filter is the whole of the query that could be wrong, so it gets the
+     test: somebody who left is not a member, and a team is not a person. */
+  it("leaves out closed, deleted and team accounts", async () => {
+    await inRollback(sql, async (tx) => {
+      const access = new PostgresAccessRepository(tx);
+      const before = await access.memberCount();
+
+      await tx`insert into accounts (kind, status) values ('personal', 'closed')`;
+      await tx`insert into accounts (kind, deleted_at) values ('personal', now())`;
+      await tx`insert into accounts (kind) values ('team')`;
+      await tx`insert into accounts (kind, status) values ('personal', 'suspended')`;
+
+      // Only the suspended one counts: still signed up, just not welcome today.
+      expect(await access.memberCount()).toBe(before + 1);
+    });
+  });
+
   it("does not move somebody down the queue for asking again", async () => {
     await inRollback(sql, async (tx) => {
       // Ambient rows would make every count and order below depend on

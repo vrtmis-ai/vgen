@@ -35,7 +35,7 @@ function healthyDependencies(): ApiDependencies {
     },
     customerPlans: { list: vi.fn(async () => ({ plans: [], tomanPerUsd: 235_000 })) },
     customerCampaigns: { getActive: vi.fn(async () => null) },
-    checkout: { createOrder: vi.fn(async () => ({ outcome: "unknown_plan" }) as CreateOrderOutcome) },
+    checkout: { createOrder: vi.fn(async () => ({ outcome: "unknown_plan" }) as CreateOrderOutcome), listOrders: vi.fn(async () => []) },
     customerWallet: {
       getCurrent: vi.fn(async () => ({ spendable: 0, grants: [], tier: 1 as const })),
     },
@@ -906,6 +906,7 @@ describe("customer session", () => {
             otpSendPerPhone: allow(),
             otpSendPerIp: allow(),
             otpVerifyPerPhone: allow(),
+            otpVerifyPerIp: allow(),
             loginPerAccount: allow(),
             loginPerIp: allow(),
             inviteCheckPerIp: allow(),

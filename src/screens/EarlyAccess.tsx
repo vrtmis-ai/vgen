@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { OAuthFailureNotice } from "../components/OAuthFailureNotice";
 import { BRAND } from "../data/brand";
@@ -34,6 +34,9 @@ import { SIGN_IN_PATH, SIGN_UP_PATH } from "../runtime/providers/authActions";
    still has a way in, and the legal row is still there for the reviewer who
    has to find it. */
 
+/** The welcome beat before signup takes the page. */
+const WELCOME_MS = 1400;
+
 const LEGAL: { label: TKey; href: string }[] = [
   { label: "lp_footer_terms", href: "/terms" },
   { label: "lp_footer_privacy", href: "/privacy" },
@@ -55,18 +58,18 @@ const LEGAL: { label: TKey; href: string }[] = [
  * a phone, and the bars simply get narrower instead.
  */
 /**
- * How many are already waiting, above the mark.
+ * How many people are already in, above the mark.
  *
  * Fetched rather than passed in, and silent when it cannot be: the route is
  * not written yet, so a deployment without it shows nothing here instead of an
  * error or a zero. Nothing else on the page depends on it.
  *
- * **The number shown is the count plus `WAITLIST_FLOOR`.** That is the owner's
+ * **The number shown is the count plus `MEMBER_FLOOR`.** That is the owner's
  * decision and it is written here in one place rather than folded into the
  * copy, so anybody reading this knows the figure on screen is not the figure
  * in the table.
  */
-const WAITLIST_FLOOR = 1000;
+const MEMBER_FLOOR = 1000;
 
 function WaitingCount() {
   const { t, n } = useI18n();
@@ -76,7 +79,7 @@ function WaitingCount() {
   useEffect(() => {
     let live = true;
     void services.auth
-      .waitlistCount()
+      .memberCount()
       .then((value) => {
         if (live) setCount(value);
       })
@@ -95,7 +98,7 @@ function WaitingCount() {
       style={{ background: "var(--vg-glass-light)", color: "var(--vg-text-secondary)", boxShadow: "inset 0 0 0 1px var(--vg-border)" }}
     >
       <span className="size-1.5 rounded-full" style={{ background: "var(--vg-primary)" }} />
-      {t("ea_waiting").replace("{n}", n(count + WAITLIST_FLOOR))}
+      {t("ea_waiting").replace("{n}", n(count + MEMBER_FLOOR))}
     </span>
   );
 }
@@ -130,6 +133,12 @@ export default function EarlyAccess() {
      asks to be told when there is room. */
   const [queueing, setQueueing] = useState(false);
   const [listed, setListed] = useState(false);
+  /* A code that works used to navigate on the same tick, so the only thing the
+     press produced was the page vanishing. The gate opening is the one good
+     moment this page has; it gets a beat to say so before signup takes over. */
+  const [admitted, setAdmitted] = useState(false);
+  const leaving = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => void (leaving.current && clearTimeout(leaving.current)), []);
 
   const submit = async () => {
     const trimmed = code.trim();
@@ -141,8 +150,14 @@ export default function EarlyAccess() {
     }
     setChecking(true);
     try {
+      // `.valid`, because the probe answers with a record now rather than a bare
+      // boolean — a truthy object would have waved every code through.
       if ((await services.auth.checkInvite(trimmed)).valid) {
-        router.push(`${SIGN_UP_PATH}?invite=${encodeURIComponent(trimmed)}`);
+        setAdmitted(true);
+        /* Long enough to read two words, short enough that nobody waits on it.
+           Cleared on unmount, so a visitor who leaves inside the beat is not
+           pushed somewhere a moment after they went elsewhere. */
+        leaving.current = setTimeout(() => router.push(`${SIGN_UP_PATH}?invite=${encodeURIComponent(trimmed)}`), WELCOME_MS);
         return;
       }
       setFailure("ea_invalid");
@@ -172,6 +187,9 @@ export default function EarlyAccess() {
     try {
       await services.auth.joinWaitlist(contact.value);
       setListed(true);
+      // Emptied so the confirmation under it is about the address that was
+      // just taken, and a second press cannot resend the same one.
+      setCode("");
     } catch (error) {
       setFailure(
         error instanceof ApiError && error.code === "rate_limited"
@@ -207,44 +225,27 @@ export default function EarlyAccess() {
             breaks the joins — «ب ه ز و د ی» is not a styled word, it is a
             broken one. */}
         <h1
-          className={`vg-arrive mt-9 text-[clamp(2.1rem,7.5vw,3.1rem)] font-extrabold leading-[1.15] ${lang === "en" ? "tracking-[0.2em]" : ""}`}
+          className={`vg-arrive mt-9 text-[clamp(2.1rem,7.5vw,3.1rem)] font-extrabold leading-[1.15] ${lang === "en" ? "uppercase tracking-[0.2em]" : ""}`}
           style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)", "--vg-arrive-step": 2 } as CSSProperties}
         >
-          {t(listed ? "ea_queue_done" : queueing ? "ea_queue_title" : "ea_soon")}
+          {t(admitted ? "ea_welcome" : queueing ? "ea_queue_title" : "ea_headline")}
         </h1>
 
         <p
-          className={`vg-arrive mt-3 text-[13.5px] font-semibold ${lang === "en" ? "tracking-[0.28em]" : "tracking-normal"}`}
+          className={`vg-arrive mt-3 text-[13.5px] font-semibold ${lang === "en" ? "uppercase tracking-[0.28em]" : "tracking-normal"}`}
           style={{ color: "var(--vg-primary-soft)", "--vg-arrive-step": 3 } as CSSProperties}
+          /* Read out when it changes under a heading that changed with it:
+             the gate opening is the one thing here a screen reader must not
+             have to go looking for. */
+          role={admitted ? "status" : undefined}
         >
-          {t("ea_limited")}
+          {t(admitted ? "ea_admitted" : "ea_limited")}
         </p>
 
-        {listed ? (
-          /* The form is gone rather than emptied: there is nothing left to do
-             here, and a field still sitting there invites a second go. */
-          <div className="mt-8 flex max-w-[420px] flex-col items-center gap-5">
-            <p className="text-[13px] leading-[1.9]" style={{ color: "var(--vg-text-secondary)" }}>
-              {t("ea_queue_done_note")}
-            </p>
-            {/* Not a dead end. The code arrives by email, and somebody reading
-                this on the tab they left open needs a way to the field without
-                reloading the page to find it. */}
-            <button
-              type="button"
-              onClick={() => {
-                setListed(false);
-                setQueueing(false);
-                setCode("");
-                setFailure(null);
-              }}
-              className="vg-ease h-12 rounded-full px-5 text-[15px] hover:bg-white/5"
-              style={{ color: "var(--vg-text-secondary)", boxShadow: "inset 0 0 0 1px var(--vg-border)" }}
-            >
-              {t("ea_have_code")}
-            </button>
-          </div>
-        ) : (
+        {/* Gone the moment the code is accepted. There is nothing left to
+            type, and a field still sitting under «خوش آمدید» would read as
+            the page asking for a second code. */}
+        {!admitted && (
           <form
             className="vg-arrive mt-8 w-full max-w-[420px]"
             style={{ "--vg-arrive-step": 4 } as CSSProperties}
@@ -259,6 +260,9 @@ export default function EarlyAccess() {
                 onChange={(event) => {
                   setCode(event.target.value);
                   setFailure(null);
+                  // Typing again is a new address, not a second look at the old
+                  // confirmation, so the line goes back to being empty.
+                  setListed(false);
                 }}
                 aria-label={t(queueing ? "ea_queue_placeholder" : "auth_invite_label")}
                 aria-invalid={failure ? true : undefined}
@@ -309,17 +313,32 @@ export default function EarlyAccess() {
               id="ea-error"
               role="alert"
               className="mt-3 min-h-[1.25rem] text-[12.5px] leading-[1.7]"
-              style={{ color: failure ? "var(--vg-danger)" : "transparent" }}
+              /* Three things share one line, so nothing below it moves when the
+                 answer arrives: the refusal, the confirmation, and the empty
+                 reservation that holds the height while there is neither. */
+              style={{ color: failure ? "var(--vg-danger)" : listed ? "var(--vg-primary-soft)" : "transparent" }}
             >
-              {failure ? t(failure) : checking ? t(queueing ? "ea_queue_sending" : "ea_checking") : "\u00a0"}
+              {failure
+                ? t(failure)
+                : listed
+                  ? t("ea_queue_done_note")
+                  : checking
+                    ? t(queueing ? "ea_queue_sending" : "ea_checking")
+                    : "\u00a0"}
             </p>
 
-            {/* Nothing once they are on the list: the note above already says what
-                happens next, and «فقط با کد دعوت» under it would be the page
-                asking again for the thing it just promised to send. */}
-            {!listed && (
-              <p className={`mt-1 text-[11.5px] ${lang === "en" ? "tracking-[0.22em]" : ""}`} style={{ color: "var(--vg-text-muted)" }}>
-                {t(queueing ? "ea_queue_hint" : "ea_code_required")}
+            {/* Queue mode only, and gone once the confirmation takes the line
+                above. In code mode the placeholder already shows the shape of a
+                code and the line under the mark already says the page is invite
+                only, so a hint here was «کد دعوت» for the third time in four
+                lines. Gone on the list for the same reason: the page would be
+                asking again for the thing it has just taken. */}
+            {queueing && !listed && (
+              <p
+                className={`mt-1 text-[11.5px] ${lang === "en" ? "uppercase tracking-[0.22em]" : ""}`}
+                style={{ color: "var(--vg-text-muted)" }}
+              >
+                {t("ea_queue_hint")}
               </p>
             )}
 
@@ -332,6 +351,7 @@ export default function EarlyAccess() {
                 setQueueing((open) => !open);
                 setCode("");
                 setFailure(null);
+                setListed(false);
               }}
               /* The landing's secondary: a ghost pill at the CTA's height,
                  lighting on hover. Same pair, same page, same two weights. */
@@ -356,7 +376,10 @@ export default function EarlyAccess() {
           version was grey on black under everything else, which is where a
           returning customer gives up and assumes the site is shut. */}
       <div className="relative z-10 mt-10 flex flex-col items-center gap-5">
-        <div className="flex items-center gap-2.5 text-[12.5px]">
+        {/* Not during the welcome: asking somebody whether they already have an
+            account, a second after telling them their code worked, offers them
+            a door they have just walked through. */}
+        <div className="flex items-center gap-2.5 text-[12.5px]" hidden={admitted}>
           <span style={{ color: "var(--vg-text-muted)" }}>{t("ea_has_account")}</span>
           <button
             type="button"

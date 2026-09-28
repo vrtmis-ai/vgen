@@ -47,6 +47,7 @@ export interface AuthRateLimiters {
   otpSendPerPhone: AuthRateLimiter;
   otpSendPerIp: AuthRateLimiter;
   otpVerifyPerPhone: AuthRateLimiter;
+  otpVerifyPerIp: AuthRateLimiter;
   loginPerAccount: AuthRateLimiter;
   loginPerIp: AuthRateLimiter;
   inviteCheckPerIp: AuthRateLimiter;
@@ -219,11 +220,16 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
     return reply.code(200).send({ status: "listed" });
   });
 
-  /* Drawn on the holding page as a queue length. Public and uncounted against
-     any limit: it is one integer, it leaks nothing about who is on the list,
-     and the page asks for it on every load. */
-  app.get("/api/v1/auth/waitlist/count", async (_request, reply) => {
-    return reply.code(200).send({ count: await access.waitlistCount() });
+  /* Drawn on the holding page above the mark, as social proof: how many people
+     are in. Public and uncounted against any limit — it is one integer, it
+     names nobody, and the page asks for it on every load.
+
+     It used to answer with the length of the waiting list, which is the
+     opposite group: everybody who could not get in, under a line that reads
+     "n people have signed up". The queue length is the panel's number and
+     stays `waitlistCount`. See #138. */
+  app.get("/api/v1/auth/members/count", async (_request, reply) => {
+    return reply.code(200).send({ count: await access.memberCount() });
   });
 
   /* ------------------------------------------------------------ password reset
@@ -311,6 +317,14 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
 
     const wait = await limiters.otpVerifyPerPhone.consume(phone);
     if (wait !== null) return tooMany(reply, wait);
+
+    /* And a ceiling on the address, which the per-phone bucket cannot give: it
+       spends one budget per number, so a list of numbers is a fresh ten every
+       time. Consumed second on purpose — a person meets their own limit first,
+       and an attacker cycling numbers never trips that one, so this is the
+       bucket their requests actually fill. See #119. */
+    const waitForAddress = await limiters.otpVerifyPerIp.consume(request.ip);
+    if (waitForAddress !== null) return tooMany(reply, waitForAddress);
 
     try {
       // One call, because the code must not be spent unless the sign-in

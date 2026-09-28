@@ -1,4 +1,4 @@
-import { FPS, NEUTRAL_SHARE, OPACITIES, hash } from "./DotField";
+import { hash } from "./DotField";
 
 /* ---------------------------------------------------------------------------
    The sign-in field, fired by the button that starts a generation.
@@ -19,12 +19,35 @@ import { FPS, NEUTRAL_SHARE, OPACITIES, hash } from "./DotField";
    and not worth the risk of changing to share one.
    --------------------------------------------------------------------------- */
 
-/** Cells on a 44px button. The sign-in screen's 20px would give it two rows. */
-const CELL = 10;
-const DOT = 3;
-/** The front crosses to the farthest corner in this long, whatever the width. */
-const SWEEP = 0.46;
-const JITTER = 0.08;
+/**
+ * A 4px cell, so a 44px button is eleven rows rather than four.
+ *
+ * It was ten, with a 3px dot inside it — seven tenths of every cell empty, which
+ * read as a sparse scatter rather than as a field. The block now fills the cell
+ * but for a 1px gutter, and at this size the button carries around 900 of them.
+ */
+const CELL = 4;
+/** The front crosses to the farthest corner in this fraction of the run. */
+const SWEEP = 0.58;
+/** And the lime starts coming back at this one, from the middle outward. */
+const RETURN = 0.52;
+/** How ragged the front is. Bayer, so it frays in a grid rather than smoothly. */
+const DITHER = 0.09;
+/** The field advances in steps this often. Below the frame rate, on purpose. */
+const STEPS_PER_SECOND = 14;
+/**
+ * Hard steps, darkest to brightest. Opacity used to carry this in ten smooth
+ * levels, which is the one thing that cannot look 8-bit: every neighbouring
+ * pair has to be a jump, not a ramp.
+ */
+const RAMP = ["#243406", "#5c7a12", "#8fb31f", "#c6f52e", "#ffffff"] as const;
+/** A 4x4 Bayer matrix, the oldest way to make an edge break up in squares. */
+const BAYER = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5],
+] as const;
 /**
  * When the submission goes. A wall-clock timer, not the animation's last frame:
  * requestAnimationFrame stops in a background tab, and a press followed by a
@@ -32,7 +55,7 @@ const JITTER = 0.08;
  * came back — the animation is decoration, and it must never be the thing a
  * paid job waits on.
  */
-export const IGNITION_MS = 700;
+export const IGNITION_MS = 1100;
 
 export const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -60,6 +83,7 @@ export function ignite(canvas: HTMLCanvasElement, origin: { x: number; y: number
   let originY = 0;
   let reach = 1;
   const pressed = performance.now();
+  const seconds = IGNITION_MS / 1000;
 
   const measure = () => {
     const box = canvas.getBoundingClientRect();
@@ -87,37 +111,75 @@ export function ignite(canvas: HTMLCanvasElement, origin: { x: number; y: number
 
   let measured = false;
   let frame = 0;
-  let previous = 0;
+  /* Redraw only when the quantised step changes. The field advances fourteen
+     times a second by design, and repainting nine hundred cells on every one of
+     sixty frames to produce an identical picture is most of the cost for none
+     of the effect. */
+  let lastStep = -1;
 
   const draw = (now: number) => {
     frame = requestAnimationFrame(draw);
     if (!measured && !(measured = measure())) return;
-    if (now - previous < 1000 / FPS) return;
-    previous = now;
-    // From the press, so a late first frame joins the sweep where it should be
-    // rather than starting it over.
+
     const elapsed = (now - pressed) / 1000;
+    const step = Math.floor(elapsed * STEPS_PER_SECOND);
+    if (step === lastStep) return;
+    lastStep = step;
+    const t = step / STEPS_PER_SECOND;
+
+    /* Normalised against the last step rather than against IGNITION_MS: the
+       quantised clock lands short of the wall clock, and the difference left a
+       band of cells still lit in the corners when the layer unmounted. */
+    const back = (t - RETURN * seconds) / Math.max(seconds - RETURN * seconds - 1 / STEPS_PER_SECOND, 1e-3);
+    const latest = SWEEP * seconds + DITHER / 2;
 
     context.clearRect(0, 0, width, height);
+    const lit: { x: number; y: number; level: number }[] = [];
+
     for (let column = 0; column < columns; column += 1) {
       for (let row = 0; row < rows; row += 1) {
         const seed = hash(column, row);
         const distance = Math.hypot(column + 0.5 - originX, row + 0.5 - originY);
-        if (elapsed < (distance / reach) * SWEEP + seed * JITTER) continue;
+        const arrives = (distance / reach) * SWEEP * seconds + (BAYER[row & 3]![column & 3]! / 16 - 0.5) * DITHER;
+        const age = t - arrives;
+        if (age < 0) continue;
+        // The lime returns in the order it left, so the button is whole again
+        // exactly as the job is sent rather than snapping back when it is.
+        if (back > 0 && back >= arrives / latest) continue;
+
+        // The front itself: white at the very edge, settling to the ramp behind.
+        const front = Math.max(0, 1 - age / (0.13 * seconds));
+        const flicker = hash(column + Math.floor(t * STEPS_PER_SECOND * 1.6 + seed * 5), row);
+        let level = front > 0.6 ? 4 : front > 0.25 ? 3 : flicker > 0.88 ? 3 : flicker > 0.6 ? 2 : flicker > 0.3 ? 1 : 0;
+        if (seed > 0.93 && flicker > 0.5) level = 4;
 
         const x = column * CELL;
         const y = row * CELL;
-        context.globalAlpha = 1;
         context.fillStyle = ground;
         context.fillRect(x, y, CELL, CELL);
-
-        const step = hash(column + Math.floor(elapsed * 6 + seed * 4), row);
-        context.globalAlpha = OPACITIES[Math.floor(step * OPACITIES.length)] ?? 0.3;
-        context.fillStyle = seed > NEUTRAL_SHARE ? "#ffffff" : lime;
-        context.fillRect(x + (CELL - DOT) / 2, y + (CELL - DOT) / 2, DOT, DOT);
+        context.fillStyle = RAMP[level]!;
+        context.fillRect(x, y, CELL - 1, CELL - 1);
+        if (level >= 3) lit.push({ x, y, level });
       }
     }
+
+    /* The bloom is a second pass, additively, over blocks that are already
+       drawn — so the pixel keeps its hard edge and only the light around it is
+       soft. Blurring the block itself would round off the one thing this is
+       for. Only the top two levels carry it: `shadowBlur` is the expensive
+       call here, and a halo on a dim cell is not visible anyway. */
+    context.globalCompositeOperation = "lighter";
+    for (const { x, y, level } of lit) {
+      const white = level === 4;
+      context.shadowColor = white ? "#ffffff" : lime;
+      context.shadowBlur = white ? 14 : 9;
+      context.globalAlpha = white ? 0.6 : 0.4;
+      context.fillStyle = white ? "#ffffff" : lime;
+      context.fillRect(x, y, CELL - 1, CELL - 1);
+    }
+    context.shadowBlur = 0;
     context.globalAlpha = 1;
+    context.globalCompositeOperation = "source-over";
   };
   frame = requestAnimationFrame(draw);
 

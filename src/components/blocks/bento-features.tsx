@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 
 import { ModelMark } from "@/components/ModelMark";
+import { presetArt } from "@/features/content/media";
 import { usePublishedContent } from "@/features/content/ContentProvider";
 import type { Family } from "@/data/models";
 import { useCatalogFamilies, useFamilyLookup } from "@/features/catalog/CatalogProvider";
@@ -44,22 +45,45 @@ function FamilyMedia({ familyId, className }: { familyId: string; className?: st
   );
 }
 
-function PlaceholderGraphic({ src, fallback, position = "center" }: { src: string; fallback: React.ReactNode; position?: string }) {
-  const [failed, setFailed] = useState(false);
+/**
+ * The frame every card's graphic sits in, and the one place a cover can land.
+ *
+ * Two layers, in this order: a cover file if one exists, the drawn graphic if
+ * it does not. That order is the opposite of the old one, which preferred a
+ * stock PNG so hard that the drawn graphics rendered for nobody — everybody saw
+ * seven photographs in blue and purple, one of them carrying a *painted mockup*
+ * of our own interface: a prompt box, a model menu reading "Kling 1.6", and a
+ * blue Generate button. None of it was a control, none of it our colour, and
+ * the model it named is not one the catalogue serves.
+ *
+ * ## Dropping a cover in
+ *
+ * Put a file at `public/features/covers/<key>.jpg` — the keys are the ones in
+ * `cards()` below: video, image, voice, effects, academy, studio, mcp. Nothing
+ * else to change. A missing file falls through to the drawn graphic, so covers
+ * can arrive one at a time and a half-finished set is never a broken page.
+ *
+ * Shapes, from the grid above: `lg:h-[610px]` over six rows with an 8px gap
+ * makes a row 95px, so a card is 198px tall over two rows, 404 over four, 610
+ * over six. Column width runs 294px at a 1280 viewport to 374px at 1600, which
+ * is why these are ratios and not fixed sizes:
+ *
+ *   video, image, studio  — 3:4 portrait   (renders 3:4 → 1:1)
+ *   voice, academy, mcp   — 2:1 landscape
+ *   effects               — 3:5 tall
+ *
+ * The bottom of every card is scrim and text. Keep the subject in the TOP half
+ * or it will be behind the heading.
+ */
+function CardGraphic({ cover, children }: { cover?: string; children: React.ReactNode }) {
+  const [noCover, setNoCover] = useState(false);
 
   return (
     <div className="absolute inset-0 overflow-hidden" style={{ background: "var(--vg-surface-overlay)" }}>
-      {failed ? (
-        fallback
+      {cover && !noCover ? (
+        <img src={cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" onError={() => setNoCover(true)} />
       ) : (
-        <img
-          src={src}
-          alt=""
-          loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ objectPosition: position }}
-          onError={() => setFailed(true)}
-        />
+        children
       )}
       <div className="absolute inset-0 bg-black/10" />
     </div>
@@ -177,26 +201,27 @@ function VoiceGraphic() {
   );
 }
 
+/**
+ * The shelf, with the pictures on it.
+ *
+ * Each tile was painted with its model's `grad` — nine different brand
+ * gradients in a nine-tile grid, which is how a shelf of effects came out
+ * looking like a paint chart. It also showed none of the work: presets carry a
+ * cover, and `presetArt` is the same helper the effects screen itself uses, so
+ * the wall now shows the effects rather than the palettes of the models that
+ * happen to run them.
+ */
 function EffectsGraphic() {
-  const familyOf = useFamilyLookup();
   const effects = usePublishedContent().presets.slice(0, 9);
   return (
     <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-1.5 p-2.5 pb-28">
-      {effects.map((effect) => {
-        const family = familyOf(effect.familyId);
-        return (
-          <div
-            key={effect.id}
-            className="relative overflow-hidden rounded-card"
-            style={{ background: family?.grad ?? "var(--vg-surface-overlay)" }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/10" />
-            <span className="absolute inset-x-0 bottom-0 px-2 pb-2 text-[9.5px] font-semibold leading-tight text-white">
-              {effect.title}
-            </span>
-          </div>
-        );
-      })}
+      {effects.map((effect) => (
+        <div key={effect.id} className="relative overflow-hidden rounded-card" style={{ background: "var(--vg-surface-overlay)" }}>
+          <img src={presetArt(effect, 240, 320)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/10" />
+          <span className="absolute inset-x-0 bottom-0 px-2 pb-2 text-[9.5px] font-semibold leading-tight text-white">{effect.title}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -281,28 +306,44 @@ function StudioGraphic() {
   );
 }
 
+/**
+ * What the integration actually looks like from inside Claude: a tool call.
+ *
+ * This was one small pill pinned to the top corner — which is the corner the
+ * eyebrow badge occupies at `z-30`, so the graphic rendered underneath it and
+ * the card read as having none. `pt-14` clears the badge, `pb-24` clears the
+ * heading, and the strip between them holds the thing worth showing.
+ *
+ * Drawn rather than screenshotted, for the reason the other six are: a picture
+ * of a chat window is a picture of one day's chat window. This is LTR and
+ * monospaced because a tool call is, and it names `deev` and a real feature
+ * code rather than inventing a tool we do not serve.
+ */
 function McpGraphic() {
   return (
-    <div className="absolute inset-0 flex items-start justify-end p-4" dir="ltr">
+    <div className="absolute inset-0 flex items-center px-4 pb-24 pt-14" dir="ltr">
       <div
-        className="flex items-center gap-2 rounded-card px-3 py-2"
-        style={{ background: "rgb(9 9 9 / 0.62)", border: "1px solid rgb(255 255 255 / 0.13)", backdropFilter: "blur(14px)" }}
+        className="w-full rounded-card p-2.5"
+        style={{ background: "rgb(9 9 9 / 0.68)", border: "1px solid rgb(255 255 255 / 0.13)", backdropFilter: "blur(14px)" }}
       >
-        <span
-          className="grid size-7 place-items-center rounded-full text-[16px]"
-          style={{ background: "var(--vg-primary-a10)", color: "var(--vg-primary-soft)" }}
-        >
-          ✦
-        </span>
-        <span className="text-[11px] font-semibold text-white/80" lang="en">
-          Claude × DEEV
-        </span>
-        <span
-          className="rounded-pill px-2 py-1 text-[9px] font-bold"
-          style={{ background: "var(--vg-primary)", color: "var(--vg-text-on-primary)" }}
-        >
-          MCP
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className="grid size-5 shrink-0 place-items-center rounded-[6px] text-[11px]"
+            style={{ background: "var(--vg-primary-a10)", color: "var(--vg-primary-soft)" }}
+          >
+            ✦
+          </span>
+          <span className="font-mono text-[10.5px] text-white/85">deev</span>
+          <span className="text-white/25">·</span>
+          <span className="font-mono text-[10.5px] text-white/60">video_generate</span>
+          <span className="ms-auto size-1.5 shrink-0 rounded-full" style={{ background: "var(--vg-primary)" }} />
+        </div>
+        <div className="mt-2 flex items-center gap-2 border-t pt-2" style={{ borderColor: "rgb(255 255 255 / 0.1)" }}>
+          <span className="h-1 flex-1 overflow-hidden rounded-pill bg-white/15">
+            <span className="block h-full w-[72%] rounded-pill" style={{ background: "var(--vg-primary)" }} />
+          </span>
+          <span className="shrink-0 font-mono text-[9.5px] tabular-nums text-white/55">00:05</span>
+        </div>
       </div>
     </div>
   );
@@ -320,14 +361,31 @@ interface Card {
   short?: boolean;
 }
 
+/**
+ * Two tones, where there were seven.
+ *
+ * This was a rainbow — blue, purple, teal, pink, orange, coral, violet — and
+ * not one of them was the product's colour. The studio is near-black with lime
+ * on whichever control is doing something, and a wall of seven other hues in
+ * front of it reads as a different product's marketing.
+ *
+ * The split carries the one fact the wall is otherwise only whispering in an
+ * eyebrow: lime is what works today, grey is what still says «در حال ساخت».
+ * Three of seven are real, and now that is visible from across the page.
+ */
+/** Where a generated cover goes. See `CardGraphic` for shapes and safe area. */
+const cover = (key: string) => `/features/covers/${key}.jpg`;
+
+const LIVE = { rgb: "198 245 46", hex: "#c6f52e" };
+const SOON = { rgb: "159 164 173", hex: "#9fa4ad" };
 const FEATURE_LOOK: Record<string, { rgb: string; hex: string }> = {
-  video: { rgb: "19 185 255", hex: "#13b9ff" },
-  image: { rgb: "128 111 255", hex: "#806fff" },
-  voice: { rgb: "70 203 190", hex: "#46cbbe" },
-  effects: { rgb: "255 57 126", hex: "#ff397e" },
-  academy: { rgb: "244 185 104", hex: "#f4b968" },
-  studio: { rgb: "255 108 82", hex: "#ff6c52" },
-  mcp: { rgb: "174 120 255", hex: "#ae78ff" },
+  video: LIVE,
+  image: LIVE,
+  voice: LIVE,
+  effects: SOON,
+  academy: SOON,
+  studio: SOON,
+  mcp: SOON,
 };
 
 /**
@@ -346,7 +404,11 @@ const cards = (voiceCount: number, videoCount: number, imageCount: number): Card
     title: "lp_bento_video_t",
     description: "lp_bento_video_d",
     counts: { n: videoCount },
-    graphic: <PlaceholderGraphic src="/features/placeholders/ai-video.png" fallback={<VideoGraphic />} position="center 42%" />,
+    graphic: (
+      <CardGraphic cover={cover("video")}>
+        <VideoGraphic />
+      </CardGraphic>
+    ),
   },
   {
     key: "image",
@@ -355,7 +417,11 @@ const cards = (voiceCount: number, videoCount: number, imageCount: number): Card
     title: "lp_bento_image_t",
     description: "lp_bento_image_d",
     counts: { n: imageCount },
-    graphic: <PlaceholderGraphic src="/features/placeholders/ai-image.png" fallback={<ImageGraphic />} position="center 38%" />,
+    graphic: (
+      <CardGraphic cover={cover("image")}>
+        <ImageGraphic />
+      </CardGraphic>
+    ),
   },
   {
     key: "voice",
@@ -365,7 +431,11 @@ const cards = (voiceCount: number, videoCount: number, imageCount: number): Card
     title: "lp_bento_voice_t",
     description: "lp_bento_voice_d",
     counts: { n: voiceCount },
-    graphic: <PlaceholderGraphic src="/features/placeholders/ai-voice.png" fallback={<VoiceGraphic />} />,
+    graphic: (
+      <CardGraphic cover={cover("voice")}>
+        <VoiceGraphic />
+      </CardGraphic>
+    ),
   },
   {
     key: "effects",
@@ -373,7 +443,11 @@ const cards = (voiceCount: number, videoCount: number, imageCount: number): Card
     eyebrow: "lp_bento_effects",
     title: "lp_bento_effects_t",
     description: "lp_bento_effects_d",
-    graphic: <PlaceholderGraphic src="/features/placeholders/effects.png" fallback={<EffectsGraphic />} position="center 36%" />,
+    graphic: (
+      <CardGraphic cover={cover("effects")}>
+        <EffectsGraphic />
+      </CardGraphic>
+    ),
   },
   {
     key: "academy",
@@ -382,7 +456,11 @@ const cards = (voiceCount: number, videoCount: number, imageCount: number): Card
     eyebrow: "lp_bento_academy",
     title: "lp_bento_academy_t",
     description: "lp_bento_academy_d",
-    graphic: <PlaceholderGraphic src="/features/placeholders/academy.png" fallback={<AcademyGraphic />} />,
+    graphic: (
+      <CardGraphic cover={cover("academy")}>
+        <AcademyGraphic />
+      </CardGraphic>
+    ),
   },
   {
     key: "studio",
@@ -390,7 +468,11 @@ const cards = (voiceCount: number, videoCount: number, imageCount: number): Card
     eyebrow: "lp_bento_studio",
     title: "lp_bento_studio_t",
     description: "lp_bento_studio_d",
-    graphic: <PlaceholderGraphic src="/features/placeholders/studio.png" fallback={<StudioGraphic />} position="center 42%" />,
+    graphic: (
+      <CardGraphic cover={cover("studio")}>
+        <StudioGraphic />
+      </CardGraphic>
+    ),
   },
   {
     key: "mcp",
@@ -399,7 +481,11 @@ const cards = (voiceCount: number, videoCount: number, imageCount: number): Card
     eyebrow: "lp_bento_mcp",
     title: "lp_bento_mcp_t",
     description: "lp_bento_mcp_d",
-    graphic: <PlaceholderGraphic src="/features/placeholders/mcp.png" fallback={<McpGraphic />} />,
+    graphic: (
+      <CardGraphic cover={cover("mcp")}>
+        <McpGraphic />
+      </CardGraphic>
+    ),
   },
 ];
 
@@ -508,7 +594,14 @@ export function BentoCard({
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background: `radial-gradient(circle at 50% 112%, rgb(${tone.rgb} / 0.18), transparent 40%), linear-gradient(to top, rgb(5 5 6 / 0.98) 0%, rgb(5 5 6 / 0.78) 28%, rgb(5 5 6 / 0.12) 67%, rgb(5 5 6 / 0.08) 100%)`,
+          /* Holds near-opaque to 42% and lets go gently after it.
+             The old ramp fell from 0.78 at 28% to 0.12 at 67% — a collapse
+             right across the band the title sits in. That was survivable when
+             every card was a dark photograph. The drawn graphics carry real
+             catalogue media, some of it bright, and the headings landed on it.
+             Readability wins the trade: the graphic dims where it was already
+             behind text and nobody was reading it anyway. */
+          background: `radial-gradient(circle at 50% 112%, rgb(${tone.rgb} / 0.2), transparent 42%), linear-gradient(to top, rgb(5 5 6 / 0.98) 0%, rgb(5 5 6 / 0.95) 42%, rgb(5 5 6 / 0.62) 62%, rgb(5 5 6 / 0.18) 84%, rgb(5 5 6 / 0.06) 100%)`,
         }}
       />
 

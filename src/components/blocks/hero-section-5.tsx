@@ -142,13 +142,17 @@ export function HeroSection({
           <div className="py-24 md:pb-32 lg:pb-36 lg:pt-72">
             <div className="relative z-10 mx-auto flex max-w-7xl flex-col px-6 lg:block lg:px-12">
               <div className="mx-auto max-w-lg text-center lg:ms-0 lg:max-w-full lg:text-start">
-                <h1
-                  className="mt-8 max-w-2xl text-balance text-5xl font-extrabold md:text-6xl lg:mt-16 xl:text-7xl"
-                  style={{ fontFamily: "var(--vg-font-display)", color: "var(--vg-text)" }}
+                {/* Read, not seen. The display heading that used to sit here
+                    said what the line below it already says, and it was tall
+                    enough — five to seven rem over two lines — to push the
+                    video card it was introducing off the fold. A page still
+                    needs one h1 for a screen reader and for search, so it
+                    stays; it just stops taking the space the picture wants. */}
+                <h1 className="sr-only">{t("lp_hero_title")}</h1>
+                <p
+                  className="mt-8 max-w-2xl text-balance text-xl leading-[1.8] md:text-2xl lg:mt-16"
+                  style={{ color: "var(--vg-text-secondary)" }}
                 >
-                  {t("lp_hero_title")}
-                </h1>
-                <p className="mt-8 max-w-2xl text-balance text-lg leading-[1.9]" style={{ color: "var(--vg-text-secondary)" }}>
                   {t("lp_hero_sub")}
                 </p>
 

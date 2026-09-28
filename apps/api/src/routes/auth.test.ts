@@ -18,6 +18,7 @@ const openLimiters = (): AuthRateLimiters => ({
   otpSendPerPhone: allow(),
   otpSendPerIp: allow(),
   otpVerifyPerPhone: allow(),
+  otpVerifyPerIp: allow(),
   loginPerAccount: allow(),
   loginPerIp: allow(),
   inviteCheckPerIp: allow(),
@@ -77,7 +78,7 @@ const mailerDouble = () => ({
 function accessDouble() {
   return {
     joinWaitlist: vi.fn(async (_channel: "email" | "phone", _contact: string): Promise<"listed" | "has_account"> => "listed"),
-    waitlistCount: vi.fn(async () => 7),
+    memberCount: vi.fn(async () => 7),
   };
 }
 
@@ -263,6 +264,24 @@ describe("verifying a code", () => {
     expect(response.statusCode).toBe(400);
     expect(auth.createSession).not.toHaveBeenCalled();
     expect(auth.recordLoginAttempt).toHaveBeenCalledWith(expect.objectContaining({ succeeded: false }));
+    await app.close();
+  });
+
+  /* The gap CodeQL's three alerts did not name: the per-phone bucket bounds
+     guesses at one number, and somebody working through a list gets ten each.
+     See #119. */
+  it("stops guessing from one address even when each number is fresh", async () => {
+    const limiters = openLimiters();
+    limiters.otpVerifyPerIp = { consume: vi.fn(async () => 42) };
+    const auth = authDouble();
+    const { app } = build({ limiters, auth });
+
+    const response = await app.inject({ method: "POST", url: "/api/v1/auth/otp/verify", payload });
+
+    expect(response.statusCode).toBe(429);
+    // Refused before the code is spent, so a blocked attempt cannot burn a
+    // real person's code on the way out.
+    expect(auth.signInWithPhoneCode).not.toHaveBeenCalled();
     await app.close();
   });
 
@@ -608,10 +627,10 @@ describe("joining the waitlist", () => {
     await app.close();
   });
 
-  it("hands the holding page a raw count to draw", async () => {
+  it("hands the holding page a raw count of members to draw", async () => {
     const { app } = build();
 
-    const response = await app.inject({ method: "GET", url: "/api/v1/auth/waitlist/count" });
+    const response = await app.inject({ method: "GET", url: "/api/v1/auth/members/count" });
 
     // Raw. The screen adds its own floor before showing a number, so adding
     // one here would apply it twice.

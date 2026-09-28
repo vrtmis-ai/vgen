@@ -19,6 +19,17 @@ import { PLAN_LADDER } from "../../data/planLadder";
 export function createDemoPaymentService(now: () => number): AppServices["payment"] {
   let sequence = 0;
   return {
+    /* No `GET /payments/orders` on the server yet — see #143. Answered here so
+       the history card can be built; the http adapter calls the route and the
+       card hides itself until it answers. */
+    async orders() {
+      const day = 86_400_000;
+      return [
+        { id: "ord-3", createdAt: now() - 2 * day, status: "paid" as const, amountToman: 4_250_000, coins: 525, planCode: "plus" },
+        { id: "ord-2", createdAt: now() - 40 * day, status: "paid" as const, amountToman: 1_275_000, coins: 150, planCode: "basic" },
+        { id: "ord-1", createdAt: now() - 41 * day, status: "failed" as const, amountToman: 1_275_000, coins: 150, planCode: "basic" },
+      ];
+    },
     createOrder: async ({ planId, cycle }) => {
       const plan = PLAN_LADDER.find((row) => row.code === planId);
       if (!plan) throw new Error(`Unknown plan: ${planId}`);

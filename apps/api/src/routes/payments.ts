@@ -1,4 +1,5 @@
-import { CheckoutOrderSchema, CreateCheckoutOrderRequestSchema } from "@vgen/contracts";
+import { CheckoutOrderSchema, CreateCheckoutOrderRequestSchema, PaidOrderListSchema } from "@vgen/contracts";
+import type { PaidOrder } from "@vgen/contracts";
 import type { CreateOrderInput, CreateOrderOutcome } from "@vgen/db";
 import type { FastifyInstance } from "fastify";
 import { track } from "../posthog";
@@ -6,6 +7,7 @@ import type { CustomerSessionApplication } from "./session";
 
 export interface CheckoutApplication {
   createOrder(input: CreateOrderInput): Promise<CreateOrderOutcome>;
+  listOrders(userId: string): Promise<PaidOrder[]>;
 }
 
 /**
@@ -59,5 +61,25 @@ export function registerPaymentRoutes(app: FastifyInstance, sessions: CustomerSe
     return reply.code(503).send({
       error: { code: result.outcome, message: "Checkout is unavailable right now. Please try again shortly." },
     });
+  });
+
+  /**
+   * What the signed-in person has bought.
+   *
+   * The write half of this has existed since checkout shipped and the read half
+   * did not, so somebody who paid and did not get their coins had nothing to
+   * point at and neither did whoever was helping them. See #143.
+   *
+   * Their own orders only, by user, and nothing here takes an account or a user
+   * from the request: the session decides whose history this is, so there is no
+   * parameter to tamper with.
+   */
+  app.get("/api/v1/payments/orders", async (request, reply) => {
+    const session = await sessions.getCurrent(request);
+    if (session.status !== "authed") {
+      return reply.code(401).send({ error: { code: "unauthorized", message: "Authentication required." } });
+    }
+
+    return reply.code(200).send(PaidOrderListSchema.parse(await checkout.listOrders(session.user.id)));
   });
 }

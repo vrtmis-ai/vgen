@@ -10,7 +10,7 @@ import { PromptExpandButton } from "../components/PromptExpand";
 import { usePublishedContent } from "../features/content/ContentProvider";
 import { VoicePicker } from "../components/VoicePicker";
 import { ViewControls, useViewMode } from "../components/ViewControls";
-import { CoinMark } from "../components/chrome";
+import { CreditStar } from "../components/chrome";
 import { Panel, PanelHead, PanelShell, PanelTabs, Section } from "../components/Panel";
 import { ModelPicker } from "../components/ModelPicker";
 import { useIgnition } from "../components/Ignition";
@@ -407,7 +407,7 @@ export default function StudioAudio({
               <Sparkle size={15} weight="fill" />
               {visitor ? t("visitor_cta") : "بساز"}
               <span className="flex items-center gap-1 text-[12.5px] font-semibold opacity-90">
-                <CoinMark size={12} />
+                <CreditStar size={12} />
                 <span className="vg-numeric">{s.price === null ? "—" : n(s.price)}</span>
               </span>
             </span>
