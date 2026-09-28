@@ -77,7 +77,7 @@ const mailerDouble = () => ({
 function accessDouble() {
   return {
     joinWaitlist: vi.fn(async (_channel: "email" | "phone", _contact: string): Promise<"listed" | "has_account"> => "listed"),
-    waitlistCount: vi.fn(async () => 7),
+    memberCount: vi.fn(async () => 7),
   };
 }
 
@@ -608,10 +608,10 @@ describe("joining the waitlist", () => {
     await app.close();
   });
 
-  it("hands the holding page a raw count to draw", async () => {
+  it("hands the holding page a raw count of members to draw", async () => {
     const { app } = build();
 
-    const response = await app.inject({ method: "GET", url: "/api/v1/auth/waitlist/count" });
+    const response = await app.inject({ method: "GET", url: "/api/v1/auth/members/count" });
 
     // Raw. The screen adds its own floor before showing a number, so adding
     // one here would apply it twice.

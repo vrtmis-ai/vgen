@@ -55,18 +55,18 @@ const LEGAL: { label: TKey; href: string }[] = [
  * a phone, and the bars simply get narrower instead.
  */
 /**
- * How many are already waiting, above the mark.
+ * How many people are already in, above the mark.
  *
  * Fetched rather than passed in, and silent when it cannot be: the route is
  * not written yet, so a deployment without it shows nothing here instead of an
  * error or a zero. Nothing else on the page depends on it.
  *
- * **The number shown is the count plus `WAITLIST_FLOOR`.** That is the owner's
+ * **The number shown is the count plus `MEMBER_FLOOR`.** That is the owner's
  * decision and it is written here in one place rather than folded into the
  * copy, so anybody reading this knows the figure on screen is not the figure
  * in the table.
  */
-const WAITLIST_FLOOR = 1000;
+const MEMBER_FLOOR = 1000;
 
 function WaitingCount() {
   const { t, n } = useI18n();
@@ -76,7 +76,7 @@ function WaitingCount() {
   useEffect(() => {
     let live = true;
     void services.auth
-      .waitlistCount()
+      .memberCount()
       .then((value) => {
         if (live) setCount(value);
       })
@@ -95,7 +95,7 @@ function WaitingCount() {
       style={{ background: "var(--vg-glass-light)", color: "var(--vg-text-secondary)", boxShadow: "inset 0 0 0 1px var(--vg-border)" }}
     >
       <span className="size-1.5 rounded-full" style={{ background: "var(--vg-primary)" }} />
-      {t("ea_waiting").replace("{n}", n(count + WAITLIST_FLOOR))}
+      {t("ea_waiting").replace("{n}", n(count + MEMBER_FLOOR))}
     </span>
   );
 }

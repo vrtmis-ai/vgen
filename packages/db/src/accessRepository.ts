@@ -379,9 +379,35 @@ export class PostgresAccessRepository {
     return member ? "has_account" : "listed";
   }
 
-  /** How many are waiting. The screen adds its own floor before drawing it. */
+  /**
+   * How many are waiting — the queue, which is the panel's number.
+   *
+   * Not what the holding page draws above the mark: that is `memberCount`
+   * below, and the two are opposite groups. See #138.
+   */
   async waitlistCount(): Promise<number> {
     const [row] = await this.sql<{ n: string }[]>`select count(*)::text as n from waitlist_entries`;
+    return int(row?.n ?? "0");
+  }
+
+  /**
+   * How many people are in. The screen adds its own floor before drawing it.
+   *
+   * Personal accounts, because one signup inserts exactly one of those with its
+   * user (`createAccount`), so counting them counts people — a team account is
+   * an organisation, and counting it as a person would inflate the figure the
+   * page calls social proof.
+   *
+   * `closed` and soft-deleted rows are out: they are not members any more, and
+   * a number that only ever grows is a number nobody can trust. `suspended`
+   * stays in, because somebody suspended did sign up.
+   */
+  async memberCount(): Promise<number> {
+    const [row] = await this.sql<{ n: string }[]>`
+      select count(*)::text as n
+      from accounts
+      where kind = 'personal' and deleted_at is null and status <> 'closed'
+    `;
     return int(row?.n ?? "0");
   }
 
