@@ -47,6 +47,7 @@ export interface AuthRateLimiters {
   otpSendPerPhone: AuthRateLimiter;
   otpSendPerIp: AuthRateLimiter;
   otpVerifyPerPhone: AuthRateLimiter;
+  otpVerifyPerIp: AuthRateLimiter;
   loginPerAccount: AuthRateLimiter;
   loginPerIp: AuthRateLimiter;
   inviteCheckPerIp: AuthRateLimiter;
@@ -311,6 +312,14 @@ export function registerAuthRoutes(app: FastifyInstance, dependencies: AuthDepen
 
     const wait = await limiters.otpVerifyPerPhone.consume(phone);
     if (wait !== null) return tooMany(reply, wait);
+
+    /* And a ceiling on the address, which the per-phone bucket cannot give: it
+       spends one budget per number, so a list of numbers is a fresh ten every
+       time. Consumed second on purpose — a person meets their own limit first,
+       and an attacker cycling numbers never trips that one, so this is the
+       bucket their requests actually fill. See #119. */
+    const waitForAddress = await limiters.otpVerifyPerIp.consume(request.ip);
+    if (waitForAddress !== null) return tooMany(reply, waitForAddress);
 
     try {
       // One call, because the code must not be spent unless the sign-in
