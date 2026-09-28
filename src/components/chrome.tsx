@@ -29,16 +29,25 @@ export function Logo({ size = 26, animate = false }: { size?: number; animate?: 
   );
 }
 
-/** The coin mark.
-    This was the text glyph "⬡" (U+2B21 WHITE HEXAGON) in three places. A glyph
-    is font-dependent: it lands at a different weight and baseline on Android,
-    and any Persian font stack that lacks the codepoint renders a tofu box right
-    next to the user's balance. An inline SVG scales, inherits currentColor, and
-    looks identical everywhere. */
-export function CoinMark({ size = 14, className }: { size?: number; className?: string }) {
+/**
+ * The credit mark on the generate button: a big four-point spark with a small
+ * one at its heel.
+ *
+ * Not `CreditStar`. The coin is a hexagon outline, and at the size a price sits
+ * on a button it stopped being a shape — a 1.7px stroke at 12px is a hint of
+ * one. This is filled, and its arms are deliberately fat: the first pass drew a
+ * star whose curves pulled deep toward the centre, which is elegant at 40px and
+ * a thread at 14, invisible against lime. The waist stays out at 52% of the
+ * radius so the arms survive being small.
+ *
+ * Two of them because one is the button's own «make» mark, and a price wants to
+ * read as its own thing rather than as a second copy of that.
+ */
+export function CreditStar({ size = 16, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden className={`shrink-0 ${className ?? ""}`}>
-      <path d="M12 2.6 20.4 7.3v9.4L12 21.4 3.6 16.7V7.3L12 2.6Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden className={`shrink-0 ${className ?? ""}`}>
+      <path d="M13.6 2.8C13.6 6.35 17.45 10.2 21 10.2C17.45 10.2 13.6 14.05 13.6 17.6C13.6 14.05 9.75 10.2 6.2 10.2C9.75 10.2 13.6 6.35 13.6 2.8Z" />
+      <path d="M6 12.8C6 14.91 8.29 17.2 10.4 17.2C8.29 17.2 6 19.49 6 21.6C6 19.49 3.71 17.2 1.6 17.2C3.71 17.2 6 14.91 6 12.8Z" />
     </svg>
   );
 }
@@ -50,7 +59,7 @@ export function CreditPill({ coins, onClick }: { coins: number; onClick?: () => 
       onClick={onClick}
       className="flex items-center gap-1.5 rounded-full border border-line bg-card2 px-3 py-1.5 transition-transform active:scale-95"
     >
-      <CoinMark size={13} className="text-ink2" />
+      <CreditStar size={13} className="text-ink2" />
       <span className="text-[13px] font-medium tabular-nums tracking-wide">{n(coins)}</span>
       {onClick && (
         <span className="grid h-4 w-4 place-items-center rounded-full bg-ink/90 text-bg">
@@ -189,7 +198,7 @@ export function SideNav({
           style={{ background: "var(--vg-surface-raised)", border: "1px solid var(--vg-border-subtle)" }}
         >
           <span className="flex items-center gap-2 text-[12.5px]" style={{ color: "var(--vg-text-muted)" }}>
-            <CoinMark size={14} />
+            <CreditStar size={14} />
             {t("w_balance")}
           </span>
           <span className="vg-numeric text-[13.5px]" style={{ color: "var(--vg-text)" }}>

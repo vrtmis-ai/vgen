@@ -36,6 +36,9 @@ function fail(code: string, message: string, status: number): never {
 }
 
 export const DEMO_OTP_CODE = "123456";
+export const DEMO_RESET_TOKEN = "demo-reset-token";
+export const DEMO_EXPIRED_TOKEN = "demo-expired-token";
+export const DEMO_USED_TOKEN = "demo-used-token";
 const MIN_PASSWORD = 10;
 
 const DEMO_USER: AccountUser = {
@@ -154,6 +157,32 @@ export function createDemoAuthService(state: DemoAuthState, now: () => number): 
        an answer. */
     async waitlistCount() {
       return 0;
+    },
+
+    /* Recovery, with no mail to send and nobody to send it to. The three
+       demo tokens below let the reset screen be driven end to end without a
+       server — including the two failures, which is the half that is easy to
+       leave untested. */
+    async requestPasswordReset(email: string) {
+      if (email.trim().toLowerCase() !== DEMO_USER.emailNormalized) {
+        fail("no_account", "No account uses that address.", 404);
+      }
+    },
+
+    async checkPasswordReset(token) {
+      if (token === DEMO_EXPIRED_TOKEN) return "expired";
+      if (token === DEMO_USED_TOKEN) return "used";
+      return token === DEMO_RESET_TOKEN ? "usable" : "unknown";
+    },
+
+    async resetPassword(token, password) {
+      if (password.length < MIN_PASSWORD) {
+        fail("validation_failed", `Password must be at least ${MIN_PASSWORD} characters.`, 400);
+      }
+      if (token === DEMO_EXPIRED_TOKEN) fail("reset_expired", "That link has expired", 400);
+      if (token === DEMO_USED_TOKEN) fail("reset_used", "That link has already been used", 400);
+      if (token !== DEMO_RESET_TOKEN) fail("reset_invalid", "That link is not valid", 400);
+      // Nobody is signed in here, which is the point of the real one too.
     },
 
     async checkInvite(code) {

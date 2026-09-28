@@ -22,6 +22,8 @@ const openLimiters = (): AuthRateLimiters => ({
   loginPerIp: allow(),
   inviteCheckPerIp: allow(),
   waitlistJoinPerIp: allow(),
+  passwordResetPerIp: allow(),
+  passwordResetPerAccount: allow(),
 });
 
 function authDouble() {
@@ -46,8 +48,30 @@ function authDouble() {
     isInviteUsable: vi.fn(async (code: string) => code === "LIVE-CODE" || code === "BOUND-CODE"),
     inviteBinding: vi.fn(async (code: string) => (code === "BOUND-CODE" ? { kind: "email" as const, value: "waited@example.com" } : null)),
     recordLoginAttempt: vi.fn(async () => undefined),
+    startPasswordReset: vi.fn(
+      async (
+        email: string,
+        _context?: unknown,
+      ): Promise<
+        | { kind: "sent"; userId: string; token: string }
+        | { kind: "no_account" }
+        | { kind: "other_method"; userId: string; method: "oauth" | "phone" }
+      > => {
+        if (email === "nobody@example.com") return { kind: "no_account" };
+        if (email === "google@example.com") return { kind: "other_method", userId: "user-google", method: "oauth" };
+        return { kind: "sent", userId: "user-1", token: "a-real-reset-token" };
+      },
+    ),
+    checkPasswordReset: vi.fn(async (token: string) => (token === "a-real-reset-token" ? "usable" : "unknown")),
+    completePasswordReset: vi.fn(async (_token: string, _password: string) => undefined),
   };
 }
+
+/** Parameters spelled out so assertions can read the message that was sent. */
+const mailerDouble = () => ({
+  send: vi.fn(async (_message: { to: string; subject: string; text: string; html: string }) => undefined),
+  close: vi.fn(),
+});
 
 /** Only the two methods the auth routes reach for. */
 function accessDouble() {
@@ -65,10 +89,13 @@ function build(
     google?: Parameters<typeof registerAuthRoutes>[2]["google"];
     microsoft?: Parameters<typeof registerAuthRoutes>[2]["microsoft"];
     withoutSms?: boolean;
+    mailer?: ReturnType<typeof mailerDouble>;
+    withoutMailer?: boolean;
   } = {},
 ) {
   const auth = overrides.auth ?? authDouble();
   const access = overrides.access ?? accessDouble();
+  const mailer = overrides.mailer ?? mailerDouble();
   const app: FastifyInstance = Fastify({ logger: false });
   registerErrorHandling(app);
   registerAuthRoutes(
@@ -77,6 +104,7 @@ function build(
       auth: auth as never,
       access: access as never,
       sms: overrides.withoutSms ? undefined : { sendVerificationCode: vi.fn(async () => undefined) },
+      mailer: overrides.withoutMailer ? undefined : mailer,
     },
     {
       cookie: { secure: true },
@@ -86,7 +114,7 @@ function build(
       ...(overrides.microsoft ? { microsoft: overrides.microsoft } : {}),
     },
   );
-  return { app, auth, access };
+  return { app, auth, access, mailer };
 }
 
 const cookieOf = (response: { headers: Record<string, unknown> }) => {
@@ -741,5 +769,198 @@ describe("Microsoft sign-in", () => {
 
     expect(auth.signInWithOAuth.mock.calls[0]?.[2]).toBeNull();
     await app.close();
+  });
+});
+
+/**
+ * The way back in.
+ *
+ * Two things this must never do: return the token in the response, which
+ * would hand the link to whoever made the request, and sign anybody in, which
+ * would turn a mail link into a session.
+ */
+describe("asking for a password reset", () => {
+  it("mails a link and says only that it sent one", async () => {
+    const { app, auth, mailer } = build();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password/forgot",
+      payload: { email: "forgot@example.com" },
+    });
+
+    expect([response.statusCode, response.json()]).toEqual([200, { status: "sent" }]);
+    expect(mailer.send).toHaveBeenCalledTimes(1);
+    expect(auth.startPasswordReset).toHaveBeenCalledWith("forgot@example.com", expect.objectContaining({ ip: expect.any(String) }));
+
+    // The token is mailed, never returned. The body must not carry it, and
+    // neither must any header.
+    expect(JSON.stringify(response.json())).not.toContain("a-real-reset-token");
+    expect(cookieOf(response)).not.toContain("a-real-reset-token");
+  });
+
+  it("puts the link in the mail, pointed at the reset page", async () => {
+    const { app, mailer } = build();
+
+    await app.inject({ method: "POST", url: "/api/v1/auth/password/forgot", payload: { email: "forgot@example.com" } });
+
+    const sent = mailer.send.mock.calls[0]![0];
+    expect(sent.to).toBe("forgot@example.com");
+    expect(sent.html).toContain("https://deev.test/reset?token=a-real-reset-token");
+    expect(sent.text).toContain("https://deev.test/reset?token=a-real-reset-token");
+  });
+
+  it("says plainly when no account uses the address", async () => {
+    const { app, mailer } = build();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password/forgot",
+      payload: { email: "nobody@example.com" },
+    });
+
+    // The owner's decision: the waitlist already reveals registration, and
+    // silence here leaves a typo'd address waiting for a mail forever.
+    expect([response.statusCode, response.json().error.code]).toEqual([404, "no_account"]);
+    expect(mailer.send).not.toHaveBeenCalled();
+  });
+
+  it("mails an account with no password how it actually signs in", async () => {
+    const { app, mailer } = build();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password/forgot",
+      payload: { email: "google@example.com" },
+    });
+
+    // Still `sent`, because something really was sent — but it carries no
+    // reset link, because there is no password to reset.
+    expect([response.statusCode, response.json()]).toEqual([200, { status: "sent" }]);
+    const sent = mailer.send.mock.calls[0]![0];
+    expect(sent.html).not.toContain("/reset?token=");
+    expect(sent.html).toContain("https://deev.test/signin");
+  });
+
+  it("does not pretend to send when there is no mail account", async () => {
+    const { app, auth } = build({ withoutMailer: true });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password/forgot",
+      payload: { email: "forgot@example.com" },
+    });
+
+    // Reporting a success nobody received is the worse failure: they wait,
+    // and nothing ever arrives.
+    expect([response.statusCode, response.json().error.code]).toEqual([503, "mail_unavailable"]);
+    expect(auth.startPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it("stops a spray before it reaches the mailer", async () => {
+    const limiters = openLimiters();
+    limiters.passwordResetPerIp = { consume: vi.fn(async () => 300) };
+    const { app, auth, mailer } = build({ limiters });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password/forgot",
+      payload: { email: "forgot@example.com" },
+    });
+
+    expect([response.statusCode, response.json().error.code]).toEqual([429, "rate_limited"]);
+    expect(response.headers["retry-after"]).toBe("300");
+    expect(auth.startPasswordReset).not.toHaveBeenCalled();
+    expect(mailer.send).not.toHaveBeenCalled();
+  });
+
+  it("spends the per-account allowance only on an address that exists", async () => {
+    const limiters = openLimiters();
+    const { app } = build({ limiters });
+
+    await app.inject({ method: "POST", url: "/api/v1/auth/password/forgot", payload: { email: "nobody@example.com" } });
+    // Otherwise a stranger could exhaust somebody's own recovery quota by
+    // guessing at addresses.
+    expect(limiters.passwordResetPerAccount.consume).not.toHaveBeenCalled();
+
+    await app.inject({ method: "POST", url: "/api/v1/auth/password/forgot", payload: { email: "forgot@example.com" } });
+    expect(limiters.passwordResetPerAccount.consume).toHaveBeenCalledWith("user-1");
+  });
+
+  it("refuses a body that is not an address", async () => {
+    const { app, auth } = build();
+
+    const junk = await app.inject({ method: "POST", url: "/api/v1/auth/password/forgot", payload: { email: "hello" } });
+
+    expect(junk.statusCode).toBe(400);
+    expect(junk.json().error.code).toBe("validation_failed");
+    expect(auth.startPasswordReset).not.toHaveBeenCalled();
+  });
+});
+
+describe("spending a password reset link", () => {
+  it("reports what a link is worth before anybody types into it", async () => {
+    const { app } = build();
+
+    const good = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password/reset/check",
+      payload: { token: "a-real-reset-token" },
+    });
+    const bad = await app.inject({ method: "POST", url: "/api/v1/auth/password/reset/check", payload: { token: "made-up" } });
+
+    expect(good.json()).toEqual({ status: "usable" });
+    expect(bad.json()).toEqual({ status: "unknown" });
+  });
+
+  it("sets the password and signs nobody in", async () => {
+    const { app, auth } = build();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password/reset",
+      payload: { token: "a-real-reset-token", password: "a-brand-new-password" },
+    });
+
+    expect([response.statusCode, response.json()]).toEqual([200, { status: "reset" }]);
+    expect(auth.completePasswordReset).toHaveBeenCalledWith("a-real-reset-token", "a-brand-new-password");
+    /* No session cookie. A reset that signed you in would mean anybody who
+       can read the mailbox is inside without knowing the password. */
+    expect(cookieOf(response)).not.toContain("session");
+    expect(auth.createSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["reset_invalid", "That link is not valid"],
+    ["reset_expired", "That link has expired"],
+    ["reset_used", "That link has already been used"],
+  ])("passes %s through as a 400 with its own code", async (code, message) => {
+    const auth = authDouble();
+    auth.completePasswordReset = vi.fn(async () => {
+      throw new AuthError(code as "reset_invalid", message);
+    });
+    const { app } = build({ auth });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password/reset",
+      payload: { token: "whatever", password: "a-brand-new-password" },
+    });
+
+    // Distinct codes, because the page says something different for each.
+    expect([response.statusCode, response.json().error.code]).toEqual([400, code]);
+  });
+
+  it("refuses a password under the floor before touching the database", async () => {
+    const { app, auth } = build();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password/reset",
+      payload: { token: "a-real-reset-token", password: "short" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(auth.completePasswordReset).not.toHaveBeenCalled();
   });
 });

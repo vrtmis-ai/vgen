@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { ModelMark } from "../components/ModelMark";
 import { ImagesSquare, Wallet as WalletIcon, CaretLeft, Globe, ArrowRight, SignOut } from "@phosphor-icons/react";
 import { useAuth } from "../features/session/useAuth";
 import { ApiError } from "../runtime/apiError";
@@ -7,7 +8,6 @@ import type { Family } from "../data/models";
 import { useFamilyLookup } from "../features/catalog/CatalogProvider";
 import type { Generation } from "../lib/gallery";
 import { useFavorites } from "../lib/favorites";
-import { VendorMark } from "../components/VendorMark";
 import { Orders, Referral, Sessions } from "../components/AccountSections";
 import { useI18n, type TKey } from "../lib/i18n";
 import type { Wallet } from "../data/wallet";
@@ -256,7 +256,7 @@ export default function Profile({
                   >
                     <span className="relative h-9 w-9 overflow-hidden rounded-xl" style={{ background: f.grad }}>
                       <span className="absolute bottom-0.5 end-0.5">
-                        <VendorMark vendor={f.vendor} size={15} />
+                        <ModelMark familyId={f.id} vendor={f.vendor} size={15} />
                       </span>
                     </span>
                     <span className="text-[12.5px] font-medium">{f.name}</span>
