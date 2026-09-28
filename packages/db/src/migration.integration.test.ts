@@ -50,6 +50,7 @@ const EXPECTED_MIGRATIONS = [
   "0036_user_handles.sql",
   "0037_waitlist.sql",
   "0038_invite_binding.sql",
+  "0039_otp_verify_ip_limit.sql",
 ];
 
 describe("database migration chain", () => {
