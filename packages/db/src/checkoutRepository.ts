@@ -1,5 +1,5 @@
-import type { CheckoutCycle } from "@vgen/contracts";
-import { ANNUAL_MONTHS } from "@vgen/core";
+import type { CheckoutCycle, PaidOrder } from "@vgen/contracts";
+import { ANNUAL_MONTHS, MICRO_CREDITS_PER_COIN } from "@vgen/core";
 import type { Sql } from "postgres";
 
 export interface CreateOrderInput {
@@ -17,6 +17,17 @@ export type CreateOrderOutcome =
 
 export interface CheckoutRepository {
   createOrder(input: CreateOrderInput): Promise<CreateOrderOutcome>;
+  listOrders(userId: string, limit?: number): Promise<PaidOrder[]>;
+}
+
+interface OrderRow {
+  id: string;
+  created_at: Date;
+  status: string;
+  amount: string;
+  currency: string;
+  micro_credits: string;
+  plan_code: string | null;
 }
 
 interface PlanRow {
@@ -122,5 +133,52 @@ export class PostgresCheckoutRepository implements CheckoutRepository {
     if (!order) return { outcome: "no_account" };
 
     return { outcome: "ordered", order: { orderId: order.id, amountToman } };
+  }
+
+  /**
+   * What this person has bought, newest first.
+   *
+   * Keyed on the user rather than the account: "my purchases" is the question
+   * the account page asks, and on a team account somebody else's order is not
+   * an answer to it.
+   *
+   * Rial back to Toman, because the column stores what a gateway would be told
+   * and the customer was quoted the other one — the same factor `createOrder`
+   * applies in the opposite direction. Guarded on the currency rather than
+   * applied blindly, so an order recorded in anything else is passed through at
+   * its own figure instead of being quietly divided by ten.
+   *
+   * Every order, not only the paid ones: somebody whose payment failed is
+   * exactly who goes looking for this list, and so is whoever supports them.
+   */
+  async listOrders(userId: string, limit = 50): Promise<PaidOrder[]> {
+    const rows = await this.sql<OrderRow[]>`
+      select o.id::text as id,
+             o.created_at,
+             o.status,
+             o.amount::text as amount,
+             o.currency,
+             o.micro_credits::text as micro_credits,
+             p.code as plan_code
+      from orders o
+      left join plans p on p.id = o.plan_id
+      where o.user_id = ${userId}
+      -- created_at defaults to now(), which is the TRANSACTION's clock: two
+      -- orders written together carry the same instant and the sort between
+      -- them is undefined. The id breaks the tie and is not arbitrary - it is
+      -- uuid v7, so it sorts by the moment the row was made, finer than the
+      -- column does.
+      order by o.created_at desc, o.id desc
+      limit ${limit}
+    `;
+
+    return rows.map((row) => ({
+      id: row.id,
+      createdAt: row.created_at.getTime(),
+      status: row.status as PaidOrder["status"],
+      amountToman: row.currency === "IRR" ? Number(row.amount) / 10 : Number(row.amount),
+      coins: Number(row.micro_credits) / MICRO_CREDITS_PER_COIN,
+      ...(row.plan_code === null ? {} : { planCode: row.plan_code }),
+    }));
   }
 }
