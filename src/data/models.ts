@@ -1,5 +1,10 @@
 // Real KIE model catalog, grouped into families.
-import higgsfieldPresets from "./higgsfield.presets.json";
+//
+// The import attribute is not decoration: `e2e/fixtures.ts` imports FAMILIES
+// from this file, and Playwright loads it through Node's own ESM rather than a
+// bundler, which refuses a JSON module without one. The other JSON imports
+// under src/ omit it only because nothing outside a bundler reaches them.
+import higgsfieldPresets from "./higgsfield.presets.json" with { type: "json" };
 
 // A family (e.g. "Seedance") groups several real KIE models ("variants", e.g. v2 / fast / mini).
 // Every `model` id and every control is grounded in docs.kie.ai + the live pricing table.

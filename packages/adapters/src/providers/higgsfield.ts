@@ -198,6 +198,30 @@ function typedParams(params: JsonObject): JsonObject {
   return out;
 }
 
+/**
+ * Trailing slashes off the base URL, one index at a time rather than by regex.
+ *
+ * `replace(/\/+$/, "")` is what `kie.ts` and `wavespeed.ts` do, and CodeQL
+ * flags all three as `js/polynomial-redos` — the engine backtracks across a run
+ * of slashes, so a base URL ending in many of them costs quadratic time.
+ * Nothing hostile reaches this today, since the URL comes from our own
+ * configuration, but the fix is a loop and the alert is real. The other two
+ * carry the same line and the same open alerts (#1 and #2); they are somebody
+ * else's file to change, not this branch's.
+ */
+function withoutTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === "/") end -= 1;
+  return url.slice(0, end);
+}
+
+/** The same, at the other end, for the mode id that becomes the path. */
+function withoutLeadingSlashes(path: string): string {
+  let start = 0;
+  while (start < path.length && path[start] === "/") start += 1;
+  return path.slice(start);
+}
+
 export interface HiggsfieldProviderOptions {
   baseUrl?: string | undefined;
   /** The modality of what is being generated, used to type outputs. */
@@ -215,7 +239,7 @@ export class HiggsfieldGenerationProvider implements GenerationProvider {
   private readonly timeoutMs: number;
 
   constructor(options: HiggsfieldProviderOptions = {}) {
-    this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
+    this.baseUrl = withoutTrailingSlashes(options.baseUrl ?? DEFAULT_BASE_URL);
     this.modality = options.modality ?? "video";
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     this.timeoutMs = options.timeoutMs ?? 30_000;
@@ -262,7 +286,7 @@ export class HiggsfieldGenerationProvider implements GenerationProvider {
   async submit(request: GenerationRequest): Promise<GenerationSubmission> {
     // The mode id is a path, not a parameter, and its slashes are real segments:
     // `higgsfield/cinema-studio/4.0` must not be percent-encoded as a whole.
-    const endpoint = `${this.baseUrl}/${request.externalModelId.replace(/^\/+/, "")}`;
+    const endpoint = `${this.baseUrl}/${withoutLeadingSlashes(request.externalModelId)}`;
     const requestPayload = typedParams(request.params);
     const answer = await this.call(endpoint, request.apiKey, {
       method: "POST",
