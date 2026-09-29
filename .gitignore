@@ -28,6 +28,13 @@ yarn.lock
 KIE_MODELS.md
 HANDOFF.md
 
+# the Obsidian memory vault. Holds server addresses, provider economics and the
+# margin; this repo is public, so the vault never is. `.raw/` is the immutable
+# source layer the wiki is written from, `.obsidian/` is per-machine UI state.
+wiki/
+.raw/
+.obsidian/
+
 # raw API responses from scripts/spike-kie.ts — may contain account details
 scripts/spike-out/
 
