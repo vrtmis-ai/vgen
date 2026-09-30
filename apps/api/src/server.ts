@@ -85,6 +85,15 @@ const objectStorageRegion = infrastructureSetting("OBJECT_STORAGE_REGION", "us-e
 const objectStorageAccessKey = infrastructureSetting("OBJECT_STORAGE_ACCESS_KEY", "vgen-local");
 const objectStorageSecretKey = infrastructureSetting("OBJECT_STORAGE_SECRET_KEY", "vgen-local-secret");
 const objectStorageBucket = infrastructureSetting("OBJECT_STORAGE_BUCKET", "vgen");
+// MinIO addresses a bucket by path; a hosted store addresses it by subdomain.
+// True is the docker-compose default every checkout runs against, so it stays
+// the default here. A virtual-hosted store needs it false — ParsPack answers on
+// `<bucket>.parspack.net`, and path style would ask that host for
+// `/<bucket>/<key>`, which is the bucket twice.
+//
+// Only the exact string "false" turns it off. A typo must not silently change
+// how every object in the system is addressed.
+const objectStoragePathStyle = infrastructureSetting("OBJECT_STORAGE_PATH_STYLE", "true") !== "false";
 // Salts the phone hash in trial_grants, which outlives the account it belonged
 // to. Without a pepper that table is an enumerable list of everyone who has
 // ever signed up — the mobile number space is small enough to walk completely.
@@ -217,6 +226,7 @@ const objectStore = createS3ObjectStore({
   endpoint: objectStorageEndpoint,
   publicEndpoint: process.env.OBJECT_STORAGE_PUBLIC_ENDPOINT?.trim(),
   region: objectStorageRegion,
+  forcePathStyle: objectStoragePathStyle,
   credentials: { accessKeyId: objectStorageAccessKey, secretAccessKey: objectStorageSecretKey },
 });
 // A fresh volume has no bucket. Finding that out on somebody's first upload
@@ -234,7 +244,7 @@ const app = createApp(
     storage: createS3StorageHealthAdapter({
       endpoint: objectStorageEndpoint,
       region: objectStorageRegion,
-      forcePathStyle: true,
+      forcePathStyle: objectStoragePathStyle,
       credentials: { accessKeyId: objectStorageAccessKey, secretAccessKey: objectStorageSecretKey },
     }),
     customerSession,

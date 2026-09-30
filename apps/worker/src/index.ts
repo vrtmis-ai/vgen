@@ -62,6 +62,11 @@ const objectStore = createS3ObjectStore({
   publicEndpoint: process.env.OBJECT_STORAGE_PUBLIC_ENDPOINT?.trim(),
   endpoint: process.env.OBJECT_STORAGE_ENDPOINT?.trim() || "http://127.0.0.1:9000",
   region: process.env.OBJECT_STORAGE_REGION?.trim() || "us-east-1",
+  // MinIO wants path style, a virtual-hosted store wants subdomains. Default
+  // true for the local container; only the literal "false" turns it off, so a
+  // typo cannot quietly re-address every object. Must match the API — the two
+  // write into the same bucket.
+  forcePathStyle: process.env.OBJECT_STORAGE_PATH_STYLE?.trim() !== "false",
   credentials: {
     accessKeyId: process.env.OBJECT_STORAGE_ACCESS_KEY?.trim() || "vgen-local",
     secretAccessKey: process.env.OBJECT_STORAGE_SECRET_KEY?.trim() || "vgen-local-secret",
