@@ -138,6 +138,14 @@ export class S3ObjectStore implements ObjectStore {
    * It is a per-call option rather than a property of the URL because the same
    * object is also an `<img src>` on two screens, and an attachment header
    * would stop it rendering there.
+   *
+   * The other branch is stated rather than left out, and that is not tidiness.
+   * MinIO answers with no `Content-Disposition` at all, so omitting it happened
+   * to display inline; a CDN in front of an object store need not agree.
+   * ParsPack's returns `attachment` on every object unless told otherwise —
+   * measured, 2026-09-30 — which turns every gallery thumbnail and every video
+   * into a download prompt. `inline` is what "display this" actually asks for,
+   * and it costs nothing on a store that already behaved.
    */
   async signedUrl(key: string, expiresInSeconds?: number, options?: SignedUrlOptions): Promise<string> {
     return getSignedUrl(
@@ -145,7 +153,7 @@ export class S3ObjectStore implements ObjectStore {
       new GetObjectCommand({
         Bucket: this.bucket,
         Key: key,
-        ...(options?.downloadAs ? { ResponseContentDisposition: contentDisposition(options.downloadAs) } : {}),
+        ResponseContentDisposition: options?.downloadAs ? contentDisposition(options.downloadAs) : "inline",
       }),
       { expiresIn: expiresInSeconds ?? this.defaultExpirySeconds },
     );

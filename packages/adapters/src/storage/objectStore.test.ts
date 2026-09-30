@@ -54,3 +54,31 @@ describe("signing endpoint", () => {
     expect(signatureOf(a)).not.toBe(signatureOf(b));
   });
 });
+
+/**
+ * The disposition has to be asked for, not left to the store.
+ *
+ * MinIO returns no `Content-Disposition` and a browser displays the bytes, so
+ * for a long time saying nothing was indistinguishable from saying `inline`.
+ * ParsPack's CDN returns `attachment` on every object instead — measured
+ * against the live bucket on 2026-09-30 — and under it every gallery thumbnail
+ * and every video becomes a download prompt. Whichever store is configured, the
+ * URL now states which of the two it wants.
+ */
+describe("content disposition", () => {
+  it("asks for inline by default, so a gallery image renders rather than downloads", async () => {
+    const store = createS3ObjectStore({ ...CONFIG, endpoint: INTERNAL });
+
+    const url = new URL(await store.signedUrl("outputs/a.png"));
+
+    expect(url.searchParams.get("response-content-disposition")).toBe("inline");
+  });
+
+  it("asks for attachment, with the filename, when the caller wants a download", async () => {
+    const store = createS3ObjectStore({ ...CONFIG, endpoint: INTERNAL });
+
+    const url = new URL(await store.signedUrl("outputs/a.png", 60, { downloadAs: "DEEV-1.png" }));
+
+    expect(url.searchParams.get("response-content-disposition")).toBe(`attachment; filename="DEEV-1.png"; filename*=UTF-8''DEEV-1.png`);
+  });
+});
