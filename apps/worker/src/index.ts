@@ -2,7 +2,7 @@ import { config } from "dotenv";
 import { fileURLToPath } from "node:url";
 import { Queue, Worker, type Job, type JobsOptions } from "bullmq";
 import postgres from "postgres";
-import { createGenerationProvider, createS3ObjectStore } from "@vgen/adapters";
+import { backupStoreFrom, createGenerationProvider, createS3ObjectStore, withBackupStore } from "@vgen/adapters";
 import { PostgresJobRunnerRepository, PostgresOutboxDispatcher } from "@vgen/db";
 import { BullGenerationPublisher } from "./outboxConsumer";
 import { FX_CHECK_INTERVAL_MS, refreshFxRate } from "./fxRefresh";
@@ -57,7 +57,7 @@ const runnerRepository = new PostgresJobRunnerRepository(sql);
  * way that looks like the provider misbehaving. `OBJECT_STORAGE_PUBLIC_ENDPOINT`
  * is the name those URLs carry; the connection stays on the private one.
  */
-const objectStore = createS3ObjectStore({
+const primaryStore = createS3ObjectStore({
   bucket: process.env.OBJECT_STORAGE_BUCKET?.trim() || "vgen",
   publicEndpoint: process.env.OBJECT_STORAGE_PUBLIC_ENDPOINT?.trim(),
   endpoint: process.env.OBJECT_STORAGE_ENDPOINT?.trim() || "http://127.0.0.1:9000",
@@ -67,6 +67,14 @@ const objectStore = createS3ObjectStore({
     secretAccessKey: process.env.OBJECT_STORAGE_SECRET_KEY?.trim() || "vgen-local-secret",
   },
 });
+/* And a copy of each one somewhere that is not this disk.
+ *
+ * Reads never move: see the note on `withBackupStore`. Unset in development,
+ * where losing the MinIO volume costs nothing. */
+const backupStore = backupStoreFrom(process.env);
+const objectStore = backupStore
+  ? withBackupStore(primaryStore, backupStore, (failure) => console.error(JSON.stringify({ event: "storage.backup_failed", ...failure })))
+  : primaryStore;
 const mirror = new HttpOutputMirror({ store: objectStore });
 
 const log = (event: Record<string, unknown>) => console.info(JSON.stringify(event));

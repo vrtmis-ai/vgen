@@ -40,5 +40,7 @@ export {
   measure,
   sniffContentMediaType,
   sniffImageMimeType,
+  backupStoreFrom,
+  withBackupStore,
 } from "./storage";
-export type { CreateObjectStoreOptions, Measurements, ObjectStore, S3ObjectStoreOptions, StoredObject } from "./storage";
+export type { BackupFailure, CreateObjectStoreOptions, Measurements, ObjectStore, S3ObjectStoreOptions, StoredObject } from "./storage";
