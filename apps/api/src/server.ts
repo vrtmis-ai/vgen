@@ -29,11 +29,13 @@ import {
   setRate,
 } from "@vgen/db";
 import {
+  backupStoreFrom,
   createRedisFixedWindowRateLimiter,
   createRedisHealthAdapter,
   createS3ObjectStore,
   createS3StorageHealthAdapter,
   fetchTomanPerUsd,
+  withBackupStore,
 } from "@vgen/adapters";
 import { AssetUploadService } from "./assetUploads";
 import { ContentMediaService } from "./contentMedia";
@@ -212,13 +214,19 @@ const customerSession = new CustomerSessionService(new SessionCookiePrincipalRes
  * endpoint above stays private: the store is addressed internally and signed
  * for publicly. Unset, both are the same, which is the local arrangement.
  */
-const objectStore = createS3ObjectStore({
+const primaryStore = createS3ObjectStore({
   bucket: objectStorageBucket,
   endpoint: objectStorageEndpoint,
   publicEndpoint: process.env.OBJECT_STORAGE_PUBLIC_ENDPOINT?.trim(),
   region: objectStorageRegion,
   credentials: { accessKeyId: objectStorageAccessKey, secretAccessKey: objectStorageSecretKey },
 });
+// Reference images a customer uploaded are theirs, and this disk is the only
+// place they exist. The second copy is written as they arrive; reads stay here.
+const backupStore = backupStoreFrom(process.env);
+const objectStore = backupStore
+  ? withBackupStore(primaryStore, backupStore, (failure) => console.error(JSON.stringify({ event: "storage.backup_failed", ...failure })))
+  : primaryStore;
 // A fresh volume has no bucket. Finding that out on somebody's first upload
 // would be a 500 for them and a puzzle for us.
 await objectStore.ensureBucket();

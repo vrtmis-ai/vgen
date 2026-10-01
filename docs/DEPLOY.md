@@ -248,12 +248,30 @@ of going through `pnpm`, so the signal reaches the handler rather than a shell.
 
 ## Backups
 
-Nothing here backs anything up. Two volumes matter and they are not equal:
+Two volumes matter and they are not equal:
 
 - **`vgen-prod_postgres-data`** — accounts, the credit ledger, every job. Losing it
-  is losing the business.
+  is losing the business. **Nothing backs this up.**
 - **`vgen-prod_minio-data`** — every generation anyone has made. Losing it is losing
-  what customers paid for.
+  what customers paid for. Covered, forward only, by `BACKUP_STORAGE_*`.
+
+### The object store's second copy
+
+Set the five `BACKUP_STORAGE_*` variables and every object the API or the worker
+writes is written to that store as well as to MinIO. Reads do not move: the near
+copy is faster, costs no outbound quota, and a store that appends its own
+`Content-Disposition` would stop the browser rendering the picture — which is
+measured, not hypothetical.
+
+A copy that fails is a `storage.backup_failed` line and nothing more; the write
+succeeds, because the file the customer paid for is already in MinIO and failing
+the job to protect a spare would be the wrong way round. So the line is worth
+alerting on — it is the only thing that distinguishes a working backup from one
+that has been doing nothing since a credential expired.
+
+It is **forward only**. Objects written before the variables were set, or while
+the far store was unreachable, are not swept up afterwards; they were copied once
+by hand and anything newer needs the same again.
 
 The database dump is the small one and should be on a schedule:
 
