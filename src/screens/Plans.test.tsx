@@ -79,8 +79,11 @@ describe("the plans screen", () => {
   // The card used to add two fields together to get it, which is money
   // arithmetic in a screen.
   it("shows the term's coin total as the payload states it", () => {
-    // A "main" plan: the compact entry card does not carry the bonus line.
-    const plan = PLAN_LADDER.find((p) => p.group === "main" && p.bonusCoins > 0)!;
+    // A "main" plan: the compact entry card does not carry the bonus line. No
+    // plan on the ladder carries a bonus today, so one is given here — the
+    // screen still has to state it correctly the day a campaign adds one.
+    const base = PLAN_LADDER.find((p) => p.group === "main")!;
+    const plan = { ...base, bonusCoins: 100, coinsPerTerm: base.baseCoins + 100 };
     show([plan]);
 
     expect(screen.getAllByText(plan.coinsPerTerm.toLocaleString("en-US")).length).toBeGreaterThan(0);

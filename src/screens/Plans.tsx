@@ -159,6 +159,9 @@ function FestivalBanner({ onSeePlans }: { onSeePlans: () => void }) {
   }, [campaign]);
 
   if (!campaign) return null;
+  // The server derives both numbers from the ladder. With no annual price and no
+  // bonus on any plan they are both zero, and "up to 0% off" is not an offer.
+  if (campaign.maxDiscountPct <= 0 && campaign.maxBonusCoins <= 0) return null;
   const remaining = Math.max(0, Math.floor((campaign.endsAt - now) / 1000));
   if (remaining <= 0) return null;
 
@@ -782,7 +785,9 @@ export default function Plans({
         )}
       </div>
 
-      <CycleToggle cycle={cycle} onChange={setCycle} />
+      {/* Only when some plan can actually be bought for a year. With no annual
+          price on the ladder, "Yearly" would be a switch that changes nothing. */}
+      {plans.some((p) => p.annualUsdPerMonth != null) && <CycleToggle cycle={cycle} onChange={setCycle} />}
 
       {/* Main plans. A snap carousel on a phone, where three cards cannot sit
           side by side; a plain grid from `md`, where they can and where a

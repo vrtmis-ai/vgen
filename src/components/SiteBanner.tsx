@@ -69,7 +69,8 @@ export function SiteBanner({ plans, onSeePlans }: { plans: readonly Plan[]; onSe
   const announcements = useMemo(() => {
     const list: Announcement[] = [];
 
-    if (campaign && campaign.endsAt > now)
+    // Both numbers come off the ladder; zero and zero is a campaign with nothing to sell.
+    if (campaign && campaign.endsAt > now && (campaign.maxDiscountPct > 0 || campaign.maxBonusCoins > 0))
       list.push({
         id: `campaign-${campaign.id}`,
         body: (

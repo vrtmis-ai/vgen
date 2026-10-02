@@ -278,9 +278,10 @@ describe("Landing pricing", () => {
       expect(screen.getByTestId(`plan-card-${plan.code}`)).not.toHaveTextContent(/\d+\s*(?:free\s*)?(?:daily|روزانه)/i);
     }
 
-    await user.click(screen.getByRole("button", { name: "Yearly" }));
-    for (const plan of professional) {
-      expect(within(screen.getByTestId(`plan-card-${plan.code}`)).getByRole("button", { name: "Buy 12 months" })).toBeInTheDocument();
-    }
+    /* No plan is sold for a year any more, so there is no Yearly switch to
+       offer — a switch that changed nothing on the cards would be a promise
+       the checkout could not keep. */
+    expect(professional.every((plan) => plan.annualUsdPerMonth == null)).toBe(true);
+    expect(screen.queryByRole("button", { name: "Yearly" })).not.toBeInTheDocument();
   });
 });
