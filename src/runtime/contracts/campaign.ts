@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 
 /**
  * A running price campaign — the thing the plans banner counts down to.

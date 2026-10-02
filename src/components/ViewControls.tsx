@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { SquaresFour, Rows } from "@phosphor-icons/react";
-import { z } from "zod";
+import * as z from "../lib/z";
 import { readStoredValue, writeStoredValue } from "../adapters/browser/storage";
 
 /* ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "./z";
 
 export const FrontendCrashReportSchema = z
   .object({

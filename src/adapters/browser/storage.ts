@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 
 export const STORAGE_VERSION = 1 as const;
 

@@ -1,6 +1,6 @@
 import type { AppServices } from "../../runtime/AppServices";
 import type { CreditGrantSchema, Wallet } from "../../runtime/contracts/wallet";
-import type { z } from "zod";
+import type * as z from "../../lib/z";
 
 type CreditGrant = z.infer<typeof CreditGrantSchema>;
 const DAY_MS = 24 * 60 * 60 * 1000;

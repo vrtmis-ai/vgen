@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 import { createHttpClient, type HttpClient } from "../../adapters/http/client";
 import {
   AdminCatalogModelsResponseSchema,

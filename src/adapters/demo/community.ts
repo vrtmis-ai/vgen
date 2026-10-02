@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 import type { AppServices } from "../../runtime/AppServices";
 import { CommunityPostSchema } from "../../runtime/contracts/community";
 import snapshot from "../../data/community.snapshot.json";

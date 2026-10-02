@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "./z";
 
 /**
  * A file the customer put in, rather than one a generation produced.

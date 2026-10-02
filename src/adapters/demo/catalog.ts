@@ -1,7 +1,7 @@
 import type { AppServices } from "../../runtime/AppServices";
 import { FamilySchema } from "../../runtime/contracts/catalog";
 import snapshot from "../../data/catalog.snapshot.json";
-import { z } from "zod";
+import * as z from "../../lib/z";
 
 /**
  * The catalog demo mode serves, generated from Postgres rather than imported

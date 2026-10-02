@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "./z";
 
 /** The two ways a plan is paid for. Annual is a cadence, not a longer term. */
 export const CHECKOUT_CYCLES = ["monthly", "annual"] as const;

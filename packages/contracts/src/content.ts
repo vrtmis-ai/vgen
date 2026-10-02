@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "./z";
 
 /**
  * The editorial content the product is made of, as the screens see it.

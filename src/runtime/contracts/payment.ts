@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 
 /**
  * A checkout order — what the server hands back when someone confirms a plan.

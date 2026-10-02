@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { z } from "zod";
+import * as z from "../../lib/z";
 import { loadGenerations } from "../../lib/gallery";
 import { readStoredCollection, readStoredValue, writeStoredCollection, writeStoredValue, type StoragePort } from "./storage";
 

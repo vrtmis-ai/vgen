@@ -1,6 +1,6 @@
 import type { AppServices } from "../../runtime/AppServices";
 import { CheckoutOrderSchema } from "../../runtime/contracts/payment";
-import { z } from "zod";
+import * as z from "../../lib/z";
 import { PaidOrderSchema } from "../../runtime/contracts/account";
 import type { HttpClient } from "./client";
 

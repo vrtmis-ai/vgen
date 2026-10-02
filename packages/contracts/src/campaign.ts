@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "./z";
 
 /**
  * A running price campaign, as `GET /campaigns/active` serves it.

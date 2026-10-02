@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "./z";
 
 /**
  * The plan ladder, as the Plans screen and the access gate see it.

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 
 export const GrantKindSchema = z.enum([
   "plan_monthly",

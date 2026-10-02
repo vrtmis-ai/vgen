@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 
 /**
  * The staff surface, as `GET|PATCH|PUT /api/v1/admin/*` serves it.
