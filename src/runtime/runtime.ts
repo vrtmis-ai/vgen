@@ -30,12 +30,7 @@ export function browserEnvironment(): RuntimeEnvironment {
 }
 
 export function resolveRuntime(environment: RuntimeEnvironment, getAccessToken?: () => Promise<string | null>): RuntimeResolution {
-  // The literal is what keeps the demo adapters out of production bundles.
-  // `environment` is an argument, so the bundler cannot know it never says
-  // "demo" in production; `process.env.NEXT_PUBLIC_APP_MODE` is inlined at
-  // build time, so a production build reads `"production" !== "production"`,
-  // drops the branch, and with it ~22 KB of fixtures nobody there can reach.
-  if (process.env.NEXT_PUBLIC_APP_MODE !== "production" && environment.APP_MODE === "demo") {
+  if (environment.APP_MODE === "demo") {
     return { ready: true, services: createDemoServices({ startAnonymous: environment.DEMO_ANONYMOUS === "1" }) };
   }
   if (!environment.API_BASE_URL) {
