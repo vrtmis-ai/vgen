@@ -28,6 +28,7 @@ import { EASE_OUT } from "../lib/motion";
 import { ApiError } from "../runtime/apiError";
 import { FORGOT_PATH, SIGN_IN_PATH, SIGN_UP_PATH } from "../runtime/providers/authActions";
 import type { OAuthProvider } from "../runtime/contracts/auth";
+import { GleamLight } from "../components/ui/gleam";
 
 /* The screen `authActions.signIn` had nowhere to send anyone.
    `AppServices.auth` and both adapters landed in #5; this is the surface on top
@@ -627,7 +628,12 @@ export default function Auth({ mode }: { mode: AuthMode }) {
 
   return (
     <AuthScene leaving={leaving}>
-      <AnimatePresence mode="wait">
+      {/* `initial={false}`: the slide is for moving between steps, not for
+          arriving. On first mount it server-rendered the form invisible and 60px
+          aside, so the form a visitor came for appeared only once hydration ran
+          the entrance — and the column re-centring as it did was a 0.36 layout
+          shift on mobile, the worst on the site. */}
+      <AnimatePresence mode="wait" initial={false}>
         <motion.div key={codeSent ? "code" : "credentials"} {...step} transition={transition} className="grid gap-7">
           <div className="text-center">
             <h1
@@ -709,6 +715,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
                 className={submitClass(pending || !codeComplete || codeRefused)}
                 style={submitStyle(pending || !codeComplete || codeRefused)}
               >
+                <GleamLight />
                 <span>{verifyPhone.isPending ? t("auth_verifying") : t("auth_verify")}</span>
               </button>
 
@@ -775,6 +782,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
               </PillField>
 
               <button type="submit" disabled={pending} className={submitClass(pending)} style={submitStyle(pending)}>
+                <GleamLight />
                 <span>{startPhoneVerification.isPending ? t("auth_sending") : t("auth_send_code")}</span>
               </button>
             </form>
@@ -871,6 +879,7 @@ export default function Auth({ mode }: { mode: AuthMode }) {
               {inviteField}
 
               <button type="submit" disabled={pending} className={submitClass(pending)} style={submitStyle(pending)}>
+                <GleamLight />
                 <span>{pending ? t("auth_working") : t(mode === "signin" ? "auth_signin_submit" : "auth_signup_submit")}</span>
               </button>
             </form>

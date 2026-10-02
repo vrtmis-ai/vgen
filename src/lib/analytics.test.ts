@@ -23,6 +23,17 @@ const setConsent = (analytics: boolean | null) => {
   document.cookie = analytics === null ? `${CONSENT_COOKIE}=;path=/;max-age=0` : `${CONSENT_COOKIE}=${serializeConsent(analytics)};path=/`;
 };
 
+/**
+ * Let the SDK's dynamic import resolve and every call queued on it run.
+ *
+ * PostHog is fetched with `import()` the first time consent is applied, so the
+ * calls this module makes reach it a few ticks later rather than inline.
+ */
+async function settle() {
+  await vi.dynamicImportSettled();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 /** A fresh module each time: `started` and `userId` are module state. */
 async function load(token: string | null = "phc_test") {
   vi.resetModules();
@@ -44,6 +55,7 @@ describe("starting", () => {
     const { startAnalytics, track } = await load();
     startAnalytics();
     track("x");
+    await settle();
     expect(sdk.init).not.toHaveBeenCalled();
     expect(sdk.capture).not.toHaveBeenCalled();
   });
@@ -60,6 +72,7 @@ describe("starting", () => {
     setConsent(true);
     const { startAnalytics, track } = await load();
     startAnalytics();
+    await settle();
     expect(sdk.init).toHaveBeenCalledWith(
       "phc_test",
       expect.objectContaining({
@@ -72,6 +85,7 @@ describe("starting", () => {
     // Already on by default once started, so no `$opt_in` event on every page load.
     expect(sdk.opt_in_capturing).not.toHaveBeenCalled();
     track("x", { a: 1 });
+    await settle();
     expect(sdk.capture).toHaveBeenCalledWith("x", { a: 1 });
   });
 
@@ -80,6 +94,7 @@ describe("starting", () => {
     sdk.has_opted_in_capturing.mockReturnValue(false);
     const { startAnalytics } = await load();
     startAnalytics();
+    await settle();
     expect(sdk.opt_in_capturing).toHaveBeenCalledOnce();
   });
 
@@ -91,6 +106,7 @@ describe("starting", () => {
     track("x");
     identifyUser("u1");
     captureError(new Error("boom"));
+    await settle();
     expect(sdk.init).not.toHaveBeenCalled();
     expect(sdk.capture).not.toHaveBeenCalled();
     expect(sdk.identify).not.toHaveBeenCalled();
@@ -107,6 +123,7 @@ describe("choosing", () => {
     expect(sdk.identify).not.toHaveBeenCalled();
 
     saveConsent(true);
+    await settle();
     expect(sdk.init).toHaveBeenCalledOnce();
     expect(sdk.identify).toHaveBeenCalledWith("u1");
   });
@@ -116,6 +133,7 @@ describe("choosing", () => {
     startAnalytics();
     saveConsent(true);
     saveConsent(false);
+    await settle();
     expect(sdk.opt_out_capturing).toHaveBeenCalledOnce();
   });
 
@@ -127,6 +145,7 @@ describe("choosing", () => {
     startAnalytics();
     saveConsent(true);
     saveConsent(false);
+    await settle();
     expect(localStorage.getItem("ph_phc_test_posthog")).toBeNull();
     expect(localStorage.getItem("__ph_opt_in_out_phc_test")).toBe("0");
     expect(localStorage.getItem("unrelated")).toBe("keep");
@@ -136,6 +155,7 @@ describe("choosing", () => {
     const { startAnalytics, saveConsent } = await load();
     startAnalytics();
     saveConsent(false);
+    await settle();
     expect(sdk.init).not.toHaveBeenCalled();
     expect(sdk.opt_out_capturing).not.toHaveBeenCalled();
   });
@@ -159,6 +179,7 @@ describe("what gets reported", () => {
     setConsent(true);
     const { startAnalytics } = await load();
     startAnalytics();
+    await settle();
     const { before_send } = sdk.init.mock.calls[0]![1] as { before_send: (event: unknown) => unknown };
     return (message: string, event = "$exception") => before_send({ event, properties: { $exception_message: message } });
   }
@@ -186,6 +207,7 @@ describe("what gets reported", () => {
     setConsent(true);
     const { startAnalytics } = await load();
     startAnalytics();
+    await settle();
     const { before_send } = sdk.init.mock.calls[0]![1] as { before_send: (event: unknown) => unknown };
     expect(before_send({ event: "$exception", properties: { $exception_list: [{ value: "Java object is gone" }] } })).toBeNull();
   });
@@ -202,6 +224,7 @@ describe("identifying", () => {
     const { startAnalytics, identifyUser } = await load();
     startAnalytics();
     identifyUser("u1");
+    await settle();
     expect(sdk.identify).toHaveBeenCalledWith("u1");
   });
 
@@ -210,6 +233,7 @@ describe("identifying", () => {
     const { startAnalytics, identifyUser } = await load();
     startAnalytics();
     identifyUser(null);
+    await settle();
     expect(sdk.reset).not.toHaveBeenCalled();
   });
 
@@ -222,6 +246,7 @@ describe("identifying", () => {
     sdk.reset.mockImplementation(() => sdk.has_opted_in_capturing.mockReturnValue(false));
 
     identifyUser(null);
+    await settle();
     expect(sdk.reset).toHaveBeenCalledOnce();
     // Order matters: opting in before reset() would be undone by it.
     expect(sdk.reset.mock.invocationCallOrder[0]).toBeLessThan(sdk.opt_in_capturing.mock.invocationCallOrder[0]!);
@@ -233,11 +258,13 @@ describe("identifying", () => {
     identifyUser("u1");
     saveConsent(true);
     saveConsent(false);
+    await settle();
     sdk.opt_out_capturing.mockClear();
     // reset() returns the SDK to its default, which is "on".
     sdk.reset.mockImplementation(() => sdk.has_opted_in_capturing.mockReturnValue(true));
 
     identifyUser(null);
+    await settle();
     expect(sdk.opt_out_capturing).toHaveBeenCalledOnce();
   });
 });

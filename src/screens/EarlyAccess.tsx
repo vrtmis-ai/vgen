@@ -10,6 +10,7 @@ import { useI18n, type TKey } from "../lib/i18n";
 import { ApiError } from "../runtime/apiError";
 import { useAppServices } from "../runtime/AppServices";
 import { SIGN_IN_PATH, SIGN_UP_PATH } from "../runtime/providers/authActions";
+import { GleamLight } from "../components/ui/gleam";
 
 /* What a visitor who is not signed in sees while `early_access` is on, on every
    route the app layout serves.
@@ -303,6 +304,7 @@ export default function EarlyAccess() {
                 className="vg-gleam h-12 shrink-0 px-6 text-base font-bold whitespace-nowrap"
                 style={{ boxShadow: "inset 0 0 0 1px var(--vg-surface), 0 0 48px rgb(var(--vg-primary-rgb) / 0.22)" }}
               >
+                <GleamLight />
                 <span className="text-nowrap">
                   {checking ? t(queueing ? "ea_queue_sending" : "ea_checking") : t(queueing ? "ea_queue_submit" : "ea_submit")}
                 </span>

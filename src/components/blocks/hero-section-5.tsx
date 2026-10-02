@@ -21,6 +21,7 @@ import type { Family } from "@/data/models";
 import type { Plan } from "@/runtime/contracts/plans";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { GleamLight } from "../ui/gleam";
 
 /* The Tailark hero-section-5 block, used as given rather than reimplemented.
    Layout, spacing, the inset video card, the nav's scroll behaviour and the
@@ -166,6 +167,7 @@ export function HeroSection({
                     className="vg-gleam h-12 px-6 text-base font-bold"
                     style={{ boxShadow: "inset 0 0 0 1px var(--vg-surface), 0 0 48px rgb(var(--vg-primary-rgb) / 0.22)" }}
                   >
+                    <GleamLight />
                     <span className="flex items-center gap-1 text-nowrap">
                       {t("lp_cta_start")}
                       <ChevronLeft className="size-5" />
