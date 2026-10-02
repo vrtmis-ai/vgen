@@ -1541,6 +1541,18 @@
   position: relative;
   isolation: isolate;
   background-color: var(--vg-canvas);
+  /* The haze below is deliberately larger than this box so it has room to
+     drift, and nothing was stopping it from counting as content: it added
+     ~364px of scrollable width and a quarter of a screen of height. Once the
+     layout settled the viewport changed size and everything moved — 0.26 of
+     layout shift, the largest single number in the baseline, on the gate and
+     on /plans too, because a signed-out visitor is shown this same screen
+     there.
+
+     `clip`, not `hidden`: it clips without making this a scroll container, so
+     nothing inside can be scrolled away from and a sticky descendant still
+     sticks to the viewport. */
+  overflow: clip;
 }
 
 .vg-soon::before {
