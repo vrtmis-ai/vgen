@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 import { ApiError } from "../../runtime/apiError";
 
 const ErrorBodySchema = z.object({

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 import type { AppServices } from "../../runtime/AppServices";
 import { GenerationJobSchema, GenerationQuoteSchema, JobReferencesSchema } from "../../runtime/contracts/generation";
 import type { HttpClient } from "./client";

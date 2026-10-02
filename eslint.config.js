@@ -36,7 +36,7 @@ export default tseslint.config(
   {
     // What the browser bundle is not allowed to contain.
     //
-    // These three files name our suppliers, their endpoint paths, and what a
+    // The three JSON files name our suppliers, their endpoint paths, and what a
     // generation costs us. A JSON import is inlined into the bundle whether or
     // not any code reads the fields, so "we only import it for one value" is not
     // a defence — every one of these leaked exactly that way before.
@@ -48,6 +48,17 @@ export default tseslint.config(
       "no-restricted-imports": [
         "error",
         {
+          paths: [
+            {
+              // Not a supplier secret — a size cliff, and the same rule fits it.
+              // Turbopack cannot narrow zod's namespace object, so `{ z }` drags
+              // in all 63 locales, the JSON-Schema converters and the JIT: 131 KB
+              // compressed on every route instead of 35. One import anywhere
+              // under src/ puts it all back, and nothing else would notice.
+              name: "zod",
+              message: "Import `* as z` from src/lib/z, which costs the browser 96 KB less. Server code may import zod directly.",
+            },
+          ],
           patterns: [
             {
               group: ["**/data/upstream.json", "**/data/upstream.pricing.json", "**/data/routes.wavespeed.json"],
@@ -58,6 +69,28 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // Reached from the browser through @vgen/core, so the same size rule applies.
+    files: ["packages/contracts/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "zod",
+              message: "Import `* as z` from ./z — these schemas reach the browser through @vgen/core. See packages/contracts/src/z.ts.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // The two files whose job is to import zod.
+    files: ["src/lib/z.ts", "packages/contracts/src/z.ts"],
+    rules: { "no-restricted-imports": "off" },
   },
   {
     files: ["packages/core/**/*.ts"],

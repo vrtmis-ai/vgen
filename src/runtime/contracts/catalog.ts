@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 
 const OptionSchema = z.object({ value: z.string(), label: z.string() });
 const AspectOptionSchema = OptionSchema.extend({ w: z.number().positive(), h: z.number().positive() });

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "./z";
 
 /**
  * Every cookie this product sets, in one place.

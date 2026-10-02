@@ -12,7 +12,7 @@
  */
 export const TERMS_VERSION = "2026-09-09";
 
-import { z } from "zod";
+import * as z from "./z";
 
 /**
  * An invite code as typed by a person.

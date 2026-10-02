@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 
 /**
  * The plan ladder, as `GET /plans` serves it.

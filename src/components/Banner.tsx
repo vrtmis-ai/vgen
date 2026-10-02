@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { X } from "@phosphor-icons/react";
 import { useI18n } from "../lib/i18n";
 import { readStoredValue, writeStoredValue } from "../adapters/browser/storage";
-import { z } from "zod";
+import * as z from "../lib/z";
 
 /* ---------------------------------------------------------------------------
    The strip above everything.

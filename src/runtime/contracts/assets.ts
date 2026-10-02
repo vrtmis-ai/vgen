@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 
 /**
  * A file the customer put in. Mirrors `UploadedAssetSchema` in

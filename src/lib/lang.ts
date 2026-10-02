@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "./z";
 
 /**
  * Language primitives with no React and no "use client".

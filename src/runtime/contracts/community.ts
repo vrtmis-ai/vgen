@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 
 /**
  * The community feed, as `GET /community` serves it.

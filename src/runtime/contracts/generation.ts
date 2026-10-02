@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "../../lib/z";
 
 export const InputValueSchema = z.union([z.string(), z.number(), z.boolean()]);
 export const InputMapSchema = z.record(z.string(), InputValueSchema);

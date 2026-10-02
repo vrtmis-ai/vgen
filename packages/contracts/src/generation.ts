@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "./z";
 
 /**
  * What the browser asks a price for.

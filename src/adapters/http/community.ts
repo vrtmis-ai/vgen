@@ -1,5 +1,5 @@
 import type { AppServices } from "../../runtime/AppServices";
-import { z } from "zod";
+import * as z from "../../lib/z";
 import { CommunityFeedSchema } from "../../runtime/contracts/community";
 
 const ReportedSchema = z.object({ id: z.string(), reported: z.boolean() });
