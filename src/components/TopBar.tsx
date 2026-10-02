@@ -69,7 +69,8 @@ export function TopBar({
   onProfile,
   onSignIn,
 }: {
-  active: NavKey;
+  /** Null where the screen is not a nav destination, so nothing is highlighted. */
+  active: NavKey | null;
   onNav: (k: NavKey) => void;
   /** The wordmark. Goes to the landing page, wherever you are. */
   onHome: () => void;
