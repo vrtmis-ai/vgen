@@ -1597,10 +1597,17 @@
   backface-visibility: hidden;
 }
 
+/* Each bar's height is a static `scale`; the breath is a `transform` that knows
+   nothing about it. The two multiply, so the bar is `--vg-bar` tall and
+   breathes down to 88% of that, exactly as when one keyframe held both. Split
+   because a keyframe that reads `var()` is resolved per element on the main
+   thread every frame — fifteen bars of style recalculation, forever — while a
+   keyframe of plain numbers runs on the compositor. */
 .vg-bars > span {
   flex: 1 0 auto;
   height: 100%;
   transform-origin: bottom;
+  scale: 1 var(--vg-bar, 1);
   background: linear-gradient(to top, rgb(var(--vg-primary-rgb) / 0.26), transparent 58%);
   animation: vg-bar-breathe 2.6s var(--vg-ease) infinite alternate;
   will-change: transform;
@@ -1608,10 +1615,10 @@
 
 @keyframes vg-bar-breathe {
   from {
-    transform: scaleY(var(--vg-bar, 1));
+    transform: scaleY(1);
   }
   to {
-    transform: scaleY(calc(var(--vg-bar, 1) * 0.88));
+    transform: scaleY(0.88);
   }
 }
 
@@ -1619,7 +1626,6 @@
   /* The wall stays where it is; only the breathing stops. */
   .vg-bars > span {
     animation: none;
-    transform: scaleY(var(--vg-bar, 1));
   }
 }
 
