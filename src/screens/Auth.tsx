@@ -627,7 +627,12 @@ export default function Auth({ mode }: { mode: AuthMode }) {
 
   return (
     <AuthScene leaving={leaving}>
-      <AnimatePresence mode="wait">
+      {/* `initial={false}`: the slide is for moving between steps, not for
+          arriving. On first mount it server-rendered the form invisible and 60px
+          aside, so the form a visitor came for appeared only once hydration ran
+          the entrance — and the column re-centring as it did was a 0.36 layout
+          shift on mobile, the worst on the site. */}
+      <AnimatePresence mode="wait" initial={false}>
         <motion.div key={codeSent ? "code" : "credentials"} {...step} transition={transition} className="grid gap-7">
           <div className="text-center">
             <h1
