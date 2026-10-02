@@ -74,7 +74,7 @@ is the largest remaining lever.
 
 | commit    | change                                                     | why it was first                                                                                                                                                                                                    |
 | --------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `eb077f3` | Stop loading Telegram's web-app script                     | Nothing read `window.Telegram`. 140 KB from a host filtered in Iran, and its writes to `<html>` caused the 0.26 shift on `/` and `/plans` and the sign-in shift.                                                    |
+| `eb077f3` | Stop loading Telegram's web-app script                     | Nothing read `window.Telegram`. 140 KB from a host filtered in Iran, and it contributed to the sign-in shift. (It was also blamed here for the 0.26 desktop shift. It was not the cause — see below.)               |
 | `833ec73` | Preload the two Vazirmatn files a Persian first paint uses | Fonts were found only after the 134 KB stylesheet was parsed. Files moved to `public/fonts` under their content-hashed names and served `immutable`. Persian pages only.                                            |
 | `883290e` | Download PostHog only after somebody consents              | 95 KB compressed shipped on every route through `CookieConsent`. `import()` on first consent; SDK calls queued on one promise so their order is unchanged.                                                          |
 | `4f6306b` | Show the sign-in form on arrival instead of sliding it in  | The step transition ran on first mount: form server-rendered invisible and 60 px aside, revealed after hydration, re-centring the column — 0.36 CLS. `AnimatePresence initial={false}`, as `Generate` already does. |
@@ -133,6 +133,30 @@ still widens, warms and swings, the label's bloom still breathes. The button is
 
 - The signed-in surfaces (studio, gallery, explore) were not measured
   authenticated. They share every first-load change above.
+
+## Corrected after deploy
+
+**The 0.26 desktop shift was not Telegram.** Production after this deployed
+still measured 0.2607 on `/` and on `/plans`, to four decimal places — the
+script was gone and the shift had not moved. Both were attributed to it
+because both touched `<html>`, which is the kind of reasoning that reads as
+a diagnosis and is a coincidence.
+
+The cause is `.vg-soon::before`, the gate's drifting haze. `inset: -25%` gives
+it room to move and nothing clipped it, so it counted as content: 1699px of
+page inside a 1335px viewport. The viewport resized once layout settled and
+the document moved. `/plans` matched exactly because a signed-out visitor is
+shown the gate there too. It was visible as well as measurable — the gate sat
+364px off centre on a desktop, with a dead band down one side.
+
+Fixed with `overflow: clip` on `.vg-soon`. Measured on two local production
+builds at 1350x940: CLS **0.2637 → 0**, horizontal overflow **364px → 0**.
+
+**`/about` did not regress.** Production showed 90 → 78 against the baseline,
+which looked like this work. An interleaved local A/B says otherwise: score
+69 → 80, FCP 1.67 → 0.91s, LCP 4.33 → 3.97s, TBT 504 → 342ms, CLS 0.099 → 0,
+JS 541 → 389 KB. The baseline's 90 was measured a day earlier on a better
+connection; `/about`'s production TTFB spans 168–804ms.
 
 ## Verify after deploy
 
