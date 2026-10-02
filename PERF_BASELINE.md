@@ -66,6 +66,11 @@ tailwind-merge 27. Plus **three 513** on the routes that use it.
 
 ### Per route (raw / compressed KB)
 
+These totals are everything a route's module graph can pull in, **including
+chunks loaded later with `import()`** — so they are an upper bound, not first
+load. For `/` they match what the live page downloaded (665 vs 654 KB); for the
+studio routes they include `three`, which is lazy (see below).
+
 | route | raw | compressed | largest |
 |---|---:|---:|---|
 | /studio/video, /studio/image, /studio/audio, /generate/[id], /gallery | ~3,000 | **~1,000** | next, **three 513**, src, zod |
@@ -83,8 +88,9 @@ tailwind-merge 27. Plus **three 513** on the routes that use it.
 - **posthog-js (95 KB, every route):** statically imported by
   `src/lib/analytics.ts`, which `CookieConsent` (root layout) imports — so it
   ships to visitors who have not consented and may never.
-- **three (513 KB raw):** only `src/components/ui/quantum-nebula.tsx`, a
-  decorative background mounted by `GenerationField`.
+- **three (513 KB raw):** only `src/components/ui/quantum-nebula.tsx`, which
+  `GenerationField` already loads with `next/dynamic` (`ssr: false`) and only
+  renders while a generation runs. Not a first-load cost; nothing to do.
 - **Demo services (~22 KB compressed):** `runtime.ts` imports
   `createDemoServices` statically; the `APP_MODE` check sits behind a function
   argument, so the bundler cannot drop it. Drags in two JSON snapshots.
