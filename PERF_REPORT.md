@@ -81,14 +81,14 @@ is the largest remaining lever.
 | `1d1fab2` | Let the gate's bars breathe on the compositor              | `var()` in keyframes forced per-element main-thread work for 15 bars. Height is now a static `scale`, the breath a plain `transform`.                                                                               |
 | `19ea1c7` | Turn the gleam's layers instead of repainting its gradient | The invite button animated a registered custom property; the browser restyled and repainted it every frame. Now static gradients on layers that rotate.                                                             |
 
-### One visible change
+### How the gleam looks now
 
-The gleam rewrite is identical to the original in English. **In Persian, the
-dots and the sheen now show**, where they never did: the original centred those
-layers with `inset-inline-start` plus a physical `translate`, which on a
-right-to-left page pushed them off the button. The design comments describe all
-three layers, so this treats it as a fix. Say so if you would rather keep
-Persian arc-only, and it is a few lines.
+The gleam rewrite is identical to the original in English, and in Persian. The
+original centred its dots and sheen with `inset-inline-start` plus a physical
+`translate`, which on a right-to-left page pushed them off the button, so
+Persian visitors have only ever seen the arc. The rewrite centres the layers
+correctly, then hides the dots and sheen on right-to-left pages (`:dir(rtl)`)
+so that look is kept on purpose rather than by accident.
 
 The hover no longer slows the spin (that relied on `animation-composition: add`,
 which is itself one of the reasons an animation cannot be composited); the arc
@@ -131,9 +131,6 @@ still widens, warms and swings, the label's bloom still breathes. The button is
 
 ## Also found
 
-- **`startAnalytics()` is never called by the app**, only by its tests. PostHog
-  therefore runs only in the session where someone clicks "accept"; a visitor who
-  consented before is not tracked on later visits. Not changed here.
 - The signed-in surfaces (studio, gallery, explore) were not measured
   authenticated. They share every first-load change above.
 
@@ -143,6 +140,9 @@ still widens, warms and swings, the label's bloom still breathes. The button is
    3 runs each, against the baseline table.
 2. Accept analytics on production and confirm `/ingest` requests appear — the
    lazy PostHog path could not be exercised locally (no project token there).
-3. Persian and English gate: the gleam turns, the arc widens on hover.
+   Then reload: a returning visitor who already said yes is started by
+   `instrumentation-client.ts`, and `/ingest` should fire again without a click.
+3. Persian gate: the arc alone turns, no dots. English gate: arc, lit dots and
+   sheen. Both: the arc widens on hover.
 4. `curl -I https://deevapp.com/fonts/v16-Dxxo8j6PP2D_kU2muijlGMWWMmk.woff2`
    returns `immutable`.
