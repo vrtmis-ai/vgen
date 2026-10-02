@@ -435,8 +435,10 @@ export default function Generate({
 
       <PanelShell>
         <div className="flex flex-col gap-2.5 p-2.5">
-          {/* This screen has no bar of its own — it is reached from one and
-              returns to it — so the way back is the first thing in the column. */}
+          {/* Kept beside the nav bar above, because the two do different jobs:
+              the bar goes somewhere, this returns to the studio you came from.
+              It is also the only way back on a desktop, where the swipe is
+              not available. */}
           <button
             onClick={onBack}
             className="flex h-8 w-fit items-center gap-1.5 rounded-lg px-2 text-[12px] font-semibold transition-colors"
