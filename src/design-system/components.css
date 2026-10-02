@@ -1246,30 +1246,29 @@
 
    Three layers over one dark pill, and each has a job:
 
-   · the border itself is a conic gradient, so a bright arc travels the outline;
-   · `::before` is a field of dots inside the pill, masked to the quarter the
-     arc is passing through, so the light appears to fall on a surface;
-   · `::after` is a soft sheen crossing the face, rotating on its own clock.
+   · the ring: a bright arc travels the outline;
+   · the dots: a field of them inside the pill, lit only in the quarter the arc
+     is passing through, so the light appears to fall on a surface;
+   · the sheen: a soft light crossing the face, turning on its own clock.
 
-   Registered properties are what make any of it move: a conic gradient cannot
-   animate unless the angle it is built from is typed. They live here rather
-   than being injected per button — one stylesheet, however many buttons.
+   Everything that moves is a layer turning, never a value changing. This used
+   to animate a registered `--vg-gleam-angle` that a conic gradient and a mask
+   were built from, which looks the same and cannot leave the main thread: the
+   browser recomputed the button's style and repainted it every frame, about
+   590 ms of every second on a mid-range phone, for as long as the page was
+   open. Gradients drawn once and turned with `rotate` are the compositor's
+   job and cost the page nothing.
 
-   Each layer names its own animation in `--vg-gleam-run` *before* the shared
-   `animation` shorthand reads it. Getting that order wrong is what put the
-   angle sweep on the sheen and left the dots unmoved, which read as a green
-   bar swinging out of the side.
+   So the arc and the dots' light are static gradients on oversized squares
+   that rotate, clipped by the layer they sit in. The dots are not masked any
+   more; a canvas-coloured cover with a clear wedge turns over them, which on a
+   solid canvas is the same picture.
+
+   The layers are two `<i aria-hidden>` from `GleamLight`, not pseudo-elements,
+   because there are more of them than a button has pseudo-elements and each
+   needs its own clip. Outside `.vg-gleam` they do not display, so a submit
+   button that loses the class when disabled keeps its layout.
    -------------------------------------------------------------------------- */
-@property --vg-gleam-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-@property --vg-gleam-offset {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
 @property --vg-gleam-percent {
   syntax: "<percentage>";
   initial-value: 5%;
@@ -1284,100 +1283,111 @@
 .vg-gleam {
   --vg-gleam-duration: 3s;
   --vg-gleam-ease: 0.8s cubic-bezier(0.25, 1, 0.5, 1);
-  --vg-gleam-run: vg-gleam-angle linear infinite;
 
   position: relative;
   isolation: isolate;
   overflow: hidden;
   cursor: pointer;
   outline-offset: 4px;
-  border: 1px solid transparent;
+  /* No border: the ring layer is the border. A real one would sit outside the
+     padding box, where `overflow: hidden` stops any child from painting. */
+  border: 0;
   border-radius: 999px;
   color: var(--vg-text);
-  background:
-    linear-gradient(var(--vg-canvas), var(--vg-canvas)) padding-box,
-    conic-gradient(
-        from calc(var(--vg-gleam-angle) - var(--vg-gleam-offset)),
-        transparent,
-        var(--vg-primary) var(--vg-gleam-percent),
-        var(--vg-gleam-shine) calc(var(--vg-gleam-percent) * 2),
-        var(--vg-primary) calc(var(--vg-gleam-percent) * 3),
-        transparent calc(var(--vg-gleam-percent) * 4)
-      )
-      border-box;
-  box-shadow: inset 0 0 0 1px var(--vg-surface);
-  transition: var(--vg-gleam-ease);
-  transition-property: --vg-gleam-offset, --vg-gleam-percent, --vg-gleam-shine;
-  animation:
-    var(--vg-gleam-run) var(--vg-gleam-duration),
-    var(--vg-gleam-run) calc(var(--vg-gleam-duration) / 0.4) reverse paused;
-  animation-composition: add;
+  background: transparent;
 }
 
-/* Layered above the fill, not under it. A `<button>` paints its own background
-   inside the stacking context it establishes, so a pseudo-element at
-   `z-index: -1` — which is how this effect is usually written — ends up behind
-   that fill and never shows: the dots and the sheen were both in the DOM,
-   correct, and invisible. They sit at 0 and the label sits above them. */
-.vg-gleam::before,
-.vg-gleam::after {
-  content: "";
+.vg-gleam-ring,
+.vg-gleam-face {
+  display: none;
+}
+
+.vg-gleam > .vg-gleam-ring,
+.vg-gleam > .vg-gleam-face {
+  display: block;
   pointer-events: none;
   position: absolute;
-  inset-inline-start: 50%;
-  inset-block-start: 50%;
-  translate: -50% -50%;
+  border-radius: inherit;
+  overflow: hidden;
   z-index: 0;
 }
 
-.vg-gleam:active {
-  translate: 0 1px;
+.vg-gleam > .vg-gleam-ring {
+  inset: 0;
 }
 
-/* The dots, lit where the light is.
-
-   A field of them across the face, masked to the quarter the travelling arc is
-   passing through — so the grid appears under the light and fades behind it,
-   which is the effect: a surface catching a moving source rather than a
-   texture printed on a shape. The mask turns with the same angle the border
-   does, so the two are one light. */
-.vg-gleam::before {
+/* The face sits 1px in, so the ring shows as the outermost pixel. Its own
+   border is the surface line that used to be an inset shadow: children cannot
+   paint over an element's border, so the turning cover never hides it. */
+.vg-gleam > .vg-gleam-face {
   --vg-gleam-dot: 2px;
-  --vg-gleam-space: calc(var(--vg-gleam-dot) * 2);
-  width: calc(100% - 6px);
-  height: calc(100% - 6px);
-  background: radial-gradient(circle at var(--vg-gleam-dot) var(--vg-gleam-dot), white calc(var(--vg-gleam-dot) / 4), transparent 0)
-    padding-box;
-  background-size: var(--vg-gleam-space) var(--vg-gleam-space);
-  background-repeat: space;
-  mask-image: conic-gradient(from calc(var(--vg-gleam-angle) + 45deg), black, transparent 10% 90%, black);
-  border-radius: inherit;
-  opacity: 0.4;
-  animation:
-    var(--vg-gleam-run) var(--vg-gleam-duration),
-    var(--vg-gleam-run) calc(var(--vg-gleam-duration) / 0.4) reverse paused;
-  animation-composition: add;
+  inset: 1px;
+  padding: 1px;
+  border: 1px solid var(--vg-surface);
+  background:
+    radial-gradient(circle at var(--vg-gleam-dot) var(--vg-gleam-dot), rgb(255 255 255 / 0.4) calc(var(--vg-gleam-dot) / 4), transparent 0)
+      content-box,
+    var(--vg-canvas) padding-box;
+  background-size:
+    calc(var(--vg-gleam-dot) * 2) calc(var(--vg-gleam-dot) * 2),
+    auto;
+  background-repeat: space, no-repeat;
+}
+
+/* The turning squares. 200% of the button's width covers a pill of any
+   proportion at every angle, and centring them on the pill puts the gradient's
+   centre where the conic border's used to be.
+
+   Centred with physical `left`/`top`, never `inset-inline-start`: `translate`
+   is physical, so on a right-to-left page a logical offset plus a physical
+   pull lands the layer off the button. That is how the dots and the sheen of
+   the original were invisible on every Persian page, which is most of them. */
+.vg-gleam-ring::before,
+.vg-gleam-face::before,
+.vg-gleam-face::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  aspect-ratio: 1;
+  animation: vg-gleam-turn var(--vg-gleam-duration) linear infinite;
+}
+
+.vg-gleam-ring::before {
+  width: 200%;
+  background: conic-gradient(
+    transparent,
+    var(--vg-primary) var(--vg-gleam-percent),
+    var(--vg-gleam-shine) calc(var(--vg-gleam-percent) * 2),
+    var(--vg-primary) calc(var(--vg-gleam-percent) * 3),
+    transparent calc(var(--vg-gleam-percent) * 4)
+  );
+  transition: var(--vg-gleam-ease);
+  transition-property: --vg-gleam-percent, --vg-gleam-shine, transform;
+}
+
+/* The cover over the dots: canvas everywhere except a 72° wedge, 45° ahead of
+   the arc's start — the exact complement of the mask the dots used to have. */
+.vg-gleam-face::before {
+  width: 200%;
+  background: conic-gradient(from 45deg, transparent, var(--vg-canvas) 10% 90%, transparent);
 }
 
 /* The sheen: a square the width of the button, turning behind the face, so the
-   light crosses the surface as well as the edge. Lime carries further than the
-   amber this came from, so it runs at half that opacity. */
-.vg-gleam::after {
-  --vg-gleam-run: vg-gleam-shimmer linear infinite;
+   light crosses the surface as well as the edge. Softened and blurred: on a
+   pill four times wider than it is tall the same square cuts a hard diagonal
+   across the face. */
+.vg-gleam-face::after {
   width: 100%;
-  aspect-ratio: 1;
-  /* Softened, and blurred. The source turns a square the width of the button:
-     on the near-square button it came from that reads as a glow, and on a pill
-     four times wider than it is tall the same square cuts a hard diagonal
-     across the face. The blur is what keeps it light rather than a wedge. */
   background: linear-gradient(-50deg, transparent 32%, rgb(var(--vg-primary-rgb) / 0.55) 50%, transparent 68%);
   filter: blur(10px);
   mask-image: radial-gradient(circle at bottom, transparent 40%, black);
   opacity: 0.4;
-  animation:
-    var(--vg-gleam-run) var(--vg-gleam-duration),
-    var(--vg-gleam-run) calc(var(--vg-gleam-duration) / 0.4) reverse paused;
-  animation-composition: add;
+}
+
+.vg-gleam:active {
+  translate: 0 1px;
 }
 
 .vg-gleam > span {
@@ -1396,8 +1406,8 @@
   content: "";
   pointer-events: none;
   position: absolute;
-  inset-inline-start: 50%;
-  inset-block-start: 50%;
+  left: 50%;
+  top: 50%;
   translate: -50% -50%;
   z-index: -1;
   width: 190%;
@@ -1406,37 +1416,30 @@
   filter: blur(6px);
   opacity: 0;
   transition: opacity var(--vg-gleam-ease);
-  animation: calc(var(--vg-gleam-duration) * 1.5) vg-gleam-breathe linear infinite;
 }
 
-/* Hover: the arc widens and warms, the face lights under the label, and the
-   button throws a little of that into the air around it. */
+/* Hover: the arc widens, warms and swings ahead, the face lights under the
+   label, and the button throws a little of that into the air around it. The
+   swing is `transform`, which composes with the running `rotate` instead of
+   restarting it. */
 .vg-gleam:is(:hover, :focus-visible) {
-  --vg-gleam-percent: 22%;
-  --vg-gleam-offset: 95deg;
-  --vg-gleam-shine: var(--vg-primary-soft);
   box-shadow:
     inset 0 0 0 1px var(--vg-surface),
     0 0 42px rgb(var(--vg-primary-rgb) / 0.3);
 }
 
-.vg-gleam:is(:hover, :focus-visible),
-.vg-gleam:is(:hover, :focus-visible)::before,
-.vg-gleam:is(:hover, :focus-visible)::after {
-  animation-play-state: running, running;
+.vg-gleam:is(:hover, :focus-visible) .vg-gleam-ring::before {
+  --vg-gleam-percent: 22%;
+  --vg-gleam-shine: var(--vg-primary-soft);
+  transform: rotate(-95deg);
 }
 
 .vg-gleam:is(:hover, :focus-visible) > span::before {
   opacity: 1;
+  animation: calc(var(--vg-gleam-duration) * 1.5) vg-gleam-breathe linear infinite;
 }
 
-@keyframes vg-gleam-angle {
-  to {
-    --vg-gleam-angle: 360deg;
-  }
-}
-
-@keyframes vg-gleam-shimmer {
+@keyframes vg-gleam-turn {
   to {
     rotate: 360deg;
   }
@@ -1453,12 +1456,12 @@
 }
 
 /* Motion is the whole effect, so reduced motion keeps the lit edge and stops
-   every moving part — including the hover, which would otherwise start the
-   sweep the moment a pointer crossed the button. */
+   every moving part — including the hover, which would otherwise swing the arc
+   the moment a pointer crossed the button. */
 @media (prefers-reduced-motion: reduce) {
-  .vg-gleam,
-  .vg-gleam::before,
-  .vg-gleam::after,
+  .vg-gleam-ring::before,
+  .vg-gleam-face::before,
+  .vg-gleam-face::after,
   .vg-gleam > span::before {
     animation: none !important;
   }
@@ -1467,7 +1470,8 @@
     opacity: 0;
   }
 
-  .vg-gleam {
+  .vg-gleam,
+  .vg-gleam-ring::before {
     transition: none;
   }
 }

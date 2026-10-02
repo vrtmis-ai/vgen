@@ -7,6 +7,7 @@ import { ApiError } from "../runtime/apiError";
 import { useAppServices } from "../runtime/AppServices";
 import { SIGN_IN_PATH } from "../runtime/providers/authActions";
 import { AuthScene, PILL, PillField, pillStyle, submitClass, submitStyle } from "./Auth";
+import { GleamLight } from "../components/ui/gleam";
 
 /**
  * The way back in.
@@ -121,6 +122,7 @@ function AskForLink() {
             )}
           </PillField>
           <button type="submit" disabled={pending} className={submitClass(pending)} style={submitStyle(pending)}>
+            <GleamLight />
             <span>{pending ? t("auth_working") : t("reset_ask_submit")}</span>
           </button>
         </form>
@@ -219,6 +221,7 @@ function SetNewPassword() {
           {/* Every other device was signed out. This one was never signed in. */}
           <Header title={t("reset_done_title")} subtitle={t("reset_done_sub")} />
           <a href={SIGN_IN_PATH} className={submitClass(false)} style={{ ...submitStyle(false), textAlign: "center" }}>
+            <GleamLight />
             <span>{t("reset_done_cta")}</span>
           </a>
         </div>
@@ -242,6 +245,7 @@ function SetNewPassword() {
         <div className="grid gap-7">
           <Header title={t("reset_dead_title")} subtitle={t(DEAD_LINK[state])} />
           <a href="/forgot" className={submitClass(false)} style={{ ...submitStyle(false), textAlign: "center" }}>
+            <GleamLight />
             <span>{t("reset_dead_cta")}</span>
           </a>
           <BackToSignIn label={t("reset_back_to_signin")} />
@@ -288,6 +292,7 @@ function SetNewPassword() {
             )}
           </PillField>
           <button type="submit" disabled={pending} className={submitClass(pending)} style={submitStyle(pending)}>
+            <GleamLight />
             <span>{pending ? t("auth_working") : t("reset_set_submit")}</span>
           </button>
         </form>
