@@ -53,6 +53,16 @@ const nextConfig: NextConfig = {
    * `/plans` site-wide, which nothing here depends on.
    */
   skipTrailingSlashRedirect: true,
+  /**
+   * The Vazirmatn files live in public/ so the root layout can preload them by
+   * a name that does not change between builds. public/ is served with
+   * `max-age=0` by default, which would make every visit revalidate them; their
+   * names already carry the upstream content hash, so a changed font is a new
+   * URL and this is as safe as `/_next/static`.
+   */
+  async headers() {
+    return [{ source: "/fonts/:file*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] }];
+  },
   async rewrites() {
     return [
       { source: "/ingest/static/:path*", destination: "https://eu-assets.i.posthog.com/static/:path*" },

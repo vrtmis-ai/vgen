@@ -7,6 +7,10 @@ import { CONSENT_COOKIE } from "../src/lib/cookies";
 import { dirFor, LANG_COOKIE, parseLang } from "../src/lib/lang";
 import { Providers } from "./providers";
 
+/** Arabic and Latin subsets of the variable Vazirmatn. One file per script
+    covers every weight, so these two are the whole font for a Persian page. */
+const VAZIRMATN_FIRST_PAINT = ["/fonts/v16-Dxxo8j6PP2D_kU2muijlGMWWMmk.woff2", "/fonts/v16-Dxxo8j6PP2D_kU2muijlHcWW.woff2"];
+
 export const metadata: Metadata = {
   // ponytail: eNamad's title check, temporary. Back to "DEEV" once the domain is verified.
   title: "38669407",
@@ -61,6 +65,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             `metadata`, which Next may stream in after the head. The empty
             public/38669407.txt is the same check's other accepted proof. */}
         <meta name="enamad" content="11292457" />
+        {/* The two faces a Persian first paint uses, fetched alongside the
+            stylesheet instead of after it. Without this the browser cannot know
+            it needs them until the 134 KB stylesheet has been parsed, and the
+            cookie notice — the LCP element for every first visit — waited on
+            that chain: HTML, then CSS, then font, finishing at 3.7 s on slow
+            4G. Persian only: English text is set in Inter, and a preload for a
+            font the page never uses is a warning and wasted bandwidth. */}
+        {lang === "fa" &&
+          VAZIRMATN_FIRST_PAINT.map((href) => <link key={href} rel="preload" href={href} as="font" type="font/woff2" crossOrigin="" />)}
       </head>
       <body>
         <Providers initialLang={lang}>{children}</Providers>
