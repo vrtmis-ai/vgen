@@ -114,10 +114,13 @@ export function coinsPerUsd(plan: Plan, annual = false): number {
 /**
  * What a plan actually earns against what its coins cost us to honour.
  *
- * `pricing.ts` charges MARGIN× on every job, but that is the margin on a coin at
- * face value — and plans sell coins below face value. The discount comes
- * straight off the top, so the blended number is the real one: Creator annual
- * clears 1.26×, not the 2× the constant advertises.
+ * Still priced as if every job charged MARGIN× (2×) on a coin at face value,
+ * which stopped being true with the competitor repricing: a model's margin is
+ * now set per row, between 1.17× and 3.5×, so the coins a plan grants cost us
+ * anything from $0.014 to $0.043 depending on what they are spent on. Read this
+ * as the margin of a user with an average 2× mix, not as a floor — the worst
+ * case is a user who spends the whole grant on 1.17× rows, and no plan earns
+ * more than 1.17× from them.
  */
 export function planMargin(plan: Plan, annual = false): number {
   return usdOf(plan, annual) / (plan.coinsPerTerm * (COIN_USD / MARGIN));
@@ -130,7 +133,7 @@ export function planMargin(plan: Plan, annual = false): number {
  * floor rule the same statement read in opposite directions: "a dearer plan must
  * give more coins per dollar" IS "a dearer plan must earn a thinner margin". So
  * the largest plan is always the binding one, and no plan can be repaired alone
- * — pushing Creator's margin up past Studio's inverts the ladder.
+ * — pushing Studio's margin up past Pro's inverts the ladder.
  *
  * Annual is allowed to run leaner on purpose. It takes twelve months up front,
  * carries no churn risk for a year, and its later months' unspent coins expire
@@ -139,7 +142,7 @@ export function planMargin(plan: Plan, annual = false): number {
  *
  * 1.0 is break-even on provider cost alone — before ZarinPal's cut, the 50-coin
  * referral payout, or the signup gift. And every margin here assumes the user
- * burns their whole grant; at 70% usage Creator annual clears 1.86×, not 1.30×.
+ * burns their whole grant; at 70% usage a plan clears about 1.4× what it does at 100%.
  * The floor exists for the power user who really does spend it all.
  */
 export const MIN_PLAN_MARGIN_MONTHLY = 1.6;

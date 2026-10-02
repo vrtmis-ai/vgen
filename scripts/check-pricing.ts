@@ -23,10 +23,21 @@ import postgres from "postgres";
 // of the web workspace and adding one for a script would drag the whole backend
 // into the browser build's dependency graph to save a relative path.
 import { PostgresPricingRepository, PriceUnavailableError } from "../packages/db/src/pricingRepository";
-import { COIN_USD, KIE_CREDIT_USD, MARGIN } from "@vgen/core";
+import { COIN_USD, KIE_CREDIT_USD } from "@vgen/core";
 import expected from "../src/data/pricing.expected.json" with { type: "json" };
 import { eachVariant } from "./pricing/combos";
 import { upstreamModel } from "./upstream";
+
+/**
+ * The lowest multiple of cost any offered price may charge.
+ *
+ * Not `MARGIN`. That constant still derives a price for a row nobody has priced
+ * by hand, and it is 2x. Since the competitor repricing, a row's margin is set
+ * per model: 3% under Hoosha (or Atar/Vidax where Hoosha does not sell the
+ * model), but never below this. Checking every row against 2x would fail the
+ * whole repricing; checking against nothing would let a typo sell at a loss.
+ */
+const MIN_MARGIN = 1.17;
 
 config({ path: ".env.development.local", quiet: true });
 config({ path: ".env.local", quiet: true });
@@ -144,12 +155,12 @@ try {
     // exactly as it was.
     const unitCostUsd = row.unit_cost_usd === null ? KIE_CREDIT_USD : Number(row.unit_cost_usd);
     const costUsd = Number(row.cost) * unitCostUsd;
-    return costUsd > 0 && chargedUsd < costUsd * MARGIN - 1e-9;
+    return costUsd > 0 && chargedUsd < costUsd * MIN_MARGIN - 1e-9;
   });
 
   if (mismatches.length === 0 && thin.length === 0) {
     console.log(`${checked} prices checked against the frozen fixture — every one matches ✅`);
-    console.log(`${belowCost.length} live price rows, all clearing the ${MARGIN}x margin floor ✅`);
+    console.log(`${belowCost.length} live price rows, all clearing the ${MIN_MARGIN}x margin floor ✅`);
     process.exit(0);
   }
 
