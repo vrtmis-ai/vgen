@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import "../src/index.css";
@@ -62,29 +61,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             `metadata`, which Next may stream in after the head. The empty
             public/38669407.txt is the same check's other accepted proof. */}
         <meta name="enamad" content="11292457" />
-        {/* Start the DNS+TCP+TLS chain for the runtime third-party origins during
-            parse instead of serially after it. On a high-latency connection the
-            handshakes, not the bytes, are the expensive part.
-
-            Only origins a visitor is *meant* to know about belong here. A
-            preconnect is a public statement: it sits in the head of every page,
-            it is in view-source before a single script runs, and the browser
-            resolves it whether or not the resource is ever used. Two upstream
-            hosts were listed here, which told anyone who pressed Ctrl-U which
-            company actually renders our models. Whoever adds the next one:
-            preconnect is for origins the product depends on openly. */}
-        <link rel="preconnect" href="https://telegram.org" crossOrigin="" />
       </head>
       <body>
         <Providers initialLang={lang}>{children}</Providers>
         <CookieConsent initial={consent} />
-        {/* `afterInteractive`, and the reason is the same one that made this
-            `defer` in index.html: telegram.org is filtered in Iran, where a
-            blocked connection typically hangs rather than resets. A
-            `beforeInteractive` script is injected ahead of the app and would
-            hold the whole page on a bare background for the OS TCP timeout.
-            Everything that reads window.Telegram already treats it as optional. */}
-        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
       </body>
     </html>
   );
