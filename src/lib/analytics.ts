@@ -1,4 +1,4 @@
-import posthog, { type CaptureResult } from "posthog-js";
+import type { CaptureResult, PostHog } from "posthog-js";
 import { CONSENT_COOKIE, CONSENT_MAX_AGE_SECONDS, allows, parseConsent, serializeConsent, type Consent } from "./cookies";
 
 /**
@@ -16,6 +16,16 @@ import { CONSENT_COOKIE, CONSENT_MAX_AGE_SECONDS, allows, parseConsent, serializ
  * Client-only, and every export is a no-op until PostHog has started — so a
  * checkout without a token, or a visitor who has not agreed, is safe at every
  * call site.
+ *
+ * **The SDK itself is not downloaded until then either.** It is 95 KB
+ * compressed, and it used to ship on every route — through `CookieConsent`,
+ * which is in the root layout — to visitors most of whom never say yes. So
+ * `init` fetches it with `import()`, and every call after that is queued on the
+ * one promise the import returns: `then` callbacks on a single promise run in
+ * the order they were attached, so the SDK receives exactly the sequence it
+ * used to receive synchronously, a few milliseconds later. A chunk that fails
+ * to load leaves analytics off, which is what this module does whenever
+ * anything about PostHog is unavailable.
  */
 
 const token = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
@@ -23,6 +33,12 @@ const CONSENT_EVENT = "vgen:consent";
 
 let started = false;
 let userId: string | null = null;
+let sdk: Promise<PostHog> | null = null;
+
+/** Run against the SDK once it has loaded, in call order; nothing if it never does. */
+function withSdk(use: (posthog: PostHog) => void): void {
+  void sdk?.then(use, () => {});
+}
 
 function readConsent(): Consent | null {
   const entry = document.cookie.split("; ").find((part) => part.startsWith(`${CONSENT_COOKIE}=`));
@@ -81,6 +97,14 @@ function dropUnactionable(event: CaptureResult | null): CaptureResult | null {
 }
 
 function init(projectToken: string): void {
+  sdk = import("posthog-js").then(({ default: posthog }) => {
+    configure(posthog, projectToken);
+    return posthog;
+  });
+  started = true;
+}
+
+function configure(posthog: PostHog, projectToken: string): void {
   posthog.init(projectToken, {
     api_host: "/ingest",
     ui_host: "https://eu.posthog.com",
@@ -114,7 +138,6 @@ function init(projectToken: string): void {
     capture_performance: { web_vitals: true },
     debug: process.env.NODE_ENV === "development",
   });
-  started = true;
 }
 
 /**
@@ -138,17 +161,24 @@ function apply(analytics: boolean): void {
   if (analytics) {
     if (!token) return;
     if (!started) init(token);
-    // After an earlier withdrawal the SDK remembers "no" across page loads.
-    if (!posthog.has_opted_in_capturing()) posthog.opt_in_capturing();
-    if (userId) posthog.identify(userId);
+    // Read now, not when the SDK arrives: who is signed in at the moment of the
+    // choice is who it applies to.
+    const id = userId;
+    withSdk((posthog) => {
+      // After an earlier withdrawal the SDK remembers "no" across page loads.
+      if (!posthog.has_opted_in_capturing()) posthog.opt_in_capturing();
+      if (id) posthog.identify(id);
+    });
     return;
   }
   // Only when it was on: opting out of something never opted into would write
   // a "no" record to storage for every visitor who simply declined.
-  if (started && posthog.has_opted_in_capturing()) {
+  if (!started) return;
+  withSdk((posthog) => {
+    if (!posthog.has_opted_in_capturing()) return;
     posthog.opt_out_capturing();
     forget();
-  }
+  });
 }
 
 export function startAnalytics(): void {
@@ -163,11 +193,11 @@ export function startAnalytics(): void {
 }
 
 export function track(event: string, properties?: Record<string, unknown>): void {
-  if (started) posthog.capture(event, properties);
+  if (started) withSdk((posthog) => posthog.capture(event, properties));
 }
 
 export function captureError(error: unknown): void {
-  if (started) posthog.captureException(error);
+  if (started) withSdk((posthog) => posthog.captureException(error));
 }
 
 /**
@@ -179,7 +209,9 @@ export function identifyUser(id: string | null): void {
   userId = id;
   if (!started) return;
   if (id) {
-    if (posthog.has_opted_in_capturing()) posthog.identify(id);
+    withSdk((posthog) => {
+      if (posthog.has_opted_in_capturing()) posthog.identify(id);
+    });
     return;
   }
   // Nobody was signed in, so there is nothing to forget: reset() would only mint
@@ -188,7 +220,7 @@ export function identifyUser(id: string | null): void {
   // reset() also clears the SDK's consent record, back to its default of "on":
   // re-apply the visitor's actual choice, or logging out would quietly turn
   // capture back on for someone who had withdrawn.
-  posthog.reset();
+  withSdk((posthog) => posthog.reset());
   apply(allows(readConsent(), "analytics"));
 }
 
