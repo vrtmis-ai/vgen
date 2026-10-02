@@ -1386,6 +1386,18 @@
   opacity: 0.4;
 }
 
+/* Persian pages keep the look they have always had: the arc alone. The dots and
+   the sheen never reached them (see above), and that pared-down button is the
+   one most visitors know, so the fix stops at the cost and leaves the look. */
+.vg-gleam:dir(rtl) > .vg-gleam-face {
+  background: var(--vg-canvas) padding-box;
+}
+
+.vg-gleam:dir(rtl) > .vg-gleam-face::before,
+.vg-gleam:dir(rtl) > .vg-gleam-face::after {
+  display: none;
+}
+
 .vg-gleam:active {
   translate: 0 1px;
 }
