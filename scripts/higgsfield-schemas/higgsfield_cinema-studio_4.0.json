@@ -3,7 +3,7 @@
   "title": "Cinema Studio 4.0",
   "endpoint": "https://api.higgsfield.ai/higgsfield/cinema-studio/4.0",
   "outputType": "video",
-  "fetchedAt": "2026-09-28",
+  "fetchedAt": "2026-10-03",
   "docUrl": "https://docs.higgsfield.ai/docs/models/cinema-studio-4/generate.md",
   "usageNotes": [
     "This is the public Cinema Studio 4.0 workflow. It uses text-to-video when references are absent and reference-to-video when any media array is nonempty.",

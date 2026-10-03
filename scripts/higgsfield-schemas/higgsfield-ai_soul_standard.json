@@ -3,7 +3,7 @@
   "title": "Soul Standard",
   "endpoint": "https://api.higgsfield.ai/higgsfield-ai/soul/standard",
   "outputType": "image",
-  "fetchedAt": "2026-09-28",
+  "fetchedAt": "2026-10-03",
   "docUrl": "https://docs.higgsfield.ai/docs/models/soul-standard/generate.md",
   "usageNotes": [
     "batch\\_size is 1 or 4 only. A custom\\_reference\\_id must belong to the calling account and have completed training.",
