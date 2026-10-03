@@ -239,7 +239,7 @@ export function validateGenerationInput({
   const issues: GenerationValidationIssue[] = [];
   const trimmedPrompt = prompt.trim();
   const maxPrompt = variantMaxPrompt(family, variant);
-  if (!family.noPrompt && trimmedPrompt.length === 0) {
+  if (!family.noPrompt && !family.promptOptional && trimmedPrompt.length === 0) {
     issues.push({ code: "prompt_required", path: "prompt", message: "پرامپت الزامی است." });
   }
   if (maxPrompt !== null && trimmedPrompt.length > maxPrompt) {

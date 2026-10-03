@@ -53,6 +53,11 @@ function slotTitle(slot: RefSlot): string {
   return slot.label.replace(/\s*\([^)]*\)\s*$/, "").trim() || slot.label;
 }
 
+/** The aside itself, for the one place it is worth saying: «… (۴ تا ۳۰ ثانیه)» → «۴ تا ۳۰ ثانیه». */
+function slotAside(slot: RefSlot): string | null {
+  return /\(([^)]*)\)\s*$/.exec(slot.label)?.[1]?.trim() || null;
+}
+
 /** The drag's own MIME type. `Files` is what an OS drag carries, and the box
  *  has to tell the two apart: one adds, the other rearranges. */
 const DRAG_TYPE = "application/x-deev-ref";
@@ -211,10 +216,12 @@ export function RefBox({
   const pickFor = useRef<RefSlot | null>(null);
   const [overSlot, setOverSlot] = useState<string | null>(null);
 
-  /* Frames are drawn as their own labelled boxes; the one box holds what is
+  /* Frames are drawn as their own labelled boxes, and so is a reference with a
+     role of its own (`RefSlot.own` — Genjutsu's clip); the one box holds what is
      left. Split here so neither list draws the other's files twice. */
-  const frames = slots.filter((slot) => groupOf(slot) === "frame");
-  const bagSlots = slots.filter((slot) => groupOf(slot) !== "frame");
+  const isNamed = (slot: RefSlot) => groupOf(slot) === "frame" || slot.own === true;
+  const frames = slots.filter(isNamed);
+  const bagSlots = slots.filter((slot) => !isNamed(slot));
 
   const tiles = tilesOf(bagSlots, refs);
   const tags = refTags(slots, counts(refs));
@@ -240,7 +247,7 @@ export function RefBox({
         continue;
       }
       const result = await addRefFiles(slot, next[slot.key] ?? [], [file]);
-      if (result.rejected) why = `فایل بزرگ‌تر از ${result.rejected} رد شد`;
+      if (result.rejected) why = result.rejected;
       next = { ...next, [slot.key]: result.files };
     }
     setRejected(why);
@@ -280,7 +287,7 @@ export function RefBox({
     const room = Math.max(0, slot.max - (refs[slot.key] ?? []).length);
     const existing = room > 0 ? (refs[slot.key] ?? []) : (refs[slot.key] ?? []).slice(usable.length);
     const result = await addRefFiles(slot, existing, usable.slice(0, slot.max));
-    setRejected(result.rejected ? `فایل بزرگ‌تر از ${result.rejected} رد شد` : null);
+    setRejected(result.rejected);
     onChange({ ...refs, [slot.key]: result.files });
   }
 
@@ -461,6 +468,27 @@ export function RefBox({
                       >
                         <X size={12} weight="bold" />
                       </button>
+                      {/* A boxed reference still has a name for the prompt —
+                          frames have none, which is the difference. */}
+                      {(() => {
+                        const tag = tags[slot.key]?.[0];
+                        if (!tag) return null;
+                        const pointed = tagUsed(prompt, tag);
+                        return (
+                          <button
+                            onClick={() => onInsertTag(tag)}
+                            title={pointed ? `${tag} در پرامپت هست` : `درج ${tag} در پرامپت`}
+                            className="vg-tag absolute bottom-1 rounded px-1.5 py-px font-semibold"
+                            style={{
+                              insetInlineStart: 4,
+                              background: pointed ? "var(--vg-primary)" : "rgba(0,0,0,0.6)",
+                              color: pointed ? "var(--vg-text-on-primary)" : "var(--vg-text-secondary)",
+                            }}
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })()}
                     </>
                   ) : blocked ? (
                     /* Shown, not hidden. The slot is part of the model's shape
@@ -490,7 +518,18 @@ export function RefBox({
                       className="grid size-full place-items-center border border-dashed active:scale-95"
                       style={{ borderColor: "transparent", color: "var(--vg-text-faint)" }}
                     >
-                      <Plus size={16} />
+                      {/* A frame's aside is only «الزامی», which the star says.
+                          A boxed reference's is the rule it has to meet — a
+                          clip's length — and that is worth saying before the
+                          drop rather than after it is refused. */}
+                      {slot.own && slotAside(slot) ? (
+                        <span className="flex flex-col items-center gap-1 text-[10.5px]">
+                          <Plus size={16} />
+                          {slotAside(slot)}
+                        </span>
+                      ) : (
+                        <Plus size={16} />
+                      )}
                     </button>
                   )}
                 </div>
@@ -511,7 +550,12 @@ export function RefBox({
           }}
         >
           <Plus size={16} />
-          فایل بینداز یا انتخاب کن
+          {/* Beside a labelled box, and holding one kind of thing, it says what
+              that thing is for. Next to Genjutsu's boxed clip, «فایل بینداز»
+              reads as "the clip goes here too"; «شخصیت، محصول یا لباسِ تو» is
+              the difference between two inputs and one riddle. Alone, the box
+              is every input there is and the generic words are right. */}
+          {frames.length > 0 && bagSlots.length === 1 && bagSlots[0] ? slotTitle(bagSlots[0]) : "فایل بینداز یا انتخاب کن"}
         </button>
       ) : (
         <div className="flex flex-wrap gap-2">

@@ -878,7 +878,7 @@ export default function StudioImage({
             )}
             {tooBig && (
               <p className="mt-2.5 text-[11.5px]" style={{ color: "var(--vg-danger)" }}>
-                فایل بزرگ‌تر از {tooBig} رد شد.
+                {tooBig}.
               </p>
             )}
           </div>

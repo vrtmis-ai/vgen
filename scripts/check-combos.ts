@@ -43,6 +43,10 @@ const PRICE_KEYS = new Set([
   // run printed one row per Topaz variant and called itself exhaustive.
   "upscale_factor",
   "character_orientation",
+  // Marketing Studio: any preset moves the job onto the enhanced bill, and its
+  // rows match it with `"*"`. In the cross product every one of the presets has
+  // to land on those rows and "no preset" on the plain ones.
+  "preset_id",
 ]);
 
 const MAX_SLIDER_STEPS = 20;

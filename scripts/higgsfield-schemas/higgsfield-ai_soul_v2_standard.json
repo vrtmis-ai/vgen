@@ -1,9 +1,9 @@
 {
   "mode": "higgsfield-ai/soul/v2/standard",
-  "title": "Soul 2",
+  "title": "Soul 2 · Text to Image",
   "endpoint": "https://api.higgsfield.ai/higgsfield-ai/soul/v2/standard",
   "outputType": "image",
-  "fetchedAt": "2026-09-28",
+  "fetchedAt": "2026-10-03",
   "docUrl": "https://docs.higgsfield.ai/docs/models/soul-2/generate.md",
   "usageNotes": [
     "batch\\_size is 1 or 4 only. A custom\\_reference\\_id must belong to the calling account and have completed training.",

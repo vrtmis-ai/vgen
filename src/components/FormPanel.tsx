@@ -284,7 +284,11 @@ export function FormPanel({
               rows={3}
               dir={promptDir(prompt)}
               disabled={family.noPrompt}
-              placeholder={family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط فایل بده" : "صحنه‌ات را با جزئیات توصیف کن."}
+              placeholder={
+                family.noPrompt
+                  ? "این مدل پرامپت نمی‌گیرد — فقط فایل بده"
+                  : (variant.placeholder ?? family.placeholder ?? "صحنه‌ات را با جزئیات توصیف کن.")
+              }
               className="hide-scrollbar vg-field-inset resize-none bg-transparent text-[12.5px] leading-[1.7] outline-none disabled:opacity-40"
               style={{ color: "var(--vg-text)" }}
             />

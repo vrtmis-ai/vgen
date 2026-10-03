@@ -3258,6 +3258,105 @@
       "coins": 5.68
     },
     {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "low",
+        "resolution": "1k",
+        "preset_id": "3b4ade24-de4b-5d8a-a108-899bc4f6a106"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": null
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "medium",
+        "resolution": "1k",
+        "preset_id": "3b4ade24-de4b-5d8a-a108-899bc4f6a106"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": null
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "high",
+        "resolution": "1k",
+        "preset_id": "3b4ade24-de4b-5d8a-a108-899bc4f6a106"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 6.76
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "low",
+        "resolution": "2k",
+        "preset_id": "3b4ade24-de4b-5d8a-a108-899bc4f6a106"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": null
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "medium",
+        "resolution": "2k",
+        "preset_id": "3b4ade24-de4b-5d8a-a108-899bc4f6a106"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": null
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "high",
+        "resolution": "2k",
+        "preset_id": "3b4ade24-de4b-5d8a-a108-899bc4f6a106"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 12.04
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "low",
+        "resolution": "4k",
+        "preset_id": "3b4ade24-de4b-5d8a-a108-899bc4f6a106"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": null
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "medium",
+        "resolution": "4k",
+        "preset_id": "3b4ade24-de4b-5d8a-a108-899bc4f6a106"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": null
+    },
+    {
+      "variant": "marketing-studio",
+      "input": {
+        "quality": "high",
+        "resolution": "4k",
+        "preset_id": "3b4ade24-de4b-5d8a-a108-899bc4f6a106"
+      },
+      "chars": 1000,
+      "clipSeconds": 10,
+      "coins": 19.24
+    },
+    {
       "variant": "minimax-h3",
       "input": {
         "resolution": "2K",

@@ -404,6 +404,10 @@ export function slotAccept(slot: RefSlot): string {
  * slot will hold — the ceiling, the per-file size cap, reading a clip's length
  * — belong to the slot rather than to either surface, so both surfaces call
  * this and neither carries its own copy to drift.
+ *
+ * `rejected` is the sentence to show, not a fragment for the caller to finish:
+ * a file can be turned away for its size or for its length, and only this
+ * function knows which.
  */
 export async function addRefFiles(slot: RefSlot, held: RefFile[], picked: File[]): Promise<{ files: RefFile[]; rejected: string | null }> {
   const files = [...held];
@@ -413,11 +417,20 @@ export async function addRefFiles(slot: RefSlot, held: RefFile[], picked: File[]
     // KIE publishes no enforced cap and no 413, so an over-sized file would be
     // accepted and only fail deep in the job — after the user has been charged.
     if (slot.maxMb != null && file.size > slot.maxMb * 1024 * 1024) {
-      rejected = `${faNum(slot.maxMb)} مگابایت`;
+      rejected = `فایل بزرگ‌تر از ${faNum(slot.maxMb)} مگابایت رد شد`;
       continue;
     }
     const url = URL.createObjectURL(file);
-    files.push({ file, url, duration: await readDuration(url, slot.media ?? "image") });
+    const duration = await readDuration(url, slot.media ?? "image");
+    // A clip under the provider's floor fails there, after queueing. An
+    // unreadable length passes: refusing what we cannot measure would turn
+    // away every .mkv, and the price path already stops on those.
+    if (slot.minSeconds != null && duration != null && duration < slot.minSeconds) {
+      URL.revokeObjectURL(url);
+      rejected = `ویدیو باید دست‌کم ${faNum(slot.minSeconds)} ثانیه باشد`;
+      continue;
+    }
+    files.push({ file, url, duration });
   }
   return { files, rejected };
 }
@@ -569,7 +582,7 @@ export function RefUpload({
           </button>
         )}
       </div>
-      {rejected && <span className="text-[11px] text-danger">فایل بزرگ‌تر از {rejected} رد شد</span>}
+      {rejected && <span className="text-[11px] text-danger">{rejected}</span>}
       <input ref={inputRef} type="file" accept={slotAccept(slot)} multiple={slot.max > 1} hidden onChange={pick} />
     </div>
   );

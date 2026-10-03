@@ -1,9 +1,9 @@
 {
   "mode": "higgsfield/genjutsu/object-swap/v1.0",
-  "title": "Genjutsu Object Swap · Object Swap",
+  "title": "Genjutsu · Object Swap",
   "endpoint": "https://api.higgsfield.ai/higgsfield/genjutsu/object-swap/v1.0",
   "outputType": "video",
-  "fetchedAt": "2026-09-28",
+  "fetchedAt": "2026-10-03",
   "docUrl": "https://docs.higgsfield.ai/docs/models/genjutsu/object-swap.md",
   "usageNotes": [
     "Use higgsfield/genjutsu/object-swap/v1.0 for new integrations. The legacy endpoint higgsfiled/genjutsu/object-swap/v1.0 remains callable for existing clients but is hidden from model discovery.",
@@ -18,7 +18,7 @@
       "amount": "0.159",
       "original_amount": "0.318",
       "discount_percentage": 50,
-      "discount_expires_at": "2026-10-01T00:00:00Z",
+      "discount_expires_at": null,
       "max_discount_amount": "0.159",
       "max_discount_percentage": 50,
       "currency": "USD",
@@ -38,7 +38,7 @@
         "amount": "0.159",
         "original_amount": "0.318",
         "discount_percentage": 50,
-        "discount_expires_at": "2026-10-01T00:00:00Z",
+        "discount_expires_at": null,
         "max_discount_amount": "0.159",
         "max_discount_percentage": 50,
         "currency": "USD",
@@ -53,7 +53,7 @@
         "amount": "0.3405",
         "original_amount": "0.681",
         "discount_percentage": 50,
-        "discount_expires_at": "2026-10-01T00:00:00Z",
+        "discount_expires_at": null,
         "max_discount_amount": "0.3405",
         "max_discount_percentage": 50,
         "currency": "USD",
@@ -68,7 +68,7 @@
         "amount": "0.816",
         "original_amount": "1.632",
         "discount_percentage": 50,
-        "discount_expires_at": "2026-10-01T00:00:00Z",
+        "discount_expires_at": null,
         "max_discount_amount": "0.816",
         "max_discount_percentage": 50,
         "currency": "USD",
@@ -113,7 +113,7 @@
         "minItems": 1
       },
       "resolution": {
-        "enum": ["720p", "480p"],
+        "enum": ["720p", "480p", "1080p"],
         "type": "string",
         "title": "Resolution",
         "default": "720p"

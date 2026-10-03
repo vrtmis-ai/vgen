@@ -56,9 +56,18 @@ export const CHARACTER_BLOCK = 1000;
  * touched, and most prices depend on one or two. Specificity breaks ties: a
  * model with an unconditional `{}` row and a `{"resolution":"4k"}` row must
  * charge the 4k price for a 4k job, with the general row as the fallback.
+ *
+ * `"*"` matches any value that is set, and nothing when the setting is absent
+ * or empty. For a setting whose *presence* moves the price and whose value does
+ * not: Marketing Studio has 75 presets, every one priced the same, and any
+ * preset at all switches the job onto a different bill. Seventy-five identical
+ * rows per size would be the alternative, and a seventy-sixth preset published
+ * upstream would arrive unpriced.
  */
 export function matchPriceRow<T extends PriceRowLike>(rows: readonly T[], params: Record<string, unknown>): T | null {
-  const matches = rows.filter((row) => Object.entries(row.selector).every(([key, value]) => String(params[key]) === value));
+  const satisfies = (key: string, value: string) =>
+    value === "*" ? params[key] != null && String(params[key]) !== "" : String(params[key]) === value;
+  const matches = rows.filter((row) => Object.entries(row.selector).every(([key, value]) => satisfies(key, value)));
   if (matches.length === 0) return null;
   return matches.reduce((best, row) => (Object.keys(row.selector).length > Object.keys(best.selector).length ? row : best));
 }

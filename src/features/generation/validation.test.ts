@@ -55,6 +55,19 @@ describe("generation input validation", () => {
     );
   });
 
+  it("lets a model whose prompt is optional run without one", () => {
+    // Genjutsu: the clip and the pictures say what to make, and requiring text
+    // pushed people into describing a scene the model then tried to make.
+    const result = validateGenerationInput({
+      family: { ...family, promptOptional: true },
+      variant,
+      prompt: "  ",
+      input: { resolution: "720p", duration: 5, audio: false },
+      refs: refs(),
+    });
+    expect(result).toEqual({ valid: true, issues: [] });
+  });
+
   it("rejects wrong MIME, excessive size and invalid duration metadata", () => {
     const wrongType = new File([new Uint8Array(1024 * 1024 + 1)], "input.mp4", { type: "video/mp4" });
     const result = validateGenerationInput({

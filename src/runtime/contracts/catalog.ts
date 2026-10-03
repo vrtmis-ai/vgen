@@ -86,6 +86,10 @@ export const RefSlotSchema = z.object({
   maxMb: z.number().positive().optional(),
   required: z.boolean().optional(),
   requires: z.string().min(1).optional(),
+  /** Drawn as its own labelled box rather than joining the one box — see `RefSlot.own`. Named so zod keeps it. */
+  own: z.boolean().optional(),
+  /** The shortest clip the provider accepts, in seconds — see `RefSlot.minSeconds`. Named so zod keeps it. */
+  minSeconds: z.number().positive().optional(),
 });
 
 /**
@@ -172,6 +176,8 @@ export const VariantSchema = z.object({
   unlimited: UnlimitedPipeSchema.optional(),
   refs: z.array(RefSlotSchema).nullable().optional(),
   controls: z.array(ControlSchema).optional(),
+  /** The prompt box's hint for this variant — see `Family.placeholder`. Named so zod keeps it. */
+  placeholder: z.string().optional(),
 });
 
 export const FamilySchema = z.object({
@@ -188,6 +194,10 @@ export const FamilySchema = z.object({
   refs: z.array(RefSlotSchema).optional(),
   maxPrompt: z.number().int().positive().optional(),
   noPrompt: z.boolean().optional(),
+  /** Takes a prompt but runs without one — see `Family.promptOptional`. Named so zod keeps it. */
+  promptOptional: z.boolean().optional(),
+  /** The prompt box's hint when "describe your scene" is the wrong question — see `Family.placeholder`. */
+  placeholder: z.string().optional(),
   controls: z.array(ControlSchema),
   variants: z.array(VariantSchema).min(1),
 });

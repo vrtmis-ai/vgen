@@ -3,7 +3,7 @@
   "title": "Marketing Studio Image · 2.0 Alpha",
   "endpoint": "https://api.higgsfield.ai/marketing-studio/image",
   "outputType": "image",
-  "fetchedAt": "2026-09-28",
+  "fetchedAt": "2026-10-03",
   "docUrl": "https://docs.higgsfield.ai/docs/models/marketing-studio-image/generate-and-edit.md",
   "usageNotes": [
     "Omit image\\_urls for text-to-image; provide up to 16 URLs for editing when enhance\\_prompt=false.",
@@ -17,25 +17,32 @@
   "durationsSeconds": [],
   "pricing": {
     "primary": {
-      "amount": "0.0162",
-      "original_amount": null,
-      "discount_percentage": null,
+      "amount": "0.0138",
+      "original_amount": "0.0162",
+      "discount_percentage": 15,
       "discount_expires_at": null,
-      "max_discount_amount": null,
-      "max_discount_percentage": null,
+      "max_discount_amount": "0.0138",
+      "max_discount_percentage": 15,
       "currency": "USD",
       "unit": "image",
       "qualifier": "from"
     },
-    "max_discount": null,
+    "max_discount": {
+      "amount": "0.0138",
+      "percentage": 15,
+      "currency": "USD",
+      "unit": "image",
+      "qualifier": "from",
+      "already_applied": true
+    },
     "options": [
       {
-        "amount": "0.0162",
-        "original_amount": null,
-        "discount_percentage": null,
+        "amount": "0.0138",
+        "original_amount": "0.0162",
+        "discount_percentage": 15,
         "discount_expires_at": null,
-        "max_discount_amount": null,
-        "max_discount_percentage": null,
+        "max_discount_amount": "0.0138",
+        "max_discount_percentage": 15,
         "currency": "USD",
         "unit": "image",
         "configuration": {
@@ -47,12 +54,12 @@
         }
       },
       {
-        "amount": "0.7219",
-        "original_amount": null,
-        "discount_percentage": null,
+        "amount": "0.6136",
+        "original_amount": "0.7219",
+        "discount_percentage": 15,
         "discount_expires_at": null,
-        "max_discount_amount": null,
-        "max_discount_percentage": null,
+        "max_discount_amount": "0.6136",
+        "max_discount_percentage": 15,
         "currency": "USD",
         "unit": "image",
         "configuration": {

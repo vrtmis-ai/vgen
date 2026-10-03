@@ -86,6 +86,10 @@ export const CatalogRefSlotSchema = z.object({
   maxMb: z.number().positive().optional(),
   required: z.boolean().optional(),
   requires: z.string().min(1).optional(),
+  /** Drawn as its own labelled box rather than joining the one box — see `RefSlot.own`. Named so zod keeps it. */
+  own: z.boolean().optional(),
+  /** The shortest clip the provider accepts, in seconds — see `RefSlot.minSeconds`. Named so zod keeps it. */
+  minSeconds: z.number().positive().optional(),
 });
 
 /**
@@ -176,6 +180,8 @@ export const CatalogVariantSchema = z.object({
   unlimited: UnlimitedPipeSchema.optional(),
   refs: z.array(CatalogRefSlotSchema).nullable().optional(),
   controls: z.array(CatalogControlSchema).optional(),
+  /** The prompt box's hint for this variant — see `Family.placeholder`. Named so zod keeps it. */
+  placeholder: z.string().optional(),
 });
 
 export const CatalogFamilySchema = z.object({
@@ -192,6 +198,10 @@ export const CatalogFamilySchema = z.object({
   refs: z.array(CatalogRefSlotSchema).optional(),
   maxPrompt: z.number().int().positive().optional(),
   noPrompt: z.boolean().optional(),
+  /** Takes a prompt but runs without one — see `Family.promptOptional`. Named so zod keeps it. */
+  promptOptional: z.boolean().optional(),
+  /** The prompt box's hint when "describe your scene" is the wrong question — see `Family.placeholder`. */
+  placeholder: z.string().optional(),
   controls: z.array(CatalogControlSchema),
   variants: z.array(CatalogVariantSchema).min(1),
 });

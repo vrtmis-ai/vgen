@@ -14,9 +14,9 @@ import { ProviderTransportError } from "./types";
  * retryable/not-retryable line falls.
  *
  * That line is the money one here in a way it is not for the other two
- * providers. Higgsfield has **no idempotency key** and its own documentation says
- * not to repeat a generation POST after an ambiguous timeout — so an over-eager
- * retry on submit pays twice for one generation, while an under-eager one on the
+ * providers. A submit may be repeated only under its idempotency key, with the
+ * exact same body — so an over-eager retry anywhere else pays twice for one
+ * generation, while an under-eager one on the
  * concurrency ceiling refuses a customer for a reason that clears itself in
  * seconds. Both directions cost money, which is why both have a test.
  */
@@ -51,7 +51,7 @@ function fakeFetch(responses: Answer[]): { fetch: typeof globalThis.fetch; calls
 
 const provider = (responses: Answer[], modality: "image" | "video" | "audio" = "video") => {
   const { fetch, calls } = fakeFetch(responses);
-  return { provider: new HiggsfieldGenerationProvider({ fetch, modality }), calls };
+  return { provider: new HiggsfieldGenerationProvider({ fetch, modality, retryDelayMs: 0 }), calls };
 };
 
 const REQUEST_ID = "d7e6c0f3-6699-4f6c-bb45-2ad7fd9158ff";
@@ -89,6 +89,70 @@ describe("submitting", () => {
 
     // Flat, with no `input` wrapper. KIE nests; this does not.
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ prompt: "a cinematic tracking shot", duration: 5, resolution: "720p" });
+  });
+
+  it("switches enhancement on for a Marketing Studio preset, and only then", async () => {
+    // A preset alone is ignored upstream — it priced exactly like no preset —
+    // so every preset sold before this produced a plain image.
+    const bodyFor = async (params: Record<string, unknown>) => {
+      const { provider: subject, calls } = provider([{ status: 200, body: SUBMITTED }]);
+      await subject.submit({ externalModelId: "marketing-studio/image", params: params as never, apiKey: "k" });
+      return JSON.parse(String(calls[0]?.init?.body)) as Record<string, unknown>;
+    };
+    expect(await bodyFor({ prompt: "p", quality: "high", preset_id: "c41e" })).toMatchObject({ preset_id: "c41e", enhance_prompt: true });
+    // "No preset" is the empty option, which leaves the request plain.
+    const plain = await bodyFor({ prompt: "p", quality: "medium", preset_id: "" });
+    expect(plain).not.toHaveProperty("preset_id");
+    expect(plain).not.toHaveProperty("enhance_prompt");
+  });
+
+  /* The dock names references `@Image1`, `@Video1`; Higgsfield reads
+     `<<<image_1>>>`, `<<<video_1>>>`. A name that reaches it unconverted is
+     text it cannot resolve, so the picture it was meant to point at is
+     ignored and the result is not what was asked for. */
+  const sentPrompt = async (externalModelId: string, params: Record<string, unknown>) => {
+    const { provider: subject, calls } = provider([{ status: 200, body: SUBMITTED }]);
+    await subject.submit({ externalModelId, params: params as never, apiKey: "k" });
+    return (JSON.parse(String(calls[0]?.init?.body)) as { prompt?: string }).prompt;
+  };
+
+  it("rewrites the dock's reference names into Higgsfield's tokens", async () => {
+    const prompt = await sentPrompt("higgsfield/cinema-studio/4.0", {
+      prompt: "@Image1 walks past @image2, lit like @Video1, while @Image10 watches",
+      image_urls: ["https://a", "https://b"],
+    });
+    // Case-insensitive, and bounded: `@Image10` is the tenth image, not the
+    // first one followed by a zero.
+    expect(prompt).toBe("<<<image_1>>> walks past <<<image_2>>>, lit like <<<video_1>>>, while <<<image_10>>> watches");
+  });
+
+  it("leaves Cinema Studio's prompt as written when it names no references", async () => {
+    // Its tokens are documented as optional and its prompt is required, so
+    // nothing is appended on the customer's behalf.
+    expect(await sentPrompt("higgsfield/cinema-studio/4.0", { prompt: "a rainy street", image_urls: ["https://a"] })).toBe(
+      "a rainy street",
+    );
+  });
+
+  it("names every Genjutsu input the prompt does not, the clip first, as Higgsfield's own form does", async () => {
+    // An empty prompt is the common case — it is optional — and without the
+    // tokens the model has a clip and pictures and no word on which is which.
+    expect(
+      await sentPrompt("higgsfield/genjutsu/object-swap/v1.0", {
+        prompt: "",
+        video_url: "https://v",
+        image_urls: ["https://a", "https://b"],
+      }),
+    ).toBe("<<<video_1>>> <<<image_1>>> <<<image_2>>>");
+
+    // What the customer named stays where they put it; only the rest is added.
+    expect(
+      await sentPrompt("higgsfield/genjutsu/motion-transfer/v1.0", {
+        prompt: "the woman from @Image2 dancing on a rooftop",
+        video_url: "https://v",
+        image_urls: ["https://a", "https://b"],
+      }),
+    ).toBe("the woman from <<<image_2>>> dancing on a rooftop <<<video_1>>> <<<image_1>>>");
   });
 
   it("retypes the parameters Higgsfield does not accept as strings", async () => {
@@ -204,16 +268,57 @@ describe("submitting", () => {
     expect((error as ProviderTransportError).retryable).toBe(true);
   });
 
-  it("does NOT retry a submit that never got an answer", async () => {
-    // The deliberate disagreement with the other two adapters, and the reason is
-    // in their docs: there is no idempotency key, so a POST that may already have
-    // been accepted must not be sent again. A second attempt would bill
-    // Higgsfield twice for one generation, and no refund of ours undoes that.
-    const { provider: subject } = provider([{ status: 0, body: undefined, throws: "socket hang up" }]);
+  const sent = (calls: Call[]) =>
+    calls.map((call) => ({ key: (call.init?.headers as Record<string, string>)["Idempotency-Key"], body: call.init?.body }));
+
+  it("replays an unanswered submit under the same key and the same bytes", async () => {
+    // Higgsfield's own recipe: after a timeout, a network failure or a 5xx,
+    // send the same request again with the same key, and it answers with the
+    // original request_id rather than starting — and billing — another.
+    const { provider: subject, calls } = provider([
+      { status: 0, body: undefined, throws: "socket hang up" },
+      { status: 502, body: { detail: "bad gateway" } },
+      { status: 200, body: SUBMITTED },
+    ]);
+    const submission = await subject.submit({ externalModelId: "m", params: { prompt: "p", image_urls: ["https://a"] }, apiKey: "k" });
+
+    expect(submission.externalJobId).toBe(REQUEST_ID);
+    const attempts = sent(calls);
+    expect(attempts).toHaveLength(3);
+    // One key, and a body that is the same string every time — a changed body
+    // under a used key is a 422, so it is serialised once.
+    expect(new Set(attempts.map((a) => a.key)).size).toBe(1);
+    expect(attempts[0]?.key).toMatch(/^[0-9a-f-]{36}$/);
+    expect(new Set(attempts.map((a) => a.body)).size).toBe(1);
+  });
+
+  it("uses a new key for a new submit, even with identical parameters", async () => {
+    // Their warning: a deliberate second generation needs its own key, or it
+    // comes back as the first one.
+    const { provider: subject, calls } = provider([{ status: 200, body: SUBMITTED }]);
+    await subject.submit({ externalModelId: "m", params: { prompt: "p" }, apiKey: "k" });
+    await subject.submit({ externalModelId: "m", params: { prompt: "p" }, apiKey: "k" });
+    const [first, second] = sent(calls);
+    expect(first?.key).not.toBe(second?.key);
+  });
+
+  it("does NOT hand an unanswered submit back to the worker as retryable", async () => {
+    // After every replay went unanswered, whether a generation exists is
+    // unknown. A worker retry signs fresh reference URLs, so its body — and its
+    // key — would differ and Higgsfield could not match it to this one.
+    const { provider: subject, calls } = provider([{ status: 0, body: undefined, throws: "socket hang up" }]);
     const error = await subject.submit({ externalModelId: "m", params: {}, apiKey: "k" }).catch((caught: unknown) => caught);
+    expect(calls).toHaveLength(3);
     expect(error).toBeInstanceOf(ProviderTransportError);
     expect((error as ProviderTransportError).retryable).toBe(false);
     expect((error as Error).message).toBe("socket hang up");
+  });
+
+  it("does not replay a definite refusal", async () => {
+    // A 4xx is an answer: nothing was accepted, so there is nothing to recover.
+    const { provider: subject, calls } = provider([{ status: 422, body: { detail: "nope" } }]);
+    await subject.submit({ externalModelId: "m", params: {}, apiKey: "k" }).catch(() => undefined);
+    expect(calls).toHaveLength(1);
   });
 
   it("summarises a FastAPI validation list instead of stringifying it", async () => {

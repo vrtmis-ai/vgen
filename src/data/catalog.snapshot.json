@@ -4532,7 +4532,7 @@
         {
           "key": "image_urls",
           "role": "reference",
-          "label": "تصاویر مرجع (اختیاری)",
+          "label": "تصاویر — با پریست: اول محصول، بعد مدل (اختیاری)",
           "max": 16
         }
       ],
@@ -4642,7 +4642,7 @@
         {
           "kind": "segment",
           "key": "preset_id",
-          "label": "پریست",
+          "label": "پریست (با کیفیت بالا و تصویر محصول)",
           "options": [
             {
               "value": "",
@@ -4973,10 +4973,11 @@
         {
           "key": "image_urls",
           "role": "reference",
-          "label": "تصاویر مرجع (اختیاری)",
+          "label": "شخصیت، مکان یا سبک (اختیاری)",
           "max": 30
         }
       ],
+      "placeholder": "صحنه را کارگردانی کن — مثلاً «@Image1 زیر باران از خیابان می‌گذرد و دوربین آرام عقب می‌کشد».",
       "controls": [
         {
           "kind": "aspect",
@@ -5490,27 +5491,10 @@
       "vendor": "Higgsfield",
       "kind": "video",
       "minTier": 3,
-      "blurb": "حرکتِ یک ویدیو را روی تصویرهای تو بیاور",
+      "blurb": "حرکتِ یک ویدیو را به شخصیتِ خودت بده، یا چیزی را در آن با تصویرِ تو عوض کن",
       "badge": "جدید",
       "grad": "linear-gradient(135deg,#42275a,#734b6d)",
-      "refs": [
-        {
-          "key": "video_url",
-          "role": "source_video",
-          "label": "ویدیوی مرجع (الزامی)",
-          "max": 1,
-          "media": "video",
-          "maxMb": 100,
-          "required": true
-        },
-        {
-          "key": "image_urls",
-          "role": "reference",
-          "label": "تصاویر (۱ تا ۸)",
-          "max": 8,
-          "required": true
-        }
-      ],
+      "promptOptional": true,
       "controls": [
         {
           "kind": "segment",
@@ -5537,12 +5521,54 @@
         {
           "id": "genjutsu-motion",
           "featureCode": "video_edit",
-          "label": "انتقال حرکت"
+          "label": "انتقال حرکت",
+          "refs": [
+            {
+              "key": "video_url",
+              "role": "source_video",
+              "label": "ویدیوی مرجع برای برداشتن حرکت (۴ تا ۳۰ ثانیه)",
+              "max": 1,
+              "media": "video",
+              "maxMb": 100,
+              "required": true,
+              "own": true,
+              "minSeconds": 4
+            },
+            {
+              "key": "image_urls",
+              "role": "reference",
+              "label": "شخصیت، محصول یا لباسِ تو (۱ تا ۸ تصویر)",
+              "max": 8,
+              "required": true
+            }
+          ],
+          "placeholder": "صحنهٔ تازه را بگو — مثلاً «شخصیتِ @Image1 روی پشت‌بام می‌رقصد» یا «همان حرکت، در توکیوی شب». خالی هم بماند، همان حرکت با شخصیتِ تصویرهایت ساخته می‌شود."
         },
         {
           "id": "genjutsu-swap",
           "featureCode": "video_edit",
-          "label": "جایگزینی شیء"
+          "label": "جایگزینی شیء",
+          "refs": [
+            {
+              "key": "video_url",
+              "role": "source_video",
+              "label": "ویدیویی که ویرایش می‌شود (۴ تا ۳۰ ثانیه)",
+              "max": 1,
+              "media": "video",
+              "maxMb": 100,
+              "required": true,
+              "own": true,
+              "minSeconds": 4
+            },
+            {
+              "key": "image_urls",
+              "role": "reference",
+              "label": "شخصیت، محصول یا لباسِ تو (۱ تا ۸ تصویر)",
+              "max": 8,
+              "required": true
+            }
+          ],
+          "placeholder": "بگو چه چیزی عوض شود — مثلاً «مرد را با گربهٔ @Image1 عوض کن» یا «لباسش را با لباسِ @Image2 عوض کن»."
         }
       ]
     }

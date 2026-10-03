@@ -3,7 +3,7 @@
   "title": "Kling Omni · First/Last Frame",
   "endpoint": "https://api.higgsfield.ai/kling-video/omni/first-last-frame",
   "outputType": "video",
-  "fetchedAt": "2026-09-28",
+  "fetchedAt": "2026-10-03",
   "docUrl": "https://docs.higgsfield.ai/docs/models/kling-omni/first-last-frame.md",
   "usageNotes": [
     "first\\_frame\\_url supplies the starting frame; last\\_frame\\_url is optional. These names differ from the image\\_url and last\\_image\\_url fields on Kling 3.0 image-to-video.",
@@ -14,19 +14,19 @@
   "durationsSeconds": [5, 10],
   "pricing": {
     "primary": {
-      "amount": "0.0462",
+      "amount": "0.042",
       "original_amount": "0.084",
-      "discount_percentage": 45,
-      "discount_expires_at": "2026-10-01T00:00:00Z",
-      "max_discount_amount": "0.0462",
-      "max_discount_percentage": 45,
+      "discount_percentage": 50,
+      "discount_expires_at": null,
+      "max_discount_amount": "0.042",
+      "max_discount_percentage": 50,
       "currency": "USD",
       "unit": "second",
       "qualifier": "from"
     },
     "max_discount": {
-      "amount": "0.0462",
-      "percentage": 45,
+      "amount": "0.042",
+      "percentage": 50,
       "currency": "USD",
       "unit": "second",
       "qualifier": "from",
@@ -34,12 +34,12 @@
     },
     "options": [
       {
-        "amount": "0.0462",
+        "amount": "0.042",
         "original_amount": "0.084",
-        "discount_percentage": 45,
-        "discount_expires_at": "2026-10-01T00:00:00Z",
-        "max_discount_amount": "0.0462",
-        "max_discount_percentage": 45,
+        "discount_percentage": 50,
+        "discount_expires_at": null,
+        "max_discount_amount": "0.042",
+        "max_discount_percentage": 50,
         "currency": "USD",
         "unit": "second",
         "configuration": {
@@ -49,12 +49,12 @@
         }
       },
       {
-        "amount": "0.0616",
+        "amount": "0.056",
         "original_amount": "0.112",
-        "discount_percentage": 45,
-        "discount_expires_at": "2026-10-01T00:00:00Z",
-        "max_discount_amount": "0.0616",
-        "max_discount_percentage": 45,
+        "discount_percentage": 50,
+        "discount_expires_at": null,
+        "max_discount_amount": "0.056",
+        "max_discount_percentage": 50,
         "currency": "USD",
         "unit": "second",
         "configuration": {
@@ -64,12 +64,12 @@
         }
       },
       {
-        "amount": "0.0616",
+        "amount": "0.056",
         "original_amount": "0.112",
-        "discount_percentage": 45,
-        "discount_expires_at": "2026-10-01T00:00:00Z",
-        "max_discount_amount": "0.0616",
-        "max_discount_percentage": 45,
+        "discount_percentage": 50,
+        "discount_expires_at": null,
+        "max_discount_amount": "0.056",
+        "max_discount_percentage": 50,
         "currency": "USD",
         "unit": "second",
         "configuration": {

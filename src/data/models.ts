@@ -114,6 +114,28 @@ export interface RefSlot {
    * (`first_frame_url`/`last_frame_url`) keeps saying so with its own keys.
    */
   sends?: { key: string; at: number };
+  /**
+   * A reference with a role of its own: drawn as its own labelled box, the way a
+   * frame is, instead of joining the one box that takes everything else.
+   *
+   * The one box works because a reference is usually a bag — nine pictures of a
+   * subject, and which goes where is nobody's question. Genjutsu's clip is not
+   * part of a bag: it is the footage being transformed, and the pictures are
+   * what it is transformed *into*. Dropped together into one box labelled «فایل
+   * بینداز», nothing on screen says which is which, and Higgsfield's own form
+   * gives the clip a section of its own for exactly that reason. Unlike a frame
+   * it is still named for the prompt (`@Video1`), because the prompt is where
+   * the customer says what happens to it.
+   */
+  own?: boolean;
+  /**
+   * The shortest clip the provider accepts, in seconds.
+   *
+   * Genjutsu refuses a source under four seconds. Turned away when the file is
+   * attached, because the alternative is a job that queues, fails at the
+   * provider and refunds — minutes of waiting for an answer known at the drop.
+   */
+  minSeconds?: number;
 }
 
 /**
@@ -183,6 +205,8 @@ export interface Variant {
   entryOf?: string;
   refs?: RefSlot[] | null; // null = no input slots; undefined = inherit family.refs
   controls?: Control[]; // undefined = inherit family.controls
+  /** The prompt box's hint, when this variant is prompted differently from its family. See `Family.placeholder`. */
+  placeholder?: string;
 }
 
 export interface Family {
@@ -217,6 +241,26 @@ export interface Family {
    * requiring one, which would otherwise keep the create button disabled forever.
    */
   noPrompt?: boolean;
+  /**
+   * The model takes a prompt but runs without one.
+   *
+   * Genjutsu's is optional by its own schema, and an empty one is the ordinary
+   * way to use it: the clip and the pictures already say what to make. Requiring
+   * text sent people to the box under a hint that asked them to «describe the
+   * scene», and a scene described in words with no mention of the pictures pulls
+   * the model toward making that scene rather than the swap that was wanted.
+   */
+  promptOptional?: boolean;
+  /**
+   * The prompt box's hint, when "describe your scene" is the wrong question.
+   *
+   * On a model the prompt *steers* rather than describes — Genjutsu's says what
+   * to change and which picture to use — the generic hint asks for the wrong
+   * thing. Written the way Higgsfield's own form words it, with the reference
+   * names this dock writes (`@Image1`), which the adapter turns into
+   * Higgsfield's tokens.
+   */
+  placeholder?: string;
   controls: Control[];
   variants: Variant[];
 }
@@ -2014,7 +2058,12 @@ export const FAMILIES: Family[] = [
     minTier: 2,
     blurb: "تصویر تبلیغاتی و محصول، تا ۴K",
     grad: "linear-gradient(135deg,#f7971e,#ffd200)",
-    refs: [{ key: "image_urls", role: "reference", label: "تصاویر مرجع (اختیاری)", max: 16 }],
+    // With a preset this is Higgsfield's product shot: one or two pictures, the
+    // product first and a person or model second, which is the order their own
+    // form's PRODUCT and AVATAR boxes send. Without one it is up to sixteen
+    // pictures to edit from. A preset with no picture is refused upstream and
+    // refunded — the label says so before anyone pays for the lesson.
+    refs: [{ key: "image_urls", role: "reference", label: "تصاویر — با پریست: اول محصول، بعد مدل (اختیاری)", max: 16 }],
     controls: [
       {
         kind: "aspect",
@@ -2049,7 +2098,10 @@ export const FAMILIES: Family[] = [
           { value: "4k", label: "4K" },
         ],
       },
-      { kind: "segment", key: "preset_id", label: "پریست", def: "", options: PRESET_OPTIONS },
+      // A preset only works with prompt enhancement, which the adapter switches
+      // on, and enhancement only runs at high quality with a product picture —
+      // so the price rows refuse a preset below high, and the label says why.
+      { kind: "segment", key: "preset_id", label: "پریست (با کیفیت بالا و تصویر محصول)", def: "", options: PRESET_OPTIONS },
     ],
     variants: [{ id: "marketing-studio", featureCode: "image_generate", label: "تصویر" }],
   },
@@ -2068,7 +2120,11 @@ export const FAMILIES: Family[] = [
     // and nothing measures an uploaded video's length at quote time. Their docs
     // are explicit that image and audio references do not count as video input,
     // so with images alone the price is exactly the published formula.
-    refs: [{ key: "image_urls", role: "reference", label: "تصاویر مرجع (اختیاری)", max: 30 }],
+    refs: [{ key: "image_urls", role: "reference", label: "شخصیت، مکان یا سبک (اختیاری)", max: 30 }],
+    // Its pictures are cast, set and look, and a prompt points at one by name —
+    // `@Image1`, which the adapter sends as the `<<<image_1>>>` Cinema Studio
+    // documents. Before that rewrite the name went out as typed and was ignored.
+    placeholder: "صحنه را کارگردانی کن — مثلاً «@Image1 زیر باران از خیابان می‌گذرد و دوربین آرام عقب می‌کشد».",
     controls: [
       {
         kind: "aspect",
@@ -2192,7 +2248,7 @@ export const FAMILIES: Family[] = [
     vendor: "Higgsfield",
     kind: "video",
     minTier: 3,
-    blurb: "حرکتِ یک ویدیو را روی تصویرهای تو بیاور",
+    blurb: "حرکتِ یک ویدیو را به شخصیتِ خودت بده، یا چیزی را در آن با تصویرِ تو عوض کن",
     badge: "جدید",
     grad: "linear-gradient(135deg,#42275a,#734b6d)",
     // Billed per second of the video you attach, not of the output — so it has
@@ -2201,10 +2257,16 @@ export const FAMILIES: Family[] = [
     // other half: their docs say a source longer than 30 seconds is trimmed to
     // 30, and charging for seconds that are uploaded and discarded would bill
     // for output that does not exist.
-    refs: [
-      { key: "video_url", role: "source_video", label: "ویدیوی مرجع (الزامی)", max: 1, media: "video", required: true, maxMb: 100 },
-      { key: "image_urls", role: "reference", label: "تصاویر (۱ تا ۸)", max: 8, required: true },
-    ],
+    //
+    // Two modes that take the same two inputs and mean opposite things by them.
+    // Motion transfer keeps the clip's movement and rebuilds everything doing
+    // it from your pictures; object swap keeps the clip and replaces one thing
+    // in it with your picture. So the slots are per variant, worded the way
+    // Higgsfield's own form words them, and the clip gets its own box. The
+    // prompt is what tells the model which picture goes where — see
+    // `withReferenceTokens` in the adapter, which also names every input the
+    // customer did not, as Higgsfield's form does.
+    promptOptional: true,
     controls: [
       {
         kind: "segment",
@@ -2219,8 +2281,47 @@ export const FAMILIES: Family[] = [
       },
     ],
     variants: [
-      { id: "genjutsu-motion", featureCode: "video_edit", label: "انتقال حرکت" },
-      { id: "genjutsu-swap", featureCode: "video_edit", label: "جایگزینی شیء" },
+      {
+        id: "genjutsu-motion",
+        featureCode: "video_edit",
+        label: "انتقال حرکت",
+        refs: [
+          {
+            key: "video_url",
+            role: "source_video",
+            label: "ویدیوی مرجع برای برداشتن حرکت (۴ تا ۳۰ ثانیه)",
+            max: 1,
+            media: "video",
+            required: true,
+            maxMb: 100,
+            own: true,
+            minSeconds: 4,
+          },
+          { key: "image_urls", role: "reference", label: "شخصیت، محصول یا لباسِ تو (۱ تا ۸ تصویر)", max: 8, required: true },
+        ],
+        placeholder:
+          "صحنهٔ تازه را بگو — مثلاً «شخصیتِ @Image1 روی پشت‌بام می‌رقصد» یا «همان حرکت، در توکیوی شب». خالی هم بماند، همان حرکت با شخصیتِ تصویرهایت ساخته می‌شود.",
+      },
+      {
+        id: "genjutsu-swap",
+        featureCode: "video_edit",
+        label: "جایگزینی شیء",
+        refs: [
+          {
+            key: "video_url",
+            role: "source_video",
+            label: "ویدیویی که ویرایش می‌شود (۴ تا ۳۰ ثانیه)",
+            max: 1,
+            media: "video",
+            required: true,
+            maxMb: 100,
+            own: true,
+            minSeconds: 4,
+          },
+          { key: "image_urls", role: "reference", label: "شخصیت، محصول یا لباسِ تو (۱ تا ۸ تصویر)", max: 8, required: true },
+        ],
+        placeholder: "بگو چه چیزی عوض شود — مثلاً «مرد را با گربهٔ @Image1 عوض کن» یا «لباسش را با لباسِ @Image2 عوض کن».",
+      },
     ],
   },
 ];
