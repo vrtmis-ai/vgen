@@ -29,13 +29,16 @@ afterAll(async () => {
 /** A plan of our own, so the assertions do not move when the real ladder is repriced. */
 async function makePlan(
   tx: Sql,
-  options: { code: string; monthlyUsd: number; annualUsdPerMonth?: number | null; coins?: number },
+  options: { code: string; monthlyUsd: number; annualUsdPerMonth?: number | null; coins?: number; bonusCoins?: number },
 ): Promise<string> {
+  const coins = options.coins ?? 100;
+  const bonusCoins = options.bonusCoins ?? 0;
   const [plan] = await tx<{ id: string }[]>`
-    insert into plans (code, name, tier, micro_credits_per_term, price_amount, annual_price_amount, is_public, is_active)
+    insert into plans (code, name, tier, micro_credits_per_term, price_amount, annual_price_amount, is_public, is_active, presentation)
     values (
-      ${options.code}, ${`Test ${options.code}`}, 1, ${(options.coins ?? 100) * COIN},
-      ${options.monthlyUsd}, ${options.annualUsdPerMonth ?? null}, true, true
+      ${options.code}, ${`Test ${options.code}`}, 1, ${coins * COIN},
+      ${options.monthlyUsd}, ${options.annualUsdPerMonth ?? null}, true, true,
+      ${tx.json({ baseCoins: coins - bonusCoins, bonusCoins })}
     )
     returning id
   `;
@@ -159,6 +162,12 @@ describe("the campaign window", () => {
   it("reads the ladder the plans route serves, so the two cannot disagree", async () => {
     await inRollback(sql, async (tx) => {
       await runCampaign(tx, { endsInDays: 2 });
+      // The seeded ladder used to discount and give bonus coins by itself, which
+      // is what told a real read from the fold of an empty list. Since the
+      // competitor repricing it does neither — no plan is sold for a year and
+      // none carries a bonus — so the canary is planted here instead of being
+      // borrowed from the price list, which is free to change again.
+      await makePlan(tx, { code: "test-campaign-ladder", monthlyUsd: 50, annualUsdPerMonth: 40, coins: 600, bonusCoins: 100 });
       const plans = new PostgresPlansRepository(tx);
       const campaigns = new PostgresCampaignsRepository(tx, plans);
 
@@ -166,9 +175,9 @@ describe("the campaign window", () => {
       const { plans: served } = await plans.list();
 
       expect(active?.maxBonusCoins).toBe(Math.max(...served.map((plan) => plan.bonusCoins)));
-      // Not just "the fold of an empty list": the seeded ladder really does
-      // discount and really does give bonus coins, so a broken read shows up as
-      // zero rather than as a coincidental match.
+      // Still not the fold of an empty list: the plan above discounts 20% and
+      // gives 100 coins, and only a repository that really reads the ladder
+      // reports either of them.
       expect(active?.maxDiscountPct).toBeGreaterThan(0);
       expect(active?.maxBonusCoins).toBeGreaterThan(0);
     });
