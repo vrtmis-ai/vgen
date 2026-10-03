@@ -206,7 +206,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1000000,
+      "microCredits": 720000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -218,7 +218,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1400000,
+      "microCredits": 1010000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -230,7 +230,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1000000,
+      "microCredits": 720000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -242,7 +242,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1400000,
+      "microCredits": 1010000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -275,7 +275,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 25200000,
+      "microCredits": 20820000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -288,7 +288,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 42000000,
+      "microCredits": 26430000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -301,7 +301,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 25200000,
+      "microCredits": 20820000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -314,7 +314,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 12600000,
+      "microCredits": 11100000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -327,7 +327,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 29400000,
+      "microCredits": 18500000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -340,7 +340,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 12600000,
+      "microCredits": 11100000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -353,7 +353,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 16800000,
+      "microCredits": 12950000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -366,7 +366,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 33600000,
+      "microCredits": 23530000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -379,7 +379,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 16800000,
+      "microCredits": 12950000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -392,7 +392,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 21000000,
+      "microCredits": 17350000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -405,7 +405,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 37800000,
+      "microCredits": 23790000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -418,7 +418,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 21000000,
+      "microCredits": 17350000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -550,7 +550,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1200000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -562,7 +562,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 2000000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -574,7 +574,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 3200000,
+      "microCredits": 2590000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -586,7 +586,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1200000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -598,7 +598,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 2000000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -610,7 +610,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 3200000,
+      "microCredits": 2590000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -622,7 +622,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1200000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -634,7 +634,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 2000000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -646,7 +646,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 3200000,
+      "microCredits": 2590000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -658,7 +658,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1200000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -670,7 +670,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 2000000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -682,7 +682,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 3200000,
+      "microCredits": 2590000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -694,7 +694,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1200000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -706,7 +706,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 2000000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -718,7 +718,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 3200000,
+      "microCredits": 2590000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -730,7 +730,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1200000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -742,7 +742,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 2000000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -754,7 +754,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 3200000,
+      "microCredits": 2590000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -804,7 +804,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 18000000,
+      "microCredits": 12920000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -817,7 +817,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 16000000,
+      "microCredits": 11480000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -830,7 +830,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 9000000,
+      "microCredits": 6460000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -856,7 +856,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 10000000,
+      "microCredits": 7190000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -869,7 +869,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 10000000,
+      "microCredits": 7190000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -882,7 +882,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 6000000,
+      "microCredits": 4310000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -894,7 +894,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1400000,
+      "microCredits": 1010000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -906,7 +906,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 2000000,
+      "microCredits": 1450000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -918,7 +918,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 700000,
+      "microCredits": 510000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -958,7 +958,7 @@
       "selector": {},
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 1680000,
+      "microCredits": 1480000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -968,7 +968,7 @@
       "selector": {},
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 1680000,
+      "microCredits": 1480000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -980,7 +980,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 2200000,
+      "microCredits": 1580000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -992,7 +992,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4400000,
+      "microCredits": 3160000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1004,7 +1004,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 2200000,
+      "microCredits": 1580000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1016,7 +1016,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4400000,
+      "microCredits": 3160000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1029,7 +1029,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 3600000,
+      "microCredits": 2110000,
       "maxBillableUnits": 10,
       "isOffered": true
     },
@@ -1042,7 +1042,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 2200000,
+      "microCredits": 1300000,
       "maxBillableUnits": 10,
       "isOffered": true
     },
@@ -1055,7 +1055,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 3600000,
+      "microCredits": 2110000,
       "maxBillableUnits": 30,
       "isOffered": true
     },
@@ -1068,7 +1068,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 2200000,
+      "microCredits": 1300000,
       "maxBillableUnits": 30,
       "isOffered": true
     },
@@ -1081,7 +1081,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 13400000,
+      "microCredits": 9620000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1094,7 +1094,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 13400000,
+      "microCredits": 9620000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1107,7 +1107,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 3600000,
+      "microCredits": 2590000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1120,7 +1120,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 5400000,
+      "microCredits": 3880000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1133,7 +1133,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 2800000,
+      "microCredits": 2010000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1146,7 +1146,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4000000,
+      "microCredits": 2870000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1159,7 +1159,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 5400000,
+      "microCredits": 3160000,
       "maxBillableUnits": 10,
       "isOffered": true
     },
@@ -1172,7 +1172,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4000000,
+      "microCredits": 2340000,
       "maxBillableUnits": 10,
       "isOffered": true
     },
@@ -1185,7 +1185,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 5400000,
+      "microCredits": 3160000,
       "maxBillableUnits": 30,
       "isOffered": true
     },
@@ -1198,7 +1198,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4000000,
+      "microCredits": 2340000,
       "maxBillableUnits": 30,
       "isOffered": true
     },
@@ -1210,7 +1210,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4500000,
+      "microCredits": 2640000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1222,7 +1222,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 3600000,
+      "microCredits": 2110000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1234,7 +1234,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4500000,
+      "microCredits": 2640000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1246,7 +1246,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 3600000,
+      "microCredits": 2110000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1479,7 +1479,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 2600000,
+      "microCredits": 4550000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1503,7 +1503,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 2600000,
+      "microCredits": 4550000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1527,7 +1527,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 2600000,
+      "microCredits": 4550000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1551,7 +1551,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1600000,
+      "microCredits": 1670000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1563,7 +1563,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 2400000,
+      "microCredits": 2040000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1575,7 +1575,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 3600000,
+      "microCredits": 3410000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1587,7 +1587,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 3600000,
+      "microCredits": 2590000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1599,7 +1599,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 3600000,
+      "microCredits": 2590000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1611,7 +1611,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 4800000,
+      "microCredits": 3460000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1731,7 +1731,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 20400000,
+      "microCredits": 12030000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1743,7 +1743,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 3800000,
+      "microCredits": 2410000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1755,7 +1755,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 41600000,
+      "microCredits": 24420000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1767,7 +1767,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 8200000,
+      "microCredits": 4810000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1779,7 +1779,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 5600000,
+      "microCredits": 3280000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1791,7 +1791,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 12600000,
+      "microCredits": 7380000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1803,7 +1803,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 2340000,
+      "microCredits": 1850000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1815,7 +1815,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4960000,
+      "microCredits": 3890000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1827,7 +1827,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 760000,
+      "microCredits": 1300000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1839,7 +1839,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 1640000,
+      "microCredits": 2410000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1849,7 +1849,7 @@
       "selector": {},
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1300000,
+      "microCredits": 1480000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1859,7 +1859,7 @@
       "selector": {},
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1300000,
+      "microCredits": 1480000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1869,7 +1869,7 @@
       "selector": {},
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1100000,
+      "microCredits": 790000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1879,7 +1879,7 @@
       "selector": {},
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 1100000,
+      "microCredits": 790000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -1937,7 +1937,7 @@
       "selector": {},
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 2400000,
+      "microCredits": 2780000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2019,7 +2019,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 13000000,
+      "microCredits": 7610000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2031,7 +2031,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 36000000,
+      "microCredits": 21060000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2043,7 +2043,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 12000000,
+      "microCredits": 7020000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2067,7 +2067,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 30000000,
+      "microCredits": 21060000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2176,7 +2176,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 41900000,
+      "microCredits": 30060000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2189,7 +2189,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 28000000,
+      "microCredits": 20080000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2202,7 +2202,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 63000000,
+      "microCredits": 45190000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2215,7 +2215,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 42000000,
+      "microCredits": 30120000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2228,7 +2228,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 20900000,
+      "microCredits": 14990000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2241,7 +2241,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 14000000,
+      "microCredits": 10040000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2254,7 +2254,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 41900000,
+      "microCredits": 30060000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2267,7 +2267,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 28000000,
+      "microCredits": 20080000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2280,7 +2280,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 63000000,
+      "microCredits": 45190000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2293,7 +2293,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 42000000,
+      "microCredits": 30120000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2306,7 +2306,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 20900000,
+      "microCredits": 14990000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2319,7 +2319,7 @@
       },
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 14000000,
+      "microCredits": 10040000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2331,7 +2331,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4800000,
+      "microCredits": 3450000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2343,7 +2343,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 3200000,
+      "microCredits": 2300000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2355,7 +2355,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4800000,
+      "microCredits": 3450000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2367,7 +2367,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 3200000,
+      "microCredits": 2300000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2379,7 +2379,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4800000,
+      "microCredits": 3450000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2391,7 +2391,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 3200000,
+      "microCredits": 2300000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2403,7 +2403,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 4800000,
+      "microCredits": 3450000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2415,7 +2415,7 @@
       },
       "pricingMode": "derived",
       "quantity": "seconds",
-      "microCredits": 3200000,
+      "microCredits": 2300000,
       "maxBillableUnits": null,
       "isOffered": true
     },
@@ -2425,7 +2425,7 @@
       "selector": {},
       "pricingMode": "fixed",
       "quantity": "none",
-      "microCredits": 160000,
+      "microCredits": 120000,
       "maxBillableUnits": null,
       "isOffered": true
     }

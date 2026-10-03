@@ -191,7 +191,9 @@ function Plans({ plans, onSignIn }: { plans: readonly Plan[]; onSignIn: () => vo
             ))}
           </div>
 
-          {group === "main" && (
+          {/* Only when a main plan can be bought for a year — otherwise "Yearly"
+              is a switch that changes nothing on the cards. */}
+          {group === "main" && activePlans.some((plan) => plan.annualUsdPerMonth != null) && (
             <div
               className="inline-flex shrink-0 rounded-pill p-1"
               style={{ background: "var(--vg-surface-raised)" }}

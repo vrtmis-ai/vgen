@@ -1371,12 +1371,12 @@ see what a plan costs before they have an account to see it with.
       "code": "pro",
       "name": "Pro",
       "tier": 2,
-      "coinsPerTerm": 1100,
+      "coinsPerTerm": 1000,
       "baseCoins": 1000,
-      "bonusCoins": 100,
+      "bonusCoins": 0,
       "termDays": 30,
       "monthlyUsd": 49,
-      "annualUsdPerMonth": 39,
+      "annualUsdPerMonth": null,
       "group": "main",
       "tag": "popular",
       "popular": true,
@@ -1417,14 +1417,23 @@ Six things worth knowing:
   memoised `PublicDocument` fingerprint includes the rate for that reason.
 - **`annualUsdPerMonth: null` is not the same as "same as monthly".** Null means
   the plan has no annual option and the toggle should not appear; an equal price
-  would mean a discount of zero.
-- **`termDays` is 30 on every plan, annual ones included.** Annual is a payment
-  cadence, not a longer grant — twelve months are paid up front but coins still
-  arrive monthly and still expire after thirty days.
+  would mean a discount of zero. **It is null on every plan today** — the
+  competitor repricing withdrew the annual cycle, so no cycle toggle renders
+  anywhere and `POST /checkout` answers `no_annual_option` to any plan asked for
+  a year. The field and the cycle stay in the contract because the withdrawal is
+  a price list, not a schema change.
+- **`termDays` is 30 on every subscription.** Annual was a payment cadence
+  rather than a longer grant — twelve months paid up front, coins still arriving
+  monthly and still expiring after thirty days — and that is what nothing is
+  sold on now.
 - **`coinsPerTerm` is the total; `baseCoins` + `bonusCoins` is the same number
   split the way the card shows it** ("500 + 25"). Charge against the total.
+  **`bonusCoins` is 0 on every plan today**: the ladder's value moved into the
+  per-model prices, which the same repricing cut. A campaign may add one back,
+  and the card still states it correctly when it does.
 - **`maxConcurrentJobs` is how many generations the plan may have in flight at
-  once** — 1 on Starter up to 8 on Creator, and 1 for an account with no plan.
+  once** — 2 on the packs, 4 on Pro, 6 on Studio, and 1 for an account with no
+  plan.
   It is a perk, not a throttle: queueing behind your own jobs is what a dearer
   plan buys you out of. The ladder is monotonic with price and a unit test
   enforces that, because paying more must never buy less parallelism.
@@ -1448,14 +1457,18 @@ them apart:
   written with a null `expires_at`), no membership lapses, and buying one while
   something else is live is just buying more coins. There is no monthly ceiling
   to run into, which is the whole promise.
-- **Subscriptions** — Pro, Studio, Creator — keep a thirty-day term. Their
-  coins expire with it, which is where the annual price gets its margin, and
-  that expiry is the monthly limit: the wallet sums lots with credit remaining
-  and the hold path refuses to overdraw.
+- **Subscriptions** — Pro and Studio — keep a thirty-day term. Their coins
+  expire with it, and that expiry is the monthly limit: the wallet sums lots
+  with credit remaining and the hold path refuses to overdraw. Creator was
+  retired by the competitor repricing — `is_active` and `is_public` both false,
+  the row left in place — so it is absent from this route while every account
+  already on it keeps its tier, its coins and its unlimited window, none of
+  which read `is_active`.
 
 **The unlimited window.** `plans.unlimited_days` is how long after a
-subscription starts the free pipe is open: **7 on Pro, 30 on Studio and
-Creator, 0 on every pack.** The server reads it through
+subscription starts the free pipe is open: **7 on Pro, 30 on Studio, 0 on
+every pack** (and 30 on retired Creator, for the accounts still on it). The
+server reads it through
 `entitlementsRepository.unlimitedTierForAccount`, which answers 1 once the
 window has closed even though the subscription is still live — so a closed
 window reaches no entitlement and the quote comes back priced.
@@ -1490,6 +1503,12 @@ valid. Derived, the strip cannot promise a rate the till will refuse. If a
 campaign ever needs a discount **of its own**, it becomes a column on
 `campaigns` _and_ a term in the checkout pricing — never a number nothing
 enforces.
+
+**Both are zero today**, since the competitor repricing withdrew every annual
+price and every bonus. A client must not render the strip on a campaign that
+advertises neither — "up to 0% off" is not an offer — and both the plans screen
+and the landing page check for it. The campaign row itself is still live and
+still counts down; it simply has nothing to say.
 
 **Starting one is a row**, and there is deliberately no seed:
 
@@ -2152,17 +2171,17 @@ it lives in `unlimited_entitlements` rather than as a zero row in
 `model_prices`. A zero price would say "this costs nothing"; a grant says "this
 account may run this, N times a day, unmetered".
 
-Today: **Nano Banana Pro and Nano Banana 2, free to tier 2 and up — Pro,
-Studio and Creator — 50 a day per account, and only while the plan's unlimited
-window is open.**
+Today: **Nano Banana Pro and Nano Banana 2, free to tier 2 and up — Pro and
+Studio, plus the accounts still on retired Creator — 50 a day per account, and
+only while the plan's unlimited window is open.**
 
 What keeps this a perk rather than a write-off is the clock, not the tier. The
 grant used to sit one tier above the model's own `minTier`, so that Pro reached
 the model and paid while the top two got it free. No model is gated by tier now,
 so that gap had nothing left to stand on: everyone can reach every model and the
 only question is who gets it free. `plans.unlimited_days` answers it — a week on
-Pro, a month on Studio and Creator — which bounds the giveaway in time and makes
-it a reason to buy again rather than a standing cost.
+Pro, a month on Studio — which bounds the giveaway in time and makes it a
+reason to buy again rather than a standing cost.
 
 What a UI needs to know:
 

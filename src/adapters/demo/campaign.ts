@@ -1,5 +1,7 @@
 import type { AppServices } from "../../runtime/AppServices";
 import type { Campaign } from "../../runtime/contracts/campaign";
+import { PLAN_LADDER } from "../../data/planLadder";
+import { annualDiscountPct } from "../../data/plans";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -19,8 +21,10 @@ export function demoCampaign(now: number): Campaign {
   return {
     id: "demo-festival",
     endsAt: midnight.getTime() + 4 * DAY_MS,
-    maxDiscountPct: 22,
-    maxBonusCoins: 350,
+    // Read off the ladder the way campaignsRepository does, so the demo cannot
+    // advertise an annual discount or a bonus that no plan carries.
+    maxDiscountPct: Math.max(0, ...PLAN_LADDER.map(annualDiscountPct)),
+    maxBonusCoins: Math.max(0, ...PLAN_LADDER.map((plan) => plan.bonusCoins)),
   };
 }
 
