@@ -594,7 +594,11 @@ export default function Generate({
                 rows={4}
                 maxLength={maxPrompt ?? undefined}
                 disabled={family.noPrompt}
-                placeholder={family.noPrompt ? "این مدل پرامپت نمی‌گیرد — فقط فایل بده" : PROMPT_PLACEHOLDER[family.kind]}
+                placeholder={
+                  family.noPrompt
+                    ? "این مدل پرامپت نمی‌گیرد — فقط فایل بده"
+                    : (running.placeholder ?? family.placeholder ?? PROMPT_PLACEHOLDER[family.kind])
+                }
                 className="hide-scrollbar vg-field-inset resize-none bg-transparent text-[12.5px] leading-[1.7] outline-none disabled:opacity-40"
                 style={{ color: "var(--vg-text)" }}
               />

@@ -140,6 +140,34 @@ describe("choosing between rows", () => {
   });
 });
 
+describe("a setting whose presence moves the price", () => {
+  // Marketing Studio: any one of 75 presets switches the job onto the enhanced
+  // bill, at the same price whichever preset it is, and only at high quality.
+  const rows = [
+    { ...FLAT, selector: { quality: "high", resolution: "2k" }, microCreditsBase: 13_160_000, providerUnitsBase: 0.329 },
+    { ...FLAT, selector: { quality: "low", resolution: "2k" }, microCreditsBase: 1_000_000, providerUnitsBase: 0.02 },
+    { ...FLAT, selector: { quality: "high", resolution: "2k", preset_id: "*" }, microCreditsBase: 12_040_000, providerUnitsBase: 0.301 },
+    { ...FLAT, selector: { quality: "low", resolution: "2k", preset_id: "*" }, isOffered: false },
+  ];
+
+  it("takes the wildcard row for any preset at all", () => {
+    for (const preset_id of ["0f5b-a", "c41e-b"]) {
+      expect(resolvePrice(rows, { params: { quality: "high", resolution: "2k", preset_id } })).toMatchObject({ coins: 12.04 });
+    }
+  });
+
+  it("does not take it when no preset is chosen, empty included", () => {
+    expect(resolvePrice(rows, { params: { quality: "high", resolution: "2k" } })).toMatchObject({ coins: 13.16 });
+    expect(resolvePrice(rows, { params: { quality: "high", resolution: "2k", preset_id: "" } })).toMatchObject({ coins: 13.16 });
+  });
+
+  it("refuses a preset at a quality the provider rejects it at", () => {
+    // Enhancement answers 400 "quality: 'high' was expected" below high, so the
+    // general low row must not price it.
+    expect(resolvePrice(rows, { params: { quality: "low", resolution: "2k", preset_id: "0f5b-a" } })).toBe("not_offered");
+  });
+});
+
 describe("quantities", () => {
   const perSecond = [{ ...FLAT, pricingMode: "derived" as const, microCreditsPerSecond: 8_200_000, providerUnitsPerSecond: 41 }];
 

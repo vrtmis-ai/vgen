@@ -41,10 +41,12 @@ import {
  *     here splits it.
  *   - **`request_id` is at the top level**, not nested under `data`. KIE and
  *     WaveSpeed both nest; assuming a house style here would have read undefined.
- *   - **There is no idempotency key.** The docs say plainly: do not automatically
- *     repeat a generation POST after an ambiguous timeout. That single sentence
- *     is why `submit` classifies its failures the way it does below, and it is
- *     the one place this adapter deliberately disagrees with the other two.
+ *   - **A submit is only ever repeated under its idempotency key.** Higgsfield
+ *     returns the original `request_id` for a replayed key instead of charging
+ *     for a second generation, so `submit` replays an unanswered POST itself,
+ *     byte-for-byte, and never hands one back to the worker as retryable — a
+ *     worker retry carries a new body, which no key can match. That is the one
+ *     place this adapter deliberately disagrees with the other two.
  */
 
 const DEFAULT_BASE_URL = "https://api.higgsfield.ai";
@@ -199,6 +201,73 @@ function typedParams(params: JsonObject): JsonObject {
 }
 
 /**
+ * A Marketing Studio preset, switched on.
+ *
+ * A preset is the template prompt enhancement works from, and enhancement is
+ * off unless asked for — so a `preset_id` sent alone is ignored. Measured on
+ * 2026-10-03 against the free estimate endpoint: a preset without
+ * `enhance_prompt` priced at exactly the no-preset figure ($0.118 at 2k), while
+ * preset plus enhancement priced at $0.286 — a different job. Every preset
+ * DEEV sold until now therefore produced a plain image.
+ *
+ * Enhancement brings two conditions, both enforced upstream with a 400: quality
+ * must be high, and there must be one or two images, the product first. The
+ * price rows refuse a preset below high quality (`preset_id: "*"`), so a job
+ * that reaches here with one is already at high.
+ */
+function withPresetEnhancement(params: JsonObject, mode: string): JsonObject {
+  if (mode !== "marketing-studio/image" || typeof params.preset_id !== "string" || params.preset_id === "") return params;
+  return { ...params, enhance_prompt: true };
+}
+
+/**
+ * DEEV's names for the attached files, rewritten into the tokens Higgsfield reads.
+ *
+ * The dock names every reference so a prompt can point at one: `@Image1`,
+ * `@Video1`, positional and per kind (`src/lib/refTags.ts`). Higgsfield reads a
+ * different spelling — `<<<image_1>>>`, `<<<video_1>>>`, one-based and per kind
+ * the same way. Cinema Studio documents it ("Each token must refer to an
+ * attached item of the same media type"); for Genjutsu the API page says
+ * nothing, and the spelling comes from Higgsfield's own web app, whose prompt
+ * box shows `@image1` and serialises it to `<<<image_1>>>` before sending. Read
+ * out of its bundle on 2026-10-03, not inferred.
+ *
+ * Sent as typed, a name was text the model could not resolve — on Cinema Studio
+ * the button that inserts it was writing something the model ignores.
+ * Case-insensitive, so a name typed by hand as `@image1` resolves too, and
+ * bounded, so `@Image1` is not read out of `@Image10`.
+ */
+function withReferenceTokens(params: JsonObject, mode: string): JsonObject {
+  const typed = typeof params.prompt === "string" ? params.prompt : "";
+  let prompt = typed.replace(/@(image|video|audio)(\d+)(?!\d)/gi, (_, kind: string, n: string) => `<<<${kind.toLowerCase()}_${n}>>>`);
+
+  /* Genjutsu is told which file is which by the prompt, and its prompt is
+     optional, so left alone an empty one names nothing: the model is handed a
+     clip and some pictures and has to guess which pictures replace what.
+     Higgsfield's own form never sends that. Attaching the source video appends
+     `<<<video_1>>>` to the prompt and each image appends its `<<<image_N>>>`
+     (the form's `videoPromptMention` flag, set for Genjutsu), so even a prompt
+     nobody typed in names every input. Same here, for whatever the customer did
+     not mention themselves, in the order the form lists them: the clip, then
+     the pictures.
+
+     ponytail: Genjutsu by path. Cinema Studio documents its tokens as optional
+     and its prompt is required, so it is left to the customer; another mode
+     that wants this joins the condition. */
+  if (mode.startsWith("higgsfield/genjutsu/")) {
+    const images = Array.isArray(params.image_urls) ? params.image_urls.length : 0;
+    const wanted = [
+      ...(typeof params.video_url === "string" ? ["<<<video_1>>>"] : []),
+      ...Array.from({ length: images }, (_, i) => `<<<image_${i + 1}>>>`),
+    ];
+    const missing = wanted.filter((token) => !prompt.includes(token));
+    if (missing.length > 0) prompt = [prompt.trim(), ...missing].filter(Boolean).join(" ");
+  }
+
+  return prompt === typed ? params : { ...params, prompt };
+}
+
+/**
  * Trailing slashes off the base URL, one index at a time rather than by regex.
  *
  * `replace(/\/+$/, "")` is what `kie.ts` and `wavespeed.ts` do, and CodeQL
@@ -229,7 +298,18 @@ export interface HiggsfieldProviderOptions {
   fetch?: typeof globalThis.fetch | undefined;
   /** Per-request timeout. A provider that never answers must not pin a worker. */
   timeoutMs?: number | undefined;
+  /** Base pause between replays of an unanswered submit. Tests pass 0. */
+  retryDelayMs?: number | undefined;
 }
+
+/**
+ * How many times one submit is sent, the first included, before giving up.
+ *
+ * Three, because what it rides out is a blip — a dropped socket, a gateway 502
+ * — and anything longer than a few seconds is an outage the worker's own
+ * retry and refund handle better than a held connection does.
+ */
+const SUBMIT_TRIES = 3;
 
 export class HiggsfieldGenerationProvider implements GenerationProvider {
   readonly code = "higgsfield";
@@ -237,12 +317,14 @@ export class HiggsfieldGenerationProvider implements GenerationProvider {
   private readonly modality: Modality;
   private readonly fetchImpl: typeof globalThis.fetch;
   private readonly timeoutMs: number;
+  private readonly retryDelayMs: number;
 
   constructor(options: HiggsfieldProviderOptions = {}) {
     this.baseUrl = withoutTrailingSlashes(options.baseUrl ?? DEFAULT_BASE_URL);
     this.modality = options.modality ?? "video";
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     this.timeoutMs = options.timeoutMs ?? 30_000;
+    this.retryDelayMs = options.retryDelayMs ?? 1_000;
   }
 
   /**
@@ -287,19 +369,45 @@ export class HiggsfieldGenerationProvider implements GenerationProvider {
     // The mode id is a path, not a parameter, and its slashes are real segments:
     // `higgsfield/cinema-studio/4.0` must not be percent-encoded as a whole.
     const endpoint = `${this.baseUrl}/${withoutLeadingSlashes(request.externalModelId)}`;
-    const requestPayload = typedParams(request.params);
-    const answer = await this.call(endpoint, request.apiKey, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestPayload),
-    });
+    const mode = withoutLeadingSlashes(request.externalModelId);
+    const requestPayload = withPresetEnhancement(withReferenceTokens(typedParams(request.params), mode), mode);
 
-    // No answer, so we cannot know whether a generation was created — and there
-    // is no idempotency key to make asking again safe. The other two adapters
-    // default this to retryable; here that would mean paying twice for one
-    // request whenever a socket blips after Higgsfield accepted it. The
-    // customer's coins are released either way; what is not recoverable is
-    // Higgsfield billing us for a video nobody asked for a second time.
+    /* One key per generation intent, and the same bytes every time it is sent.
+
+       Higgsfield now takes an `Idempotency-Key` on submissions: replay the same
+       request under the same key and it answers with the original `request_id`
+       rather than creating — and charging for — a second generation. Its own
+       retry guidance is exactly this loop: after a timeout, a network failure or
+       a 5xx, send the same request again with the same key
+       (`concepts/idempotency`, `concepts/errors`).
+
+       The replay happens here and not in the worker because the key only holds
+       while the body is byte-for-byte the same — a different body under a used
+       key is a 422 — and the worker re-signs every reference URL on each of its
+       attempts. So the body is serialised once and the identical string is what
+       goes out each time. */
+    const key = crypto.randomUUID();
+    const payload = JSON.stringify(requestPayload);
+    let answer: Awaited<ReturnType<HiggsfieldGenerationProvider["call"]>> | undefined;
+    for (let attempt = 1; attempt <= SUBMIT_TRIES; attempt += 1) {
+      answer = await this.call(endpoint, request.apiKey, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": key },
+        body: payload,
+      });
+      const ambiguous = !answer.answered || answer.status >= 500;
+      if (!ambiguous || attempt === SUBMIT_TRIES) break;
+      // Exponential with jitter, which is what their retry policy asks for.
+      await new Promise((resolve) => setTimeout(resolve, this.retryDelayMs * 2 ** (attempt - 1) * (0.5 + Math.random() / 2)));
+    }
+    if (!answer) throw new ProviderTransportError("submit was never sent", false);
+
+    // Still no answer after every replay, so whether a generation exists is
+    // unknown — and a worker retry would carry freshly signed URLs, a new body
+    // and so a new key, which Higgsfield cannot match to this one. Paying twice
+    // for one request is what that would risk. The customer's coins are
+    // released either way; a second Higgsfield bill for a video nobody asked
+    // for is what is not recoverable.
     if (!answer.answered) throw new ProviderTransportError(answer.message, false);
 
     const { status, body, correlationId } = answer;

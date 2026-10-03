@@ -1710,6 +1710,150 @@
       "isOffered": true
     },
     {
+      "variantId": "marketing-studio",
+      "externalModelId": "marketing-studio/image",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "low",
+        "resolution": "1k",
+        "preset_id": "*"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0,
+      "microCredits": 0,
+      "maxBillableUnits": null,
+      "isOffered": false
+    },
+    {
+      "variantId": "marketing-studio",
+      "externalModelId": "marketing-studio/image",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "medium",
+        "resolution": "1k",
+        "preset_id": "*"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0,
+      "microCredits": 0,
+      "maxBillableUnits": null,
+      "isOffered": false
+    },
+    {
+      "variantId": "marketing-studio",
+      "externalModelId": "marketing-studio/image",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "high",
+        "resolution": "1k",
+        "preset_id": "*"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0.169,
+      "microCredits": 6760000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "marketing-studio",
+      "externalModelId": "marketing-studio/image",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "low",
+        "resolution": "2k",
+        "preset_id": "*"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0,
+      "microCredits": 0,
+      "maxBillableUnits": null,
+      "isOffered": false
+    },
+    {
+      "variantId": "marketing-studio",
+      "externalModelId": "marketing-studio/image",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "medium",
+        "resolution": "2k",
+        "preset_id": "*"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0,
+      "microCredits": 0,
+      "maxBillableUnits": null,
+      "isOffered": false
+    },
+    {
+      "variantId": "marketing-studio",
+      "externalModelId": "marketing-studio/image",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "high",
+        "resolution": "2k",
+        "preset_id": "*"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0.301,
+      "microCredits": 12040000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
+      "variantId": "marketing-studio",
+      "externalModelId": "marketing-studio/image",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "low",
+        "resolution": "4k",
+        "preset_id": "*"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0,
+      "microCredits": 0,
+      "maxBillableUnits": null,
+      "isOffered": false
+    },
+    {
+      "variantId": "marketing-studio",
+      "externalModelId": "marketing-studio/image",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "medium",
+        "resolution": "4k",
+        "preset_id": "*"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0,
+      "microCredits": 0,
+      "maxBillableUnits": null,
+      "isOffered": false
+    },
+    {
+      "variantId": "marketing-studio",
+      "externalModelId": "marketing-studio/image",
+      "featureCode": "image_generate",
+      "selector": {
+        "quality": "high",
+        "resolution": "4k",
+        "preset_id": "*"
+      },
+      "pricingMode": "fixed",
+      "quantity": "none",
+      "providerUnits": 0.481,
+      "microCredits": 19240000,
+      "maxBillableUnits": null,
+      "isOffered": true
+    },
+    {
       "variantId": "minimax-h3",
       "externalModelId": "minimax-h3/text-to-video",
       "featureCode": "video_generate",
