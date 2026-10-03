@@ -258,6 +258,15 @@ describe("registering an order", () => {
       expect([first.outcome, second.outcome]).toEqual(["ordered", "ordered"]);
       if (first.outcome !== "ordered" || second.outcome !== "ordered") return;
 
+      // `created_at` defaults to `now()`, which is the transaction's start time
+      // and so identical for all three of these. The repository breaks that tie
+      // on `id desc`, and `uuid_generate_v7` fills everything below the
+      // millisecond from `gen_random_uuid()` — random, not a counter. With
+      // nothing real to sort by, "newest first" came out either way and this
+      // test failed about half the time. Age the first order so the clock
+      // decides.
+      await tx`update orders set created_at = now() - interval '1 second' where id = ${first.order.orderId}`;
+
       const orders = await checkout.listOrders(mine.userId);
 
       // Two, not three: the third belongs to somebody else.
