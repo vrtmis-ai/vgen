@@ -134,15 +134,25 @@ discovered until the stylesheet is parsed. Lighthouse's LCP breakdown: TTFB
 
 ### CLS
 
-| culprit                                                       |     shift | where                 |
-| ------------------------------------------------------------- | --------: | --------------------- |
-| `telegram-web-app.js` writing `--tg-viewport-*` onto `<html>` | **0.261** | home, plans (desktop) |
-| centred auth container `main > div.flex-1.justify-center`     | **0.306** | signin (mobile)       |
-| Vazirmatn swap                                                |    ≤0.004 | all                   |
+| culprit                                                   |     shift | where                 |
+| --------------------------------------------------------- | --------: | --------------------- |
+| the gate's unclipped background haze (`.vg-soon::before`) | **0.261** | home, plans (desktop) |
+| centred auth container `main > div.flex-1.justify-center` | **0.306** | signin (mobile)       |
+| Vazirmatn swap                                            |    ≤0.004 | all                   |
 
-**Nothing in the app reads `window.Telegram` or any `--tg-*` variable.** The
-script is 140.5 KB transferred, from a host filtered in Iran, and also has a
-`preconnect` in the head.
+**Corrected 2026-10-02.** The desktop shift was first attributed here to
+`telegram-web-app.js` writing `--tg-viewport-*` onto `<html>`, on the strength
+of both touching the root element. Removing the script left the shift exactly
+where it was, at 0.2607 on both pages. The real cause is `.vg-soon::before`,
+the gate's drifting haze: `inset: -25%` gives it room to move and nothing
+clipped it, so it added 364px of scrollable width to a 1335px viewport. The
+viewport resized once layout settled and the whole document moved. `/plans`
+matched to four decimal places because a signed-out visitor is shown the gate
+there too.
+
+**Nothing in the app reads `window.Telegram` or any `--tg-*` variable**, which
+is still reason enough to drop the script: 140.5 KB transferred, from a host
+filtered in Iran, with a `preconnect` in the head.
 
 ### Main thread: a button that never stops repainting
 

@@ -24,6 +24,11 @@ export function navPath(key: NavKey): string {
   return NAV_PATHS[key];
 }
 
+/** Every destination the bar can reach, for prefetching them. */
+export function navPaths(): string[] {
+  return Object.values(NAV_PATHS);
+}
+
 export function navKeyFromPath(pathname: string): NavKey | null {
   const found = (Object.entries(NAV_PATHS) as [NavKey, string][]).find(([, path]) => path === pathname);
   return found?.[0] ?? null;
