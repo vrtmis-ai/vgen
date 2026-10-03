@@ -12,7 +12,14 @@ import { useI18n } from "../lib/i18n";
 import { grantedTotal } from "../lib/credits";
 
 /**
- * Fetch every tab's route before anyone clicks one.
+ * Everywhere this bar can send someone, which is more than the tabs: the
+ * wordmark goes to the landing page, the coin pill to the plans ladder, the
+ * avatar to the profile.
+ */
+const BAR_DESTINATIONS = ["/", "/plans", "/profile"];
+
+/**
+ * Fetch every one of those routes before anyone clicks.
  *
  * The bar navigates with `router.push` from a `<button>`, so none of this
  * happens on its own: `<Link>` is what Next prefetches, and there is no Link
@@ -30,7 +37,7 @@ function usePrefetchTabs(): void {
   const router = useRouter();
   useEffect(() => {
     const run = () => {
-      for (const path of navPaths()) router.prefetch(path);
+      for (const path of [...navPaths(), ...BAR_DESTINATIONS]) router.prefetch(path);
     };
     if (typeof window.requestIdleCallback !== "function") {
       const timer = window.setTimeout(run, 400);
